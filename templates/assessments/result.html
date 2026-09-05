@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment result · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<p class="eyebrow">Attempt {{ attempt.attempt_number }}</p>
+<h1>{{ attempt.assessment.title }}</h1>
+<section class="result-summary result-{{ attempt.outcome }}">
+  <h2>{{ attempt.get_outcome_display }}</h2>
+  <p class="result-score">{{ attempt.percentage }}%</p>
+  <p>{{ attempt.score }} of {{ attempt.maximum_score }} points · elapsed time recorded for information only</p>
+</section>
+<div class="response-list">
+  {% for response in attempt.responses.all %}
+    <article class="panel">
+      <h2>{{ forloop.counter }}. {{ response.question_version.prompt }}</h2>
+      <p><strong>{% if response.is_correct %}Correct{% else %}Needs review{% endif %}</strong></p>
+      {% if response.question_version.explanation %}<p>{{ response.question_version.explanation }}</p>{% endif %}
+      {% if not response.is_correct and response.question_version.remediation_resource %}
+        <p>Recommended: {% if response.question_version.remediation_resource.url %}<a href="{{ response.question_version.remediation_resource.url }}">{% endif %}{{ response.question_version.remediation_resource.title }}{% if response.question_version.remediation_resource.url %}</a>{% endif %}</p>
+      {% endif %}
+    </article>
+  {% endfor %}
+</div>
+<p><a class="primary-link" href="{% url 'roadmap' %}">Return to roadmap</a></p>
+{% endblock %}

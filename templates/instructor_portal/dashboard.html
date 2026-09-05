@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Instructor dashboard · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<p class="eyebrow">Instructor workspace</p>
+<h1>Student progress</h1>
+<p class="muted">Review progress and assessment evidence. Instructor feedback does not silently replace recorded attempts.</p>
+<div class="table-wrapper">
+  <table>
+    <thead><tr><th>Student</th><th>Programme</th><th>Status</th><th>Lessons recorded</th><th>Assessment attempts</th><th></th></tr></thead>
+    <tbody>
+      {% for enrolment in enrolments %}
+        <tr><td>{{ enrolment.student }}</td><td>{{ enrolment.programme_version.programme.name }}</td><td>{{ enrolment.get_status_display }}</td><td>{{ enrolment.lesson_progress.count }}</td><td>{{ enrolment.theory_attempts.count }}</td><td><a href="{% url 'instructor-student-detail' enrolment.pk %}">Review</a></td></tr>
+      {% empty %}<tr><td colspan="6">No enrolments are available.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

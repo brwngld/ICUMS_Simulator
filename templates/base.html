@@ -1,0 +1,37 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ICUMS Simulator{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  {% if user.is_authenticated %}
+    <div class="training-notice" role="note">TRAINING SIMULATOR — NOT OFFICIAL ICUMS</div>
+  {% endif %}
+  <header class="site-header">
+    <a class="brand" href="{% url 'dashboard' %}">ICUMS Simulator</a>
+    {% if user.is_authenticated %}
+      <nav class="top-nav" aria-label="Primary navigation">
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+        <a href="{% url 'roadmap' %}">Theory</a>
+        {% if can_access_practical %}<a href="{% url 'scenario-list' %}">Practical</a>{% endif %}
+        {% if can_access_instructor_portal %}<a href="{% url 'instructor-dashboard' %}">Instructor</a>{% endif %}
+        {% if user.is_staff %}<a href="{% url 'admin:index' %}">Administration</a>{% endif %}
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button class="link-button" type="submit">Sign out</button>
+        </form>
+      </nav>
+    {% endif %}
+  </header>
+  <main class="page-shell">
+    {% if messages %}
+      {% for message in messages %}<p class="message" role="status">{{ message }}</p>{% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

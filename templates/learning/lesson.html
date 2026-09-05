@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lesson.title }} · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<p class="eyebrow">{{ module.title }} · Lesson {{ lesson.order }}</p>
+<h1>{{ lesson.title }}</h1>
+{% if lesson.summary %}<p class="muted">{{ lesson.summary }}</p>{% endif %}
+<div class="lesson-layout">
+  <article class="reading-panel">
+    <p class="muted">Section {{ step_number }} of {{ step_count }}</p>
+    {% if current_block %}
+      <section class="content-block content-{{ current_block.kind }}">
+        {% if current_block.heading %}<h2>{{ current_block.heading }}</h2>{% endif %}
+        <div class="formatted-copy">{{ current_block.body|linebreaks }}</div>
+      </section>
+      {% for check in checks %}
+        <form method="post" class="knowledge-check panel">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="answer_check">
+          <input type="hidden" name="position" value="{{ position }}">
+          <input type="hidden" name="check_id" value="{{ check.pk }}">
+          <fieldset>
+            <legend>Check your understanding</legend>
+            <p>{{ check.question_version.prompt }}</p>
+            {% for option in check.question_version.options.all %}<label><input type="radio" name="option" value="{{ option.pk }}"> {{ option.label }}</label>{% endfor %}
+          </fieldset>
+          <button class="secondary-button" type="submit">Check response</button>
+        </form>
+      {% endfor %}
+    {% else %}<p>This lesson has no content blocks yet.</p>{% endif %}
+    <form method="post" class="lesson-actions">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="continue">
+      <input type="hidden" name="position" value="{{ position }}">
+      <a href="{% url 'roadmap' %}">Return to roadmap</a>
+      <button class="primary-button" type="submit">{% if step_number < step_count %}Continue{% else %}Complete lesson{% endif %}</button>
+    </form>
+  </article>
+  <aside class="panel">
+    <h2>Module lessons</h2>
+    <ol class="lesson-list">
+      {% for item in module.lessons.all %}{% if item.is_published %}<li{% if item.pk == lesson.pk %} aria-current="step"{% endif %}>{{ item.title }}</li>{% endif %}{% endfor %}
+    </ol>
+    <p class="muted">Saved section: {{ progress.last_position|add:1 }}</p>
+    {% if lesson.resources.exists %}<h2>Resources</h2><ul>{% for resource in lesson.resources.all %}<li>{% if resource.url %}<a href="{{ resource.url }}">{{ resource.title }}</a>{% else %}{{ resource.title }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+  </aside>
+</div>
+{% endblock %}

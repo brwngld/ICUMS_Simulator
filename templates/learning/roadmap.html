@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Theory roadmap · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<p class="eyebrow">{{ enrolment.programme_version.programme.name }}</p>
+<h1>Theory roadmap</h1>
+<p class="muted">Complete each required module in order. Completed material remains available for review.</p>
+<div class="roadmap-list">
+  {% for item in module_summaries %}
+    <article class="panel roadmap-item">
+      <div><p class="eyebrow">Module {{ forloop.counter }}</p><h2>{{ item.module.title }}</h2><p>{{ item.module.description }}</p></div>
+      <div>
+        <p><strong>{{ item.percentage }}%</strong> · {{ item.completed_count }}/{{ item.lesson_count }} lessons</p>
+        {% if item.unlocked %}
+          {% if item.first_lesson %}<a class="primary-link" href="{% url 'lesson-detail' item.module.code item.first_lesson.slug %}">Start or review</a>{% endif %}
+        {% else %}<p class="muted">Locked until {{ item.module.prerequisite.title }} is passed.</p>{% endif %}
+      </div>
+    </article>
+  {% empty %}<article class="panel"><p>No published theory modules are available.</p></article>{% endfor %}
+</div>
+{% if final_assessment %}
+  <section class="panel account-panel">
+    <p class="eyebrow">Final theory examination</p>
+    <h2>{{ final_assessment.title }}</h2>
+    {% if theory_completed %}<a class="primary-link" href="{% url 'assessment-take' final_assessment.pk %}">Start final theory examination</a>{% else %}<p class="muted">Complete every theory module to unlock this examination.</p>{% endif %}
+  </section>
+{% endif %}
+{% endblock %}

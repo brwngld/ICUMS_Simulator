@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Practical training · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<p class="eyebrow">Practical training</p>
+<h1>Customs training scenarios</h1>
+<p class="muted">All transactions are fictitious. Scenario screens may be conceptual until validated against permitted reference material.</p>
+<div class="module-grid">
+  {% for version in scenario_versions %}
+    <article class="panel">
+      <p class="eyebrow">{{ version.scenario.get_area_display }} · {{ version.get_assistance_mode_display }}</p>
+      <h2>{{ version.scenario.title }}</h2>
+      <p>{{ version.learning_objective }}</p>
+      <p class="muted">Structure: {{ version.get_reference_status_display }}</p>
+      <a class="primary-link" href="{% url 'scenario-detail' version.pk %}">View scenario</a>
+    </article>
+  {% empty %}<article class="panel"><p>No practical scenarios are published yet.</p></article>{% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<p class="eyebrow">Student dashboard</p>
+<h1>Welcome, {{ user.get_full_name|default:user.username }}</h1>
+{% if enrolment %}
+  <p class="muted">Continue {{ enrolment.programme_version.programme.name }}.</p>
+  <div class="module-grid">
+    {% for item in module_summaries %}
+      <article class="panel">
+        <p class="eyebrow">Module {{ forloop.counter }}</p>
+        <h2>{{ item.module.title }}</h2>
+        <p>{{ item.module.description }}</p>
+        <div class="progress-track" role="progressbar" aria-label="{{ item.module.title }} progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ item.percentage }}"><span style="width: {{ item.percentage }}%"></span></div>
+        <p class="muted">{{ item.completed_count }} of {{ item.lesson_count }} lessons completed</p>
+        {% if item.unlocked %}
+          {% if item.first_lesson %}<a class="primary-link" href="{% url 'lesson-detail' item.module.code item.first_lesson.slug %}">Open module</a>{% endif %}
+        {% else %}<p><strong>Locked:</strong> complete {{ item.module.prerequisite.title }} first.</p>{% endif %}
+      </article>
+    {% empty %}
+      <article class="panel"><h2>Content is being prepared</h2><p>Your programme has no published modules yet.</p></article>
+    {% endfor %}
+  </div>
+  {% if final_assessment and not programme_progress.orientation_unlocked_at %}
+    <section class="panel account-panel"><p class="eyebrow">Final theory examination</p><h2>{{ final_assessment.title }}</h2><p>Open the theory roadmap to see whether all prerequisites are complete.</p><a class="primary-link" href="{% url 'roadmap' %}">View theory roadmap</a></section>
+  {% endif %}
+  {% if programme_progress.orientation_unlocked_at %}
+    <section class="panel account-panel">
+      <p class="eyebrow">Simulator orientation</p>
+      <h2>{% if programme_progress.orientation_completed_at %}Orientation completed{% else %}Orientation unlocked{% endif %}</h2>
+      <p>Your theory requirement has been completed.</p>
+      <a class="primary-link" href="{% url 'orientation' %}">{% if programme_progress.orientation_completed_at %}Review orientation{% else %}Start orientation{% endif %}</a>
+    </section>
+  {% endif %}
+{% else %}
+  <section class="panel"><h2>No active enrolment</h2><p>An administrator needs to enrol this account in a programme.</p></section>
+{% endif %}
+
+<section class="panel account-panel" aria-labelledby="account-heading">
+  <h2 id="account-heading">Account access</h2>
+  {% if role_names %}
+    <ul>
+      {% for role_name in role_names %}<li>{{ role_name }}</li>{% endfor %}
+    </ul>
+  {% else %}
+    <p>No training role has been assigned yet. Contact an administrator.</p>
+  {% endif %}
+  {% if user.is_staff %}<p><a href="{% url 'admin:index' %}">Open administration</a></p>{% endif %}
+</section>
+{% endblock %}

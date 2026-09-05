@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Simulator notice · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<section class="reading-panel" aria-labelledby="notice-heading">
+  <p class="eyebrow">Required acknowledgement</p>
+  <h1 id="notice-heading">{{ disclaimer.title }}</h1>
+  <div class="formatted-copy">{{ disclaimer.body|linebreaks }}</div>
+  <form method="post" class="acknowledgement-form">
+    {% csrf_token %}
+    <label><input type="checkbox" name="accept" value="yes" required> I understand that this is a training simulator and not the official ICUMS system.</label>
+    <button class="primary-button" type="submit">Accept and continue</button>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,11 @@
+.venv/
+.tmp/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+local_data/
+.env
+*.sqlite3
+staticfiles/

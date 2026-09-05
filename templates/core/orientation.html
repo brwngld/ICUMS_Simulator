@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Simulator orientation · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<p class="eyebrow">Required orientation</p>
+<h1>Using the training simulator</h1>
+<section class="reading-panel formatted-copy">
+  <h2>Know where you are</h2>
+  <p>The simulator will use structurally familiar training screens while remaining visually distinct from the real ICUMS website.</p>
+  <h2>Training actions have no official effect</h2>
+  <p>Every transaction, document, status, payment, and release in this application is fictitious. Nothing is sent to customs, a shipping line, a terminal, or another external party.</p>
+  <h2>Assistance changes by mode</h2>
+  <p>Beginner practice includes guidance. Intermediate and Advanced practice progressively reduce assistance. Competency assessment requires independent work.</p>
+  {% if programme_progress.orientation_completed_at %}
+    <p><strong>Orientation completed.</strong></p>
+  {% else %}
+    <form method="post">{% csrf_token %}<button class="primary-button" type="submit">I understand — complete orientation</button></form>
+  {% endif %}
+</section>
+{% endblock %}

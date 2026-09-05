@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}{{ assessment.title }} · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<p class="eyebrow">Untimed theory assessment</p>
+<h1>{{ assessment.title }}</h1>
+<p class="muted">Attempt {{ attempt.attempt_number }}. Answer every question, then submit. Time is recorded for insight but never affects your result.</p>
+<form method="post" class="assessment-form">
+  {% csrf_token %}
+  {% for item in attempt.items.all %}
+    <fieldset class="panel question-panel">
+      <legend>{{ forloop.counter }}. {{ item.question_version.prompt }}</legend>
+      {% for option in item.question_version.options.all %}
+        <label><input type="radio" name="{{ item.question_version.pk }}" value="{{ option.pk }}" required> {{ option.label }}</label>
+      {% endfor %}
+    </fieldset>
+  {% empty %}<p role="alert">This assessment has no published questions.</p>{% endfor %}
+  {% if assessment.items.exists %}<button class="primary-button" type="submit">Submit assessment</button>{% endif %}
+</form>
+{% endblock %}

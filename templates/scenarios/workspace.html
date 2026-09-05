@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ attempt.scenario_version.scenario.title }} · Practical{% endblock %}
+
+{% block content %}
+<div class="simulator-heading">
+  <div><p class="eyebrow">{{ attempt.scenario_version.scenario.get_area_display }} · {{ attempt.get_assistance_mode_display }} · Attempt {{ attempt.attempt_number }}</p><h1>{{ attempt.scenario_version.scenario.title }}</h1><p class="muted">Saved {{ attempt.last_saved_at }}</p></div>
+  <span class="status-label">{{ attempt.get_status_display }}</span>
+</div>
+<p class="reference-label"><strong>Training layout:</strong> {{ attempt.scenario_version.get_reference_status_display }}. This is not a live ICUMS transaction.</p>
+
+<div class="simulator-workspace">
+  <aside class="workflow-panel">
+    <h2>Workflow</h2>
+    <ol class="workflow-list">
+      {% for state in attempt.scenario_version.states.all %}<li{% if state.pk == attempt.current_state_id %} aria-current="step"{% endif %}>{{ state.label }}</li>{% endfor %}
+    </ol>
+  </aside>
+
+  <section class="transaction-panel">
+    <p class="eyebrow">Current status</p>
+    <h2>{{ attempt.current_state.label }}</h2>
+    {% if attempt.assistance_mode == "beginner" or attempt.assistance_mode == "intermediate" %}<p>{{ attempt.current_state.guidance }}</p>{% endif %}
+    <h3>Available actions</h3>
+    <div class="action-list">
+      {% for action in available_actions %}
+        <form method="post" action="{% url 'scenario-action' attempt.pk action.pk %}">{% csrf_token %}<button class="primary-button" type="submit">{{ action.label }}</button></form>
+      {% empty %}<p>No actions are currently available.</p>{% endfor %}
+    </div>
+    {% if attempt.status == "in_progress" and attempt.assistance_mode != "advanced" and attempt.assistance_mode != "competency" %}
+      <form method="post" action="{% url 'scenario-hint' attempt.pk %}">{% csrf_token %}<button class="secondary-button" type="submit">Request a hint</button></form>
+    {% endif %}
+    {% if attempt.status == "completed" %}<p class="completion-callout"><strong>Scenario complete.</strong> Your full action history has been retained.</p>{% endif %}
+  </section>
+
+  <aside class="document-panel">
+    <h2>Fictitious documents</h2>
+    {% for document in attempt.scenario_version.documents.all %}
+      <details{% if forloop.first %} open{% endif %}>
+        <summary>{{ document.title }}</summary>
+        <p class="muted">{{ document.document_type }} · {{ document.reference }}</p>
+        <dl>{% for key, value in document.learner_data.items %}<dt>{{ key }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+      </details>
+    {% empty %}<p>No documents are attached.</p>{% endfor %}
+  </aside>
+</div>
+
+<section class="panel action-history">
+  <h2>Recorded activity</h2>
+  <ol>{% for action in attempt.actions.all %}<li><strong>{{ action.action_code }}</strong> — {{ action.state_before }} → {{ action.state_after }}</li>{% empty %}<li>No actions recorded yet.</li>{% endfor %}</ol>
+</section>
+{% endblock %}
