@@ -12,8 +12,8 @@ class ScenarioAdmin(admin.ModelAdmin):
 
 @admin.register(ScenarioVersion)
 class ScenarioVersionAdmin(admin.ModelAdmin):
-    list_display = ("scenario", "version", "status", "assistance_mode", "reference_status")
-    list_filter = ("status", "assistance_mode", "reference_status")
+    list_display = ("scenario", "version", "status", "purpose", "assistance_mode", "reference_status")
+    list_filter = ("status", "purpose", "assistance_mode", "reference_status")
 
     def has_change_permission(self, request, obj=None):
         return not obj or obj.status == ScenarioVersion.Status.DRAFT

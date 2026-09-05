@@ -28,6 +28,7 @@ h1, h2 { font-weight: 600; }
 .error { color: #b42318; }
 .stacked-form { display: grid; gap: .65rem; margin-top: 1.5rem; }
 input { width: 100%; padding: .75rem; border: 1px solid var(--border); border-radius: .4rem; color: var(--text); background: var(--page); font: inherit; }
+textarea, select { width: 100%; padding: .75rem; border: 1px solid var(--border); border-radius: .4rem; color: var(--text); background: var(--page); font: inherit; }
 .primary-button, .secondary-button { margin-top: .5rem; padding: .75rem 1rem; border-radius: .4rem; font: inherit; font-weight: 700; cursor: pointer; }
 .primary-button { border: 0; color: #fff; background: var(--accent); }
 .secondary-button { border: 1px solid var(--border); color: var(--text); background: var(--panel); }
@@ -92,6 +93,8 @@ th { color: var(--muted); font-size: .85rem; }
 .document-panel dd { margin: 0; overflow-wrap: anywhere; }
 .completion-callout { margin-top: 1.5rem; padding: 1rem; background: color-mix(in srgb, var(--accent), transparent 88%); }
 .action-history { max-width: none; margin-top: 1rem; }
+.instructor-evaluation-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem; }
+.instructor-evaluation-tools .panel { max-width: none; }
 @media (max-width: 64rem) {
   .simulator-workspace { grid-template-columns: 13rem minmax(0, 1fr); }
   .document-panel { grid-column: 1 / -1; border-top: 1px solid var(--border); border-left: 0; }
@@ -101,4 +104,5 @@ th { color: var(--muted); font-size: .85rem; }
   .simulator-workspace { grid-template-columns: 1fr; }
   .workflow-panel { border-right: 0; border-bottom: 1px solid var(--border); }
   .document-panel { grid-column: auto; }
+  .instructor-evaluation-tools { grid-template-columns: 1fr; }
 }

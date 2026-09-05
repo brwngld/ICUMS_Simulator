@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Practical result · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<p class="eyebrow">Practical result · Attempt {{ evaluation.attempt.attempt_number }}</p>
+<h1>{{ evaluation.attempt.scenario_version.scenario.title }}</h1>
+{% if evaluation.rubric_version.is_demonstration %}<p class="reference-label"><strong>Demonstration evaluation:</strong> this rubric is fictional and is not an approved customs competency standard.</p>{% endif %}
+<section class="result-summary result-{{ evaluation.effective_outcome }}">
+  <h2>Effective result: {{ evaluation.effective_outcome|title }}</h2>
+  <p class="result-score">{{ evaluation.system_percentage }}%</p>
+  <p>System evaluation: {{ evaluation.get_system_outcome_display }} · {{ evaluation.system_score }}/{{ evaluation.maximum_score }} points</p>
+  <p>Elapsed time: {{ evaluation.elapsed_seconds }} seconds. Time is informational and is not part of the score.</p>
+</section>
+
+<h2>Competency evidence</h2>
+<div class="response-list">
+  {% for result in evaluation.criterion_results.all %}
+    <article class="panel">
+      <p class="eyebrow">{{ result.criterion.get_dimension_display }}</p>
+      <h3>{{ result.criterion.title }}</h3>
+      <p><strong>{% if result.passed %}Criterion met{% else %}Needs further work{% endif %}</strong> · {{ result.awarded_points }}/{{ result.criterion.maximum_points }} points{% if result.criterion.mandatory %} · Mandatory{% endif %}</p>
+      <p>{{ result.feedback }}</p>
+    </article>
+  {% endfor %}
+</div>
+
+{% if evaluation.remediation_recommendations.exists %}
+  <section class="panel account-panel"><h2>Recommended remediation</h2><ul>{% for item in evaluation.remediation_recommendations.all %}<li>{{ item.reason }}{% if item.resource %} Resource: {{ item.resource.title }}.{% endif %}{% if item.scenario_version %} Practice: {{ item.scenario_version.scenario.title }}.{% endif %}</li>{% endfor %}</ul></section>
+{% endif %}
+
+{% if feedback %}<section class="panel account-panel"><h2>Instructor feedback</h2>{% for item in feedback %}<article><p>{{ item.body }}</p><p class="muted">{{ item.instructor }} · {{ item.created_at }}</p></article>{% endfor %}</section>{% endif %}
+
+{% if evaluation.revisions.exists %}<section class="panel account-panel"><h2>Evaluation revisions</h2><ol>{% for revision in evaluation.revisions.all %}<li>{{ revision.original_outcome|title }} → {{ revision.revised_outcome|title }} by {{ revision.instructor }}: {{ revision.reason }}</li>{% endfor %}</ol></section>{% endif %}
+
+{% if instructor_view %}
+  <div class="instructor-evaluation-tools">
+    <form method="post" action="{% url 'practical-evaluation-feedback' evaluation.pk %}" class="panel stacked-form">
+      {% csrf_token %}<h2>Add feedback</h2><label for="feedback-body">Feedback</label><textarea id="feedback-body" name="body" required></textarea><label><input type="checkbox" name="visible_to_student" value="yes" checked> Visible to student</label><button class="primary-button" type="submit">Record feedback</button>
+    </form>
+    <form method="post" action="{% url 'practical-evaluation-override' evaluation.pk %}" class="panel stacked-form">
+      {% csrf_token %}<h2>Revise outcome</h2><p>The original system result is preserved.</p><label for="revised-outcome">Revised outcome</label><select id="revised-outcome" name="outcome"><option value="pass">Pass</option><option value="fail">Fail</option></select><label for="revision-reason">Reason</label><textarea id="revision-reason" name="reason" required minlength="10"></textarea><button class="primary-button" type="submit">Record revision</button>
+    </form>
+  </div>
+{% endif %}
+{% endblock %}

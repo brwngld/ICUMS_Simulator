@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "progress.apps.ProgressConfig",
     "instructor_portal.apps.InstructorPortalConfig",
     "scenarios.apps.ScenariosConfig",
+    "evaluations.apps.EvaluationsConfig",
 ]
 
 MIDDLEWARE = [

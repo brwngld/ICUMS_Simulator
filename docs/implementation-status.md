@@ -2,7 +2,7 @@
 
 ## Verified on 4 September 2026
 
-The current implementation passes Django's system checks, has no ungenerated model changes, and passes 25 automated tests.
+The current implementation passes Django's system checks, has no ungenerated model changes, and passes 30 automated tests.
 
 ## Phase 1 foundation
 
@@ -62,7 +62,7 @@ Backup/restore automation and packaged local production serving remain Phase 1 o
 
 ## Next recommended implementation increment
 
-Review the complete fictional theory and guided practical journey in the browser, then begin Phase 4 practical evaluation and remediation. Actual ICUMS-like practical layouts remain blocked on permitted reference material or subject-matter-expert walkthroughs.
+Review the complete fictional theory, guided practical, and evidence-based result journey in the browser. The next implementation increment should strengthen operational readiness and then begin Phase 5 completion records, competency reports, and certificate issuance. Actual ICUMS-like practical layouts remain blocked on permitted reference material or subject-matter-expert walkthroughs.
 
 ## Phase 3 practical engine
 
@@ -89,5 +89,31 @@ Review the complete fictional theory and guided practical journey in the browser
 - The seeded Import workflow is illustrative, not an authoritative customs rule.
 - The practical layout is conceptual and not yet structurally validated against real ICUMS references.
 - Structured document displays are implemented; PDF/image document viewing comes later.
-- Restart policies and formal practical-attempt limits are not yet configurable.
-- Practical scoring, competency reports, and remediation belong to Phase 4.
+- Practical attempt limits are configurable; more detailed restart/abandonment policies remain future work.
+- Practical screen structure remains conceptual.
+
+## Phase 4 practical evaluation
+
+- Versioned scenario-specific rubrics and ordered competency criteria
+- Accuracy, document review, procedure, decision-making, correction, assistance, and completion dimensions
+- Declarative completion, required-action, state-flag, and assistance-limit rules
+- Configurable points, mandatory criteria, and pass threshold
+- Automatic evaluation when a scenario reaches its terminal state
+- Criterion-level evidence, score, result, and learner-facing feedback
+- Strength/weakness presentation through passed and unmet criteria
+- Informational elapsed time explicitly excluded from scoring
+- Remediation links to theory resources and alternative scenario versions
+- Demonstration-rubric warning to prevent provisional policy becoming official
+- Instructor feedback with student-visible and private-note options
+- Audited instructor pass/fail revisions that preserve the original system outcome
+- Practical Practice, Module Assessment, and Competency Assessment classifications
+- Competency-mode validation and configurable practical attempt limits
+- Student result view and instructor evaluation access
+
+## Phase 4 decisions still TBC
+
+- Approved practical criteria, weights, pass percentage, and mandatory failures
+- Whether particular uses of assistance affect a formal competency decision
+- Approved remediation mappings
+- Which practical assessments require instructor approval
+- Exact competency-report language and sign-off requirements

@@ -42,6 +42,6 @@ Implementation should begin only after this planning baseline has been reviewed.
 
 ## Current implementation status
 
-Phase 1 foundation work, the Phase 2 theory journey, and the first Phase 3 practical-engine increment are operational with fictional content. The repository now includes versioned declarative scenarios, structured fictitious documents, conditional and parallel actions, mode-based assistance, append-only action evidence, save/resume, and a guided fictional Import workflow through simulated gate out. Practical layouts remain conceptual until validated against permitted reference material.
+Phase 1 foundation work, the Phase 2 theory journey, the Phase 3 practical engine, and the configurable Phase 4 evaluation layer are operational with fictional content. The repository now includes versioned declarative scenarios and rubrics, structured fictitious documents, conditional and parallel actions, mode-based assistance, append-only action evidence, save/resume, criterion-level results, remediation, instructor feedback, audited outcome revisions, and a guided fictional Import workflow through simulated gate out. Practical layouts and competency rules remain conceptual until validated.
 
 See [implementation status](docs/implementation-status.md) for verified capabilities and remaining work.

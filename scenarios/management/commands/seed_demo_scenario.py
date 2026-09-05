@@ -2,6 +2,8 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from evaluations.models import Rubric, RubricCriterion, RubricVersion
+from learning.models import Resource
 from scenarios.models import Scenario, ScenarioActionDefinition, ScenarioDocument, ScenarioState, ScenarioVersion
 
 
@@ -20,6 +22,7 @@ class Command(BaseCommand):
             defaults={
                 "status": ScenarioVersion.Status.PUBLISHED,
                 "assistance_mode": ScenarioVersion.AssistanceMode.BEGINNER,
+                "purpose": ScenarioVersion.Purpose.PRACTICE,
                 "reference_status": ScenarioVersion.ReferenceStatus.CONCEPTUAL,
                 "briefing": "Review a fictitious shipment, progress through the simulated office and field stages, and complete gate out. This workflow is illustrative and awaits subject-matter validation.",
                 "learning_objective": "Demonstrate awareness of the major Import workflow stages, document consistency, prerequisites, and parallel shipping-line activity.",
@@ -120,4 +123,71 @@ class Command(BaseCommand):
                 document_type=document_type,
                 defaults={"title": title, "reference": reference, "learner_data": learner_data, "evaluator_data": evaluator_data, "order": order},
             )
+        rubric, _ = Rubric.objects.update_or_create(
+            code="fictional-import-demonstration",
+            defaults={"title": "Fictional Import Demonstration Rubric"},
+        )
+        rubric_version, _ = RubricVersion.objects.update_or_create(
+            rubric=rubric,
+            version=1,
+            defaults={
+                "scenario_version": version,
+                "status": RubricVersion.Status.PUBLISHED,
+                "pass_percentage": 70,
+                "is_demonstration": True,
+                "published_at": timezone.now(),
+            },
+        )
+        remediation_resource = Resource.objects.filter(title="Document consistency review").first()
+        criteria = [
+            {
+                "code": "complete-workflow",
+                "title": "Complete the simulated workflow",
+                "dimension": RubricCriterion.Dimension.COMPLETION,
+                "maximum_points": 20,
+                "mandatory": True,
+                "evaluation_rule": {"type": "completion"},
+                "order": 1,
+            },
+            {
+                "code": "document-review",
+                "title": "Identify and resolve the document discrepancy",
+                "dimension": RubricCriterion.Dimension.DOCUMENT_REVIEW,
+                "maximum_points": 25,
+                "mandatory": True,
+                "evaluation_rule": {"type": "required_actions", "action_codes": ["record-document-mismatch", "resolve-document-mismatch"]},
+                "remediation_resource": remediation_resource,
+                "order": 2,
+            },
+            {
+                "code": "main-procedure",
+                "title": "Follow the main simulated procedure",
+                "dimension": RubricCriterion.Dimension.PROCEDURE,
+                "maximum_points": 35,
+                "mandatory": True,
+                "evaluation_rule": {"type": "required_actions", "action_codes": ["create-ucr", "create-emda", "create-boe", "submit-boe", "accept-assessment", "record-tax-payment", "complete-field-clearance", "gate-out"]},
+                "order": 3,
+            },
+            {
+                "code": "shipping-line-branch",
+                "title": "Complete parallel shipping-line activity",
+                "dimension": RubricCriterion.Dimension.DECISION_MAKING,
+                "maximum_points": 10,
+                "mandatory": True,
+                "evaluation_rule": {"type": "state_flags", "equals": {"shipping_release_requested": True}},
+                "order": 4,
+            },
+            {
+                "code": "assistance-awareness",
+                "title": "Work with limited assistance",
+                "dimension": RubricCriterion.Dimension.ASSISTANCE,
+                "maximum_points": 10,
+                "mandatory": False,
+                "evaluation_rule": {"type": "assistance_limit", "maximum_events": 2, "deduction_per_extra": 2},
+                "order": 5,
+            },
+        ]
+        for criterion_data in criteria:
+            code = criterion_data.pop("code")
+            RubricCriterion.objects.update_or_create(rubric_version=rubric_version, code=code, defaults=criterion_data)
         self.stdout.write(self.style.SUCCESS("Seeded the fictional guided Import scenario."))

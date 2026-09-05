@@ -9,7 +9,7 @@
 <div class="module-grid">
   {% for version in scenario_versions %}
     <article class="panel">
-      <p class="eyebrow">{{ version.scenario.get_area_display }} · {{ version.get_assistance_mode_display }}</p>
+      <p class="eyebrow">{{ version.scenario.get_area_display }} · {{ version.get_purpose_display }} · {{ version.get_assistance_mode_display }}</p>
       <h2>{{ version.scenario.title }}</h2>
       <p>{{ version.learning_objective }}</p>
       <p class="muted">Structure: {{ version.get_reference_status_display }}</p>

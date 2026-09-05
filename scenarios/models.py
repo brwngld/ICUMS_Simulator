@@ -40,11 +40,18 @@ class ScenarioVersion(models.Model):
         ADAPTED = "adapted", "Deliberately adapted"
         TBC = "tbc", "To be confirmed"
 
+    class Purpose(models.TextChoices):
+        PRACTICE = "practice", "Practice"
+        MODULE_ASSESSMENT = "module_assessment", "Practical module assessment"
+        COMPETENCY = "competency", "Practical competency assessment"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     scenario = models.ForeignKey(Scenario, on_delete=models.PROTECT, related_name="versions")
     version = models.PositiveIntegerField()
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
     assistance_mode = models.CharField(max_length=16, choices=AssistanceMode.choices, default=AssistanceMode.BEGINNER)
+    purpose = models.CharField(max_length=20, choices=Purpose.choices, default=Purpose.PRACTICE)
+    maximum_attempts = models.PositiveIntegerField(blank=True, null=True, help_text="Leave blank for unlimited attempts.")
     reference_status = models.CharField(max_length=16, choices=ReferenceStatus.choices, default=ReferenceStatus.CONCEPTUAL)
     briefing = models.TextField()
     learning_objective = models.TextField()
@@ -62,6 +69,8 @@ class ScenarioVersion(models.Model):
         super().clean()
         if not isinstance(self.initial_data, dict):
             raise ValidationError({"initial_data": "Initial data must be a JSON object."})
+        if self.purpose == self.Purpose.COMPETENCY and self.assistance_mode != self.AssistanceMode.COMPETENCY:
+            raise ValidationError({"assistance_mode": "A competency assessment must use Competency assistance mode."})
 
 
 class ScenarioState(models.Model):

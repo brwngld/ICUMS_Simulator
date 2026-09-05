@@ -1,11 +1,14 @@
 import pytest
 from django.contrib.auth.models import Group
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.management import call_command
 from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import User
+from audit.models import AuditEvent
+from evaluations.models import PracticalEvaluation, RemediationRecommendation, Rubric, RubricCriterion, RubricVersion
+from evaluations.services import add_feedback, revise_outcome
 from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
 from progress.models import ProgrammeProgress
 from scenarios.models import AssistanceEvent, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion
@@ -209,3 +212,110 @@ def test_seeded_import_scenario_reaches_gate_out_with_parallel_shipping_work(sce
     assert attempt.current_state.key == "gate-out"
     assert attempt.actions.count() == 13
     assert attempt.state_data["shipping_release_requested"] is True
+    evaluation = attempt.evaluation
+    assert evaluation.system_score == 100
+    assert evaluation.maximum_score == 100
+    assert evaluation.system_percentage == 100
+    assert evaluation.system_outcome == PracticalEvaluation.Outcome.PASS
+    assert evaluation.elapsed_seconds >= 0
+
+
+@pytest.mark.django_db
+def test_mandatory_criterion_failure_creates_remediation(scenario_setup):
+    rubric = Rubric.objects.create(code="test-rubric", title="Test Rubric")
+    rubric_version = RubricVersion.objects.create(
+        rubric=rubric,
+        version=1,
+        scenario_version=scenario_setup["scenario_version"],
+        status=RubricVersion.Status.PUBLISHED,
+        pass_percentage=50,
+        is_demonstration=True,
+    )
+    criterion = RubricCriterion.objects.create(
+        rubric_version=rubric_version,
+        code="missing-required-action",
+        title="Required action",
+        dimension=RubricCriterion.Dimension.PROCEDURE,
+        maximum_points=100,
+        mandatory=True,
+        evaluation_rule={"type": "required_actions", "action_codes": ["action-never-performed"]},
+        remediation_scenario=scenario_setup["scenario_version"],
+    )
+    attempt, _ = start_or_resume_attempt(scenario_setup["enrolment"], scenario_setup["scenario_version"])
+    attempt = perform_action(attempt, scenario_setup["parallel"])
+    attempt = perform_action(attempt, scenario_setup["first"])
+    attempt = perform_action(attempt, scenario_setup["finish"])
+    evaluation = attempt.evaluation
+    assert evaluation.system_outcome == PracticalEvaluation.Outcome.FAIL
+    result = evaluation.criterion_results.get(criterion=criterion)
+    assert result.passed is False
+    assert result.evidence["missing"] == ["action-never-performed"]
+    assert RemediationRecommendation.objects.filter(evaluation=evaluation, criterion_result=result, scenario_version=scenario_setup["scenario_version"]).exists()
+
+
+@pytest.mark.django_db
+def test_instructor_revision_preserves_system_result_and_creates_audit_event(scenario_setup):
+    rubric = Rubric.objects.create(code="override-rubric", title="Override Rubric")
+    rubric_version = RubricVersion.objects.create(rubric=rubric, version=1, scenario_version=scenario_setup["scenario_version"], status=RubricVersion.Status.PUBLISHED, pass_percentage=100)
+    RubricCriterion.objects.create(rubric_version=rubric_version, code="completion", title="Completion", dimension=RubricCriterion.Dimension.COMPLETION, maximum_points=100, mandatory=True, evaluation_rule={"type": "completion"})
+    attempt, _ = start_or_resume_attempt(scenario_setup["enrolment"], scenario_setup["scenario_version"])
+    attempt = perform_action(attempt, scenario_setup["parallel"])
+    attempt = perform_action(attempt, scenario_setup["first"])
+    attempt = perform_action(attempt, scenario_setup["finish"])
+    evaluation = attempt.evaluation
+    assert evaluation.system_outcome == PracticalEvaluation.Outcome.PASS
+    instructor = User.objects.create_user(username="reviewer", email="reviewer@example.test", password="test-password")
+    instructor.groups.add(Group.objects.get(name="Instructor"))
+    revision = revise_outcome(evaluation, instructor, PracticalEvaluation.Outcome.FAIL, "Required professional review found a material concern.")
+    evaluation.refresh_from_db()
+    assert evaluation.system_outcome == PracticalEvaluation.Outcome.PASS
+    assert evaluation.effective_outcome == PracticalEvaluation.Outcome.FAIL
+    assert revision.original_outcome == PracticalEvaluation.Outcome.PASS
+    assert AuditEvent.objects.filter(actor=instructor, action_code="practical_evaluation.revised", target_id=str(evaluation.pk)).exists()
+
+
+@pytest.mark.django_db
+def test_instructor_feedback_visibility_is_respected(client, scenario_setup):
+    attempt, _ = start_or_resume_attempt(scenario_setup["enrolment"], scenario_setup["scenario_version"])
+    instructor = User.objects.create_user(username="feedback-instructor", email="feedback@example.test", password="test-password")
+    instructor.groups.add(Group.objects.get(name="Instructor"))
+    visible = add_feedback(attempt, instructor, "Visible coaching feedback.", True)
+    hidden = add_feedback(attempt, instructor, "Private instructor note.", False)
+    assert visible.visible_to_student is True and hidden.visible_to_student is False
+    client.force_login(scenario_setup["user"])
+    # An evaluation is required for the result view, so feedback privacy is also
+    # asserted directly at the relation boundary before a rubric is attached.
+    assert list(attempt.instructor_feedback.filter(visible_to_student=True).values_list("body", flat=True)) == ["Visible coaching feedback."]
+
+
+@pytest.mark.django_db
+def test_scenario_attempt_limit_is_enforced_after_completion(scenario_setup):
+    version = scenario_setup["scenario_version"]
+    version.maximum_attempts = 1
+    version.save(update_fields=("maximum_attempts",))
+    attempt, _ = start_or_resume_attempt(scenario_setup["enrolment"], version)
+    attempt = perform_action(attempt, scenario_setup["parallel"])
+    attempt = perform_action(attempt, scenario_setup["first"])
+    perform_action(attempt, scenario_setup["finish"])
+    with pytest.raises(PermissionDenied):
+        start_or_resume_attempt(scenario_setup["enrolment"], version)
+
+
+@pytest.mark.django_db
+def test_student_can_view_evaluation_but_cannot_override_it(client, scenario_setup):
+    rubric = Rubric.objects.create(code="view-rubric", title="View Rubric")
+    rubric_version = RubricVersion.objects.create(rubric=rubric, version=1, scenario_version=scenario_setup["scenario_version"], status=RubricVersion.Status.PUBLISHED, pass_percentage=100)
+    RubricCriterion.objects.create(rubric_version=rubric_version, code="completion", title="Completion", dimension=RubricCriterion.Dimension.COMPLETION, maximum_points=100, mandatory=True, evaluation_rule={"type": "completion"})
+    attempt, _ = start_or_resume_attempt(scenario_setup["enrolment"], scenario_setup["scenario_version"])
+    attempt = perform_action(attempt, scenario_setup["parallel"])
+    attempt = perform_action(attempt, scenario_setup["first"])
+    attempt = perform_action(attempt, scenario_setup["finish"])
+    evaluation = attempt.evaluation
+    client.force_login(scenario_setup["user"])
+    detail_url = reverse("practical-evaluation", args=(evaluation.pk,))
+    response = client.get(detail_url)
+    assert response.status_code == 200
+    assert b"Demonstration evaluation" in response.content
+    override_url = reverse("practical-evaluation-override", args=(evaluation.pk,))
+    assert client.post(override_url, {"outcome": "fail", "reason": "Student cannot revise this result."}).status_code == 403
+    assert evaluation.revisions.count() == 0

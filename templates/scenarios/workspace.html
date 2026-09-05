@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="simulator-heading">
-  <div><p class="eyebrow">{{ attempt.scenario_version.scenario.get_area_display }} · {{ attempt.get_assistance_mode_display }} · Attempt {{ attempt.attempt_number }}</p><h1>{{ attempt.scenario_version.scenario.title }}</h1><p class="muted">Saved {{ attempt.last_saved_at }}</p></div>
+  <div><p class="eyebrow">{{ attempt.scenario_version.scenario.get_area_display }} · {{ attempt.scenario_version.get_purpose_display }} · {{ attempt.get_assistance_mode_display }} · Attempt {{ attempt.attempt_number }}</p><h1>{{ attempt.scenario_version.scenario.title }}</h1><p class="muted">Saved {{ attempt.last_saved_at }}</p></div>
   <span class="status-label">{{ attempt.get_status_display }}</span>
 </div>
 <p class="reference-label"><strong>Training layout:</strong> {{ attempt.scenario_version.get_reference_status_display }}. This is not a live ICUMS transaction.</p>
@@ -30,7 +30,7 @@
     {% if attempt.status == "in_progress" and attempt.assistance_mode != "advanced" and attempt.assistance_mode != "competency" %}
       <form method="post" action="{% url 'scenario-hint' attempt.pk %}">{% csrf_token %}<button class="secondary-button" type="submit">Request a hint</button></form>
     {% endif %}
-    {% if attempt.status == "completed" %}<p class="completion-callout"><strong>Scenario complete.</strong> Your full action history has been retained.</p>{% endif %}
+    {% if attempt.status == "completed" %}<p class="completion-callout"><strong>Scenario complete.</strong> Your full action history has been retained.{% if attempt.evaluation %} <a href="{% url 'practical-evaluation' attempt.evaluation.pk %}">View competency evidence</a>.{% endif %}</p>{% endif %}
   </section>
 
   <aside class="document-panel">

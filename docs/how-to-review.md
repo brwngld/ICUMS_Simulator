@@ -92,6 +92,7 @@ Sign in
   -> Start the guided fictional Import scenario
   -> Complete the main workflow and parallel shipping-line actions
   -> Reach simulated gate out
+  -> Review the evidence-based practical result
 ```
 
 The correct answer in the fictional demonstration question is:
@@ -110,6 +111,14 @@ To give an account instructor access:
 
 After signing in with that account, use the **Instructor** navigation link to review student progress and assessment attempts.
 
+Completed practical attempts include an **Evaluation** link. From that page an instructor can:
+
+- review the original system score and criterion evidence;
+- add feedback that is visible to the student or keep a private instructor note;
+- revise the effective pass/fail outcome with a required reason.
+
+An instructor revision does not overwrite the system result. Both outcomes, the instructor, reason, and timestamp remain recorded in the audit history.
+
 One account can belong to both the **Administrator** and **Instructor** groups.
 
 ## 9. Run automated verification
@@ -126,12 +135,12 @@ The most recently completed verification reported:
 
 - Django system check: no issues
 - Migration consistency: no changes detected
-- Automated tests: 25 passed
+- Automated tests: 30 passed
 
 ## Current limitations
 
 - The curriculum and assessment content are fictional placeholders.
-- Practical evaluation, competency scoring, and remediation are planned for Phase 4.
+- The current practical rubric and score are fictional demonstration rules, not an approved competency standard.
 - Practical layouts have not been validated against permitted ICUMS reference material.
 - The development server is for local review only and must not be exposed to the internet.
 - Backup/restore automation and packaged local production serving remain pending operational work.

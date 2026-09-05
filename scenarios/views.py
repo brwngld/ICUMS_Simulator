@@ -73,6 +73,8 @@ def scenario_action(request, attempt_id, action_id):
         return redirect("scenario-workspace", attempt_id=attempt.pk)
     if action.success_feedback:
         messages.success(request, action.success_feedback)
+    if updated.status == ScenarioAttempt.Status.COMPLETED and hasattr(updated, "evaluation"):
+        return redirect("practical-evaluation", evaluation_id=updated.evaluation.pk)
     return redirect("scenario-workspace", attempt_id=updated.pk)
 
 

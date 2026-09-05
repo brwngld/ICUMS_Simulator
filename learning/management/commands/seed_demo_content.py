@@ -59,20 +59,23 @@ class Command(BaseCommand):
                 "is_published": True,
             },
         )
-        ContentBlock.objects.filter(lesson=lesson).delete()
-        comparison_block = ContentBlock.objects.create(
+        ContentBlock.objects.update_or_create(
             lesson=lesson,
-            kind=ContentBlock.Kind.NOTICE,
-            heading="Fictional training example",
-            body="The names, references, quantities, and events in this lesson are invented for simulator testing.",
             order=1,
+            defaults={
+                "kind": ContentBlock.Kind.NOTICE,
+                "heading": "Fictional training example",
+                "body": "The names, references, quantities, and events in this lesson are invented for simulator testing.",
+            },
         )
-        ContentBlock.objects.create(
+        comparison_block, _ = ContentBlock.objects.update_or_create(
             lesson=lesson,
-            kind=ContentBlock.Kind.TEXT,
-            heading="Compare the documents",
-            body="Review the Bill of Lading, commercial invoice, and packing list. Compare parties, references, quantities, descriptions, weights, and dates before proceeding.",
             order=2,
+            defaults={
+                "kind": ContentBlock.Kind.TEXT,
+                "heading": "Compare the documents",
+                "body": "Review the Bill of Lading, commercial invoice, and packing list. Compare parties, references, quantities, descriptions, weights, and dates before proceeding.",
+            },
         )
         resource, _ = Resource.objects.update_or_create(
             title="Document consistency review",
@@ -91,10 +94,9 @@ class Command(BaseCommand):
                 "remediation_resource": resource,
             },
         )
-        question_version.options.all().delete()
-        correct_option = AnswerOption.objects.create(question_version=question_version, label="Investigate and resolve the inconsistency", is_correct=True, order=1)
-        AnswerOption.objects.create(question_version=question_version, label="Ignore the difference and continue", is_correct=False, order=2)
-        AnswerOption.objects.create(question_version=question_version, label="Submit immediately", is_correct=False, order=3)
+        correct_option, _ = AnswerOption.objects.update_or_create(question_version=question_version, order=1, defaults={"label": "Investigate and resolve the inconsistency", "is_correct": True})
+        AnswerOption.objects.update_or_create(question_version=question_version, order=2, defaults={"label": "Ignore the difference and continue", "is_correct": False})
+        AnswerOption.objects.update_or_create(question_version=question_version, order=3, defaults={"label": "Submit immediately", "is_correct": False})
         assessment, _ = Assessment.objects.update_or_create(
             programme_version=programme_version,
             title="Document Review Foundations Assessment",

@@ -34,6 +34,8 @@ def start_or_resume_attempt(enrolment, scenario_version):
     if initial_state is None:
         raise ValidationError("This scenario has no initial state.")
     previous_number = ScenarioAttempt.objects.filter(enrolment=enrolment, scenario_version=scenario_version).aggregate(value=Max("attempt_number"))["value"] or 0
+    if scenario_version.maximum_attempts is not None and previous_number >= scenario_version.maximum_attempts:
+        raise PermissionDenied("No further attempts are available for this scenario.")
     attempt = ScenarioAttempt.objects.create(
         enrolment=enrolment,
         scenario_version=scenario_version,
@@ -76,6 +78,10 @@ def perform_action(attempt, action_definition, input_data=None):
         input_data=input_data or {},
         feedback_shown=action_definition.success_feedback,
     )
+    if locked.status == ScenarioAttempt.Status.COMPLETED:
+        from evaluations.services import evaluate_attempt
+
+        evaluate_attempt(locked)
     return locked
 
 
