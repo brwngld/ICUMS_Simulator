@@ -1,28 +1,39 @@
 {% extends "base.html" %}
 
 {% block title %}Dashboard · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Dashboard{% endblock %}
 
 {% block content %}
-<p class="eyebrow">Student dashboard</p>
-<h1>Welcome, {{ user.get_full_name|default:user.username }}</h1>
+<div class="page-intro"><div><p class="eyebrow">Your learning journey</p>
+<h1>Welcome, {{ user.get_full_name|default:user.username }}.</h1>
+<p class="muted">A little practice today. More confidence tomorrow.</p></div><a class="secondary-button" href="{% url 'simulator-portal' %}">{% include "components/icon.html" with name="box" %} Explore simulator {% include "components/icon.html" with name="arrow" %}</a></div>
 {% if enrolment %}
-  <p class="muted">Continue {{ enrolment.programme_version.programme.name }}.</p>
+  <section class="welcome-banner" aria-labelledby="continue-title"><div><p class="eyebrow">{{ enrolment.programme_version.programme.name }}</p><h2 id="continue-title">Build your customs expertise,<br>one step at a time.</h2><p>Learn the essentials, put your knowledge into practice, and follow your progress along the way.</p><a class="primary-button" href="{% url 'roadmap' %}">Continue learning {% include "components/icon.html" with name="arrow" %}</a></div><div class="journey-graphic" aria-hidden="true">{% include "components/icon.html" with name="book" %}<span class="graphic-check">{% include "components/icon.html" with name="check" %}</span></div></section>
+  <div class="stats-grid" aria-label="Learning overview">
+    <article class="stat-card"><span class="stat-icon">{% include "components/icon.html" with name="book" %}</span><div><strong class="stat-value">{{ module_summaries|length }}</strong><span class="stat-label">Published modules</span></div></article>
+    <article class="stat-card"><span class="stat-icon">{% include "components/icon.html" with name="layers" %}</span><div><strong class="stat-value">{% if programme_progress.orientation_completed_at %}Unlocked{% else %}Preparing{% endif %}</strong><span class="stat-label">Practical training</span></div></article>
+    <article class="stat-card"><span class="stat-icon">{% include "components/icon.html" with name="award" %}</span><div><strong class="stat-value">{% if completion_record %}{{ completion_record.get_status_display }}{% else %}In progress{% endif %}</strong><span class="stat-label">Training record</span></div></article>
+  </div>
+  <div class="section-heading"><div><h2>Your learning modules</h2><p>A clear path from fundamentals to practice.</p></div><a class="primary-link" href="{% url 'roadmap' %}">View roadmap →</a></div>
   <div class="module-grid">
     {% for item in module_summaries %}
-      <article class="panel">
+      <article class="panel module-card">
+        <div class="module-card-top"><span class="module-icon">{% include "components/icon.html" with name="book" %}</span>{% if item.percentage == 100 %}<span class="badge badge-complete">Lessons complete</span>{% elif item.unlocked %}<span class="badge badge-active">Available</span>{% else %}<span class="badge">Locked</span>{% endif %}</div>
         <p class="eyebrow">Module {{ forloop.counter }}</p>
         <h2>{{ item.module.title }}</h2>
         <p>{{ item.module.description }}</p>
+        <div class="module-card-footer"><div class="progress-caption"><span>{{ item.completed_count }} of {{ item.lesson_count }} lessons completed</span><strong>{{ item.percentage }}%</strong></div>
         <div class="progress-track" role="progressbar" aria-label="{{ item.module.title }} progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ item.percentage }}"><span style="width: {{ item.percentage }}%"></span></div>
-        <p class="muted">{{ item.completed_count }} of {{ item.lesson_count }} lessons completed</p>
         {% if item.unlocked %}
-          {% if item.first_lesson %}<a class="primary-link" href="{% url 'lesson-detail' item.module.code item.first_lesson.slug %}">Open module</a>{% endif %}
+          {% if item.first_lesson %}<a class="primary-link card-action" href="{% url 'lesson-detail' item.module.code item.first_lesson.slug %}">Open module {% include "components/icon.html" with name="arrow" %}</a>{% endif %}
         {% else %}<p><strong>Locked:</strong> complete {{ item.module.prerequisite.title }} first.</p>{% endif %}
+        </div>
       </article>
     {% empty %}
       <article class="panel"><h2>Content is being prepared</h2><p>Your programme has no published modules yet.</p></article>
     {% endfor %}
   </div>
+  <div class="section-heading"><h2>Your path to confidence</h2></div><section class="panel journey-panel" aria-label="Training stages"><div class="journey-step"><span class="step-number">1</span><div><strong>Learn the essentials</strong><p>Work through lessons and knowledge checks.</p></div></div><div class="journey-step"><span class="step-number">2</span><div><strong>Practise the workflow</strong><p>Explore fictional scenarios in the simulator.</p></div></div><div class="journey-step"><span class="step-number">3</span><div><strong>Demonstrate your skills</strong><p>Complete assessments and earn your training record.</p></div></div></section>
   {% if final_assessment and not programme_progress.orientation_unlocked_at %}
     <section class="panel account-panel"><p class="eyebrow">Final theory examination</p><h2>{{ final_assessment.title }}</h2><p>Open the theory roadmap to see whether all prerequisites are complete.</p><a class="primary-link" href="{% url 'roadmap' %}">View theory roadmap</a></section>
   {% endif %}
@@ -34,6 +45,9 @@
       <a class="primary-link" href="{% url 'orientation' %}">{% if programme_progress.orientation_completed_at %}Review orientation{% else %}Start orientation{% endif %}</a>
     </section>
   {% endif %}
+  {% if completion_record %}
+    <section class="panel account-panel"><p class="eyebrow">Training record</p><h2>{{ completion_record.get_status_display }}</h2><a class="primary-link" href="{% url 'completion-detail' completion_record.pk %}">View competency record{% if completion_record.status == "completed" %} and certificate{% endif %}</a></section>
+  {% endif %}
 {% else %}
   <section class="panel"><h2>No active enrolment</h2><p>An administrator needs to enrol this account in a programme.</p></section>
 {% endif %}
@@ -41,7 +55,7 @@
 <section class="panel account-panel" aria-labelledby="account-heading">
   <h2 id="account-heading">Account access</h2>
   {% if role_names %}
-    <ul>
+    <ul class="role-list">
       {% for role_name in role_names %}<li>{{ role_name }}</li>{% endfor %}
     </ul>
   {% else %}
@@ -49,4 +63,13 @@
   {% endif %}
   {% if user.is_staff %}<p><a href="{% url 'admin:index' %}">Open administration</a></p>{% endif %}
 </section>
+{% if user.student_id %}
+<section class="panel account-panel credential-panel" aria-labelledby="simulator-credential-heading">
+  <p class="eyebrow">ICUMS user details</p><h2 id="simulator-credential-heading">Simulator access</h2>
+  <dl class="credential-list"><div><dt>Student ID and username</dt><dd><code>{{ user.student_id }}</code></dd></div>
+  {% if simulator_credential and simulator_credential.issued_at %}<div><dt>Generated password</dt><dd><code id="student-simulator-password">{{ simulator_credential.generated_password }}</code> <button class="copy-credential" type="button" data-copy-target="student-simulator-password">Copy</button></dd></div><div><dt>Expires</dt><dd>{{ simulator_credential.expires_at|date:"j F Y, H:i" }}</dd></div><div><dt>Status</dt><dd>{% if simulator_credential.is_current %}<span class="badge badge-complete">Active</span>{% else %}<span class="badge">Expired - request a reset</span>{% endif %}</dd></div>{% else %}<div><dt>Status</dt><dd>Waiting for an instructor or administrator to issue simulator access.</dd></div>{% endif %}</dl>
+  <a class="primary-link" href="{% url 'simulator-portal' %}">Open simulator login</a>
+</section>
+{% endif %}
+<script>document.querySelectorAll('[data-copy-target]').forEach(button=>button.addEventListener('click',async()=>{const text=document.getElementById(button.dataset.copyTarget).textContent;await navigator.clipboard.writeText(text);button.textContent='Copied';}));</script>
 {% endblock %}

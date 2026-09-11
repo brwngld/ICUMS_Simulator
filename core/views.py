@@ -11,6 +11,8 @@ from learning.models import Module
 from learning.services import module_summary
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 from progress.models import ProgrammeProgress
+from reports.models import CompletionRecord
+from accounts.models import SimulatorCredential
 
 
 @login_required
@@ -25,7 +27,9 @@ def dashboard(request):
         summaries = [module_summary(enrolment, module) for module in modules]
     final_assessment = Assessment.objects.filter(programme_version=enrolment.programme_version, assessment_type=Assessment.Type.FINAL_THEORY, is_published=True).first() if enrolment else None
     programme_progress = ProgrammeProgress.objects.filter(enrolment=enrolment).first() if enrolment else None
-    return render(request, "core/dashboard.html", {"role_names": role_names, "enrolment": enrolment, "module_summaries": summaries, "programme_progress": programme_progress, "final_assessment": final_assessment})
+    completion_record = CompletionRecord.objects.filter(enrolment=enrolment).first() if enrolment else None
+    simulator_credential = SimulatorCredential.objects.filter(user=request.user).first()
+    return render(request, "core/dashboard.html", {"role_names": role_names, "enrolment": enrolment, "module_summaries": summaries, "programme_progress": programme_progress, "final_assessment": final_assessment, "completion_record": completion_record, "simulator_credential": simulator_credential})
 
 
 @login_required

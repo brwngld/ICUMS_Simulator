@@ -5,33 +5,47 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}ICUMS Simulator{% endblock %}</title>
+  <script src="{% static 'js/theme.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
-<body>
+<body class="{% if user.is_authenticated %}app-layout{% else %}guest-layout{% endif %}">
+  <a class="skip-link" href="#main-content">Skip to main content</a>
   {% if user.is_authenticated %}
     <div class="training-notice" role="note">TRAINING SIMULATOR — NOT OFFICIAL ICUMS</div>
   {% endif %}
   <header class="site-header">
-    <a class="brand" href="{% url 'dashboard' %}">ICUMS Simulator</a>
+    <a class="brand" href="{% url 'dashboard' %}"><span class="brand-mark" aria-hidden="true">IS</span><span>ICUMS<span class="brand-caption">Learning simulator</span></span></a>
+    {% if not user.is_authenticated %}<button class="theme-toggle guest-theme-toggle" type="button" data-theme-toggle aria-pressed="false"><span class="theme-toggle-icon" aria-hidden="true">◐</span><span data-theme-label>Dark theme</span></button>{% endif %}
     {% if user.is_authenticated %}
+      <p class="nav-label">Your workspace</p>
+      {% with page=request.resolver_match.url_name %}
       <nav class="top-nav" aria-label="Primary navigation">
-        <a href="{% url 'dashboard' %}">Dashboard</a>
-        <a href="{% url 'roadmap' %}">Theory</a>
-        {% if can_access_practical %}<a href="{% url 'scenario-list' %}">Practical</a>{% endif %}
-        {% if can_access_instructor_portal %}<a href="{% url 'instructor-dashboard' %}">Instructor</a>{% endif %}
-        {% if user.is_staff %}<a href="{% url 'admin:index' %}">Administration</a>{% endif %}
-        <form method="post" action="{% url 'logout' %}">
-          {% csrf_token %}
-          <button class="link-button" type="submit">Sign out</button>
-        </form>
+        <a href="{% url 'dashboard' %}" {% if page == 'dashboard' %}aria-current="page"{% endif %}>{% include "components/icon.html" with name="grid" %}Dashboard</a>
+        {% if has_active_enrolment %}<a href="{% url 'roadmap' %}" {% if page == 'roadmap' or page == 'lesson-detail' or page == 'assessment-take' or page == 'assessment-result' %}aria-current="page"{% endif %}>{% include "components/icon.html" with name="book" %}Theory</a>{% endif %}
+        {% if can_access_practical %}<a href="{% url 'scenario-list' %}" {% if page == 'scenario-list' or page == 'scenario-detail' or page == 'scenario-workspace' %}aria-current="page"{% endif %}>{% include "components/icon.html" with name="layers" %}Practical/Theory</a>{% endif %}
+        <a href="{% url 'simulator-portal' %}">{% include "components/icon.html" with name="box" %}Simulator sandbox</a>
+        {% if can_access_instructor_portal %}<a href="{% url 'instructor-dashboard' %}" {% if page == 'instructor-dashboard' or page == 'instructor-student-detail' %}aria-current="page"{% endif %}>{% include "components/icon.html" with name="users" %}Instructor</a><a href="{% url 'course-builder' %}?path=theory" {% if page == 'course-builder' and request.GET.path == 'theory' %}aria-current="page"{% endif %}>{% include "components/icon.html" with name="book" %}Theory builder</a><a href="{% url 'course-builder' %}?path=combined" {% if page == 'course-builder' and request.GET.path == 'combined' %}aria-current="page"{% endif %}>{% include "components/icon.html" with name="layers" %}Practical/Theory builder</a>{% endif %}
+        {% if user.is_staff %}<a href="{% url 'admin:index' %}">{% include "components/icon.html" with name="settings" %}Advanced administration</a>{% endif %}
       </nav>
+      {% endwith %}
+      <div class="sidebar-bottom">
+        <div class="sidebar-tip">{% include "components/icon.html" with name="shield" %}<strong>A safe place to practise</strong><p>Build your skills with fictional customs workflows.</p></div>
+        <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false"><span class="theme-toggle-icon" aria-hidden="true">◐</span><span data-theme-label>Dark theme</span></button>
+        <div class="account-summary"><span class="user-avatar" aria-hidden="true">{{ user.get_full_name|default:user.username|slice:':1'|upper }}</span><span><strong>{{ user.get_full_name|default:user.username }}</strong><small>Training account</small></span></div>
+        <form method="post" action="{% url 'logout' %}" class="signout-form">
+          {% csrf_token %}
+          <button class="link-button" type="submit">{% include "components/icon.html" with name="logout" %}Sign out</button>
+        </form>
+      </div>
     {% endif %}
   </header>
-  <main class="page-shell">
+  {% if user.is_authenticated %}<div class="workspace-bar"><span>Learning workspace <span class="breadcrumb-divider">/</span> <strong>{% block workspace_name %}ICUMS Simulator{% endblock %}</strong></span><span class="environment-badge"><i aria-hidden="true"></i> Training environment</span></div>{% endif %}
+  <main class="page-shell" id="main-content" tabindex="-1">
     {% if messages %}
       {% for message in messages %}<p class="message" role="status">{{ message }}</p>{% endfor %}
     {% endif %}
     {% block content %}{% endblock %}
   </main>
+  <script src="{% static 'js/app-shell.js' %}" defer></script>
 </body>
 </html>

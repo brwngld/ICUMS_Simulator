@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}New lesson · {{ module.title }}{% endblock %}
+{% block workspace_name %}Lesson builder{% endblock %}
+{% block content %}
+<div class="page-intro"><div><p class="eyebrow">{{ module.programme_version.programme.name }} · {{ module.title }}</p><h1>Create a lesson</h1><p class="muted">One form creates the lesson sections, knowledge check and optional module-assessment link.</p></div><a class="secondary-button" href="{% url 'course-builder-detail' module.programme_version.pk %}">Back to outline</a></div>
+<form method="post" action="{% url 'lesson-create' module.pk %}" class="builder-form">{% csrf_token %}
+  {% if form.non_field_errors %}<div class="message error">{{ form.non_field_errors }}</div>{% endif %}
+  <section class="panel form-section"><span class="step-number">3</span><h2>Lesson overview</h2>{{ form.title.as_field_group }}{{ form.summary.as_field_group }}</section>
+  <section class="panel form-section"><h2>Teaching content</h2><p class="muted">Break the lesson into short sections instead of one long wall of text.</p>{{ form.concept_heading.as_field_group }}{{ form.concept_body.as_field_group }}<div class="form-columns"><div>{{ form.example_heading.as_field_group }}{{ form.example_body.as_field_group }}</div><div>{{ form.notice_heading.as_field_group }}{{ form.notice_body.as_field_group }}</div></div></section>
+  <section class="panel form-section"><h2>Knowledge check</h2><p class="muted">The first answer is treated as correct; the others are distractors.</p>{{ form.question_prompt.as_field_group }}<div class="form-columns"><div>{{ form.correct_answer.as_field_group }}{{ form.incorrect_answer_1.as_field_group }}</div><div>{{ form.incorrect_answer_2.as_field_group }}{{ form.incorrect_answer_3.as_field_group }}</div></div>{{ form.explanation.as_field_group }}<div class="check-row">{{ form.add_to_assessment }} {{ form.add_to_assessment.label_tag }}</div></section>
+  <div class="form-actions"><a class="secondary-button" href="{% url 'course-builder-detail' module.programme_version.pk %}">Cancel</a><button class="primary-button" type="submit">Save complete draft lesson</button></div>
+</form>
+{% endblock %}

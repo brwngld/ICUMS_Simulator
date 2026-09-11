@@ -4,16 +4,20 @@
 
 {% block content %}
 <p class="eyebrow">Instructor workspace</p>
-<h1>Student progress</h1>
-<p class="muted">Review progress and assessment evidence. Instructor feedback does not silently replace recorded attempts.</p>
+<div class="page-intro"><div><h1>Student progress</h1><p class="muted">Review progress and assessment evidence. Instructor feedback does not silently replace recorded attempts.</p></div></div>
+<div class="module-grid authoring-paths">
+  <article class="panel module-card"><span class="content-type">Theory</span><h2>Theory</h2><p>Create reading lessons, knowledge questions, quizzes, and module assessments.</p><a class="primary-link" href="{% url 'course-builder' %}?path=theory">Open Theory builder →</a></article>
+  <article class="panel module-card"><span class="content-type practical-type">Practical/Theory</span><h2>Practical/Theory</h2><p>Combine supporting theory with a guided, pre-programmed ICUMS simulator flow and practical assessment.</p><a class="primary-link" href="{% url 'course-builder' %}?path=combined">Open Practical/Theory builder →</a></article>
+</div>
 <div class="table-wrapper">
   <table>
-    <thead><tr><th>Student</th><th>Programme</th><th>Status</th><th>Lessons recorded</th><th>Assessment attempts</th><th></th></tr></thead>
+    <thead><tr><th>Student</th><th>Programme</th><th>ICUMS user details</th><th>Training</th><th></th></tr></thead>
     <tbody>
       {% for enrolment in enrolments %}
-        <tr><td>{{ enrolment.student }}</td><td>{{ enrolment.programme_version.programme.name }}</td><td>{{ enrolment.get_status_display }}</td><td>{{ enrolment.lesson_progress.count }}</td><td>{{ enrolment.theory_attempts.count }}</td><td><a href="{% url 'instructor-student-detail' enrolment.pk %}">Review</a></td></tr>
-      {% empty %}<tr><td colspan="6">No enrolments are available.</td></tr>{% endfor %}
+        <tr><td>{{ enrolment.student }}<br><small>{{ enrolment.student.student_id|default:"Student ID not assigned" }}</small></td><td>{{ enrolment.programme_version.programme.name }}<br><small>{{ enrolment.get_status_display }}</small></td><td>{% with credential=enrolment.student.simulator_credential %}{% if credential.issued_at %}<code id="credential-{{ enrolment.student.pk }}">{{ credential.generated_password }}</code> <button class="copy-credential" type="button" data-copy-target="credential-{{ enrolment.student.pk }}">Copy</button><br><small>{% if credential.is_current %}Expires {{ credential.expires_at|date:"j M Y, H:i" }}{% else %}<strong>Expired - reset required</strong>{% endif %}{% if credential.reset_requested_at %} · <strong>Student requested reset</strong>{% endif %}</small>{% else %}<small>Not issued</small>{% endif %}{% endwith %}<form method="post" action="{% url 'simulator-credential-issue' enrolment.student.pk %}">{% csrf_token %}<button class="secondary-button" type="submit">{% if enrolment.student.simulator_credential.issued_at %}Reset monthly password{% else %}Create simulator login{% endif %}</button></form></td><td>{{ enrolment.lesson_progress.count }} lessons<br>{{ enrolment.theory_attempts.count }} assessment attempts</td><td><a href="{% url 'instructor-student-detail' enrolment.pk %}">Review</a></td></tr>
+      {% empty %}<tr><td colspan="5">No enrolments are available.</td></tr>{% endfor %}
     </tbody>
   </table>
 </div>
+<script>document.querySelectorAll('[data-copy-target]').forEach(button=>button.addEventListener('click',async()=>{const text=document.getElementById(button.dataset.copyTarget).textContent;await navigator.clipboard.writeText(text);button.textContent='Copied';}));</script>
 {% endblock %}

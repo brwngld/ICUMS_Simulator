@@ -9,3 +9,6 @@ local_data/
 .env
 *.sqlite3
 staticfiles/
+backups/
+qa/
+.pytest-temp*/

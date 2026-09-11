@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Training completion record · ICUMS Simulator{% endblock %}
+
+{% block content %}
+<p class="eyebrow">Simulator training record</p>
+<h1>{{ completion.enrolment.student }}</h1>
+<p class="reference-label">This records completion within a training simulator. It is not a government-issued professional qualification.</p>
+<section class="panel account-panel">
+  <h2>{{ completion.enrolment.programme_version.programme.name }}</h2>
+  <dl class="record-details">
+    <dt>Status</dt><dd>{{ completion.get_status_display }}</dd>
+    <dt>Created</dt><dd>{{ completion.created_at }}</dd>
+    <dt>Completed</dt><dd>{{ completion.completed_at|default:"Pending approval" }}</dd>
+    <dt>Qualifying scenario</dt><dd>{{ completion.qualifying_evaluation.attempt.scenario_version.scenario.title }}</dd>
+    <dt>Practical result</dt><dd>{{ completion.qualifying_evaluation.effective_outcome|title }} · {{ completion.qualifying_evaluation.system_percentage }}% system score</dd>
+  </dl>
+  {% if certificate %}<p><a class="primary-link" href="{% url 'certificate-detail' certificate.pk %}">Open certificate</a></p>{% endif %}
+</section>
+{% if completion.status == "pending_approval" and instructor_view %}<form method="post" action="{% url 'completion-approve' completion.pk %}">{% csrf_token %}<button class="primary-button" type="submit">Approve completion and issue certificate</button></form>{% endif %}
+{% endblock %}

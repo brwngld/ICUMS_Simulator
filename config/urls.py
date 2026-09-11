@@ -22,12 +22,14 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("accounts/login/", auth_views.LoginView.as_view(), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("accounts/", include("accounts.urls")),
     path("onboarding/", include("onboarding.urls")),
     path("theory/", include("learning.urls")),
     path("assessments/", include("assessments.urls")),
     path("instructor/", include("instructor_portal.urls")),
     path("practical/", include("scenarios.urls")),
     path("practical-results/", include("evaluations.urls")),
+    path("records/", include("reports.urls")),
     path("", include("core.urls")),
 ]
 

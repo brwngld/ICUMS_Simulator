@@ -1,8 +1,8 @@
 # Implementation Status
 
-## Verified on 4 September 2026
+## Verified on 6 September 2026
 
-The current implementation passes Django's system checks, has no ungenerated model changes, and passes 30 automated tests.
+The current implementation passes Django's system checks, has no ungenerated model changes, and passes 39 automated tests.
 
 ## Phase 1 foundation
 
@@ -19,7 +19,8 @@ The current implementation passes Django's system checks, has no ungenerated mod
 - Git repository and dependency records
 - Local setup documentation
 
-Backup/restore automation and packaged local production serving remain Phase 1 operational tasks before use with real students.
+- Production-style same-computer serving through Waitress and WhiteNoise
+- Loopback-only binding to prevent accidental network exposure
 
 ## Phase 2 theory vertical slice
 
@@ -62,7 +63,7 @@ Backup/restore automation and packaged local production serving remain Phase 1 o
 
 ## Next recommended implementation increment
 
-Review the complete fictional theory, guided practical, and evidence-based result journey in the browser. The next implementation increment should strengthen operational readiness and then begin Phase 5 completion records, competency reports, and certificate issuance. Actual ICUMS-like practical layouts remain blocked on permitted reference material or subject-matter-expert walkthroughs.
+Review the complete fictional theory, guided practice, independent competency, and certificate journey in the browser. The next implementation gate is Phase 6 PostgreSQL and hosted-deployment readiness. Actual ICUMS-like practical layouts remain blocked on permitted reference material or subject-matter-expert walkthroughs.
 
 ## Phase 3 practical engine
 
@@ -83,6 +84,9 @@ Review the complete fictional theory, guided practical, and evidence-based resul
 - Practical-attempt visibility in the instructor student view
 - Repeatable fictional guided Import scenario seed command
 - End-to-end automated gate-out test including parallel shipping-line work
+- First screenshot-informed practical workspace shell with deliberately different simulator branding and colours
+- Responsive left navigation, tracking area, service shortcuts, reference panels, fictional rates, notices, and activity chart
+- Frontend-only prototype access without programme/orientation gating or separate practical credentials during workflow discovery
 
 ## Phase 3 limitations
 
@@ -117,3 +121,29 @@ Review the complete fictional theory, guided practical, and evidence-based resul
 - Approved remediation mappings
 - Which practical assessments require instructor approval
 - Exact competency-report language and sign-off requirements
+
+## Phase 5 completion and operational readiness
+
+- Browser-based student creation and enrolment through Django Admin
+- Automatic Student-role assignment and recorded enrolling administrator
+- Separate conceptual Import competency scenario that cannot show hints
+- Programme-level completion policy with a future instructor-approval switch
+- Completion gated by orientation, passed final theory, and passed competency practical
+- Immutable theory/practical evidence and policy snapshots on the completion record
+- Idempotent certificate generation with unique certificate numbers
+- Clearly labelled simulator-training certificate and printable browser view
+- Student dashboard link to the training record and certificate
+- Instructor approval service, screen action, and audit event when policy requires it
+- Read-only completion and certificate records in Django Admin
+- Local SQLite database and uploaded-media ZIP backup command
+- Explicit-confirmation restore command with a pre-restore database safety copy
+- Production-style loopback serving through Waitress with collected static assets served by WhiteNoise
+- Automated semantic checks for language, main landmark, one primary heading, labelled login controls, and a keyboard skip link
+- Visible keyboard focus styling for links, buttons, inputs, selects, text areas, and programmatic focus targets
+
+## Phase 5 decisions still TBC
+
+- Final product name, visual identity, certificate wording, signatures, and verification method
+- Whether instructor approval should be enabled for the first production cohort
+- Retention, revocation, and re-issue policies
+- Formal assisted-technology acceptance testing on deployment hardware

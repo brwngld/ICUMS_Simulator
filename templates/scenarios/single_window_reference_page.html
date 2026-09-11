@@ -1,0 +1,31 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ page.title }} · ICUMS Simulator</title>
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}">
+</head>
+<body>
+  <a class="portal-skip" href="#main-content">Skip to {{ page.title }}</a>
+  <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+  <div class="portal-shell">
+    {% include "scenarios/_single_window_sidebar.html" %}
+    <main id="main-content" class="portal-main cargo-main" tabindex="-1">
+      <header class="portal-header cargo-header">
+        <div class="portal-heading"><p class="overline">Single Window · {{ page.section }}</p><h1>{{ page.title }}</h1></div>
+        <nav class="portal-top-nav" aria-label="Logged-in simulator navigation"><a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="#">Collection</a><a aria-current="page" href="{% url 'single-window-workspace' %}">Single Window</a><a href="#">Agent Management</a><a href="#">e-Docs</a><a href="#">Post Clearance Audit</a><a href="#">AEO</a><a href="#">More Information</a><a href="#">DW Service</a></nav>
+      </header>
+      <div class="cargo-breadcrumb"><a href="{% url 'single-window-workspace' %}">Single Window</a><span>›</span><span>{{ page.section }}</span><span>›</span><strong>{{ page.title }}</strong></div>
+      <div class="cargo-content">
+        <p class="frontend-note">Frontend training screen based on the authorised read-only reference. All displayed records are fictional.</p>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>{{ page.panel }}</h2></div><div class="summary-grid">{% for field in page.fields %}<label for="field-{{ forloop.counter }}">{{ field }}</label>{% if field == 'Status' and page.status_options %}<select id="field-{{ forloop.counter }}"><option>-- Select One --</option>{% for option in page.status_options %}<option>{{ option }}</option>{% endfor %}</select>{% elif 'Date' in field %}<div class="date-range"><input id="field-{{ forloop.counter }}" type="date"><span>to</span><input type="date"></div>{% elif field == 'Remarks' %}<textarea id="field-{{ forloop.counter }}" rows="3"></textarea>{% else %}<input id="field-{{ forloop.counter }}" type="text">{% endif %}{% endfor %}</div><div class="cargo-actions"><button class="secondary-button" type="reset">Reset</button><button class="primary-button" type="button">Search</button>{% if page.show_new %}<button class="primary-button" type="button">New</button>{% endif %}</div></section>
+        {% if page.columns %}<section class="cargo-panel"><div class="cargo-panel-title"><h2>{{ page.title }} Records</h2><button class="secondary-button" type="button">Export practice list</button></div><div class="table-scroll"><table class="cargo-table"><thead><tr>{% for column in page.columns %}<th>{{ column }}</th>{% endfor %}</tr></thead><tbody><tr><td colspan="{{ page.columns|length }}">No fictional practice records yet.</td></tr></tbody></table></div><div class="pagination-row"><span>Total: 0</span><span>Page 1 / 1 · 10 per page</span></div></section>{% endif %}
+      </div>
+    </main>
+  </div>
+  <script src="{% static 'js/app-shell.js' %}" defer></script>
+</body>
+</html>

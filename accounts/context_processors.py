@@ -1,7 +1,9 @@
 def role_context(request):
     if not request.user.is_authenticated:
-        return {"can_access_instructor_portal": False, "can_access_practical": False}
+        return {"can_access_instructor_portal": False, "can_access_practical": False, "has_active_enrolment": False}
     from progress.models import ProgrammeProgress
+
+    has_active_enrolment = request.user.enrolments.filter(status="active").exists()
 
     return {
         "can_access_instructor_portal": request.user.is_superuser
@@ -11,4 +13,5 @@ def role_context(request):
             enrolment__status="active",
             orientation_completed_at__isnull=False,
         ).exists(),
+        "has_active_enrolment": has_active_enrolment,
     }

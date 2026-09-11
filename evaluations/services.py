@@ -89,6 +89,9 @@ def evaluate_attempt(attempt):
     evaluation.system_percentage = percentage
     evaluation.system_outcome = PracticalEvaluation.Outcome.PASS if percentage >= rubric_version.pass_percentage and not mandatory_failure else PracticalEvaluation.Outcome.FAIL
     evaluation.save(update_fields=("system_score", "maximum_score", "system_percentage", "system_outcome"))
+    from reports.services import process_completion_for_evaluation
+
+    process_completion_for_evaluation(evaluation)
     return evaluation
 
 
@@ -121,6 +124,9 @@ def revise_outcome(evaluation, instructor, revised_outcome, reason, ip_address=N
         metadata={"reason": reason},
         ip_address=ip_address,
     )
+    from reports.services import process_completion_for_evaluation
+
+    process_completion_for_evaluation(evaluation)
     return revision
 
 

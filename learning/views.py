@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Max
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
@@ -24,6 +25,10 @@ def _guard_onboarding(request):
 def roadmap(request):
     if response := _guard_onboarding(request):
         return response
+    if not request.user.enrolments.filter(status="active").exists() and (
+        request.user.is_superuser or request.user.groups.filter(name__in=("Instructor", "Administrator")).exists()
+    ):
+        return redirect(f'{reverse("course-builder")}?path=theory')
     enrolment = active_enrolment_for(request.user)
     modules = Module.objects.filter(programme_version=enrolment.programme_version, is_published=True)
     final_assessment = Assessment.objects.filter(programme_version=enrolment.programme_version, assessment_type=Assessment.Type.FINAL_THEORY, is_published=True).first()

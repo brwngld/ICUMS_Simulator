@@ -1,0 +1,18 @@
+{% extends "admin/change_form.html" %}
+{% block content %}
+<div class="commercial-mode-toolbar" role="group" aria-label="Commercial document editor mode">
+  <button type="button" class="button" data-commercial-mode="form" aria-pressed="true">Guided form</button>
+  <button type="button" class="button" data-commercial-mode="preview" aria-pressed="false">Live document view</button>
+  {% if original %}<a class="button" href="{% url 'commercial-document-pdf' original.pk %}" target="_blank" rel="noopener">View generated PDF</a>{% endif %}
+</div>
+<div id="commercial-form-mode">{{ block.super }}</div>
+<section id="commercial-preview-mode" class="commercial-live-sheet" hidden aria-label="Live commercial document preview">
+  <p class="commercial-warning">TRAINING SAMPLE - FICTITIOUS - NOT FOR COMMERCIAL USE</p>
+  <header class="commercial-preview-header"><div><strong data-preview="exporter_name">Exporter / seller</strong><small data-preview="exporter_address">Address not supplied</small><small data-preview="exporter_contact">Contact not supplied</small></div><div><h2 data-document-title>COMMERCIAL INVOICE</h2><b data-preview="reference">Reference</b><small data-preview="document_date">Date not supplied</small></div></header>
+  <p class="commercial-type-explanation" data-document-explanation>A final seller-issued document showing the goods supplied and the commercial values payable.</p>
+  <div class="commercial-party-grid"><span><b>CONSIGNEE / BUYER</b><i data-preview="consignee_name">Not supplied</i><i data-preview="consignee_address">Not supplied</i></span><span><b>CONTAINER / SHIPMENT</b><i data-preview="container_reference">Not supplied</i><b>PAYMENT TERMS</b><i data-preview="payment_terms">Not supplied</i></span></div>
+  <table><thead><tr><th>No.</th><th>Description of goods</th><th>Quantity</th><th data-packing-column>Packages / pcs</th><th data-packing-column>Net weight</th><th data-packing-column>Gross weight</th><th data-price-column>Unit price</th><th data-price-column>Amount</th></tr></thead><tbody data-preview-lines><tr><td>1</td><td>Add line items in the guided form.</td><td>-</td><td colspan="5">-</td></tr></tbody></table>
+  <div class="commercial-preview-totals" data-preview-totals><span>FOB <b data-preview="fob">0.00</b></span><span>Freight <b data-preview="freight">0.00</b></span><span>Insurance <b data-preview="insurance">0.00</b></span></div>
+  <p class="commercial-preview-notice">This live view is an authoring preview. Save the record and use View generated PDF for the final printable document.</p>
+</section>
+{% endblock %}

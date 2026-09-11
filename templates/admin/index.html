@@ -1,0 +1,44 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <section class="admin-welcome">
+    <div>
+      <p class="admin-eyebrow">ICUMS Simulator · Administration</p>
+      <h1>Training platform control centre</h1>
+      <p>Manage learner accounts, learning content, scenario data, and instructor reviews from one calm workspace.</p>
+    </div>
+    <div class="admin-welcome-mark" aria-hidden="true">IS</div>
+  </section>
+
+  <section class="admin-stat-grid" aria-label="Administration summary">
+    <div class="admin-stat-card"><span class="admin-stat-label">Admin areas</span><strong>{{ app_list|length }}</strong><small>Configured modules</small></div>
+    <div class="admin-stat-card"><span class="admin-stat-label">Access level</span><strong>Staff</strong><small>Protected workspace</small></div>
+    <div class="admin-stat-card"><span class="admin-stat-label">Environment</span><strong>Training</strong><small>Fictional customs data</small></div>
+  </section>
+
+  <div class="admin-app-grid">
+    {% for app in app_list %}
+      <section class="admin-app-card">
+        <div class="admin-app-heading">
+          <div class="admin-app-icon" aria-hidden="true">{{ app.name|slice:":1" }}</div>
+          <div><h2>{{ app.name }}</h2><p>Manage {{ app.name|lower }} records</p></div>
+        </div>
+        <ul>
+          {% for model in app.models %}
+            <li>
+              <a href="{{ model.admin_url }}">{{ model.name }}</a>
+              <span>
+                {% if model.add_url %}<a class="admin-add-link" href="{{ model.add_url }}">Add</a>{% endif %}
+                {% if model.admin_url %}<a class="admin-open-link" href="{{ model.admin_url }}">Open</a>{% endif %}
+              </span>
+            </li>
+          {% empty %}
+            <li class="admin-empty">No models available.</li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% empty %}
+      <section class="admin-app-card admin-empty-card"><h2>No administration modules available</h2><p>Your account does not currently have access to any editable records.</p></section>
+    {% endfor %}
+  </div>
+{% endblock %}

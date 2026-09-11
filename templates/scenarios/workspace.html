@@ -35,11 +35,18 @@
 
   <aside class="document-panel">
     <h2>Fictitious documents</h2>
+    {% for bill in attempt.scenario_version.bills_of_lading.all %}
+      {% if bill.status == "published" %}<details open><summary>{{ bill.title }}</summary><p class="muted">Bill of Lading · {{ bill.reference }} · {{ bill.get_template_display }}</p><div class="form-actions"><a class="secondary-button" target="_blank" rel="noopener" href="{% url 'bill-of-lading-pdf' bill.pk %}">View PDF</a><a class="primary-link" href="{% url 'bill-of-lading-pdf' bill.pk %}?download=1">Download PDF</a></div></details>{% endif %}
+    {% endfor %}
+    {% for document in attempt.scenario_version.commercial_documents.all %}
+      {% if document.status == 'published' %}<p><strong>{{ document.get_document_type_display }}:</strong> {{ document.reference }} — <a href="{% url 'commercial-document-pdf' document.pk %}">View PDF</a> · <a href="{% url 'commercial-document-pdf' document.pk %}?download=1">Download PDF</a></p>{% endif %}
+    {% endfor %}
     {% for document in attempt.scenario_version.documents.all %}
       <details{% if forloop.first %} open{% endif %}>
         <summary>{{ document.title }}</summary>
         <p class="muted">{{ document.document_type }} · {{ document.reference }}</p>
         <dl>{% for key, value in document.learner_data.items %}<dt>{{ key }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+        <div class="form-actions"><a class="secondary-button" target="_blank" rel="noopener" href="{% url 'scenario-document-pdf' document.pk %}">View PDF</a><a class="primary-link" href="{% url 'scenario-document-pdf' document.pk %}?download=1">Download PDF</a></div>
       </details>
     {% empty %}<p>No documents are attached.</p>{% endfor %}
   </aside>
@@ -50,3 +57,4 @@
   <ol>{% for action in attempt.actions.all %}<li><strong>{{ action.action_code }}</strong> — {{ action.state_before }} → {{ action.state_after }}</li>{% empty %}<li>No actions recorded yet.</li>{% endfor %}</ol>
 </section>
 {% endblock %}
+

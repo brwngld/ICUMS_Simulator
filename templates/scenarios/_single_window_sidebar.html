@@ -1,0 +1,90 @@
+<aside class="portal-sidebar" aria-label="Single Window navigation">
+  <div class="portal-brand"><span class="portal-mark" aria-hidden="true">IS</span><span>ICUMS<br><small>SIMULATOR</small></span></div>
+  <div class="portal-user"><span class="avatar" aria-hidden="true">●</span><strong>{{ user.get_full_name|default:user.student_id|default:"ICUMS learner" }}</strong><span>{{ user.student_id|default:"Simulator login required" }} · Single Window</span></div>
+  <a class="portal-home" href="{% url 'simulator-portal' %}">▦ Workspace home</a>
+  <nav class="portal-menu" aria-label="Single Window menu">
+    <details open>
+      <summary>Main Navigation</summary>
+      <details open>
+        <summary>Registration</summary>
+        <details>
+          <summary>Unique Consignment Reference</summary>
+          <a class="nested-active" href="{% url 'single-window-create-ucr' %}">Create UCR</a>
+          <a href="{% url 'single-window-search-ucr' %}">Search UCR</a>
+          <a href="{% url 'single-window-transfer-ucr' %}">Transfer UCR</a>
+          <a href="{% url 'single-window-received-ucr' %}">Received UCR</a>
+        </details>
+        <details>
+          <summary>Exporter Registration</summary>
+          <a href="{% url 'single-window-create-exporter' %}">Create Exporter Registration</a>
+          <a href="{% url 'single-window-search-exporter' %}">Search Exporter Registration</a>
+        </details>
+        <details>
+          <summary>Opt In/Out Request</summary>
+          <a href="{% url 'single-window-create-opt-in-out' %}">Create Opt In/Out</a>
+          <a href="{% url 'single-window-search-opt-in-out' %}">Search Opt In/Out</a>
+        </details>
+        <details>
+          <summary>FCIE Registration</summary>
+          <a href="{% url 'single-window-create-fcie' %}">Create Registration</a>
+          <a href="{% url 'single-window-search-fcie' %}">Search Registration</a>
+        </details>
+      </details>
+      <details>
+        <summary>Application</summary>
+        <details>
+          <summary>Preparation Application</summary>
+          <a href="{% url 'single-window-create-preparation-application' %}">Create Application</a>
+          <a href="{% url 'single-window-search-preparation-application' %}">Search Application</a>
+        </details>
+        <details>
+          <summary>Master Application</summary>
+          <a href="{% url 'single-window-create-master-application' %}">Create Application</a>
+          <a href="{% url 'single-window-search-master-application' %}">Search Application</a>
+        </details>
+        <details open>
+          <summary>Consignment Application</summary>
+          <a href="{% url 'single-window-create-consignment-application' %}">Create Application</a>
+          <a href="{% url 'single-window-search-consignment-application' %}">Search Application</a>
+        </details>
+      </details>
+      <details>
+        <summary>Letter of Commitment</summary>
+        <details>
+          <summary>Bank Pre-Registration</summary>
+          <a href="{% url 'single-window-create-bank-registration' %}">Create Bank Pre-Registration</a>
+          <a href="{% url 'single-window-search-bank-registration' %}">Search Bank Pre-Registration</a>
+        </details>
+        <details>
+          <summary>Letter of Commitment</summary>
+          <a href="{% url 'single-window-create-letter-commitment' %}">Create Letter of Commitment</a>
+          <a href="{% url 'single-window-search-letter-commitment' %}">Search Letter of Commitment</a>
+        </details>
+      </details>
+      <details>
+        <summary>Previous Data</summary>
+        <details>
+          <summary>Application Data</summary>
+          <a href="{% url 'single-window-previous-data' 'application' %}">Search Application</a>
+        </details>
+        <details>
+          <summary>Exporter Registration Data</summary>
+          <a href="{% url 'single-window-previous-data' 'exporter' %}">Search Exporter Registration</a>
+        </details>
+        <details>
+          <summary>Letter of Commitment Data</summary>
+          <a href="{% url 'single-window-previous-data' 'letter' %}">Search Letter of Commitment</a>
+        </details>
+        <details>
+          <summary>Pre Bank Registration Data</summary>
+          <a href="{% url 'single-window-previous-data' 'bank' %}">Search Pre Bank Registration</a>
+        </details>
+        <details>
+          <summary>Opt In Data</summary>
+          <a href="{% url 'single-window-previous-data' 'opt-in' %}">Search Opt In</a>
+        </details>
+      </details>
+    </details>
+  </nav>
+  <a class="return-link" data-student-dashboard href="{% url 'dashboard' %}">← Back to student dashboard</a>
+</aside>

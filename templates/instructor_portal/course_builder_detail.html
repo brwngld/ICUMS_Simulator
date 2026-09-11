@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ version.programme.name }} · Course builder{% endblock %}
+{% block workspace_name %}{{ version.programme.name }}{% endblock %}
+{% block content %}
+<div class="page-intro"><div><p class="eyebrow">Draft course · Version {{ version.version }}</p><h1>{{ version.programme.name }}</h1><p class="muted">Add modules and lessons here. Publishing is intentionally kept separate from drafting.</p></div><div class="form-actions"><a class="secondary-button" href="{% url 'course-builder' %}">All draft courses</a><a class="primary-button" href="{% url 'course-review' version.pk %}">Review course</a></div></div>
+<ol class="builder-progress" aria-label="Course creation steps"><li class="complete">Course created</li><li class="{% if version.modules.exists %}complete{% endif %}">Add modules</li><li class="{% if version.modules.first.lessons.exists %}complete{% endif %}">Build lessons</li><li><a href="{% url 'course-review' version.pk %}">Review and publish</a></li></ol>
+<div class="builder-layout">
+  <section class="panel builder-card"><span class="step-number">2</span><h2>Add a module</h2><form method="post" action="{% url 'course-builder-module-create' version.pk %}" class="stacked-form">{% csrf_token %}{{ module_form.as_div }}<button class="primary-button" type="submit">Add module</button></form></section>
+  <section><div class="section-heading"><div><h2>Course outline</h2><p>Choose Theory for reading and questions, or Practical/Theory for supporting reading plus a simulated workflow.</p></div></div><div class="builder-outline">
+    {% for module in version.modules.all %}<article class="panel outline-module"><div><span class="badge">Module {{ module.order }}</span><h2>{{ module.title }}</h2><p class="muted">{{ module.description|default:"No description yet." }}</p></div><div class="outline-actions"><a class="primary-button" href="{% url 'lesson-builder' module.pk %}">Add Theory</a><a class="secondary-button" href="{% url 'practical-builder' module.pk %}">Add Practical/Theory</a></div><ol>{% for lesson in module.lessons.all %}<li><span><span class="content-type">Theory</span><strong>{{ lesson.title }}</strong></span><span>{{ lesson.blocks.count }} reading sections · {{ lesson.knowledge_checks.count }} question{{ lesson.knowledge_checks.count|pluralize }}</span></li>{% endfor %}{% for practical in module.guided_practicals.all %}<li><span><span class="content-type practical-type">Practical/Theory</span><strong>{{ practical.scenario.title }}</strong></span><span>{{ practical.states.count }} simulated stages · {{ practical.get_assistance_mode_display }}</span></li>{% endfor %}{% if not module.lessons.exists and not module.guided_practicals.exists %}<li class="muted">No learning activities yet.</li>{% endif %}</ol></article>
+    {% empty %}<div class="panel"><p>Add the first module to begin the course outline.</p></div>{% endfor %}
+  </div></section>
+</div>
+{% endblock %}

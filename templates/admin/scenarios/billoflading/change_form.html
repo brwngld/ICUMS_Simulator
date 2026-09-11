@@ -1,0 +1,21 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+{% block content %}
+<div class="bl-mode-toolbar" role="group" aria-label="Bill of Lading editor mode">
+  <button type="button" class="button" data-bl-mode="form" aria-pressed="true">Guided form</button>
+  <button type="button" class="button" data-bl-mode="preview" aria-pressed="false">Live document view</button>
+  {% if original %}<a class="button" href="{% url 'bill-of-lading-pdf' original.pk %}" target="_blank" rel="noopener">View generated PDF</a>{% endif %}
+</div>
+<div id="bl-form-mode">{{ block.super }}</div>
+<section id="bl-preview-mode" class="bl-live-sheet template-carrier_grid" hidden aria-label="Live Bill of Lading preview">
+  <p class="bl-warning">TRAINING SAMPLE - FICTITIOUS - NOT FOR COMMERCIAL USE</p>
+  <div class="bl-template-banner"><span data-preview-template>Carrier Grid BL</span><small>Live authoring preview</small></div>
+  <div class="bl-preview-grid bl-preview-header"><strong data-preview="carrier">Carrier</strong><span><b>BILL OF LADING No.</b><br><strong data-preview="reference">Reference</strong></span></div>
+  <div class="bl-preview-grid"><span><b>SHIPPER</b><br><i data-preview="shipper">Not supplied</i></span><span><b>CONSIGNEE</b><br><i data-preview="consignee">Not supplied</i></span></div>
+  <div class="bl-preview-grid"><span><b>NOTIFY PARTY</b><br><i data-preview="notify_party">Not supplied</i></span><span><b>CARRIER OR AGENT</b><br><i data-preview="carrier_agent">Not supplied</i></span></div>
+  <div class="bl-preview-route"><span><b>VESSEL</b><i data-preview="vessel"></i></span><span><b>VOYAGE</b><i data-preview="voyage_number"></i></span><span><b>PORT OF LOADING</b><i data-preview="port_of_loading"></i></span><span><b>PORT OF DISCHARGE</b><i data-preview="port_of_discharge"></i></span></div>
+  <h3>PARTICULARS FURNISHED FOR TRAINING PURPOSES</h3>
+  <div class="bl-preview-cargo"><b>Container / seal</b><b>Packages and description of goods</b><b>Gross weight</b><span data-preview-inline="cargo_items">Add cargo items in the guided form to display them here.</span></div>
+  <p class="bl-preview-notice">This live view is an authoring preview. Save the record and use View generated PDF for the final printable document.</p>
+</section>
+{% endblock %}

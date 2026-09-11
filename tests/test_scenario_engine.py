@@ -5,7 +5,7 @@ from django.core.management import call_command
 from django.urls import reverse
 from django.utils import timezone
 
-from accounts.models import User
+from accounts.models import SimulatorCredential, User, allocate_student_id
 from audit.models import AuditEvent
 from evaluations.models import PracticalEvaluation, RemediationRecommendation, Rubric, RubricCriterion, RubricVersion
 from evaluations.services import add_feedback, revise_outcome
@@ -13,6 +13,18 @@ from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment
 from progress.models import ProgrammeProgress
 from scenarios.models import AssistanceEvent, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion
 from scenarios.services import available_actions, perform_action, start_or_resume_attempt
+
+
+def login_with_simulator_access(client, user):
+    if not user.student_id:
+        user.student_id = allocate_student_id(user.first_name or user.username)
+        user.save(update_fields=("student_id",))
+    credential, _ = SimulatorCredential.objects.get_or_create(user=user)
+    credential.issue()
+    client.force_login(user)
+    session = client.session
+    session["simulator_user_id"] = str(user.pk)
+    session.save()
 
 
 @pytest.fixture
@@ -97,7 +109,7 @@ def scenario_setup(db):
 @pytest.mark.django_db
 def test_practical_training_requires_completed_orientation(client, scenario_setup):
     ProgrammeProgress.objects.filter(enrolment=scenario_setup["enrolment"]).update(orientation_completed_at=None)
-    client.force_login(scenario_setup["user"])
+    login_with_simulator_access(client, scenario_setup["user"])
     assert client.get(reverse("scenario-list")).status_code == 403
 
 
@@ -154,7 +166,7 @@ def test_terminal_transition_completes_attempt(scenario_setup):
 @pytest.mark.django_db
 def test_beginner_hint_is_recorded_and_competency_hint_is_forbidden(client, scenario_setup):
     attempt, _ = start_or_resume_attempt(scenario_setup["enrolment"], scenario_setup["scenario_version"])
-    client.force_login(scenario_setup["user"])
+    login_with_simulator_access(client, scenario_setup["user"])
     assert client.post(reverse("scenario-hint", args=(attempt.pk,))).status_code == 302
     assert AssistanceEvent.objects.filter(attempt=attempt, kind=AssistanceEvent.Kind.HINT).exists()
     attempt.assistance_mode = ScenarioVersion.AssistanceMode.COMPETENCY
@@ -165,7 +177,7 @@ def test_beginner_hint_is_recorded_and_competency_hint_is_forbidden(client, scen
 @pytest.mark.django_db
 def test_workspace_shows_learner_document_data_but_not_evaluator_data(client, scenario_setup):
     attempt, _ = start_or_resume_attempt(scenario_setup["enrolment"], scenario_setup["scenario_version"])
-    client.force_login(scenario_setup["user"])
+    login_with_simulator_access(client, scenario_setup["user"])
     response = client.get(reverse("scenario-workspace", args=(attempt.pk,)))
     assert response.status_code == 200
     assert b"10 cartons" in response.content
@@ -176,7 +188,7 @@ def test_workspace_shows_learner_document_data_but_not_evaluator_data(client, sc
 def test_student_cannot_open_another_students_attempt(client, scenario_setup):
     attempt, _ = start_or_resume_attempt(scenario_setup["enrolment"], scenario_setup["scenario_version"])
     intruder = User.objects.create_user(username="intruder", email="intruder@example.test", password="test-password")
-    client.force_login(intruder)
+    login_with_simulator_access(client, intruder)
     assert client.get(reverse("scenario-workspace", args=(attempt.pk,))).status_code == 404
 
 
@@ -282,7 +294,7 @@ def test_instructor_feedback_visibility_is_respected(client, scenario_setup):
     visible = add_feedback(attempt, instructor, "Visible coaching feedback.", True)
     hidden = add_feedback(attempt, instructor, "Private instructor note.", False)
     assert visible.visible_to_student is True and hidden.visible_to_student is False
-    client.force_login(scenario_setup["user"])
+    login_with_simulator_access(client, scenario_setup["user"])
     # An evaluation is required for the result view, so feedback privacy is also
     # asserted directly at the relation boundary before a rubric is attached.
     assert list(attempt.instructor_feedback.filter(visible_to_student=True).values_list("body", flat=True)) == ["Visible coaching feedback."]
@@ -311,7 +323,7 @@ def test_student_can_view_evaluation_but_cannot_override_it(client, scenario_set
     attempt = perform_action(attempt, scenario_setup["first"])
     attempt = perform_action(attempt, scenario_setup["finish"])
     evaluation = attempt.evaluation
-    client.force_login(scenario_setup["user"])
+    login_with_simulator_access(client, scenario_setup["user"])
     detail_url = reverse("practical-evaluation", args=(evaluation.pk,))
     response = client.get(detail_url)
     assert response.status_code == 200

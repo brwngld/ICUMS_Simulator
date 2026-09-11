@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}New guided practical · {{ module.title }}{% endblock %}
+{% block workspace_name %}Practical flow builder{% endblock %}
+{% block content %}
+<div class="page-intro"><div><p class="eyebrow">{{ module.programme_version.programme.name }} · {{ module.title }}</p><h1>Create a guided practical</h1><p class="muted">Define the required ICUMS training flow in plain language. The system creates the isolated states, actions, guidance and completion evaluation.</p></div><a class="secondary-button" href="{% url 'course-builder-detail' module.programme_version.pk %}">Back to outline</a></div>
+<form method="post" action="{% url 'practical-create' module.pk %}" class="builder-form">{% csrf_token %}
+  <section class="panel form-section"><span class="content-type practical-type">Guided practical</span><h2>Purpose and audience</h2>{{ form.title.as_field_group }}<div class="form-columns"><div>{{ form.area.as_field_group }}{{ form.assistance_mode.as_field_group }}</div><div>{{ form.maximum_attempts.as_field_group }}</div></div>{{ form.briefing.as_field_group }}{{ form.learning_objective.as_field_group }}</section>
+  <section class="panel form-section"><h2>Pre-programmed simulated flow</h2><p class="muted">Each line becomes the next controlled action. Students must complete the steps in this order; their personal attempt state is recorded separately.</p>{{ form.steps.as_field_group }}</section>
+  <section class="panel builder-explanation"><h2>What is created automatically</h2><div class="journey-panel"><div class="journey-step"><span class="step-number">1</span><div><strong>Isolated attempt</strong><p>Every learner gets independent fictional state.</p></div></div><div class="journey-step"><span class="step-number">2</span><div><strong>Guided actions</strong><p>Each workflow line becomes a controlled transition.</p></div></div><div class="journey-step"><span class="step-number">3</span><div><strong>Completion evidence</strong><p>The system records actions and evaluates completion.</p></div></div></div></section>
+  <div class="form-actions"><a class="secondary-button" href="{% url 'course-builder-detail' module.programme_version.pk %}">Cancel</a><button class="primary-button" type="submit">Save guided practical draft</button></div>
+</form>
+{% endblock %}

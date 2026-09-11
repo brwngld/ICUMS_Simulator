@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "instructor_portal.apps.InstructorPortalConfig",
     "scenarios.apps.ScenariosConfig",
     "evaluations.apps.EvaluationsConfig",
+    "reports.apps.ReportsConfig",
 ]
 
 MIDDLEWARE = [

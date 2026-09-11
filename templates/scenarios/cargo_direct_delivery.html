@@ -1,0 +1,44 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Direct Delivery · ICUMS Simulator</title><link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}"><link rel="stylesheet" href="{% static 'css/cargo-page.css' %}"></head>
+<body>
+<a class="portal-skip" href="#main-content">Skip to cargo workspace</a>
+<div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+<div class="portal-shell">
+{% include "scenarios/_cargo_sidebar.html" %}
+<main id="main-content" class="portal-main cargo-main" tabindex="-1">
+<header class="portal-header cargo-header">
+  <div class="portal-heading"><p class="overline">Cargo · Sea Import · Discharge</p><h1>Direct Delivery</h1></div>
+  <nav class="portal-top-nav" aria-label="Logged-in simulator navigation"><a href="{% url 'cargo-direct-delivery' %}" aria-current="page">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="#">Collection</a><a href="{% url 'single-window-workspace' %}">Single Window</a><a href="#">Agent Management</a><a href="#">e-Docs</a><a href="#">Post Clearance Audit</a><a href="#">AEO</a><a href="#">More Information</a><a href="#">DW Service</a></nav>
+  <div class="portal-header-actions"><button type="button">3 notifications</button><a href="{% url 'simulator-portal' %}">Workspace home</a></div>
+</header>
+<div class="cargo-breadcrumb" aria-label="Breadcrumb"><a href="{% url 'simulator-portal' %}">Cargo</a><span>›</span><span>Sea Import</span><span>›</span><span>Discharge</span><span>›</span><strong>Direct Delivery</strong></div>
+<div class="cargo-content">
+<section class="cargo-panel" aria-labelledby="delivery-search-title"><div class="cargo-panel-title"><h2 id="delivery-search-title">Search</h2><span class="required-note">* required</span></div>
+<div class="cargo-form-grid">
+  <label for="submit-from">Submit Date <span>*</span></label><div class="date-range"><input id="submit-from" type="date" value="2026-08-31"><span>to</span><input id="submit-to" type="date" value="2026-09-06"><button type="button">R</button><button type="button">1D</button><button type="button">-1W</button><button type="button">-1M</button><button type="button">-3M</button></div>
+  <label for="manifest-number">Manifest No.</label><input id="manifest-number"><label for="bl-number">BL Number</label><input id="bl-number">
+  <label for="boe-number">BOE No.</label><input id="boe-number"><label for="declaration-number">Declaration No.</label><input id="declaration-number">
+</div><div class="cargo-actions"><button class="reset-button" type="reset">Reset</button><button class="search-button" type="button">Search</button></div></section>
+<section class="cargo-panel" aria-labelledby="delivery-list-title"><div class="cargo-panel-title"><h2 id="delivery-list-title">List</h2></div><div class="cargo-table-wrap"><table><thead><tr><th>Declaration No.</th><th>BOE No.</th><th>BL Number</th><th>Delivery Place</th><th>Status</th></tr></thead><tbody><tr><td colspan="5" class="empty-row">No fictional data found.</td></tr></tbody></table></div><div class="table-footer"><span>Total: 0</span><span>‹ &nbsp; ‹ &nbsp; › &nbsp; › &nbsp;&nbsp; Page: 1 / 0 &nbsp; <select aria-label="Rows per page"><option>10</option></select></span></div></section>
+<section class="cargo-panel" aria-labelledby="boe-summary-title"><div class="cargo-panel-title"><h2 id="boe-summary-title">BOE Summary Information</h2></div><div class="summary-grid">
+  <label for="summary-boe">BOE No. <span>*</span></label><input id="summary-boe"><label for="summary-bl">BL Number</label><input id="summary-bl">
+  <label for="vessel">Vessel Name (Voyage)</label><input id="vessel"><label for="goods-location">Location of Goods</label><input id="goods-location">
+  <label for="port-loading">Port of Loading</label><input id="port-loading"><label for="port-discharge">Port of Discharge</label><input id="port-discharge">
+  <label for="package">Package</label><input id="package"><label for="container-count">Container Count</label><input id="container-count">
+  <label for="gross-weight">Gross Weight</label><input id="gross-weight"><label for="net-weight">Net Weight</label><input id="net-weight">
+  <label for="exporter-country">Exporter Country</label><input id="exporter-country"><label for="exporter-name">Exporter Name</label><input id="exporter-name">
+  <label for="importer-code">Importer Code</label><input id="importer-code"><label for="importer-name">Importer Name</label><input id="importer-name">
+  <label for="consignee-code">Consignee Code</label><input id="consignee-code"><label for="consignee-name">Consignee Name</label><input id="consignee-name">
+  <label for="remarks">Remarks</label><input class="full-field" id="remarks">
+</div></section>
+<section class="cargo-panel" aria-labelledby="container-title"><div class="cargo-panel-title"><h2 id="container-title">Container / Chassis List</h2></div><div class="cargo-table-wrap"><table><thead><tr><th>Packing Type</th><th>Container No. / Chassis No.</th><th>Container Size</th><th>Seal No.</th></tr></thead><tbody><tr><td colspan="4" class="empty-row">No fictional data found.</td></tr></tbody></table></div><div class="cargo-actions"><button class="save-button" type="button">Save frontend draft</button></div></section>
+<p class="frontend-note" role="note">Frontend prototype only. Search, save, and declaration data will be connected after the cargo workflow and data rules are supplied.</p>
+</div>
+</main></div>
+<script src="{% static 'js/app-shell.js' %}" defer></script></body></html>
+
+
+
+

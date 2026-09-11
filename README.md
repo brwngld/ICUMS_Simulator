@@ -4,7 +4,7 @@
 
 ICUMS Simulator is a local-first educational web application for learning customs-clearance theory and practising simulated customs workflows. It does not connect to the official ICUMS platform, submit declarations, process payments, or use real transactions.
 
-The current repository contains the planning baseline for approval before implementation begins.
+The repository contains the approved planning baseline and an operational local implementation through Phase 5.
 
 ## Agreed V1 direction
 
@@ -28,6 +28,8 @@ The current repository contains the planning baseline for approval before implem
 - [Local development](docs/local-development.md)
 - [How to review the application](docs/how-to-review.md)
 - [Product rules and decisions](docs/product-rules.md)
+- [Administrator manual](docs/ICUMS_Simulator_Administrator_Manual.pdf)
+- [Administrator manual editable Word version](docs/ICUMS_Simulator_Administrator_Manual.docx)
 
 ## Proposed implementation stack
 
@@ -38,10 +40,8 @@ The current repository contains the planning baseline for approval before implem
 - PostgreSQL for hosted deployment
 - Pytest and pytest-django for automated testing
 
-Implementation should begin only after this planning baseline has been reviewed.
-
 ## Current implementation status
 
-Phase 1 foundation work, the Phase 2 theory journey, the Phase 3 practical engine, and the configurable Phase 4 evaluation layer are operational with fictional content. The repository now includes versioned declarative scenarios and rubrics, structured fictitious documents, conditional and parallel actions, mode-based assistance, append-only action evidence, save/resume, criterion-level results, remediation, instructor feedback, audited outcome revisions, and a guided fictional Import workflow through simulated gate out. Practical layouts and competency rules remain conceptual until validated.
+Phases 1–5 are operational with fictional content. Alongside the theory, practical, and evaluation journey, the application now includes browser-based Admin enrolment, a separate competency assessment, completion records, configurable approval policy, automatic training certificates, and local backup/restore commands. Practical layouts and competency rules remain conceptual until validated.
 
 See [implementation status](docs/implementation-status.md) for verified capabilities and remaining work.

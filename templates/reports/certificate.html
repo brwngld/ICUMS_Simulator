@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate {{ certificate.certificate_number }}{% endblock %}
+
+{% block content %}
+<article class="certificate-sheet">
+  <p class="certificate-kicker">ICUMS Simulator</p>
+  <h1>Certificate of Simulator Training Completion</h1>
+  <p>This certifies that</p>
+  <p class="certificate-name">{{ certificate.completion_record.enrolment.student.get_full_name|default:certificate.completion_record.enrolment.student.username }}</p>
+  <p>completed the simulated training programme</p>
+  <h2>{{ certificate.completion_record.enrolment.programme_version.programme.name }}</h2>
+  <p>on {{ certificate.completion_record.completed_at|date:"j F Y" }}</p>
+  <dl class="certificate-meta"><dt>Certificate number</dt><dd>{{ certificate.certificate_number }}</dd><dt>Status</dt><dd>{{ certificate.get_status_display }}</dd></dl>
+  <p class="certificate-disclaimer">TRAINING SIMULATOR — NOT OFFICIAL ICUMS. This certificate records simulator training only and is not a government-issued professional qualification.</p>
+  <button class="secondary-button no-print" type="button" onclick="window.print()">Print certificate</button>
+</article>
+{% endblock %}

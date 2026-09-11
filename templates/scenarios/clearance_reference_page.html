@@ -1,0 +1,37 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ title }} · ICUMS Simulator</title>
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}">
+</head>
+<body>
+  <a class="portal-skip" href="#main-content">Skip to {{ title }}</a>
+  <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+  <div class="portal-shell">
+    {% include "scenarios/_clearance_sidebar.html" %}
+    <main id="main-content" class="portal-main cargo-main" tabindex="-1">
+      <header class="portal-header cargo-header">
+        <div class="portal-heading"><p class="overline">Clearance · Declaration</p><h1>{{ title }}</h1></div>
+        <nav class="portal-top-nav" aria-label="Logged-in simulator navigation">
+          <a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}" aria-current="page">Clearance</a><a href="#">Collection</a><a href="{% url 'single-window-workspace' %}">Single Window</a><a href="#">Agent Management</a><a href="#">e-Docs</a><a href="#">Post Clearance Audit</a><a href="#">AEO</a><a href="#">More Information</a>
+        </nav>
+      </header>
+      <div class="cargo-breadcrumb"><a href="{% url 'clearance-workspace' %}">Clearance</a><span>›</span><span>Declaration</span><span>›</span><strong>{{ title }}</strong></div>
+      <div class="cargo-content">
+        <p class="frontend-note">Frontend-only Clearance reference screen. Records are fictional and empty until this workflow is supplied.</p>
+        <section class="cargo-panel">
+          <div class="cargo-panel-title"><h2>{{ title }}</h2></div>
+          <div class="declaration-search-grid"><label>Reference No.</label><input><label>Status</label><select><option>-- Select One --</option><option>Draft</option><option>Submitted</option><option>Approved</option></select><label>Importer Code or Name</label><input><label>Register Date</label><div class="date-range"><input type="date"><span>to</span><input type="date"></div></div>
+          <div class="cargo-actions"><button class="reset-button" type="reset">Reset</button><button class="search-button" type="button">Search</button></div>
+        </section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Records</h2></div><table><thead><tr><th>No.</th><th>Reference No.</th><th>Importer</th><th>Status</th><th>Register Date</th></tr></thead><tbody><tr><td colspan="5" class="empty-row">No fictional data found.</td></tr></tbody></table></section>
+      </div>
+    </main>
+  </div>
+  <script src="{% static 'js/app-shell.js' %}" defer></script>
+</body>
+</html>

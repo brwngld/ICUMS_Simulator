@@ -1,0 +1,133 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Practical Workspace · ICUMS Simulator</title>
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260911-2">
+</head>
+<body>
+  <a class="portal-skip" href="#portal-main">Skip to workspace</a>
+  <div class="portal-warning" role="note">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+  {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+  <div class="portal-shell">
+    {% include "scenarios/_cargo_sidebar.html" %}
+
+    <main id="portal-main" class="portal-main" tabindex="-1">
+      <header class="portal-header">
+        <div class="portal-heading"><p class="overline">Practical training environment</p><h1>Cargo tracking dashboard</h1></div>
+        <nav class="portal-top-nav" aria-label="Logged-in simulator navigation">
+          <a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="#collection">Collection</a><a href="{% url 'single-window-create-ucr' %}">Single Window</a><a href="#agent-management">Agent Management</a><a href="#e-docs">e-Docs</a><a href="#post-clearance-audit">Post Clearance Audit</a><a href="#aeo">AEO</a><a href="#more-information">More Information</a><a href="#dw-service">DW Service</a>
+        </nav>
+        <div class="portal-header-actions"><button type="button" aria-label="Open notifications">3 notifications</button>{% if simulator_access %}<form method="post" action="{% url 'simulator-logout' %}">{% csrf_token %}<button type="submit">Simulator sign out</button></form>{% else %}<button type="button" data-open-simulator-login>Login</button>{% endif %}</div>
+      </header>
+
+      <section class="tracking-search" aria-labelledby="tracking-title">
+        <div><h2 id="tracking-title">Track fictional cargo</h2><p>Search practice records without contacting any external system.</p></div>
+        <form class="tracking-form" action="#" onsubmit="return false">
+          <fieldset><legend>Reference type</legend>
+            <label><input type="radio" name="reference_type" checked> Bill of lading</label>
+            <label><input type="radio" name="reference_type"> Container</label>
+            <label><input type="radio" name="reference_type"> BOE</label>
+            <label><input type="radio" name="reference_type"> Declaration</label>
+          </fieldset>
+          <div class="search-row"><label class="sr-only" for="tracking-reference">Fictional reference</label><input id="tracking-reference" placeholder="Enter a fictional reference"><button type="button">Search</button></div>
+        </form>
+      </section>
+
+      <div class="portal-grid">
+        <section class="portal-card shortcut-card wide" id="cargo-services" aria-labelledby="shortcuts-title">
+          <div class="card-heading"><h2 id="shortcuts-title">Cargo services</h2><span>Simulator navigation</span></div>
+          <div class="shortcut-grid">
+            <button class="shortcut-button" type="button" data-open-cargo-search><span class="line-icon" aria-hidden="true">⌖</span><strong>Cargo tracking</strong><small>Find a training consignment</small></button>
+            <a href="{% url 'cargo-reference-page' 'vessel-arrival' %}"><span class="line-icon" aria-hidden="true">≋</span><strong>Vessel arrival</strong><small>Review arrival information</small></a>
+            <a href="{% url 'cargo-reference-page' 'vessel-schedule' %}"><span class="line-icon" aria-hidden="true">◫</span><strong>Vessel schedule</strong><small>View fictional schedules</small></a>
+            <a href="#"><span class="line-icon" aria-hidden="true">▤</span><strong>Manifest status</strong><small>Check a practice manifest</small></a>
+            <button class="shortcut-button" type="button" data-open-boe-search><span class="line-icon" aria-hidden="true">◇</span><strong>BOE status</strong><small>Review simulated status</small></button>
+          </div>
+        </section>
+
+        <section class="portal-card rates-card" aria-labelledby="rates-title">
+          <div class="card-heading"><h2 id="rates-title">Training exchange rates</h2><span>Illustrative only</span></div>
+          <div class="table-scroll"><table><thead><tr><th>Currency</th><th>Selling</th><th>Buying</th></tr></thead><tbody>
+          <tr><td>USD</td><td>12.4100</td><td>12.3500</td></tr><tr><td>GBP</td><td>16.2200</td><td>16.1000</td></tr><tr><td>EUR</td><td>14.0800</td><td>13.9600</td></tr><tr><td>CAD</td><td>9.0200</td><td>8.9100</td></tr><tr><td>ZAR</td><td>0.7100</td><td>0.6900</td></tr>
+          </tbody></table></div>
+        </section>
+
+        <section class="portal-card" aria-labelledby="codes-title"><div class="card-heading"><h2 id="codes-title">Codes</h2></div><ul class="link-list"><li><a href="#">Simulator codes</a></li><li><a href="#">HS code practice</a></li><li><a href="#">Customs regime examples</a></li><li><a href="#">Country reference list</a></li></ul></section>
+        <section class="portal-card" aria-labelledby="info-title"><div class="card-heading"><h2 id="info-title">Information</h2></div><ul class="link-list"><li><a href="#">Duty calculator exercise</a></li><li><a href="#">Used vehicle exercise</a></li><li><a href="#">Document checklist</a></li><li><a href="#">How to use this simulator</a></li></ul></section>
+
+        <section class="portal-card notices-card" aria-labelledby="notice-title"><div class="card-heading"><h2 id="notice-title">Training notices</h2><button type="button">View all</button></div>
+          <article><strong>Import practice module available</strong><time datetime="2026-09-06">6 September 2026</time><p>The simulator workspace is ready for guided workflow mapping.</p></article>
+          <article><strong>Use fictional references only</strong><time datetime="2026-09-01">1 September 2026</time><p>Do not enter real importer, shipment, declaration, or payment information.</p></article>
+        </section>
+
+        <section class="portal-card chart-card" aria-labelledby="statistics-title"><div class="card-heading"><h2 id="statistics-title">Practice activity</h2><span>Monthly scenario attempts</span></div>
+          <div class="chart" role="img" aria-label="Illustrative line chart of monthly practice scenario attempts rising from 18 to 62">
+            <span class="y y3">75</span><span class="y y2">50</span><span class="y y1">25</span>
+            <svg viewBox="0 0 600 180" preserveAspectRatio="none" aria-hidden="true"><polyline points="20,145 90,125 160,135 230,92 300,104 370,67 440,82 510,45 580,58"/><g><circle cx="20" cy="145" r="5"/><circle cx="90" cy="125" r="5"/><circle cx="160" cy="135" r="5"/><circle cx="230" cy="92" r="5"/><circle cx="300" cy="104" r="5"/><circle cx="370" cy="67" r="5"/><circle cx="440" cy="82" r="5"/><circle cx="510" cy="45" r="5"/><circle cx="580" cy="58" r="5"/></g></svg>
+            <div class="x-axis"><span>Jan</span><span>Mar</span><span>May</span><span>Jul</span><span>Sep</span></div>
+          </div>
+        </section>
+      </div>
+      <footer class="portal-footer"><span>ICUMS Simulator practical workspace</span><span>No official transactions · No external system connection</span></footer>
+    </main>
+  </div>
+  <dialog class="simulator-login-dialog" id="simulator-login-dialog" aria-labelledby="simulator-login-title">
+    <div class="simulator-login-heading"><div><h2 id="simulator-login-title">Login</h2><p>ICUMS training simulator access</p></div><button type="button" data-close-simulator-login aria-label="Close login">×</button></div>
+    <form method="post" action="{% url 'simulator-login' %}" class="simulator-login-form">{% csrf_token %}<label for="simulator-student-id">Student ID</label><input id="simulator-student-id" name="student_id" value="{{ student_id_hint }}" placeholder="BERN00001/26" autocomplete="username" required><label for="simulator-password">Monthly password</label><input id="simulator-password" name="password" type="password" autocomplete="current-password" required><button type="submit">Continue</button></form>
+    <div class="simulator-login-help"><strong>Forgot ID or password?</strong><p>Your monthly password must be reset by an instructor or administrator after it expires.</p><details><summary>Request password reset</summary><form method="post" action="{% url 'simulator-reset-request' %}">{% csrf_token %}<label for="reset-student-id">Student ID</label><input id="reset-student-id" name="student_id" value="{{ student_id_hint }}" placeholder="BERN00001/26" required><button type="submit">Notify instructor</button></form></details>{% if not user.is_authenticated %}<p><a href="{% url 'register' %}">Register as a new student</a> · <a href="{% url 'login' %}">Learning account login</a></p>{% endif %}</div>
+  </dialog>
+  <dialog class="cargo-dialog" id="cargo-search-dialog" aria-labelledby="cargo-dialog-title">
+    <form class="cargo-dialog-form" method="dialog" id="cargo-search-form">
+      <header class="dialog-header"><div><p class="overline">Frontend training tool</p><h2 id="cargo-dialog-title">Cargo search information</h2></div><button class="dialog-close" type="button" data-close-cargo-search aria-label="Close cargo search">×</button></header>
+      <p class="dialog-notice">Use fictional references only. Search is not connected to an external cargo system.</p>
+      <div class="cargo-search-grid">
+        <label class="cargo-option cargo-reference-option"><span><input type="radio" name="cargo_search_type" value="cargo_reference"> Cargo Reference No.</span><span class="reference-parts"><span>MN</span><input name="manifest_number" aria-label="Manifest number"><span>MSN</span><input name="master_sequence_number" aria-label="Master sequence number"><span>HSN</span><input name="house_sequence_number" aria-label="House sequence number"></span></label>
+        <label class="cargo-option"><span><input type="radio" name="cargo_search_type" value="bl" checked> BL Number</span><input name="bl_number" aria-label="Bill of lading number"></label>
+        <label class="cargo-option"><span><input type="radio" name="cargo_search_type" value="boe"> BOE Number</span><input name="boe_number" aria-label="Bill of entry number"></label>
+        <label class="cargo-option"><span><input type="radio" name="cargo_search_type" value="container"> Container/Chassis No.</span><input name="container_number" aria-label="Container or chassis number"></label>
+        <label class="cargo-option"><span><input type="radio" name="cargo_search_type" value="delivery_order"> DO / SR No.</span><input name="delivery_order_number" aria-label="Delivery order or shipping release number"></label>
+      </div>
+      <p class="dialog-status" id="cargo-search-status" role="status" aria-live="polite"></p>
+      <div class="dialog-actions"><button class="reset-button" type="reset">Reset</button><button class="search-button" type="submit">Search fictional cargo</button></div>
+    </form>
+  </dialog>
+  <dialog class="cargo-dialog boe-dialog" id="boe-search-dialog" aria-labelledby="boe-dialog-title">
+    <form class="cargo-dialog-form" method="dialog" id="boe-search-form">
+      <header class="dialog-header"><div><p class="overline">Frontend training tool</p><h2 id="boe-dialog-title">BOE status search</h2></div><button class="dialog-close" type="button" data-close-boe-search aria-label="Close BOE status search">×</button></header>
+      <p class="dialog-notice">Use fictional BOE and trader references only. This search is not connected to an external declaration system.</p>
+      <div class="boe-search-grid">
+        <label for="boe-status-number">BOE Number <span aria-hidden="true">*</span></label><input id="boe-status-number" name="boe_status_number" required autocomplete="off">
+        <label for="boe-trader-code">Importer/Exporter Code <span aria-hidden="true">*</span></label><input id="boe-trader-code" name="trader_code" required autocomplete="off">
+      </div>
+      <p class="dialog-status" id="boe-search-status" role="status" aria-live="polite"></p>
+      <div class="dialog-actions"><button class="reset-button" type="reset">Reset</button><button class="search-button" type="submit">Search BOE status</button></div>
+    </form>
+  </dialog>
+  <script>
+    (() => {
+      const simulatorLogin = document.getElementById('simulator-login-dialog');
+      document.querySelectorAll('[data-open-simulator-login]').forEach(button => button.addEventListener('click', () => simulatorLogin.showModal()));
+      document.querySelector('[data-close-simulator-login]').addEventListener('click', () => simulatorLogin.close());
+      {% if not simulator_access %}simulatorLogin.showModal();{% endif %}
+      const configureDialog = ({ dialogId, formId, statusId, openSelector, closeSelector, message }) => {
+        const dialog = document.getElementById(dialogId);
+        const form = document.getElementById(formId);
+        const status = document.getElementById(statusId);
+        document.querySelectorAll(openSelector).forEach((button) => button.addEventListener("click", () => dialog.showModal()));
+        document.querySelector(closeSelector).addEventListener("click", () => dialog.close());
+        form.addEventListener("submit", (event) => { event.preventDefault(); status.textContent = message; });
+        form.addEventListener("reset", () => { status.textContent = "Search fields reset."; });
+      };
+      configureDialog({ dialogId: "cargo-search-dialog", formId: "cargo-search-form", statusId: "cargo-search-status", openSelector: "[data-open-cargo-search]", closeSelector: "[data-close-cargo-search]", message: "Frontend prototype only. The fictional search will be connected when the workflow and data rules are supplied." });
+      configureDialog({ dialogId: "boe-search-dialog", formId: "boe-search-form", statusId: "boe-search-status", openSelector: "[data-open-boe-search]", closeSelector: "[data-close-boe-search]", message: "Frontend prototype only. BOE status results will be connected after the declaration workflow and data rules are supplied." });
+    })();
+  </script>
+<script src="{% static 'js/app-shell.js' %}" defer></script></body>
+</html>
+
+
+
+

@@ -1,0 +1,4 @@
+.bl-field-hidden,
+.bl-empty-row {
+  display: none !important;
+}

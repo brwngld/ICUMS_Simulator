@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | ICUMS Simulator{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/admin-theme.css' %}">
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <script src="{% static 'js/theme.js' %}" defer></script>
+{% endblock %}
+
+{% block branding %}
+  <a class="admin-brand" href="{% url 'admin:index' %}">
+    <span class="admin-brand-mark" aria-hidden="true">IS</span>
+    <span>ICUMS <small>Training administration</small></span>
+  </a>
+{% endblock %}
+
+{% block nav-global %}
+  <nav id="nav-global" aria-label="Platform links">
+    <a href="{% url 'dashboard' %}">Student view</a>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false">
+      <span class="theme-toggle-icon" aria-hidden="true">◐</span><span data-theme-label>Dark theme</span>
+    </button>
+  </nav>
+{% endblock %}

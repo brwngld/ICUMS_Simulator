@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Course builder · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Course builder{% endblock %}
+{% block content %}
+<div class="page-intro"><div><p class="eyebrow">Instructor workspace</p><h1>{% if learning_path == 'theory' %}Theory builder{% elif learning_path == 'combined' %}Practical/Theory builder{% else %}Course builder{% endif %}</h1><p class="muted">{% if learning_path == 'theory' %}Build reading lessons, questions, quizzes, and theory assessments. No simulator workflow is required.{% elif learning_path == 'combined' %}Build supporting theory together with a guided simulator workflow, fictitious documents, and practical assessment.{% else %}Choose the learning path, then keep all related modules and assessments in one course outline.{% endif %} Everything remains a draft until it is deliberately published.</p></div></div>
+<nav class="builder-path-tabs" aria-label="Course builder learning paths"><a class="secondary-button{% if learning_path == 'theory' %} active{% endif %}" href="{% url 'course-builder' %}?path=theory">Theory</a><a class="secondary-button{% if learning_path == 'combined' %} active{% endif %}" href="{% url 'course-builder' %}?path=combined">Practical/Theory</a></nav>
+<div class="builder-layout">
+  <section class="panel builder-card"><span class="step-number">1</span><h2>Start a course</h2><p class="muted">Codes, slugs and version one are generated automatically.</p><form method="post" action="{% url 'course-create' %}" class="stacked-form">{% csrf_token %}{{ form.as_div }}<button class="primary-button" type="submit">Create draft course</button></form></section>
+  <section><div class="section-heading"><div><h2>Your draft courses</h2><p>Continue from where you stopped.</p></div></div><div class="module-grid">
+    {% for version in drafts %}<article class="panel module-card"><div class="module-card-top"><span class="badge badge-active">Draft v{{ version.version }}</span><span class="muted">{{ version.modules.count }} module{{ version.modules.count|pluralize }}</span></div><h2>{{ version.programme.name }}</h2><p>{{ version.modules.all|length }} modules ready for review.</p><div class="module-card-footer"><a class="primary-link" href="{% url 'course-builder-detail' version.pk %}">Continue building →</a></div></article>
+    {% empty %}<div class="panel"><p>No draft courses yet. Create one using the form.</p></div>{% endfor %}
+  </div></section>
+</div>
+{% endblock %}

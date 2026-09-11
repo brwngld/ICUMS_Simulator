@@ -1,0 +1,33 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Single Window · ICUMS Simulator</title>
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}">
+</head>
+<body>
+  <a class="portal-skip" href="#main-content">Skip to Single Window workspace</a>
+  <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+  <div class="portal-shell">
+    {% include "scenarios/_single_window_sidebar.html" %}
+    <main id="main-content" class="portal-main cargo-main" tabindex="-1">
+      <header class="portal-header cargo-header">
+        <div class="portal-heading"><p class="overline">Single Window · Registration</p><h1>Unique Consignment Reference</h1></div>
+        <nav class="portal-top-nav" aria-label="Logged-in simulator navigation"><a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="#">Collection</a><a href="{% url 'single-window-create-ucr' %}" aria-current="page">Single Window</a><a href="#">Agent Management</a><a href="#">e-Docs</a><a href="#">Post Clearance Audit</a><a href="#">AEO</a><a href="#">More Information</a><a href="#">DW Service</a></nav>
+      </header>
+      <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Single Window</a><span>›</span><span>Registration</span><span>›</span><strong>Unique Consignment Reference</strong></div>
+      <div class="cargo-content">
+        <p class="frontend-note">Single Window navigation is available for frontend practice. Actions are placeholders until their screen flows are supplied.</p>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Registration</h2></div><div class="clearance-menu-grid"><a href="{% url 'single-window-create-ucr' %}">Create UCR</a><a href="{% url 'single-window-search-ucr' %}">Search UCR</a><a href="{% url 'single-window-transfer-ucr' %}">Transfer UCR</a><a href="{% url 'single-window-received-ucr' %}">Received UCR</a><a href="{% url 'single-window-create-exporter' %}">Create Exporter Registration</a><a href="{% url 'single-window-search-exporter' %}">Search Exporter Registration</a><a href="{% url 'single-window-create-opt-in-out' %}">Create Opt In/Out</a><a href="{% url 'single-window-search-opt-in-out' %}">Search Opt In/Out</a><a href="{% url 'single-window-create-fcie' %}">Create FCIE Registration</a><a href="{% url 'single-window-search-fcie' %}">Search FCIE Registration</a></div></section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Application</h2></div><div class="clearance-menu-grid"><a href="{% url 'single-window-create-preparation-application' %}">Create Preparation Application</a><a href="{% url 'single-window-search-preparation-application' %}">Search Preparation Application</a><a href="{% url 'single-window-create-master-application' %}">Create Master Application</a><a href="{% url 'single-window-search-master-application' %}">Search Master Application</a><a href="{% url 'single-window-create-consignment-application' %}">Create Consignment Application</a><a href="{% url 'single-window-search-consignment-application' %}">Search Consignment Application</a></div></section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Letter of Commitment</h2></div><div class="clearance-menu-grid"><a href="{% url 'single-window-create-bank-registration' %}">Create Bank Pre-Registration</a><a href="{% url 'single-window-search-bank-registration' %}">Search Bank Pre-Registration</a><a href="{% url 'single-window-create-letter-commitment' %}">Create Letter of Commitment</a><a href="{% url 'single-window-search-letter-commitment' %}">Search Letter of Commitment</a></div></section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Previous Data</h2></div><div class="clearance-menu-grid"><a href="{% url 'single-window-previous-data' 'application' %}">Search Application</a><a href="{% url 'single-window-previous-data' 'exporter' %}">Search Exporter Registration</a><a href="{% url 'single-window-previous-data' 'letter' %}">Search Letter of Commitment</a><a href="{% url 'single-window-previous-data' 'bank' %}">Search Pre Bank Registration</a><a href="{% url 'single-window-previous-data' 'opt-in' %}">Search Opt In</a></div></section>
+      </div>
+    </main>
+  </div>
+  <script src="{% static 'js/app-shell.js' %}" defer></script>
+</body>
+</html>

@@ -32,6 +32,30 @@ Theory and practical difficulty are separate concepts:
 
 Completed material remains available for review. Formal progression may remain locked until prerequisites are satisfied, while an instructor or administrator may override a lock with an audited reason.
 
+## Content model: theory, practical, and combined modules
+
+The words **course**, **module**, **theory**, and **practical** describe different levels of the learning model:
+
+- A **course** is the complete programme, such as *International Trade and Customs*.
+- A **module** is a subject area inside the course, such as *Import Declaration Processing*.
+- A **theory lesson** is reading and knowledge learning. It contains explanations, media or documents, review questions, quizzes, and theory assessments. It does not require the learner to operate the simulator.
+- A **guided practical** is applied learning in the simulator sandbox. It contains a briefing, a scenario, ordered workflow steps, optional hints, assistance settings, and a practical rubric. It records the learner's training attempt without changing official or live ICUMS data.
+- A **combined module** contains both theory and practical items. A normal sequence is theory lesson → theory questions or quiz → guided practical → practical assessment.
+
+Theory and practical content are separate content types even when they belong to the same module. A module may therefore be theory-only, practical-only, or combined. The course builder must make this distinction explicit when an instructor adds content; “Theory” must never be used as a label for practical simulator work.
+
+## Instructor authoring workflow
+
+Instructors use the course builder to:
+
+1. Create or select a course and module.
+2. Add a **Theory lesson** for reading material and knowledge questions.
+3. Add a **Guided practical** for a safe, simulated ICUMS workflow.
+4. Add a **Module assessment** or practical rubric where formal evaluation is required.
+5. Review the module, resolve content warnings, and publish it.
+
+The **Simulator Sandbox** is the learner-facing practice space. It is isolated, uses fictitious training data, and must not affect course content or real system records. The **Advanced administration** area is for technical and manual maintenance; it is not the normal way instructors should author lessons or practicals.
+
 ## Assistance modes
 
 | Mode | Guidance | Feedback | Expected behaviour |

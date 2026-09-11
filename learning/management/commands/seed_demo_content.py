@@ -7,6 +7,7 @@ from django.utils import timezone
 from assessments.models import AnswerOption, Assessment, AssessmentItem, LessonCheck, Question, QuestionVersion
 from learning.models import ContentBlock, Lesson, Module, Resource
 from onboarding.models import DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
+from reports.models import CompletionPolicy
 
 
 class Command(BaseCommand):
@@ -38,6 +39,10 @@ class Command(BaseCommand):
             programme=programme,
             version=1,
             defaults={"status": ProgrammeVersion.Status.PUBLISHED, "published_at": timezone.now()},
+        )
+        CompletionPolicy.objects.update_or_create(
+            programme_version=programme_version,
+            defaults={"requires_instructor_approval": False, "certificate_template_version": 1, "is_active": True},
         )
         module, _ = Module.objects.update_or_create(
             programme_version=programme_version,

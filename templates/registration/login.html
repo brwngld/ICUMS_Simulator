@@ -3,6 +3,8 @@
 {% block title %}Sign in · ICUMS Simulator{% endblock %}
 
 {% block content %}
+<div class="auth-layout">
+<section class="auth-story" aria-label="About your learning workspace"><p class="eyebrow">Learn. Practise. Progress.</p><h2>Your next chapter<br>starts here.</h2><p>Build confidence in customs clearance with guided lessons and hands-on training scenarios.</p><div class="journey-graphic" aria-hidden="true">{% include "components/icon.html" with name="box" %}<span class="graphic-check">{% include "components/icon.html" with name="check" %}</span></div><div class="auth-story-footer">TRAINING SIMULATOR — NOT OFFICIAL ICUMS<br>A dedicated space for learning with fictional data.</div></section>
 <section class="auth-panel" aria-labelledby="login-title">
   <p class="eyebrow">Training access</p>
   <h1 id="login-title">Sign in</h1>
@@ -17,5 +19,7 @@
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     <button class="primary-button" type="submit">Sign in</button>
   </form>
+  <p class="auth-footnote">New student? <a href="{% url 'register' %}">Register for a learning account</a>. Simulator access is issued separately by your instructor.</p>
 </section>
+</div>
 {% endblock %}

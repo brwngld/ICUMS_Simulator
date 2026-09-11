@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Review {{ version.programme.name }} · Course builder{% endblock %}
+{% block workspace_name %}Course review{% endblock %}
+{% block content %}
+<div class="page-intro"><div><p class="eyebrow">Final review</p><h1>{{ version.programme.name }}</h1><p class="muted">Check the learner-facing structure before making it available.</p></div><a class="secondary-button" href="{% url 'course-builder-detail' version.pk %}">Back to editing</a></div>
+{% if issues %}<section class="panel review-warning"><h2>Not ready to publish</h2><p>Resolve the following items:</p><ul>{% for issue in issues %}<li>{{ issue }}</li>{% endfor %}</ul></section>{% else %}<section class="panel review-ready"><h2>Ready to publish</h2><p>All required teaching content and knowledge checks are present.</p></section>{% endif %}
+<div class="builder-outline review-outline">
+{% for module in version.modules.all %}<section class="panel"><span class="badge">Module {{ module.order }}</span><h2>{{ module.title }}</h2><p class="muted">{{ module.description }}</p>{% for lesson in module.lessons.all %}<article class="review-lesson"><span class="content-type">Theory</span><h3>{{ lesson.title }}</h3><p>{{ lesson.summary }}</p><dl class="record-details"><dt>Content sections</dt><dd>{{ lesson.blocks.count }}</dd><dt>Knowledge checks</dt><dd>{{ lesson.knowledge_checks.count }}</dd></dl></article>{% endfor %}{% for practical in module.guided_practicals.all %}<article class="review-lesson"><span class="content-type practical-type">Guided practical</span><h3>{{ practical.scenario.title }}</h3><p>{{ practical.learning_objective }}</p><dl class="record-details"><dt>Workflow stages</dt><dd>{{ practical.states.count }}</dd><dt>Guidance</dt><dd>{{ practical.get_assistance_mode_display }}</dd><dt>Purpose</dt><dd>{{ practical.get_purpose_display }}</dd></dl></article>{% endfor %}</section>{% endfor %}
+</div>
+<section class="panel publish-panel"><div><h2>Publish to students</h2><p class="muted">Publishing locks this version’s learning records. Future changes should be made in a new version.</p></div><form method="post" action="{% url 'course-publish' version.pk %}">{% csrf_token %}<button class="primary-button" type="submit" {% if issues %}disabled{% endif %}>Publish course</button></form></section>
+{% endblock %}

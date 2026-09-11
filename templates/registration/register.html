@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Student registration · ICUMS Simulator{% endblock %}
+{% block content %}
+<div class="auth-layout">
+  <section class="auth-story"><p class="eyebrow">Student registration</p><h2>Create your<br>learning account.</h2><p>Your permanent Student ID is generated automatically after registration.</p><div class="auth-story-footer">Your simulator login is issued separately by an instructor or administrator.</div></section>
+  <section class="auth-panel" aria-labelledby="registration-title"><p class="eyebrow">New learner</p><h1 id="registration-title">Register</h1><p class="muted">Enter your own learning-account details. Do not enter shipment or customs data here.</p>
+    {% if form.errors %}<div class="error" role="alert">Please correct the fields shown below.</div>{% endif %}
+    <form method="post" class="stacked-form">{% csrf_token %}{{ form.as_p }}<button class="primary-button" type="submit">Create student account</button></form>
+    <p class="auth-footnote">Already registered? <a href="{% url 'login' %}">Sign in</a>.</p>
+  </section>
+</div>
+{% endblock %}

@@ -43,6 +43,13 @@ class Enrolment(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="enrolments")
+    enrolled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="enrolments_created",
+    )
     programme_version = models.ForeignKey(ProgrammeVersion, on_delete=models.PROTECT, related_name="enrolments")
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.ACTIVE)
     enrolled_at = models.DateTimeField(auto_now_add=True)

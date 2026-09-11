@@ -1,0 +1,55 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create BOE Declaration · ICUMS Simulator</title>
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}">
+</head>
+<body>
+  <a class="portal-skip" href="#main-content">Skip to clearance workspace</a>
+  <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+  <div class="portal-shell">
+    {% include "scenarios/_clearance_sidebar.html" %}
+    <main id="main-content" class="portal-main cargo-main" tabindex="-1">
+      <header class="portal-header cargo-header">
+        <div class="portal-heading"><p class="overline">Clearance · Declaration · Register Declaration</p><h1>Create BOE Declaration</h1></div>
+        <nav class="portal-top-nav" aria-label="Logged-in simulator navigation">
+          <a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}" aria-current="page">Clearance</a><a href="#">Collection</a><a href="{% url 'single-window-workspace' %}">Single Window</a><a href="#">Agent Management</a><a href="#">e-Docs</a><a href="#">Post Clearance Audit</a><a href="#">AEO</a><a href="#">More Information</a><a href="#">DW Service</a>
+        </nav>
+      </header>
+      <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Clearance</a><span>›</span><span>Declaration</span><span>›</span><strong>Create BOE Declaration</strong></div>
+      <div class="cargo-content">
+        <p class="frontend-note">Clearance navigation is now available for practice. This declaration form is a visual preview; it does not create or submit a BOE.</p>
+        <section class="cargo-panel">
+          <div class="cargo-panel-title"><h2>Create Declaration</h2><span class="required-note">* required</span></div>
+          <div class="summary-grid">
+            <label>BOE Type <span>*</span></label><div><label><input type="radio" checked> New Declaration</label> <label><input type="radio"> Clone Declaration</label></div>
+            <label>Regime <span>*</span></label><input placeholder="Select or enter regime">
+            <label>CL Plan <span>*</span></label><select><option>— Select One —</option><option>Standard</option><option>Priority</option></select>
+            <label>Reuse Document <span>*</span></label><div><label><input type="radio" name="reuse" checked> None</label> <label><input type="radio" name="reuse"> IDF</label> <label><input type="radio" name="reuse"> eMda Docs.</label> <label><input type="radio" name="reuse"> LOC</label></div>
+          </div>
+          <div class="cargo-actions"><button class="primary-button" type="button" onclick="document.querySelector('#clearance-message').hidden=false">Create Declaration Form</button></div>
+          <p id="clearance-message" class="frontend-note" role="status" hidden>The declaration form is a frontend placeholder. No BOE has been created.</p>
+        </section>
+        <section class="cargo-panel">
+          <div class="cargo-panel-title"><h2>Register Declaration menu</h2></div>
+          <div class="clearance-menu-grid">
+            <a href="{% url 'clearance-workspace' %}">Create BOE Declaration</a>
+            <a href="{% url 'search-boe-declaration' %}">Search BOE Declaration</a>
+            <a href="{% url 'create-simple-amendment' %}">Create Simple Amendment</a>
+            <a href="{% url 'search-simple-amendment' %}">Search Simple Amendment</a>
+            <a href="{% url 'create-post-entry-declaration' %}">Create Post Entry Declaration</a>
+            <a href="{% url 'search-post-entry-declaration' %}">Search Post Entry Declaration</a>
+            <a href="{% url 'clearance-reference-page' 'request-for-boe-suspension' %}">Request for BOE Suspension</a>
+            <a href="{% url 'clearance-reference-page' 'petroleum-management' %}">Petroleum Management</a>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="{% static 'js/app-shell.js' %}" defer></script>
+</body>
+</html>
