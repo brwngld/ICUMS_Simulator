@@ -43,6 +43,6 @@ The repository contains the approved planning baseline and an operational local 
 
 ## Current implementation status
 
-Phases 1–5 are operational with fictional content. Alongside the theory, practical, and evaluation journey, the application now includes browser-based Admin enrolment, a separate competency assessment, completion records, configurable approval policy, automatic training certificates, and local backup/restore commands. Practical layouts and competency rules remain conceptual until validated.
+Phases 1–5 are operational with fictional content. Alongside the theory, practical, and evaluation journey, the application includes browser-based Admin enrolment, a separate competency assessment, completion records, configurable approval policy, automatic training certificates, and local backup/restore commands. The practical side now also covers a reference-informed Import workspace: UCR declarations with fictional TIN lookup, a consignment application with HS-code lookup over the seeded Ghana tariff, admin-managed ports, an MDA application workflow, and bill of lading and commercial document editors with generated sample PDFs. Practical layouts and competency rules remain deliberately adapted references until validated by a subject-matter expert.
 
 See [implementation status](docs/implementation-status.md) for verified capabilities and remaining work.

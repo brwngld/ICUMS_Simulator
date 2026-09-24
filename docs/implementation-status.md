@@ -1,8 +1,8 @@
 # Implementation Status
 
-## Verified on 6 September 2026
+## Verified on 24 September 2026
 
-The current implementation passes Django's system checks, has no ungenerated model changes, and passes 39 automated tests.
+The current implementation passes Django's system checks, has no ungenerated model changes, and passes 86 automated tests.
 
 ## Phase 1 foundation
 
@@ -63,7 +63,7 @@ The current implementation passes Django's system checks, has no ungenerated mod
 
 ## Next recommended implementation increment
 
-Review the complete fictional theory, guided practice, independent competency, and certificate journey in the browser. The next implementation gate is Phase 6 PostgreSQL and hosted-deployment readiness. Actual ICUMS-like practical layouts remain blocked on permitted reference material or subject-matter-expert walkthroughs.
+Review the complete fictional theory, guided practice, independent competency, and certificate journey in the browser. The next implementation gate is Phase 6 PostgreSQL and hosted-deployment readiness. Product-owner reference screenshots and the supplied Ghana tariff PDF have been incorporated into the practical workspace; subject-matter-expert validation of the adapted layouts and authoritative customs rules remains outstanding.
 
 ## Phase 3 practical engine
 
@@ -147,3 +147,22 @@ Review the complete fictional theory, guided practice, independent competency, a
 - Whether instructor approval should be enabled for the first production cohort
 - Retention, revocation, and re-issue policies
 - Formal assisted-technology acceptance testing on deployment hardware
+
+## Reference-informed practical workspace (September 2026)
+
+- Practical workspace shell built from product-owner reference screenshots with simulator branding, logged-in top navigation, cargo-service areas, and reference panels (tracked screen by screen in the practical reference log)
+- Training stakeholder registry with fictional TIN/NID lookup and training service-provider enrolment including declarant details
+- UCR declarations with free-zone regimes, derived declarations, document attachments, optional UCR numbering with renumbered sequences, a draft-expiry management command, and backend-backed UCR lookup
+- Consignment application covering exporter, consignee, notification, and warehouse parties with a dedicated item-entry form
+- Item entry with HS code and description lookup over the seeded Ghana tariff, goods state, quantities, packages, origin, weights, currency and FOB values inherited from the invoice tab, remarks, and automatic NCY values in GHS
+- Ghana HS-code reference of 4,854 ten-digit tariff lines extracted from the supplied tariff PDF, seeded by data migration, with partial code and case-insensitive description search, 2-digit, 4-digit, and 10-digit views, and pagination
+- Admin-managed port codes
+- MDA application workflow with seeded core agencies, agency processes, and consignment-linked MDA requests
+- Bill of lading and commercial document editors with structured cargo items and document lines, and generated sample PDF documents
+- Responsive sidebar collapse below 64rem so the practical workspace keeps its full available width on half-screen windows
+
+### Current practical limitations
+
+- All practical records, reference data, and documents are fictional; no real ICUMS connection, submission, or payment exists.
+- Cargo tracking, BOE status, direct delivery, and service-request screens remain frontend prototypes whose searches do not reach the backend, per the practical reference log.
+- Practical screen structure consists of deliberately adapted references awaiting subject-matter-expert validation before any claim of structural fidelity to the real system.
