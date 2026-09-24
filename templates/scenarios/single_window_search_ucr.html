@@ -5,34 +5,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Search UCR · ICUMS Simulator</title>
-  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}">
-  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}">
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260923-1">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260919-4">
 </head>
 <body>
 <a class="portal-skip" href="#main-content">Skip to Search UCR</a>
 <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+{% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
 <div class="portal-shell">
-  <aside class="portal-sidebar" aria-label="Single Window navigation">
-    <div class="portal-brand"><span class="portal-mark" aria-hidden="true">IS</span><span>ICUMS<br><small>SIMULATOR</small></span></div>
-    <div class="portal-user"><strong>Frontend preview</strong><span>Single Window practice</span></div>
-    <a class="portal-home" href="{% url 'simulator-portal' %}">▦ Workspace home</a>
-    <nav class="portal-menu">
-      <details open><summary>Main Navigation</summary></details>
-      <details open><summary>Registration</summary>
-        <details open><summary>Unique Consignment Reference</summary>
-          <a href="{% url 'single-window-create-ucr' %}">Create UCR</a>
-          <a class="nested-active" href="{% url 'single-window-search-ucr' %}">Search UCR</a>
-          <a href="#">Transfer UCR</a><a href="#">Received UCR</a>
-        </details>
-        <details><summary>Exporter Registration</summary><a href="{% url 'single-window-create-exporter' %}">Create Exporter Registration</a><a href="{% url 'single-window-search-exporter' %}">Search Exporter Registration</a></details>
-        <details><summary>Opt In/Out Request</summary><a href="{% url 'single-window-create-opt-in-out' %}">Create Opt In/Out</a><a href="{% url 'single-window-search-opt-in-out' %}">Search Opt In/Out</a></details>
-        <details><summary>FCIE Registration</summary><span>Create Registration</span><span>Search Registration</span></details>
-      </details>
-      <details><summary>Application</summary><details><summary>Preparation Application</summary><a href="{% url 'single-window-create-preparation-application' %}">Create Application</a><a href="{% url 'single-window-search-preparation-application' %}">Search Application</a></details><details><summary>Master Application</summary><a href="{% url 'single-window-create-master-application' %}">Create Application</a><a href="#">Search Application</a></details><span>Consignment Application</span></details>
-      <details><summary>Letter of Commitment</summary><span>Bank Pre-Registration</span><span>Letter of Commitment</span></details>
-      <details><summary>Previous Data</summary><span>Application Data</span><span>Exporter Registration Data</span></details>
-    </nav>
-  </aside>
+  {% include 'scenarios/_single_window_sidebar.html' %}
   <main id="main-content" class="portal-main cargo-main" tabindex="-1">
     <header class="portal-header cargo-header">
       <div class="portal-heading"><p class="overline">Single Window · Registration · Unique Consignment Reference</p><h1>Search UCR</h1></div>
@@ -40,32 +21,30 @@
     </header>
     <div class="cargo-breadcrumb"><a href="{% url 'single-window-workspace' %}">Single Window</a><span>›</span><span>Registration</span><span>›</span><span>Unique Consignment Reference</span><span>›</span><strong>Search UCR</strong></div>
     <div class="cargo-content">
-      <p class="frontend-note">Frontend-only search. Results are fictional and are not retrieved from a customs service.</p>
       <section class="cargo-panel" aria-labelledby="ucr-search-title">
         <div class="cargo-panel-title"><h2 id="ucr-search-title">Search Unique Consignment Ref.</h2></div>
+        <form id="ucr-search-form" method="get">
         <div class="declaration-search-grid">
-          <label for="ucr-number">UCR No. or Temp. No.</label><input id="ucr-number">
-          <label for="ucr-regime">Regime Type</label><select id="ucr-regime" name="searchRegimeTypeCd"><option value="">-- Select One --</option><option value="EX">EX, Export</option><option value="FI">FI, Free Zones - Inbound</option><option value="FO">FO, Free Zones - Outbound</option><option value="IM">IM, Import</option><option value="TN">TN, Transhipment</option><option value="TR">TR, Transit</option></select>
-          <label for="ucr-exporter">Exporter Code or Name</label><input id="ucr-exporter">
-          <label for="ucr-importer">Importer Code or Name</label><input id="ucr-importer">
-          <label for="ucr-reference">User Reference No.</label><input id="ucr-reference">
-          <label for="ucr-status">Status</label><select id="ucr-status" name="searchUcrStatusCd"><option value="">-- Select One --</option><option value="AP">AP, Approval</option><option value="DR">DR, Draft</option></select>
-          <label for="ucr-date-from">Creation Date</label><div class="date-range"><input id="ucr-date-from" type="date"><span>~</span><input id="ucr-date-to" type="date"><button type="button">R</button><button type="button">-1M</button><button type="button">-1W</button><button type="button">Today</button><button type="button">+1W</button></div>
+          <label for="ucr-number">UCR No. or Temp. No.</label><input id="ucr-number" name="number" value="{{ filters.number|default:'' }}">
+          <label for="ucr-regime">Regime Type</label><select id="ucr-regime" name="regime"><option value="">-- Select One --</option><option value="EX" {% if filters.regime == 'EX' %}selected{% endif %}>EX, Export</option><option value="FI" {% if filters.regime == 'FI' %}selected{% endif %}>FI, Free Zones - Inbound</option><option value="FO" {% if filters.regime == 'FO' %}selected{% endif %}>FO, Free Zones - Outbound</option><option value="IM" {% if filters.regime == 'IM' %}selected{% endif %}>IM, Import</option><option value="TN" {% if filters.regime == 'TN' %}selected{% endif %}>TN, Transhipment</option><option value="TR" {% if filters.regime == 'TR' %}selected{% endif %}>TR, Transit</option></select>
+          <label for="ucr-exporter">Exporter Code or Name</label><input id="ucr-exporter" name="exporter" value="{{ filters.exporter|default:'' }}">
+          <label for="ucr-importer">Importer Code or Name</label><input id="ucr-importer" name="importer" value="{{ filters.importer|default:'' }}">
+          <label for="ucr-reference">User Reference No.</label><input id="ucr-reference" name="reference" value="{{ filters.reference|default:'' }}">
+          <label for="ucr-status">Status</label><select id="ucr-status" name="status"><option value="">-- Select One --</option><option value="submitted" {% if filters.status == 'submitted' %}selected{% endif %}>AP, Approval</option><option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>DR, Draft</option></select>
+          <label for="ucr-date-from">Creation Date</label><div class="date-range"><input id="ucr-date-from" name="date_from" type="date" value="{{ filters.date_from|default:'' }}"><span>~</span><input id="ucr-date-to" name="date_to" type="date" value="{{ filters.date_to|default:'' }}"><button type="button" data-date-range="reset">R</button><button type="button" data-date-range="month">-1M</button><button type="button" data-date-range="week">-1W</button><button type="button" data-date-range="today">Today</button><button type="button" data-date-range="next-week">+1W</button></div>
         </div>
-        <div class="cargo-actions"><button class="secondary-button" id="ucr-reset" type="button">Reset</button><button class="primary-button" id="ucr-search" type="button">Search</button></div>
+        <div class="cargo-actions"><a class="secondary-button" id="ucr-reset" href="{% url 'single-window-search-ucr' %}">Reset</a><button class="primary-button" id="ucr-search" type="submit">Search</button></div></form>
       </section>
       <section class="cargo-panel" aria-labelledby="ucr-results-title">
         <div class="cargo-panel-title"><h2 id="ucr-results-title">Unique Consignment Ref.</h2></div>
-        <div class="cargo-table-wrap"><table><thead><tr><th>UCR No. / Temp. No.</th><th>Regime Type</th><th>Exporter</th><th>Importer</th><th>User Reference No.</th><th>Status</th><th>Clone UCR</th><th>Amend</th></tr></thead><tbody id="ucr-results"><tr class="ucr-empty"><td class="empty-row" colspan="8">No fictional data found.</td></tr></tbody></table></div>
-        <p id="ucr-action-message" class="frontend-note" role="status" hidden></p>
+        <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>UCR No. / Temp. No.</th><th>Regime Type</th><th>Exporter</th><th>Importer</th><th>User Reference No.</th><th>Creation Date</th><th>Status</th><th>Clone UCR</th><th>Amend</th></tr></thead><tbody id="ucr-results">{% for record in records %}<tr><td class="cell-center"><a class="ucr-result-link" href="{% url 'ucr-detail' record.pk %}">{{ record.ucr_no|default:record.temp_no }}</a></td><td class="cell-center">{% if record.regime == 'EX' %}Export{% elif record.regime == 'IM' %}Import{% elif record.regime == 'TN' %}Transhipment{% elif record.regime == 'TR' %}Transit{% elif record.regime == 'FI' %}Free Zones - Inbound{% else %}Free Zones - Outbound{% endif %}</td><td class="cell-left">{% if record.exporter_identity and record.exporter_name and record.exporter_identity != record.exporter_name %}{{ record.exporter_identity }}, {{ record.exporter_name }}{% else %}{{ record.exporter_name|default:record.exporter_identity }}{% endif %}</td><td class="cell-left">{% if record.importer_identity and record.importer_name and record.importer_identity != record.importer_name %}{{ record.importer_identity }}, {{ record.importer_name }}{% else %}{{ record.importer_name|default:record.importer_identity }}{% endif %}</td><td class="cell-left">{{ record.user_reference }}</td><td class="cell-center">{{ record.created_at|date:'Y-m-d' }}</td><td class="cell-center">{{ record.get_status_display }}{% if record.derivation == 'amend' %} · Amendment{% endif %}</td><td><form method="post" action="{% url 'ucr-clone' record.pk %}">{% csrf_token %}<button class="ucr-row-action" type="submit">Clone</button></form></td><td>{% if record.status == 'submitted' %}<a class="ucr-row-action ucr-row-action-amend" href="{% url 'ucr-amend' record.pk %}">Amend</a>{% else %}<a class="ucr-row-action" href="{% url 'single-window-create-ucr' %}?draft={{ record.pk }}">Edit</a>{% endif %}</td></tr>{% empty %}<tr class="ucr-empty"><td class="empty-row" colspan="9">No data found.</td></tr>{% endfor %}</tbody></table></div>
       </section>
     </div>
   </main>
 </div>
-<script src="{% static 'js/ucr-search.js' %}"></script>
-<script src="{% static 'js/app-shell.js' %}" defer></script></body>
+<script src="{% static 'js/ucr-search.js' %}?v=20260918-2"></script>
+<script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script></body>
 </html>
-
 
 
 

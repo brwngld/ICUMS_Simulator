@@ -23,7 +23,7 @@ function renderMdaBranches() {
     const originalNumber = mdaBranches.indexOf(entry) + 1;
     return `<tr data-code="${entry[0]}" data-name="${entry[1]}"><td>${originalNumber}</td><td>${entry[0]}</td><td>${entry[1]}</td><td>Customs Office</td></tr>`;
   }).join("") || `<tr><td class="empty-row" colspan="4">No fictional code found.</td></tr>`;
-  mdaPagination.innerHTML = Array.from({length: pageCount}, (_, index) => `<button type="button" data-mda-page="${index + 1}"${index + 1 === mdaPage ? ' aria-current="page"' : ''}>${index + 1}</button>`).join("");
+  window.drawDialogPager(mdaPagination, { total: filteredBranches.length, page: mdaPage, pageCount, onPage: (page) => { mdaPage = page; renderMdaBranches(); } });
 }
 
 document.querySelector("#gfza-search-button").addEventListener("click", () => { filteredBranches = mdaBranches; mdaPage = 1; renderMdaBranches(); mdaDialog.showModal(); });
@@ -33,5 +33,4 @@ document.querySelector("#filter-mda-codes").addEventListener("click", () => {
   filteredBranches = mdaBranches.filter(([itemCode, itemName]) => itemCode.toLowerCase().includes(code) && itemName.toLowerCase().includes(name));
   mdaPage = 1; renderMdaBranches();
 });
-mdaPagination.addEventListener("click", (event) => { const button = event.target.closest("[data-mda-page]"); if (button) { mdaPage = Number(button.dataset.mdaPage); renderMdaBranches(); } });
 mdaList.addEventListener("click", (event) => { const row = event.target.closest("tr[data-code]"); if (!row) return; gfzaBranchInput.value = `${row.dataset.code} — ${row.dataset.name}`; mdaDialog.close(); gfzaBranchInput.focus(); });

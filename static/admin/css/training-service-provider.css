@@ -1,0 +1,34 @@
+/* Country code lookup for the Training Service Provider admin form. */
+
+.sp-country-lookup { display: inline-flex; align-items: center; gap: 4px; }
+.sp-country-lookup input { width: 6ch; }
+.sp-country-button { min-width: 2rem; padding: 4px 8px; line-height: 1.3; font-weight: 600; }
+.sp-filter-button { min-height: 2rem; padding: 2px 12px; border: 1px solid var(--border-color, #ccc); border-radius: 4px; background: var(--button-bg, #fff); color: var(--button-fg, #333); font-size: .78rem; line-height: 1.4; cursor: pointer; }
+.sp-filter-button:hover { background: var(--hover-bg, #f5f5f5); }
+
+.sp-country-dialog { border: 1px solid var(--hairline-button, #ccc); border-radius: 8px; padding: 0; width: min(600px, 94vw); background: var(--darkened-bg, #fff); color: var(--body-fg, #333); box-shadow: 0 12px 32px rgba(0, 0, 0, .22); }
+.sp-dialog-card { padding: 14px 16px 12px; }
+.sp-dialog-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.sp-dialog-card h3 { margin: 0; font-size: 0.95rem; }
+.sp-dialog-close { border: 0; background: transparent; font-size: 1.1rem; line-height: 1; cursor: pointer; color: var(--header-link-color, #447e9b); padding: 2px 6px; }
+.sp-dialog-close:hover { color: var(--link-fg, #036); }
+.sp-dialog-filters { display: grid; grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-bottom: 10px; }
+.sp-dialog-filters label { display: grid; gap: 3px; font-size: .75rem; font-weight: 700; }
+.sp-dialog-filters input { width: 100%; margin: 0; }
+.sp-dialog-scroll { max-height: 46vh; overflow: auto; border: 1px solid var(--border-color, #e1e4e5); border-radius: 6px; }
+.sp-dialog-scroll table { width: 100%; margin: 0; border: 0; }
+.sp-dialog-scroll th, .sp-dialog-scroll td { padding: 6px 10px; font-size: .8rem; text-align: left; border-bottom: 1px solid var(--border-color, #eaecec); }
+.sp-dialog-scroll thead th { position: sticky; top: 0; background: var(--darkened-bg, #f8f8f8); border-bottom: 1px solid var(--border-color, #e1e4e5); }
+.sp-dialog-scroll tbody tr { cursor: pointer; }
+.sp-dialog-scroll tbody tr:hover { background: var(--row-highlight, #f3f7f9); }
+.sp-dialog-scroll tbody tr:last-child td { border-bottom: 0; }
+.sp-dialog-empty { padding: 10px; font-size: .8rem; color: var(--body-quiet-color, #666); }
+.sp-dialog-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.sp-dialog-total { color: #087f5b; font-weight: 700; font-size: .8rem; }
+.sp-country-dialog .dialog-pager { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.sp-country-dialog .dialog-pager button { min-width: 1.8rem; height: 1.8rem; padding: 0 5px; border: 1px solid var(--border-color, #ccc); border-radius: 4px; background: var(--button-bg, #fff); color: var(--button-fg, #333); font-size: .75rem; line-height: 1; cursor: pointer; }
+.sp-country-dialog .dialog-pager button:hover:not(:disabled):not([aria-current="page"]) { border-color: var(--link-fg, #036); color: var(--link-fg, #036); }
+.sp-country-dialog .dialog-pager button[aria-current="page"] { color: #fff; border-color: var(--admin-accent, #79aec8); background: var(--admin-accent, #79aec8); font-weight: 700; }
+.sp-country-dialog .dialog-pager button:disabled { opacity: .4; cursor: default; }
+.sp-country-dialog .dialog-pager .pager-gap { min-width: 1rem; text-align: center; color: var(--body-quiet-color, #666); font-size: .75rem; }
+.sp-dialog-help { margin: 8px 0 0; font-size: .72rem; color: var(--body-quiet-color, #666); }

@@ -28,6 +28,7 @@ The repository contains the approved planning baseline and an operational local 
 - [Local development](docs/local-development.md)
 - [How to review the application](docs/how-to-review.md)
 - [Product rules and decisions](docs/product-rules.md)
+- [Deferred security and code review](docs/deferred-security-review.md)
 - [Administrator manual](docs/ICUMS_Simulator_Administrator_Manual.pdf)
 - [Administrator manual editable Word version](docs/ICUMS_Simulator_Administrator_Manual.docx)
 

@@ -131,14 +131,12 @@ def test_create_ucr_document_row_controls(client):
     assert b'id="document-rows"' in response.content
     assert b"Document Type" in response.content
     assert b"Attached File" in response.content
-    assert b'data-code-page="2"' in response.content
+    assert b'id="document-code-pagination"' in response.content
     assert b'data-code="019"' in response.content
     assert b"Delivery Order" in response.content
-    assert b'data-code-page="4"' in response.content
     assert b'data-code="029"' in response.content
     assert b'data-code="040"' in response.content
     assert b"Passenger Unaccompanied Baggage Declaration" in response.content
-    assert b'data-code-page="10"' in response.content
     assert b'data-code="102"' in response.content
     assert b"Note Verbale (MFA Use Only)" in response.content
     assert b'id="document-code-dialog"' in response.content

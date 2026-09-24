@@ -22,7 +22,7 @@ function renderGsaProducts() {
     const number = gsaProducts.indexOf(entry) + 1;
     return `<tr data-name="${entry[0]}" data-fee="${entry[1]}"><td>${number}</td><td>${entry[0]}</td><td>${entry[1]}</td><td>GHS</td><td></td></tr>`;
   }).join("") || `<tr><td class="empty-row" colspan="5">No fictional product found.</td></tr>`;
-  gsaPagination.innerHTML = Array.from({length: pageCount}, (_, index) => `<button type="button" data-gsa-page="${index + 1}"${index + 1 === gsaPage ? ' aria-current="page"' : ''}>${index + 1}</button>`).join("");
+  window.drawDialogPager(gsaPagination, { total: filteredGsaProducts.length, page: gsaPage, pageCount, onPage: (page) => { gsaPage = page; renderGsaProducts(); } });
 }
 
 function addGsaProductRow() {
@@ -56,5 +56,4 @@ productRows.addEventListener("click", (event) => {
 });
 addProductButton.addEventListener("click", () => { if (mda.value === "GSA") addGsaProductRow(); });
 document.querySelector("#filter-gsa-products").addEventListener("click", () => { const query = document.querySelector("#gsa-product-filter").value.trim().toLowerCase(); filteredGsaProducts = gsaProducts.filter(([name]) => name.toLowerCase().includes(query)); gsaPage = 1; renderGsaProducts(); });
-gsaPagination.addEventListener("click", (event) => { const button = event.target.closest("[data-gsa-page]"); if (button) { gsaPage = Number(button.dataset.gsaPage); renderGsaProducts(); } });
 gsaList.addEventListener("click", (event) => { const row = event.target.closest("tr[data-name]"); if (!row || !activeGsaRow) return; activeGsaRow.querySelector(".gsa-product-name").value = row.dataset.name; activeGsaRow.querySelector(".gsa-product-fee").value = row.dataset.fee; gsaDialog.close(); });

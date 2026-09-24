@@ -1,0 +1,87 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create UCR · ICUMS Simulator</title>
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260923-1">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260919-4">
+  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260919-3">
+</head>
+<body>
+  <a class="portal-skip" href="#main-content">Skip to Create UCR form</a>
+  <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+  {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+  <div class="portal-shell">
+    {% include 'scenarios/_single_window_sidebar.html' %}
+    <main id="main-content" class="portal-main cargo-main" tabindex="-1">
+      <header class="portal-header cargo-header">
+        <div class="portal-heading"><p class="overline">Single Window · Registration · Unique Consignment Reference</p><h1>Create UCR</h1></div>
+        <nav class="portal-top-nav" aria-label="Simulator navigation"><a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="{% url 'single-window-create-ucr' %}" aria-current="page">Single Window</a></nav>
+      </header>
+      <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Workspace</a><span>›</span><span>Registration</span><span>›</span><strong>Create UCR</strong></div>
+      <div class="cargo-content">
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>UCR Details</h2><span class="required-note">* required</span></div>
+          <div class="summary-grid">
+            <label for="ucr-temp">Temp. No.</label><input id="ucr-temp" value="Generated after save" readonly>
+            <label for="ucr-regime">Regime Type <span>*</span></label><select id="ucr-regime" required><option value="">-- Select One --</option><option value="EX">EX, Export</option><option value="IM">IM, Import</option><option value="TN">TN, Transhipment</option><option value="TR">TR, Transit</option><option value="FI">FI, Free Zones - Inbound</option><option value="FO">FO, Free Zones - Outbound</option></select>
+            <label for="ucr-show-provider">Display Service Provider</label><div><input id="ucr-show-provider" type="checkbox" checked></div>
+          </div>
+        </section>
+        <section class="cargo-panel" id="ucr-provider"><div class="cargo-panel-title"><h2>Service Provider</h2></div><div class="summary-grid">
+          <label for="ucr-declarant">Declarant Code</label><input id="ucr-declarant" readonly>
+          <label for="ucr-provider-country">Country <span>*</span></label><div class="ucr-lookup-field"><input id="ucr-provider-country" maxlength="2" data-country-code><button type="button" data-country-search="ucr-provider-country" aria-label="Search service provider country">⌕</button><input data-country-name-for="ucr-provider-country" aria-label="Service provider country name" readonly></div>
+          <label for="ucr-provider-code">Code</label><input id="ucr-provider-code" aria-label="Service provider TIN and name" readonly>
+          <label for="ucr-provider-address">Address <span>*</span></label><textarea id="ucr-provider-address" rows="2"></textarea>
+          <label for="ucr-provider-contact">Contact Name <span>*</span></label><input id="ucr-provider-contact">
+          <label for="ucr-provider-phone">Tel. No. <span>*</span></label><input id="ucr-provider-phone">
+          <label for="ucr-provider-email">Approved Email Address 1 <span>*</span></label><input id="ucr-provider-email" type="email">
+          <label for="ucr-provider-email-2">Approved Email Address 2</label><input id="ucr-provider-email-2" type="email">
+        </div></section>
+        <section class="cargo-panel ucr-party" id="ucr-exporter"><div class="cargo-panel-title"><h2>Exporter</h2><label><input type="checkbox" data-same-declarant> Same as Declarant</label></div><div class="summary-grid">
+          <label for="ucr-exporter-identity" id="ucr-exporter-label">Exporter Name <span>*</span></label><div class="ucr-identity"><input id="ucr-exporter-identity"><button type="button" class="ucr-party-search" data-party-search="exporter" aria-label="Search exporter TIN" hidden>⌕</button><input id="ucr-exporter-name" aria-label="Exporter name" readonly hidden></div>
+          <label for="ucr-exporter-country">Country <span>*</span></label><div class="ucr-lookup-field"><input id="ucr-exporter-country" maxlength="2" data-country-code><button type="button" data-country-search="ucr-exporter-country" aria-label="Search exporter country">⌕</button><input data-country-name-for="ucr-exporter-country" aria-label="Exporter country name" readonly></div>
+          <label for="ucr-exporter-address">Address <span>*</span></label><textarea id="ucr-exporter-address" rows="2"></textarea>
+          <label for="ucr-exporter-phone">Tel. No. <span>*</span></label><input id="ucr-exporter-phone">
+          <label for="ucr-exporter-fax">Fax No.</label><input id="ucr-exporter-fax">
+          <label for="ucr-exporter-contact">Contact Person <span>*</span></label><input id="ucr-exporter-contact">
+          <label for="ucr-exporter-contact-no">Contact No. <span>*</span></label><input id="ucr-exporter-contact-no">
+          <label for="ucr-exporter-designation">Contact Designation <span>*</span></label><input id="ucr-exporter-designation">
+        </div></section>
+        <section class="cargo-panel ucr-party" id="ucr-importer"><div class="cargo-panel-title"><h2>Importer</h2><label><input type="checkbox" data-same-declarant> Same as Declarant</label></div><div class="summary-grid">
+          <label for="ucr-importer-identity" id="ucr-importer-label">Importer Name <span>*</span></label><div class="ucr-identity"><input id="ucr-importer-identity"><button type="button" class="ucr-party-search" data-party-search="importer" aria-label="Search importer TIN" hidden>⌕</button><input id="ucr-importer-name" aria-label="Importer name" readonly hidden></div>
+          <label for="ucr-importer-country">Country <span>*</span></label><div class="ucr-lookup-field"><input id="ucr-importer-country" maxlength="2" data-country-code><button type="button" data-country-search="ucr-importer-country" aria-label="Search importer country">⌕</button><input data-country-name-for="ucr-importer-country" aria-label="Importer country name" readonly></div>
+          <label for="ucr-importer-address">Address <span>*</span></label><textarea id="ucr-importer-address" rows="2"></textarea>
+          <label for="ucr-importer-phone">Tel. No. <span>*</span></label><input id="ucr-importer-phone">
+          <label for="ucr-importer-fax">Fax No.</label><input id="ucr-importer-fax">
+          <label for="ucr-importer-contact">Contact Person <span>*</span></label><input id="ucr-importer-contact">
+          <label for="ucr-importer-contact-no">Contact No. <span>*</span></label><input id="ucr-importer-contact-no">
+          <label for="ucr-importer-designation">Contact Designation <span>*</span></label><input id="ucr-importer-designation">
+        </div></section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Consignment Details</h2></div><div class="summary-grid">
+          <label for="ucr-goods">General Goods Description <span>*</span></label><textarea id="ucr-goods" rows="3"></textarea>
+          <label for="ucr-origin">Country of Origin <span>*</span></label><div class="ucr-lookup-field"><input id="ucr-origin" maxlength="2" data-country-code><button type="button" data-country-search="ucr-origin" aria-label="Search country of origin">⌕</button><input data-country-name-for="ucr-origin" aria-label="Country of origin name" readonly></div>
+          <label for="ucr-destination">Country of Destination <span>*</span></label><div class="ucr-lookup-field"><input id="ucr-destination" maxlength="2" data-country-code><button type="button" data-country-search="ucr-destination" aria-label="Search country of destination">⌕</button><input data-country-name-for="ucr-destination" aria-label="Country of destination name" readonly></div>
+          <label for="ucr-mode">Transport Mode <span>*</span></label><select id="ucr-mode"><option value="">-- Select One --</option><option>10, Sea Transport</option><option>30, Road Transport</option><option>40, Air Transport</option></select>
+          <label for="ucr-reference">User Reference No.</label><input id="ucr-reference">
+          <label for="ucr-email">UCR Email Distribution</label><textarea id="ucr-email" rows="2"></textarea>
+        </div></section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>eDocuments Details</h2></div><div class="cargo-table-wrap"><table class="ucr-documents"><thead><tr><th>No.</th><th>Document Type</th><th>Reference No.</th><th>Attached File</th><th><button id="add-document" class="document-add-button" type="button">Add</button></th></tr></thead><tbody id="document-rows"></tbody></table></div>{% if initial_attachments %}<p>Previously attached: {% for attachment in initial_attachments %}<a href="{% url 'ucr-attachment' attachment.pk %}">{{ attachment.original_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}</section>
+        <div class="cargo-actions"><a class="secondary-button" href="{% url 'single-window-search-ucr' %}">☷ List</a><button class="primary-button" id="ucr-save" type="button">✎ Save</button><button class="primary-button" id="ucr-submit" type="button" disabled>▣ Submit</button></div>
+        <p id="ucr-status" role="status" class="dialog-help" hidden></p>
+      </div>
+    </main>
+  </div>
+  {% include 'scenarios/_document_code_dialog.html' %}
+  <dialog id="ucr-party-dialog" class="code-dialog" aria-labelledby="ucr-party-title"><div class="code-dialog-card"><header><h2 id="ucr-party-title">ICUMS training directory</h2><button id="ucr-party-close" type="button" aria-label="Close party search">×</button></header><div class="cargo-table-wrap"><table><thead><tr><th>Select</th><th>TIN</th><th>Description</th><th>Name</th></tr></thead><tbody id="ucr-party-results"></tbody></table></div><div class="dialog-actions"><button id="ucr-party-choose" type="button">Choose</button></div></div></dialog>
+  <dialog id="ucr-lookup-error" class="code-dialog" aria-labelledby="ucr-lookup-error-title"><div class="code-dialog-card"><header><h2 id="ucr-lookup-error-title">TIN / NID search</h2><button id="ucr-error-close" type="button" aria-label="Close error">×</button></header><p id="ucr-error-message" class="ucr-error-message"></p><div class="dialog-actions"><button id="ucr-error-ok" type="button">OK</button></div></div></dialog>
+  <dialog id="ucr-country-dialog" class="code-dialog" aria-labelledby="ucr-country-title"><div class="code-dialog-card"><header><h2 id="ucr-country-title">Common Code · Country</h2><button id="ucr-country-close" type="button" aria-label="Close country search">×</button></header><div class="ucr-country-filters"><label>Code <input id="ucr-country-filter-code" maxlength="2"></label><label>Code Name <input id="ucr-country-filter-name"></label><button id="ucr-country-filter-submit" type="button">⌕ Search</button></div><div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Code</th><th>Code Name</th><th>Code Description</th></tr></thead><tbody id="ucr-country-results"></tbody></table></div><div class="code-pagination ucr-country-footer" id="ucr-country-pagination"></div></div></dialog>
+  <script>window.ucrStakeholderLookupUrl = "{% url 'ucr-stakeholder-lookup' %}"; window.ucrProviderLookupUrl = "{% url 'ucr-service-provider-lookup' %}"; window.ucrSaveUrl = "{% url 'ucr-save' %}"; window.ucrSubmitUrl = "{% url 'ucr-submit' %}"; window.ucrCsrfToken = "{{ csrf_token }}";</script>
+  <script src="{% static 'js/ucr-country-codes.js' %}?v=20260918-2" defer></script>
+  <script src="{% static 'js/dialog-pagination.js' %}?v=20260918-1" defer></script>
+  {{ initial_ucr|json_script:"ucr-initial-draft" }}
+  <script>window.ucrInitialDraft = JSON.parse(document.querySelector('#ucr-initial-draft').textContent);</script>
+  <script src="{% static 'js/ucr-create.js' %}?v=20260919-1" defer></script>
+  <script src="{% static 'js/ucr-document-codes.js' %}?v=20260918-2" defer></script>
+  <script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script>
+</body></html>

@@ -1,0 +1,213 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Consignment Document · ICUMS Simulator</title>
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260923-1">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260924-2">
+  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260919-3">
+</head>
+<body>
+  <a class="portal-skip" href="#main-content">Skip to Consignment Document form</a>
+  <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+  {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+  <div class="portal-shell">
+    {% include 'scenarios/_single_window_sidebar.html' %}
+    <main id="main-content" class="portal-main cargo-main" tabindex="-1">
+      <header class="portal-header cargo-header">
+        <div class="portal-heading"><p class="overline">Single Window · Application · Preparation Application</p><h1>Search Application</h1></div>
+        <nav class="portal-top-nav" aria-label="Simulator navigation"><a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="{% url 'single-window-create-ucr' %}" aria-current="page">Single Window</a></nav>
+      </header>
+      <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Workspace</a><span>›</span><span>Application</span><span>›</span><span>Preparation Application</span><span>›</span><strong>Consignment Document</strong></div>
+      <div class="cargo-content">
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Search Application</h2><span>{{ application.get_status_display|default:"Draft" }}</span></div>
+          <div class="summary-grid">
+            <label>Application No.</label><input id="app-no" value="{{ display_application_no }}" readonly>
+            <label>Application Date</label><input value="{% if application %}{{ application.created_at|date:'d/m/Y H:i:s' }}{% else %}{% now 'd/m/Y H:i:s' %}{% endif %}" readonly>
+            <label>Application Version</label><input value="{{ application.version|default:1 }}" readonly>
+            <label>Application Type</label><input value="{{ application_type_text }}" readonly>
+            <label>UCR No.</label><input id="app-ucr" value="{{ ucr.ucr_no }}" readonly>
+          </div>
+          <nav class="app-tabs" aria-label="Application sections">
+            <button type="button" class="app-tab" data-app-tab="general" aria-current="tab">General</button>
+            <button type="button" class="app-tab" data-app-tab="transport">Transport</button>
+            <button type="button" class="app-tab" data-app-tab="invoice">Invoice</button>
+            <button type="button" class="app-tab" data-app-tab="item">Item</button>
+            {% if mda_mode %}<button type="button" class="app-tab" data-app-tab="approval">Approval</button>{% endif %}
+            <button type="button" class="app-tab" data-app-tab="confirmation">Confirmation</button>
+          </nav>
+        </section>
+
+        <div class="app-tab-panel app-general-sections" id="app-tab-general">
+          <section class="cargo-panel"><div class="cargo-panel-title"><h2>Reference Info.</h2><span class="required-note">* required</span></div><div class="summary-grid"><label>Reference Info.</label><textarea class="full-field" data-app-field="reference_info" rows="2"></textarea></div></section>
+          <section class="cargo-panel"><div class="cargo-panel-title"><h2>Exporter</h2></div><div class="summary-grid">
+            <label>{{ exporter_party_label }} <span>*</span></label><input data-app-field="exporter.name" readonly>
+            <label>Physical Country <span>*</span></label><div class="ucr-lookup-field app-country-field"><input data-app-field="exporter.physical_country" maxlength="2" readonly><button type="button" hidden aria-hidden="true">⌕</button><input data-app-country-name-for="exporter.physical_country" readonly></div>
+            <label>Physical Address <span>*</span></label><textarea data-app-field="exporter.physical_address" rows="2" readonly></textarea>
+            <label>Postal Country</label><div class="ucr-lookup-field app-country-field"><input data-app-field="exporter.postal_country" maxlength="2" readonly><button type="button" hidden aria-hidden="true">⌕</button><input data-app-country-name-for="exporter.postal_country" readonly></div>
+            <label>Tel. No. <span>*</span></label><input data-app-field="exporter.tel" readonly>
+            <label>Fax No.</label><input data-app-field="exporter.fax" readonly>
+            <label>E-Mail</label><input data-app-field="exporter.email" type="email" readonly>
+            <label>Postal Address</label><textarea data-app-field="exporter.postal_address" rows="2" readonly></textarea>
+            <label>MDA Ref. No.</label><input data-app-field="exporter.mda_ref">
+            <label>Sector Of Activity</label><select data-app-field="exporter.sector"><option value="">-- Select One --</option><option>Warehouse</option><option>Manufacturing</option><option>Retail</option><option>Agriculture</option><option>Services</option><option>Other</option></select>
+            <label>Warehouse</label><input class="full-field" data-app-field="exporter.warehouse">
+          </div></section>
+          <section class="cargo-panel"><div class="cargo-panel-title"><h2>Consignor</h2><label class="app-same-as"><input type="checkbox" data-app-same="consignor"> Same as Exporter</label></div><div class="summary-grid" data-app-party="consignor">
+            <label>Name <span>*</span></label><input data-app-field="consignor.name">
+            <label>Physical Country <span>*</span></label><div class="ucr-lookup-field app-country-field"><input data-app-field="consignor.physical_country" maxlength="2"><button type="button" data-app-country-search="consignor.physical_country" aria-label="Search consignor physical country">⌕</button><input data-app-country-name-for="consignor.physical_country" readonly></div>
+            <label>Physical Address <span>*</span></label><textarea data-app-field="consignor.physical_address" rows="2"></textarea>
+            <label>Postal Country</label><div class="ucr-lookup-field app-country-field"><input data-app-field="consignor.postal_country" maxlength="2"><button type="button" data-app-country-search="consignor.postal_country" aria-label="Search consignor postal country">⌕</button><input data-app-country-name-for="consignor.postal_country" readonly></div>
+            <label>Tel. No. <span>*</span></label><input data-app-field="consignor.tel">
+            <label>Fax No.</label><input data-app-field="consignor.fax">
+            <label>E-Mail</label><input data-app-field="consignor.email" type="email">
+            <label>Postal Address</label><textarea data-app-field="consignor.postal_address" rows="2"></textarea>
+            <label>MDA Ref. No.</label><input data-app-field="consignor.mda_ref">
+            <label>Sector Of Activity</label><select data-app-field="consignor.sector"><option value="">-- Select One --</option><option>Warehouse</option><option>Manufacturing</option><option>Retail</option><option>Agriculture</option><option>Services</option><option>Other</option></select>
+            <label>Warehouse</label><input class="full-field" data-app-field="consignor.warehouse">
+          </div></section>
+          <section class="cargo-panel"><div class="cargo-panel-title"><h2>Importer</h2></div><div class="summary-grid">
+            <label>{{ importer_party_label }} <span>*</span></label><input data-app-field="importer.code" readonly>
+            <label>Physical Country <span>*</span></label><div class="ucr-lookup-field app-country-field"><input data-app-field="importer.physical_country" maxlength="2" readonly><button type="button" hidden aria-hidden="true">⌕</button><input data-app-country-name-for="importer.physical_country" readonly></div>
+            <label>Physical Address <span>*</span></label><textarea data-app-field="importer.physical_address" rows="2" readonly></textarea>
+            <label>Postal Country</label><div class="ucr-lookup-field app-country-field"><input data-app-field="importer.postal_country" maxlength="2" readonly><button type="button" hidden aria-hidden="true">⌕</button><input data-app-country-name-for="importer.postal_country" readonly></div>
+            <label>Tel. No. <span>*</span></label><input data-app-field="importer.tel" readonly>
+            <label>Fax No.</label><input data-app-field="importer.fax" readonly>
+            <label>E-Mail</label><input data-app-field="importer.email" type="email" readonly>
+            <label>Postal Address</label><textarea data-app-field="importer.postal_address" rows="2" readonly></textarea>
+            <label>MDA Ref. No.</label><input data-app-field="importer.mda_ref">
+            <label>Sector Of Activity</label><select data-app-field="importer.sector"><option value="">-- Select One --</option><option>Warehouse</option><option>Manufacturing</option><option>Retail</option><option>Agriculture</option><option>Services</option><option>Other</option></select>
+            <label>Warehouse</label><input class="full-field" data-app-field="importer.warehouse">
+          </div></section>
+          <section class="cargo-panel"><div class="cargo-panel-title"><h2>Consignee</h2><label class="app-same-as"><input type="checkbox" data-app-same="consignee"> Same as Importer</label></div><div class="summary-grid" data-app-party="consignee">
+            <label>Code <span>*</span></label><input data-app-field="consignee.code">
+            <label>Physical Country <span>*</span></label><div class="ucr-lookup-field app-country-field"><input data-app-field="consignee.physical_country" maxlength="2"><button type="button" data-app-country-search="consignee.physical_country" aria-label="Search consignee physical country">⌕</button><input data-app-country-name-for="consignee.physical_country" readonly></div>
+            <label>Physical Address <span>*</span></label><textarea data-app-field="consignee.physical_address" rows="2"></textarea>
+            <label>Postal Country</label><div class="ucr-lookup-field app-country-field"><input data-app-field="consignee.postal_country" maxlength="2"><button type="button" data-app-country-search="consignee.postal_country" aria-label="Search consignee postal country">⌕</button><input data-app-country-name-for="consignee.postal_country" readonly></div>
+            <label>Tel. No. <span>*</span></label><input data-app-field="consignee.tel">
+            <label>Fax No.</label><input data-app-field="consignee.fax">
+            <label>E-Mail</label><input data-app-field="consignee.email" type="email">
+            <label>Postal Address</label><textarea data-app-field="consignee.postal_address" rows="2"></textarea>
+            <label>MDA Ref. No.</label><input data-app-field="consignee.mda_ref">
+            <label>Sector Of Activity</label><select data-app-field="consignee.sector"><option value="">-- Select One --</option><option>Warehouse</option><option>Manufacturing</option><option>Retail</option><option>Agriculture</option><option>Services</option><option>Other</option></select>
+            <label>Warehouse</label><input class="full-field" data-app-field="consignee.warehouse">
+          </div></section>
+        </div>
+
+        <div class="app-tab-panel app-general-sections" id="app-tab-transport" hidden><section class="cargo-panel"><div class="cargo-panel-title"><h2>Transport</h2><span class="required-note">* required</span></div><div class="summary-grid">
+          <label>Means of Transport <span>*</span></label><select data-app-field="means_of_transport"><option value="">-- Select One --</option><option>10, Sea Transport</option><option>30, Road Transport</option><option>40, Air Transport</option></select>
+          <label>Vessel Name</label><input data-app-field="vessel_name">
+          <label>Voyage No.</label><input data-app-field="voyage_no">
+          <label>Shipment Date <span>*</span></label><input data-app-field="shipment_date" type="date">
+          <label>Carrier <span>*</span></label><input data-app-field="carrier">
+          <label>Manifest No.</label><input data-app-field="manifest_no">
+          <label>BL/AWB No.</label><input data-app-field="bl_awb_no">
+          <label>Marks and Numbers <span>*</span></label><textarea data-app-field="marks_numbers" rows="3"></textarea>
+          <label>Port of Arrival <span>*</span></label><div class="ucr-lookup-field app-port-field"><input data-app-field="port_arrival" placeholder="e.g. GHTEM, Tema"><button type="button" data-app-port-search="port_arrival" aria-label="Search port of arrival">⌕</button></div>
+          <label>Port of Departure <span>*</span></label><div class="ucr-lookup-field app-port-field"><input data-app-field="port_departure" placeholder="e.g. CAMTR, Montreal"><button type="button" data-app-port-search="port_departure" aria-label="Search port of departure">⌕</button></div>
+          <label>Customs Office <span>*</span></label><input data-app-field="customs_office" placeholder="e.g. TMA1, CEPS TEMA">
+          <label>Freight Station</label><select data-app-field="freight_station"><option value="">-- Select One --</option><option>ICD</option><option>Private</option></select>
+          <label>Inland Transport Co.</label><input data-app-field="inland_transport_co">
+          <label>Inland Transport Co. Ref. No.</label><input data-app-field="inland_transport_ref">
+          <label>Cargo Type <span>*</span></label><select data-app-field="cargo_type"><option value="">-- Select One --</option><option value="C">Container</option><option value="V">Vehicle</option><option value="B">Bulk</option><option value="E">Empty Container</option><option value="O">Other</option></select>
+        </div></section>
+        <section class="cargo-panel" id="app-container-status" hidden><div class="cargo-panel-title"><h2>Number of Containers Status</h2><span class="required-note">* required</span></div><div class="summary-grid">
+          <label>Up to 20 feet <span>*</span></label><input data-app-field="containers_up_to_20" type="number" min="0" value="0">
+          <label>30 feet or more (30/35/40, etc) feet <span>*</span></label><input data-app-field="containers_30_plus" type="number" min="0" value="0">
+        </div></section></div>
+
+        <section class="cargo-panel app-tab-panel" id="app-tab-invoice" hidden><div class="cargo-panel-title"><h2>Invoice</h2><span class="required-note">* required</span></div><div class="summary-grid app-invoice-grid">
+          <label>Delivery Term <span>*</span></label><select class="full-field" data-app-field="delivery_term"><option value="">-- Select One --</option><option value="CFR">CFR, COST &amp; FREIGHT</option><option value="CIF">CIF, COST, INSURANCE &amp; FREIGHT</option><option value="CIP">CIP, CARRIAGE AND INSURANCE PAID TO</option><option value="CPT">CPT, CARRIAGE PAID TO</option><option value="DAF">DAF, DELIVERED AT FRONTIER</option><option value="DAP">DAP, DELIVERED AT PLACE</option><option value="DDP">DDP, DELIVERED DUTY PAID</option><option value="DAT">DAT, DELIVERED AT TERMINAL</option><option value="DDU">DDU, DELIVERED DUTY UNPAID</option><option value="DEQ">DEQ, DELIVERED EX QUAY</option><option value="DES">DES, DELIVERED EX SHIP</option><option value="EXW">EXW, EX WORKS</option><option value="FAS">FAS, FREE ALONGSIDE SHIP</option><option value="FCA">FCA, FREE CARRIER</option><option value="FOB">FOB, FREE ON BOARD</option><option value="ZZZ">ZZZ, OTHER</option></select>
+          <label>Currency <span>*</span></label><div class="ucr-lookup-field app-currency-field"><input data-app-field="currency" maxlength="3" autocomplete="off" aria-label="Currency code"><button id="app-currency-search" type="button" aria-label="Search currency">⌕</button><input id="app-currency-name" aria-label="Currency name" readonly></div>
+          <label>Exchange Rate</label><input data-app-field="exchange_rate" readonly>
+          <label>FOB FCY <span>*</span></label><div class="app-money-field"><input data-currency-prefix readonly aria-label="FOB foreign currency"><input data-app-field="fob_fcy" inputmode="decimal"></div>
+          <label>FOB NCY <span>*</span></label><div class="app-money-field"><input value="GHS" readonly aria-label="FOB national currency"><input data-app-field="fob_ncy" readonly></div>
+          <label>Freight FCY</label><div class="app-money-field"><input data-currency-prefix readonly aria-label="Freight foreign currency"><input data-app-field="freight_fcy" inputmode="decimal" value="0"></div>
+          <label>Freight NCY</label><div class="app-money-field"><input value="GHS" readonly aria-label="Freight national currency"><input data-app-field="freight_ncy" readonly></div>
+          <label>Insurance FCY</label><div class="app-money-field"><input data-currency-prefix readonly aria-label="Insurance foreign currency"><input data-app-field="insurance_fcy" inputmode="decimal" value="0"></div>
+          <label>Insurance NCY</label><div class="app-money-field"><input value="GHS" readonly aria-label="Insurance national currency"><input data-app-field="insurance_ncy" readonly></div>
+          <label>Other Costs FCY</label><div class="app-money-field"><input data-currency-prefix readonly aria-label="Other costs foreign currency"><input data-app-field="other_costs_fcy" inputmode="decimal" value="0"></div>
+          <label>Other Costs NCY</label><div class="app-money-field"><input value="GHS" readonly aria-label="Other costs national currency"><input data-app-field="other_costs_ncy" readonly></div>
+          <label>Customs Value FCY <span>*</span></label><div class="app-money-field"><input data-currency-prefix readonly aria-label="Customs value foreign currency"><input data-app-field="customs_value_fcy" readonly></div>
+          <label>Customs Value NCY <span>*</span></label><div class="app-money-field"><input value="GHS" readonly aria-label="Customs value national currency"><input data-app-field="customs_value_ncy" readonly></div>
+        </div></section>
+
+        <section class="cargo-panel app-tab-panel" id="app-tab-item" hidden><div id="app-item-list"><div class="cargo-panel-title"><h2>Item List</h2></div>
+          <div class="cargo-actions"><button class="secondary-button" id="app-item-add" type="button">Add Item</button><button class="secondary-button" id="app-item-duplicate" type="button">Duplicate Item</button><button class="secondary-button" type="button" disabled title="Excel upload is not part of this training step">Excel Upload</button><button class="document-delete-button" id="app-item-delete" type="button">Delete Item</button></div>
+          <div class="cargo-table-wrap"><table class="app-items-table"><thead><tr><th class="cell-check"><input type="checkbox" id="app-item-check-all" aria-label="Select all items"></th><th>Item No.</th><th>HS Code</th><th>Item Description</th><th>Net Weight(KG)</th><th>Gross Weight(KG)</th><th>Item Price FCY</th><th>Unit FOB FCY</th></tr></thead><tbody id="app-item-rows"></tbody><tfoot><tr><th colspan="4">Total</th><th id="app-total-net">0.00</th><th id="app-total-gross">0.00</th><th id="app-total-price">0.00</th><th>-</th></tr></tfoot></table></div>
+          <p class="dialog-help" id="app-fob-check" hidden></p>
+          <div class="code-pagination" id="app-item-pagination"></div>
+          </div>
+          <div id="app-item-editor" hidden><div class="cargo-panel-title"><h2>Item</h2><span class="required-note">* required</span></div><div class="summary-grid app-item-editor-grid">
+            <label>Item No.</label><input data-item-field="item_no" readonly class="full-field">
+            <label>HS <span>*</span></label><div class="ucr-lookup-field full-field"><input data-item-field="hs_code" maxlength="10"><button id="app-hs-search" type="button" aria-label="Search HS code">⌕</button><input data-item-field="hs_name" readonly aria-label="HS code name"></div>
+            <label>Item Description <span>*</span></label><textarea data-item-field="description" rows="4" class="full-field"></textarea>
+            <label>State of Goods <span>*</span></label><select data-item-field="state_of_goods" class="full-field"><option value="">-- Select One --</option><option value="01">01, NEW</option><option value="02">02, USED</option><option value="03">03, RECONDITIONED</option><option value="ZZ">ZZ, OTHER</option></select>
+            <label>Unit of Measure/Quantity <span>*</span></label><div class="app-unit-field"><select data-item-field="quantity_unit"><option value="KGM">KGM, Weight in kilograms</option><option value="NMB">NMB, Number</option><option value="LTR">LTR, Litre</option><option value="MTR">MTR, Metre</option></select><input data-item-field="quantity" inputmode="decimal"></div>
+            <label>Supplementary Quantity</label><div class="app-unit-field"><select data-item-field="supplementary_unit"><option value="KGM">KGM, Weight in kilograms</option><option value="NMB">NMB, Number</option><option value="LTR">LTR, Litre</option></select><input data-item-field="supplementary_quantity" inputmode="decimal"></div>
+            <label>Package <span>*</span></label><div class="app-unit-field"><select data-item-field="package_unit"><option value="KG">KG, Keg</option><option value="CT">CT, Carton</option><option value="PK">PK, Package</option><option value="BX">BX, Box</option></select><input data-item-field="package_quantity" inputmode="decimal"></div>
+            <label>Country of Origin <span>*</span></label><div class="ucr-lookup-field app-country-field"><input data-item-field="origin_country" maxlength="2"><button type="button" data-item-country-search aria-label="Search item country of origin">⌕</button><input data-item-country-name readonly></div>
+            <label>Gross Weight(Kgs) <span>*</span></label><input data-item-field="gross_weight" inputmode="decimal">
+            <label>Net Weight(Kgs) <span>*</span></label><input data-item-field="net_weight" inputmode="decimal">
+            <label>Currency <span>*</span></label><input data-item-field="currency" readonly>
+            <label>Exchange Rate</label><input data-item-field="exchange_rate" readonly>
+            <label>Unit FOB FCY <span>*</span></label><div class="app-money-field"><input data-item-currency readonly><input data-item-field="unit_fob_fcy" inputmode="decimal"></div>
+            <label>Unit FOB NCY <span>*</span></label><div class="app-money-field"><input value="GHS" readonly><input data-item-field="unit_fob_ncy" readonly></div>
+            <label>Item Price FCY <span>*</span></label><div class="app-money-field"><input data-item-currency readonly><input data-item-field="price_fcy" inputmode="decimal" readonly></div>
+            <label>Item Price NCY <span>*</span></label><div class="app-money-field"><input value="GHS" readonly><input data-item-field="price_ncy" readonly></div>
+            <label>FOB FCY <span>*</span></label><div class="app-money-field"><input data-item-currency readonly><input data-item-field="fob_fcy" readonly></div>
+            <label>FOB NCY <span>*</span></label><div class="app-money-field"><input value="GHS" readonly><input data-item-field="fob_ncy" readonly></div>
+            <label>Remarks</label><textarea data-item-field="remarks" rows="4" class="full-field"></textarea>
+          </div><div class="cargo-actions"><button class="secondary-button" id="app-item-back" type="button">☷ Back to Item List</button><button class="primary-button" id="app-item-save" type="button">▣ Save Item</button></div><p id="app-item-status" class="dialog-help" role="status" hidden></p></div>
+        </section>
+
+        {% if mda_mode %}<section class="app-tab-panel app-general-sections" id="app-tab-approval" hidden>
+          <section class="cargo-panel"><div class="cargo-panel-title"><h2>Request Approval</h2><span class="required-note">* required</span></div><div class="summary-grid">
+            <label>Approval Terms <span>*</span></label><label class="app-approval-check"><input type="checkbox" id="app-approval-terms" {% if mda_request.approval_terms %}checked{% endif %}> I Agree</label>
+            <label>Purpose of Import/Export <span>*</span></label><input class="full-field" id="app-approval-purpose" value="{{ mda_request.approval_purpose }}">
+            <label>Remarks from Applicant <span>*</span></label><textarea class="full-field" id="app-approval-remarks" rows="4">{{ mda_request.approval_remarks }}</textarea>
+          </div></section>
+          <section class="cargo-panel"><div class="cargo-panel-title"><h2>Additional Parties for Distribution</h2><div><button class="secondary-button" id="app-party-add" type="button">Add Party</button> <button class="secondary-button" id="app-party-reset" type="button">Reset</button></div></div><div class="cargo-table-wrap"><table><thead><tr><th>Third Party Distribution</th><th>Mailbox</th></tr></thead><tbody id="app-party-rows"><tr data-empty-row><td colspan="2">No data found.</td></tr></tbody></table></div></section>
+          <section class="cargo-panel"><div class="cargo-panel-title"><h2>eDocuments Details</h2></div><div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Document Type</th><th>Reference No.</th><th>Attached File</th><th></th></tr></thead><tbody>{% for document in mda_documents %}<tr><td>{{ forloop.counter }}</td><td>{{ document.code }}, {{ document.name }}</td><td>{{ document.reference }}</td><td>{{ document.file_name|default:"-" }}</td><td>{% if document.file_url %}<a class="ucr-row-action" href="{{ document.file_url }}" target="_blank" rel="noopener">View</a>{% endif %}</td></tr>{% empty %}<tr><td colspan="5">No data found.</td></tr>{% endfor %}</tbody></table></div></section>
+        </section>{% endif %}
+
+        <section class="cargo-panel app-tab-panel" id="app-tab-confirmation" hidden><div class="cargo-panel-title"><h2>Confirmation</h2></div>
+          {% if not mda_mode %}<h3 class="app-party-title">MDA</h3><div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>MDA</th><th>Application</th><th>Process</th><th>Exporter</th><th>Importer</th><th>Application No.</th><th>Submitted Date</th><th>Status</th><th><button class="ucr-row-action" id="app-mda-add" type="button">Add</button></th></tr></thead><tbody id="app-mda-rows"><tr><td class="cell-center">FDA</td><td data-confirm="application"></td><td data-confirm="process"></td><td class="cell-left" data-confirm="exporter.name"></td><td class="cell-left" data-confirm="importer.code"></td><td class="cell-center" data-confirm="app-no"></td><td class="cell-center" data-confirm="submitted"></td><td class="cell-center" data-confirm="status"></td><td class="cell-center"><button class="ucr-row-action" type="button" data-mda-create="FDA">Create</button></td></tr><tr><td class="cell-center">GSA</td><td data-confirm="application"></td><td data-confirm="process"></td><td class="cell-left" data-confirm="exporter.name"></td><td class="cell-left" data-confirm="importer.code"></td><td class="cell-center" data-confirm="app-no"></td><td class="cell-center" data-confirm="submitted"></td><td class="cell-center" data-confirm="status"></td><td class="cell-center"><button class="ucr-row-action" type="button" data-mda-create="GSA">Create</button></td></tr><tr><td class="cell-center">EPA</td><td data-confirm="application"></td><td data-confirm="process"></td><td class="cell-left" data-confirm="exporter.name"></td><td class="cell-left" data-confirm="importer.code"></td><td class="cell-center" data-confirm="app-no"></td><td class="cell-center" data-confirm="submitted"></td><td class="cell-center" data-confirm="status"></td><td class="cell-center"><button class="ucr-row-action" type="button" data-mda-create="EPA">Create</button></td></tr></tbody></table></div>{% endif %}
+          <div id="app-confirm-sections" class="app-confirm-sections"></div>
+          <div class="cargo-actions"><a class="secondary-button" href="{% url 'single-window-search-preparation-application' %}">BACK</a></div>
+        </section>
+
+        <script>
+          (() => {
+            const hash = location.hash.slice(1);
+            const tabs = [...document.querySelectorAll(".app-tab")];
+            const target = tabs.some((tab) => tab.dataset.appTab === hash) ? hash : "general";
+            tabs.forEach((tab) => tab.setAttribute("aria-current", tab.dataset.appTab === target ? "tab" : "false"));
+            document.querySelectorAll(".app-tab-panel").forEach((panel) => { panel.hidden = panel.id !== `app-tab-${target}`; });
+          })();
+        </script>
+        <div class="cargo-actions"><a class="secondary-button" href="{% url 'single-window-search-preparation-application' %}">☷ List</a><button class="primary-button" id="app-save" type="button">✎ Save</button></div>
+        <p id="app-status" role="status" class="dialog-help" hidden></p>
+      </div>
+    </main>
+  </div>
+  <dialog id="app-hs-dialog" class="code-dialog app-hs-dialog" aria-labelledby="app-hs-title"><div class="code-dialog-card"><header><h2 id="app-hs-title">HS Code</h2><button id="app-hs-close" type="button" aria-label="Close HS-code search">×</button></header><div class="app-hs-filters"><label>HS Code <input id="app-hs-filter-code" inputmode="numeric" maxlength="10"></label><label>HS Code Description <input id="app-hs-filter-description"></label><fieldset><legend>HS Length</legend><label><input type="radio" name="app-hs-length" value="2"> HS CODE(2digit)</label><label><input type="radio" name="app-hs-length" value="4"> HS CODE(4digit)</label><label><input type="radio" name="app-hs-length" value="10" checked> HS CODE(10digit)</label></fieldset><button class="primary-button" id="app-hs-filter-submit" type="button">⌕ Search</button></div><div class="cargo-table-wrap"><table class="app-hs-table"><thead><tr><th>No.</th><th>HS Code</th><th>HS Code Description</th><th>Prohibit Y/N</th><th>Qty Unit Code</th><th>Import Duty</th><th>Import Duty VAT</th><th>NHIL Rate</th><th>Supplementary Unit Code</th></tr></thead><tbody id="app-hs-results"></tbody></table></div><div class="code-pagination" id="app-hs-pagination"></div></div></dialog>
+  <dialog id="app-country-dialog" class="code-dialog" aria-labelledby="app-country-title"><div class="code-dialog-card"><header><h2 id="app-country-title">Common Code · Country</h2><button id="app-country-close" type="button" aria-label="Close country search">×</button></header><div class="code-search"><label>Code <input id="app-country-filter-code" maxlength="2"></label><label>Code Name <input id="app-country-filter-name"></label><button id="app-country-filter-submit" type="button">⌕ Search</button></div><div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Code</th><th>Code Name</th><th>Code Description</th></tr></thead><tbody id="app-country-results"></tbody></table></div><div class="code-pagination" id="app-country-pagination"></div></div></dialog>
+  <dialog id="app-currency-dialog" class="code-dialog" aria-labelledby="app-currency-title"><div class="code-dialog-card"><header><h2 id="app-currency-title">Common Code · Currency</h2><button id="app-currency-close" type="button" aria-label="Close currency search">×</button></header><div class="code-search"><label>Code <input id="app-currency-filter-code" maxlength="3"></label><label>Code Name <input id="app-currency-filter-name"></label><button id="app-currency-filter-submit" type="button">⌕ Search</button></div><div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Code</th><th>Code Name</th><th>Code Description</th></tr></thead><tbody id="app-currency-results"></tbody></table></div><div class="code-pagination" id="app-currency-pagination"></div></div></dialog>
+  <dialog id="app-port-dialog" class="code-dialog" aria-labelledby="app-port-title"><div class="code-dialog-card"><header><h2 id="app-port-title">Port Code</h2><button id="app-port-close" type="button" aria-label="Close port search">×</button></header><div class="code-search"><label>Code <input id="app-port-filter-code" maxlength="12"></label><label>Port Name <input id="app-port-filter-name"></label><label>Country <input id="app-port-filter-country"></label><button id="app-port-filter-submit" type="button">⌕ Search</button></div><div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Code</th><th>Port Name</th><th>Country Code</th><th>Country Name</th></tr></thead><tbody id="app-port-results"></tbody></table></div><div class="code-pagination" id="app-port-pagination"></div></div></dialog>
+  <dialog id="app-mda-dialog" class="code-dialog app-mda-dialog" aria-labelledby="app-mda-title"><div class="code-dialog-card"><header><h2 id="app-mda-title">New Consignment Request</h2><button id="app-mda-close" type="button" aria-label="Close MDA application request">×</button></header><div class="summary-grid app-mda-request-grid">
+    <label>Type <span>*</span></label><select id="app-mda-type"><option value="">-- Select One --</option><option value="SB">Sub Consignment</option><option value="SG">Single Consignment</option><option value="NB">Non B/L</option></select>
+    <label>Master No.</label><input id="app-mda-master" maxlength="30" readonly>
+    <label>UCR No. <span>*</span></label><input id="app-mda-ucr" readonly>
+    <label>MDA <span>*</span></label><select id="app-mda-agency"><option value="">-- Select One --</option></select>
+    <label>Application <span>*</span></label><select id="app-mda-application"><option value="">-- Select One --</option></select>
+    <label>Process <span>*</span></label><select id="app-mda-process"><option value="">-- Select One --</option></select>
+  </div><p id="app-mda-status" class="dialog-help" role="status" hidden></p><div class="cargo-actions"><button class="primary-button" id="app-mda-create" type="button">Create Application Form</button></div></div></dialog>
+  {{ initial|json_script:"app-initial" }}{{ mda_requests|json_script:"app-mda-requests" }}{{ approval_parties|json_script:"app-approval-parties" }}
+  <script>window.appInitial = JSON.parse(document.querySelector("#app-initial").textContent); window.appMdaRequests = JSON.parse(document.querySelector("#app-mda-requests").textContent); window.appApprovalParties = JSON.parse(document.querySelector("#app-approval-parties").textContent); window.appMdaMode = {{ mda_mode|yesno:"true,false" }}; window.appMdaRequestId = {% if mda_request %}{{ mda_request.pk }}{% else %}null{% endif %}; window.appReadOnly = {{ read_only|yesno:"true,false" }}; window.appSubmittedAt = "{% if application.submitted_at %}{{ application.submitted_at|date:'d/m/Y H:i:s' }}{% endif %}"; window.appStatusText = "{% if mda_request %}{{ mda_request.status }}{% elif application %}{{ application.get_status_display }}{% else %}Draft{% endif %}"; window.appCsrfToken = "{{ csrf_token }}"; window.appSaveUrl = "{% if mda_request %}{% url 'mda-consignment-application-save' mda_request.pk %}{% else %}{% url 'application-save' %}{% endif %}"; window.appSubmitUrl = "{% url 'application-submit' %}"; window.appHsCodeSearchUrl = "{% url 'application-hs-code-search' %}"; window.appPortCodeSearchUrl = "{% url 'application-port-code-search' %}"; window.appMdaOptionsUrl = "{% url 'application-mda-options' %}"; window.appMdaRequestCreateUrl = "{% url 'application-mda-request-create' %}";</script>
+  <script src="{% static 'js/ucr-country-codes.js' %}?v=20260918-1" defer></script>
+  <script src="{% static 'js/dialog-pagination.js' %}?v=20260918-1" defer></script>
+  <script src="{% static 'js/application-form.js' %}?v=20260924-6" defer></script>
+  <script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script>
+</body></html>

@@ -1,26 +1,19 @@
-const ucrResults = document.querySelector("#ucr-results");
-const ucrMessage = document.querySelector("#ucr-action-message");
-
-document.querySelector("#ucr-search").addEventListener("click", () => {
-  ucrResults.innerHTML = `<tr>
-    <td><button class="ucr-result-link" type="button">SIM-UCR-2600626027</button></td>
-    <td>Import</td><td>JKB LOGISTICS LTD</td><td>P0033673896, HAYFORD ESHUN</td>
-    <td>TRAINING-001</td><td>AP</td>
-    <td><button type="button" data-ucr-action="Clone">Clone</button></td>
-    <td><button type="button" data-ucr-action="Amend">Amend</button></td>
-  </tr>`;
-});
-
-document.querySelector("#ucr-reset").addEventListener("click", () => {
-  document.querySelectorAll("#main-content input").forEach((input) => { input.value = ""; });
-  document.querySelectorAll("#main-content select").forEach((select) => { select.selectedIndex = 0; });
-  ucrResults.innerHTML = `<tr class="ucr-empty"><td class="empty-row" colspan="8">No fictional data found.</td></tr>`;
-  ucrMessage.hidden = true;
-});
-
-ucrResults.addEventListener("click", (event) => {
-  const action = event.target.dataset.ucrAction;
-  if (!action) return;
-  ucrMessage.hidden = false;
-  ucrMessage.textContent = `${action} is a frontend placeholder. No UCR has been changed.`;
-});
+(() => {
+  const iso = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  document.querySelectorAll('[data-date-range]').forEach((button) => button.addEventListener('click', () => {
+    const inputs = button.closest('.date-range')?.querySelectorAll('input[type="date"]');
+    const from = inputs?.[0];
+    const to = inputs?.[1];
+    if (!from || !to) return;
+    const action = button.dataset.dateRange;
+    if (action === 'reset') { from.value = ''; to.value = ''; return; }
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const end = new Date(start);
+    if (action === 'month') start.setMonth(start.getMonth() - 1);
+    if (action === 'week') start.setDate(start.getDate() - 7);
+    if (action === 'next-week') end.setDate(end.getDate() + 7);
+    from.value = iso(start);
+    to.value = iso(end);
+  }));
+})();

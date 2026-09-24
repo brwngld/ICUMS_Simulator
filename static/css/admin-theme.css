@@ -11,6 +11,8 @@
   --admin-accent-soft: #eeebfc;
   --admin-shadow: 0 8px 24px #2534510a;
 }
+body { font-size: .875rem; }
+#content :is(input, select, textarea, button, label, td, th) { font-size: .875rem; }
 
 html[data-theme="dark"] {
   color-scheme: dark;
@@ -53,7 +55,7 @@ body { background: var(--admin-page); color: var(--admin-text); font-family: Int
 .module table { width: 100%; }
 .module th, .module td { border-bottom: 1px solid var(--admin-border); }
 .module tr:last-child th, .module tr:last-child td { border-bottom: 0; }
-.module th { color: var(--admin-muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; }
+.module th { color: var(--admin-muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; white-space: normal; overflow-wrap: anywhere; word-break: normal; line-height: 1.25; }
 .module td, .module th { padding: .85rem 1rem; }
 .module td, .module td a { color: var(--admin-text); }
 .module td a, .object-tools a, .addlink, .changelink { color: var(--admin-accent) !important; }

@@ -17,6 +17,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 
 * { box-sizing: border-box; }
 body { margin: 0; color: var(--text); background: var(--page); }
+body { font-size: .875rem; }
+body :is(input, select, textarea, button, label, td, th), .top-nav a { font-size: .875rem; }
 .training-notice { padding: .65rem 1rem; text-align: center; font-weight: 700; letter-spacing: .03em; color: var(--warning-text); background: var(--warning); }
 .site-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem max(1rem, calc((100% - 72rem) / 2)); background: var(--panel); border-bottom: 1px solid var(--border); }
 .top-nav { display: flex; align-items: center; gap: 1rem; }
@@ -77,7 +79,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 3px solid 
 .table-wrapper { margin-top: 1.5rem; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; background: var(--panel); }
 th, td { padding: .8rem; border-bottom: 1px solid var(--border); text-align: left; }
-th { color: var(--muted); font-size: .85rem; }
+th { color: var(--muted); font-size: .85rem; white-space: normal; overflow-wrap: anywhere; word-break: normal; hyphens: auto; line-height: 1.25; }
 .reference-label { padding: .8rem 1rem; border-left: 4px solid var(--accent); background: color-mix(in srgb, var(--accent), transparent 90%); }
 .simulator-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
 .status-label { padding: .45rem .75rem; border-radius: 99px; background: var(--panel); border: 1px solid var(--border); }
@@ -425,3 +427,6 @@ html[data-theme="dark"] .builder-progress li.complete { color: #9cdec9; border-c
 @media (max-width: 40rem) { .builder-progress { grid-template-columns: 1fr 1fr; } .form-columns { grid-template-columns: 1fr; } .outline-module { grid-template-columns: 1fr; } .outline-module > ol { grid-column: auto; } .outline-module > ol li { align-items: flex-start; flex-direction: column; gap: .25rem; } .publish-panel { align-items: stretch; flex-direction: column; } }
 /* Simulator credential cards */
 .credential-list{display:grid;gap:.7rem}.credential-list>div{display:grid;grid-template-columns:minmax(10rem,.8fr) 1fr;gap:1rem;padding:.65rem 0;border-bottom:1px solid var(--border)}.credential-list dt{font-weight:750}.credential-list dd{margin:0}.credential-list code,.table-wrapper code{padding:.25rem .45rem;border-radius:.3rem;background:var(--surface-muted);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.copy-credential{padding:.28rem .55rem;border:1px solid var(--border);border-radius:.35rem;background:var(--surface);color:inherit}
+.app-layout :is(input, select, textarea, button, label, td, th),
+.guest-layout :is(input, select, textarea, button, label, td, th),
+.app-layout .top-nav a { font-size: .875rem; }

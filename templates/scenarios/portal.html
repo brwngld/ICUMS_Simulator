@@ -5,9 +5,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Practical Workspace · ICUMS Simulator</title>
-  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260911-2">
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260919-3">
 </head>
-<body>
+<body data-portal-home>
   <a class="portal-skip" href="#portal-main">Skip to workspace</a>
   <div class="portal-warning" role="note">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
   {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
@@ -125,7 +125,7 @@
       configureDialog({ dialogId: "boe-search-dialog", formId: "boe-search-form", statusId: "boe-search-status", openSelector: "[data-open-boe-search]", closeSelector: "[data-close-boe-search]", message: "Frontend prototype only. BOE status results will be connected after the declaration workflow and data rules are supplied." });
     })();
   </script>
-<script src="{% static 'js/app-shell.js' %}" defer></script></body>
+<script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script></body>
 </html>
 
 

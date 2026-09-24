@@ -1,0 +1,39 @@
+.ucr-identity { display:grid; grid-template-columns:minmax(0,1fr) 2.6rem minmax(0,1.3fr); gap:.35rem; min-width:0; }
+.ucr-identity input { min-width:0; }
+.ucr-lookup-field { display:grid; grid-template-columns:minmax(4.5rem,.65fr) 2.6rem minmax(8rem,1.35fr); gap:.35rem; min-width:0; }
+.ucr-lookup-field input { min-width:0; }
+.ucr-lookup-field button { min-width:0; border:1px solid var(--line); border-radius:.4rem; color:var(--ink); background:var(--panel); cursor:pointer; }
+.ucr-country-filters { display:flex; flex-wrap:wrap; align-items:end; gap:.7rem; padding:1rem 0; }
+.ucr-country-filters label { display:grid; gap:.25rem; flex:1; min-width:9rem; }
+.ucr-country-filters input { width:100%; }
+#ucr-country-results tr { cursor:pointer; }
+#ucr-country-results tr:hover, #ucr-country-results tr:focus { background:var(--canvas); }
+.ucr-country-footer { display:flex; justify-content:space-between; padding:.8rem 0; }
+.ucr-identity:has(.ucr-party-search[hidden]) { grid-template-columns:1fr; }
+.ucr-error-message { white-space:pre-line; padding:1rem 1.5rem; line-height:1.5; }
+.ucr-party-search { min-width:2.6rem; border:1px solid var(--line); border-radius:.4rem; color:var(--ink); background:var(--panel); }
+.ucr-party-search[hidden], #ucr-provider[hidden] { display:none !important; }
+#main-content .summary-grid .ucr-field-invalid,
+#main-content .summary-grid .ucr-field-invalid:focus { border-color:#c92a2a; background-color:rgba(201,42,42,.07); box-shadow:0 0 0 2px rgba(201,42,42,.2); }
+#main-content .summary-grid .ucr-label-invalid, #ucr-status.ucr-status-error { color:#bd2525; }
+#ucr-status.ucr-status-error { font-weight:700; }
+.ucr-documents { width:100%; table-layout:fixed; }
+.ucr-documents th:first-child,.ucr-documents td:first-child { width:3rem; text-align:center; }
+.ucr-documents th:last-child,.ucr-documents td:last-child { width:4rem; text-align:center; }
+.ucr-documents th:nth-child(2) { width:32%; }
+.ucr-documents th:nth-child(3) { width:34%; }
+.ucr-documents th:nth-child(4) { width:auto; }
+.ucr-documents td { vertical-align:middle; }
+.ucr-documents .document-type-field { display:grid; grid-template-columns:5.5rem 2.4rem minmax(0,1fr); gap:.35rem; }
+.ucr-documents .document-type-field input { min-width:0; }
+.ucr-documents .document-type-field input[data-document-code] { width:100%; text-align:left; font-variant-numeric:tabular-nums; }
+.ucr-documents .document-type-field button { min-width:0; }
+.ucr-documents td>input[type=text] { min-width:0; }
+.ucr-documents td>input[type=file] { min-width:0; max-width:100%; font-size:.72rem; }
+#ucr-party-results tr { cursor:pointer; }
+#ucr-party-results tr:hover { background:var(--canvas); }
+@media (max-width:55rem) { .ucr-documents { min-width:42rem; } }
+
+/* Read-only country rows (View/Amend) have no search button; drop its column. */
+.ucr-lookup-field:not(:has(button)) { grid-template-columns: minmax(4.5rem,.65fr) minmax(8rem,1.35fr); }
+#ucr-party-results tr:hover td:nth-child(4) { text-decoration: underline; }

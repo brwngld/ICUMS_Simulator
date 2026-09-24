@@ -1,8 +1,291 @@
 from django.contrib import admin
+from django import forms
+from django.contrib import messages
 from django.urls import reverse
 from django.utils.html import format_html
+from django.forms.models import BaseInlineFormSet
+import json
+import secrets
 
-from .models import AssistanceEvent, BillOfLading, BillOfLadingCargoItem, CommercialDocument, CommercialDocumentLine, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion
+from .models import AssistanceEvent, BillOfLading, BillOfLadingCargoItem, CommercialDocument, CommercialDocumentLine, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider
+
+
+@admin.register(GhanaHSCode)
+class GhanaHSCodeAdmin(admin.ModelAdmin):
+    list_display = ("code", "description", "heading_code", "quantity_unit", "import_duty", "import_vat")
+    search_fields = ("code", "description", "heading_code")
+    list_filter = ("heading_code",)
+    ordering = ("code",)
+    readonly_fields = ("source_page",)
+
+
+@admin.register(PortCode)
+class PortCodeAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "country_code", "country_name", "is_active")
+    search_fields = ("code", "name", "country_code", "country_name")
+    list_filter = ("is_active", "country_code")
+    ordering = ("code",)
+    fieldsets = (
+        ("Port details", {"fields": (("code", "name"),)}),
+        ("Country", {"fields": (("country_code", "country_name"),)}),
+        ("Availability", {"fields": ("is_active",)}),
+    )
+
+
+class MdaApplicationInline(admin.TabularInline):
+    model = MdaApplication
+    extra = 1
+    fields = ("code", "name", "is_active")
+
+
+@admin.register(MdaAgency)
+class MdaAgencyAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "is_active", "application_count")
+    search_fields = ("code", "name")
+    list_filter = ("is_active",)
+    inlines = (MdaApplicationInline,)
+
+    @admin.display(description="Applications")
+    def application_count(self, obj):
+        return obj.applications.count()
+
+
+class MdaProcessInline(admin.TabularInline):
+    model = MdaProcess
+    extra = 1
+    fields = ("code", "name", "is_active")
+
+
+@admin.register(MdaApplication)
+class MdaApplicationAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "mda", "is_active", "process_count")
+    search_fields = ("code", "name", "mda__code", "mda__name")
+    list_filter = ("is_active", "mda")
+    autocomplete_fields = ("mda",)
+    inlines = (MdaProcessInline,)
+
+    @admin.display(description="Processes")
+    def process_count(self, obj):
+        return obj.processes.count()
+
+
+@admin.register(MdaProcess)
+class MdaProcessAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "application", "is_active")
+    search_fields = ("code", "name", "application__code", "application__name", "application__mda__code")
+    list_filter = ("is_active", "application__mda")
+    autocomplete_fields = ("application",)
+
+
+@admin.register(MdaConsignmentRequest)
+class MdaConsignmentRequestAdmin(admin.ModelAdmin):
+    list_display = ("application_no", "mda", "application", "process", "consignment_type", "status", "created_at")
+    search_fields = ("application_no", "mda__code", "application__code", "process__code", "consignment_application__ucr__ucr_no")
+    list_filter = ("status", "consignment_type", "mda")
+    readonly_fields = ("application_no", "created_at")
+    autocomplete_fields = ("mda", "application", "process")
+    raw_id_fields = ("consignment_application",)
+
+
+def declarant_capable_stakeholders():
+    """Active stakeholders whose own or additional names carry the CHA / Declarant or Freight Forwarder role.
+
+    Filtered in Python because JSONField's contains lookup is unsupported on SQLite.
+    """
+    declarant_roles = {"cha", "freight_forwarder"}
+    qualifying = [
+        stakeholder.pk
+        for stakeholder in TrainingStakeholder.objects.filter(is_active=True).prefetch_related("additional_names")
+        if declarant_roles.intersection(stakeholder.roles)
+        or any(declarant_roles.intersection(alias.roles) for alias in stakeholder.additional_names.all())
+    ]
+    return TrainingStakeholder.objects.filter(pk__in=qualifying)
+
+
+class StakeholderTinChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        return f"{obj.code} · {obj.name}"
+
+
+class TrainingServiceProviderForm(forms.ModelForm):
+    stakeholder = StakeholderTinChoiceField(
+        queryset=TrainingStakeholder.objects.none(),
+        label="TIN",
+        help_text="Select a registered stakeholder whose roles include CHA / Declarant or Freight Forwarder.",
+    )
+
+    class Meta:
+        model = TrainingServiceProvider
+        fields = ("declarant_prefix", "stakeholder", "name", "country_code", "address", "contact_name", "contact_designation", "phone", "email", "email_2", "is_active", "owner")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["stakeholder"].queryset = declarant_capable_stakeholders()
+        if self.instance and self.instance.pk:
+            self.initial["stakeholder"] = TrainingStakeholder.objects.filter(code=self.instance.code).first()
+
+    def clean(self):
+        cleaned = super().clean()
+        stakeholder = cleaned.get("stakeholder")
+        if stakeholder:
+            self.instance.code = stakeholder.code
+            duplicate = TrainingServiceProvider.objects.filter(code__iexact=stakeholder.code)
+            if self.instance.pk:
+                duplicate = duplicate.exclude(pk=self.instance.pk)
+            owner = cleaned.get("owner")
+            duplicate = duplicate.filter(owner=owner) if owner else duplicate.filter(owner__isnull=True)
+            if duplicate.exists():
+                self.add_error("stakeholder", "A service provider for this TIN and assignment already exists.")
+        return cleaned
+
+
+@admin.register(TrainingServiceProvider)
+class TrainingServiceProviderAdmin(admin.ModelAdmin):
+    form = TrainingServiceProviderForm
+    change_form_template = "admin/scenarios/trainingserviceprovider/change_form.html"
+    list_display = ("declarant_code", "code", "name", "country_code", "owner", "is_active")
+    list_filter = ("is_active", "country_code")
+    search_fields = ("declarant_code", "code", "name", "owner__username", "owner__student_id")
+    readonly_fields = ("declarant_code",)
+    fields = ("declarant_prefix", "declarant_code", "stakeholder", "name", "country_code", "address", "contact_name", "contact_designation", "phone", "email", "email_2", "is_active", "owner")
+
+    class Media:
+        css = {"all": ("admin/css/training-service-provider.css",)}
+        js = ("js/dialog-pagination.js", "admin/js/training-service-provider.js", "js/ucr-country-codes.js")
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        form = context["adminform"].form
+        context["stakeholder_json"] = json.dumps({
+            str(stakeholder.pk): {"name": stakeholder.name, "address": stakeholder.address}
+            for stakeholder in form.fields["stakeholder"].queryset
+        })
+        return super().render_change_form(request, context, add=add, change=change, form_url=form_url, obj=obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        return self.readonly_fields + (("declarant_prefix",) if obj else ())
+
+
+class TrainingStakeholderForm(forms.ModelForm):
+    generation_mode = forms.ChoiceField(choices=(("manual", "Enter code manually"), ("auto", "Generate code automatically")), initial="manual", help_text="Choose how this TIN or NID is assigned.")
+    code = forms.CharField(required=False, max_length=13, label="TIN / NID code")
+    roles = forms.MultipleChoiceField(choices=TrainingStakeholder.ROLE_CHOICES, widget=forms.CheckboxSelectMultiple, required=True)
+
+    class Meta:
+        model = TrainingStakeholder
+        fields = ("tin_type", "code", "name", "address", "roles", "is_active", "merged_into")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["roles"].initial = self.instance.roles if self.instance.pk else []
+        self.fields["merged_into"].queryset = TrainingStakeholder.objects.filter(merged_into__isnull=True, is_active=True).exclude(pk=self.instance.pk)
+
+    def clean(self):
+        cleaned = super().clean()
+        tin_type = cleaned.get("tin_type")
+        code = (cleaned.get("code") or "").strip().upper()
+        if cleaned.get("generation_mode") == "auto":
+            width = 10 if tin_type == TrainingStakeholder.TinType.NID else 8
+            for _ in range(20):
+                candidate = f"{tin_type}{secrets.randbelow(10 ** width):0{width}d}"
+                if not TrainingStakeholder.objects.filter(code=candidate).exists():
+                    code = candidate
+                    break
+            else:
+                raise forms.ValidationError("Could not generate an unused code. Please try again.")
+        elif not code:
+            self.add_error("code", "Enter a TIN / NID or choose automatic generation.")
+        cleaned["code"] = code
+        return cleaned
+
+
+class TrainingStakeholderNameForm(forms.ModelForm):
+    roles = forms.MultipleChoiceField(choices=TrainingStakeholder.ROLE_CHOICES, widget=forms.CheckboxSelectMultiple, required=False)
+
+    class Meta:
+        model = TrainingStakeholderName
+        fields = ("name", "address", "roles")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["roles"].initial = self.instance.roles if self.instance.pk else []
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("name") and not cleaned.get("roles") and not cleaned.get("DELETE"):
+            self.add_error("roles", "Choose at least one role for this name.")
+        return cleaned
+
+
+class TrainingStakeholderNameFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            return
+        seen = {self.instance.name.strip().casefold(): set(self.instance.roles)} if self.instance.name else {}
+        for form in self.forms:
+            cleaned = form.cleaned_data
+            if not cleaned or cleaned.get("DELETE") or not cleaned.get("name"):
+                continue
+            key = cleaned["name"].strip().casefold()
+            roles = set(cleaned.get("roles") or [])
+            if seen.get(key, set()) & roles:
+                form.add_error("name", "This name already has one or more of the selected roles under this TIN.")
+            seen.setdefault(key, set()).update(roles)
+
+
+class TrainingStakeholderNameInline(admin.TabularInline):
+    model = TrainingStakeholderName
+    form = TrainingStakeholderNameForm
+    formset = TrainingStakeholderNameFormSet
+    extra = 1
+    verbose_name = "Additional name"
+    verbose_name_plural = "Additional names (one primary name is required above)"
+
+
+@admin.register(TrainingStakeholder)
+class TrainingStakeholderAdmin(admin.ModelAdmin):
+    form = TrainingStakeholderForm
+    inlines = (TrainingStakeholderNameInline,)
+    list_display = ("code", "name", "tin_type", "stakeholder_roles", "merged_into", "is_active")
+    list_filter = ("tin_type", "is_active")
+    search_fields = ("code", "name", "description", "additional_names__name")
+    fieldsets = (
+        ("TIN / NID setup", {"fields": ("tin_type", "generation_mode", "code")}),
+        ("Primary name (required)", {"fields": ("name", "address", "roles")}),
+        ("Advanced", {"classes": ("collapse",), "fields": ("is_active", "merged_into")}),
+    )
+    autocomplete_fields = ("merged_into",)
+
+    class Media:
+        js = ("admin/js/training-stakeholder.js",)
+
+    @admin.display(description="Roles")
+    def stakeholder_roles(self, obj):
+        labels = dict(TrainingStakeholder.ROLE_CHOICES)
+        return ", ".join(labels.get(role, role) for role in obj.roles)
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        obj = form.instance
+        if obj.merged_into_id:
+            target = obj.merged_into
+            def copy_distinct_roles(name, address, roles):
+                used = set(target.roles) if name.casefold() == target.name.casefold() else set()
+                for existing in target.additional_names.filter(name__iexact=name):
+                    used.update(existing.roles)
+                remaining = [role for role in roles if role not in used]
+                if remaining:
+                    TrainingStakeholderName.objects.create(stakeholder=target, name=name, address=address, roles=remaining)
+
+            copy_distinct_roles(obj.name, obj.address, obj.roles)
+            for alias in obj.additional_names.all():
+                copy_distinct_roles(alias.name, alias.address, alias.roles)
+            obj.is_active = False
+            obj.save(update_fields=("is_active",))
+            self.message_user(request, f"{obj.code} now resolves to {target.code}. The surviving TIN's details take precedence.", messages.SUCCESS)
 
 
 class BillOfLadingCargoItemInline(admin.StackedInline):
