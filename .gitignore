@@ -12,3 +12,8 @@ staticfiles/
 backups/
 qa/
 .pytest-temp*/
+.video_agent/
+tmp/
+tmp-unlocode*
+output/
+docs/~$*
