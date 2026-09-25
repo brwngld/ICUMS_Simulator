@@ -96,3 +96,37 @@ def test_monthly_password_is_hashed_and_shown_once(client):
     dashboard = iclient.get(reverse("instructor-dashboard"))
     assert raw_password.encode() not in dashboard.content
     assert b"shown once" in dashboard.content
+
+
+@pytest.mark.django_db
+def test_admin_can_create_multiple_users_without_email(client):
+    """Two admin-created users without an email must not collide on the unique email column."""
+    administrator = User.objects.create_superuser(username="email-admin", email="email-admin@example.test", password="admin-password")
+    client.force_login(administrator)
+    add_payload = {
+        "username": "no-email-student",
+        "password1": "secure-test-password-417",
+        "password2": "secure-test-password-417",
+        "enrolments-TOTAL_FORMS": "0",
+        "enrolments-INITIAL_FORMS": "0",
+        "enrolments-MIN_NUM_FORMS": "0",
+        "enrolments-MAX_NUM_FORMS": "1000",
+        "_save": "Save",
+    }
+    first = client.post(reverse("admin:accounts_user_add"), add_payload)
+    assert first.status_code == 302, first.content
+    second = client.post(reverse("admin:accounts_user_add"), {**add_payload, "username": "no-email-student-two"})
+    assert second.status_code == 302, second.content
+    first_user = User.objects.get(username="no-email-student")
+    second_user = User.objects.get(username="no-email-student-two")
+    assert first_user.email is None
+    assert second_user.email is None
+
+    # An email offered on the add screen is saved with the user.
+    third = client.post(reverse("admin:accounts_user_add"), {
+        **add_payload,
+        "username": "with-email-student",
+        "email": "with-email-student@example.test",
+    })
+    assert third.status_code == 302
+    assert User.objects.get(username="with-email-student").email == "with-email-student@example.test"

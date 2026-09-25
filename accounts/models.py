@@ -13,7 +13,7 @@ class User(AbstractUser):
     """Application user; defined before the first migration for long-term flexibility."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField("email address", unique=True)
+    email = models.EmailField("email address", unique=True, blank=True, null=True)
     student_id = models.CharField(max_length=14, unique=True, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -23,6 +23,13 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return self.get_full_name() or self.username
+
+    def save(self, *args, **kwargs):
+        # Empty emails are stored as NULL so the unique constraint tolerates
+        # any number of users created without one (e.g. via the admin add screen).
+        if self.email == "":
+            self.email = None
+        super().save(*args, **kwargs)
 
 
 class StudentIdSequence(models.Model):

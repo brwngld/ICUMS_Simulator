@@ -19,6 +19,9 @@ class EnrolmentInline(admin.TabularInline):
 @admin.register(User)
 class SimulatorUserAdmin(UserAdmin):
     readonly_fields = ("student_id", "created_at", "updated_at")
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ("Personal info", {"fields": ("email", "first_name", "last_name")}),
+    )
     fieldsets = UserAdmin.fieldsets + (
         ("Simulator record", {"fields": ("student_id", "created_at", "updated_at")}),
     )
