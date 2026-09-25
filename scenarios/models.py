@@ -860,6 +860,35 @@ class ConsignmentApplication(models.Model):
         return self.application_no or f"Application draft for {self.ucr}"
 
 
+class MdaStatus(models.TextChoices):
+    """MDA application statuses; shared with the clearance side.
+
+    Every MDA passes through SU (Submitted). MOTI and GSA approve automatically
+    from SU to AP. AD/AE (DTRD), AG (GCUS), and SC (2nd MDA Checking Officer,
+    GCoO) belong to MDAs with multi-officer approval chains.
+    """
+
+    DRAFT = "DR", "DR, Draft"
+    SUBMIT_PENDING_FEE = "PP", "PP, Submit - Pending Fee"
+    SUBMITTED = "SU", "SU, Submitted"
+    ON_HOLD = "OH", "OH, On-Hold"
+    QUERY = "QY", "QY, Query"
+    REJECTED = "RJ", "RJ, Rejected"
+    APPROVAL_PENDING_FEE = "PD", "PD, Approval - Pending Fee"
+    APPROVED_CHECKING_OFFICER = "AC", "AC, Approved Checking Officer"
+    APPROVED_VALIDATION_OFFICER = "AV", "AV, Approved Validation Officer"
+    APPROVED_MDA = "AM", "AM, Approved MDA"
+    APPROVED_DTRD_CHECKING_OFFICER = "AD", "AD, Approved DTRD Checking Officer"
+    APPROVED_DTRD_VALIDATION_OFFICER = "AE", "AE, Approved DTRD Validation Officer"
+    APPROVED_GCUS_CHECKING_OFFICER = "AG", "AG, Approved GCUS Checking Officer"
+    APPROVED = "AP", "AP, Approved"
+    RE_SUBMIT = "RS", "RS, Re-Submit"
+    APPEAL = "MA", "MA, Appeal"
+    APPROVED_APPEAL = "MP", "MP, Approved Appeal"
+    REJECTED_APPEAL = "MR", "MR, Rejected Appeal"
+    APPROVED_SECOND_MDA_CHECKING_OFFICER = "SC", "SC, Approved 2nd MDA Checking Officer(GCoO)"
+
+
 class MdaConsignmentRequest(models.Model):
     """MDA application launched from a Consignment Document confirmation tab."""
 
@@ -884,7 +913,7 @@ class MdaConsignmentRequest(models.Model):
     approval_purpose = models.TextField(blank=True)
     approval_remarks = models.TextField(blank=True)
     additional_parties = models.JSONField(default=list, blank=True)
-    status = models.CharField(max_length=12, default="Draft")
+    status = models.CharField(max_length=2, choices=MdaStatus.choices, default=MdaStatus.DRAFT)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

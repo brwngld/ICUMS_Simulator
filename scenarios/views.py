@@ -23,7 +23,7 @@ from .country_codes import COUNTRY_CODE_SET
 from .models import (BillOfLading, CommercialDocument, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument,
                      ScenarioVersion, TrainingStakeholder, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment,
                      allocate_ucr_number, purge_expired_ucr_drafts)
-from .models import ConsignmentApplication, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, allocate_application_number
+from .models import ConsignmentApplication, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus, PortCode, allocate_application_number
 from .pdfs import build_bill_of_lading_pdf, build_commercial_document_pdf, build_fictitious_document_pdf
 from .services import available_actions, perform_action, practical_is_unlocked, record_hint, start_or_resume_attempt
 from accounts.models import SimulatorCredential
@@ -817,7 +817,7 @@ def consignment_application_create(request):
         "process": f"{record.process.code}, {record.process.name}",
         "application_no": record.application_no,
         "created_at": timezone.localtime(record.created_at).strftime("%d/%m/%Y %H:%M:%S"),
-        "status": record.status,
+        "status": record.get_status_display(),
         "url": reverse("mda-consignment-application", args=(record.pk,)),
     } for record in application.mda_requests.select_related("mda", "application", "process") ] if application else []
     return render(request, "scenarios/consignment_application.html", {
@@ -891,7 +891,7 @@ def mda_consignment_application_save(request, request_id):
     record.additional_parties = parties if isinstance(parties, list) else []
     record.form_data = payload
     record.save(update_fields=("approval_terms", "approval_purpose", "approval_remarks", "additional_parties", "form_data"))
-    return JsonResponse({"id": record.pk, "application_no": record.application_no, "status": record.status})
+    return JsonResponse({"id": record.pk, "application_no": record.application_no, "status": record.get_status_display()})
 
 
 @simulator_access_required
@@ -1051,7 +1051,7 @@ def application_mda_request_create(request):
         "process": f"{process.code}, {process.name}",
         "application_no": record.application_no,
         "url": reverse("mda-consignment-application", args=(record.pk,)),
-        "status": record.status,
+        "status": record.get_status_display(),
         "created_at": timezone.localtime(record.created_at).strftime("%d/%m/%Y %H:%M:%S"),
     }, status=201)
 
@@ -1330,13 +1330,12 @@ def single_window_search_consignment_application(request):
         records = records.filter(created_at__date__gte=filters["date_from"])
     if filters["date_to"]:
         records = records.filter(created_at__date__lte=filters["date_to"])
-    status_options = list(MdaConsignmentRequest.objects.values_list("status", flat=True).distinct().order_by("status")) or ["Draft"]
     return render(request, "scenarios/single_window_search_consignment_application.html", {
         "filters": filters,
         "records": records,
         "mdas": MdaAgency.objects.filter(is_active=True).order_by("code"),
         "mda_applications": MdaApplication.objects.filter(is_active=True).select_related("mda").order_by("mda__code", "code"),
-        "status_options": status_options,
+        "status_options": MdaStatus.choices,
     })
 
 
@@ -1349,7 +1348,7 @@ def mda_request_delete(request):
               if mda_id.isdigit() else None)
     if record is None:
         messages.error(request, "Select an MDA application record to delete.")
-    elif record.status != "Draft":
+    elif record.status != MdaStatus.DRAFT:
         messages.error(request, "Only draft MDA applications can be deleted.")
     else:
         application_no = record.application_no

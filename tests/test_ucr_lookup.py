@@ -951,6 +951,11 @@ def test_consignment_search_application_lists_mda_requests(client):
     assert b"Amend" in page.content
     assert reverse("mda-consignment-application", args=(mda_created["id"],)).encode() in page.content
     assert saved["application_no"].encode() not in page.content
+    # The Status dropdown offers the full shared MDA status list.
+    assert b">DR, Draft</option>" in page.content
+    assert b">SU, Submitted</option>" in page.content
+    assert b">AP, Approved</option>" in page.content
+    assert b">SC, Approved 2nd MDA Checking Officer(GCoO)</option>" in page.content
 
     filtered = client.get(search_url, {"mda": "FDA"})
     assert mda_created["application_no"].encode() in filtered.content
