@@ -257,13 +257,7 @@ html[data-theme="dark"] #app-tab-general [readonly] { color: #c4cce0; background
 .app-hs-filters fieldset label { font-weight: 500; }
 .app-hs-filters > button { grid-column: 2; justify-self: end; min-height: 2.2rem; padding: .4rem .75rem; }
 .app-hs-dialog .cargo-table-wrap { max-height: 54vh; overflow: auto; border: 1px solid var(--line); border-radius: .45rem; }
-.app-hs-table { table-layout: fixed; border-collapse: separate; border-spacing: 0; }
-.app-hs-table th:nth-child(1) { width: 4.5%; }
-.app-hs-table th:nth-child(2) { width: 12%; }
-.app-hs-table th:nth-child(3) { width: 27%; }
-.app-hs-table th:nth-child(4) { width: 7.5%; }
-.app-hs-table th:nth-child(5) { width: 13%; }
-.app-hs-table th:nth-child(n+6) { width: 9%; }
+.app-hs-table { border-collapse: separate; border-spacing: 0; }
 .app-hs-table thead th { position: sticky; top: 0; z-index: 1; padding: .55rem .6rem; text-align: center; vertical-align: middle; line-height: 1.3; white-space: normal; }
 .app-hs-table td { padding: .5rem .6rem; overflow-wrap: anywhere; text-align: center; vertical-align: middle; line-height: 1.35; }
 .app-hs-table td:nth-child(3) { text-align: left; }
@@ -276,14 +270,9 @@ html[data-theme="dark"] .app-hs-dialog .cargo-table-wrap { border-color: var(--l
 .app-invoice-grid > .full-field { grid-column: 2 / -1; }
 #app-currency-results tr { cursor: pointer; }
 #app-currency-results tr:hover, #app-currency-results tr:focus { background: #f6f4ff; }
-.app-items-table { width: 100%; min-width: 46rem; table-layout: fixed; border-collapse: collapse; }
+.app-items-table { width: 100%; border-collapse: collapse; }
 .app-items-table thead th { background: var(--canvas, #eef0f6); color: var(--ink, #384158); font-weight: 700; padding: .5rem .4rem; text-align: center; vertical-align: middle; line-height: 1.25; white-space: normal; overflow-wrap: anywhere; word-break: normal; hyphens: auto; border-bottom: 2px solid var(--line); }
 html[data-theme="dark"] .app-items-table thead th { background: #26324f; color: #c4cce0; }
-.app-items-table th.cell-check { width: 4%; }
-.app-items-table th:nth-child(2) { width: 7%; }
-.app-items-table th:nth-child(3) { width: 13%; }
-.app-items-table th:nth-child(4) { width: 29%; }
-.app-items-table th:nth-child(n+5) { width: 11.75%; }
 .app-items-table tbody td { padding: .3rem .4rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .app-items-table tbody td:first-child { text-align: center; }
 .app-items-table td.app-item-no { text-align: center; white-space: nowrap; }

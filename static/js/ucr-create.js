@@ -423,9 +423,10 @@
     try {
       const data = await postUcr(window.ucrSubmitUrl, collectUcrPayload());
       document.querySelector('#ucr-temp').value = data.ucr_no;
+      applyAttachments(data);
       saveButton.disabled = true;
-      reportStatus(`Submitted. UCR No.: ${data.ucr_no} — opening the UCR view.`);
-      if (data.detail_url) window.location.href = data.detail_url;
+      reportStatus(`Submitted successfully. UCR No.: ${data.ucr_no}`);
+      if (data.detail_url) setTimeout(() => { window.location.href = data.detail_url; }, 1500);
     } catch (error) {
       if (error.fieldErrors) reportFieldErrors(error.fieldErrors);
       else reportStatus(error.message, true);
