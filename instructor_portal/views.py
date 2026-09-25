@@ -38,9 +38,13 @@ def simulator_credential_issue(request, user_id):
     from accounts.models import User
     student = get_object_or_404(User, pk=user_id)
     credential, _ = SimulatorCredential.objects.get_or_create(user=student)
-    credential.issue()
-    messages.success(request, f"Simulator credentials reset for {student}. They expire at the end of the month.")
-    return redirect("instructor-dashboard")
+    raw_password = credential.issue()
+    credential.mark_revealed()
+    return render(request, "instructor_portal/credential_reveal.html", {
+        "student": student,
+        "credential": credential,
+        "raw_password": raw_password,
+    })
 
 
 def _unique_slug(model, field, value, **scope):

@@ -47,3 +47,52 @@ def test_admin_enrolment_history_cannot_be_deleted(client):
     response = client.get(reverse("admin:onboarding_enrolment_delete", args=(enrolment.pk,)))
     assert response.status_code == 403
     assert Group.objects.filter(name="Student").exists()
+
+
+@pytest.mark.django_db
+def test_monthly_password_is_hashed_and_shown_once(client):
+    """The issued simulator password is shown exactly once and stored only as a hash."""
+    from django.contrib.auth import get_user_model
+    from django.test import Client
+
+    from accounts.models import SimulatorCredential
+
+    User = get_user_model()
+    instructor = User.objects.create_user(username="cred-instructor", email="cred-instructor@example.test", password="instructor-pass")
+    instructor.groups.add(Group.objects.get(name="Instructor"))
+    student = User.objects.create_user(username="cred-student", email="cred-student@example.test", password="student-pass")
+    programme = Programme.objects.create(name="Credential Programme", code="credential-programme")
+    version = ProgrammeVersion.objects.create(programme=programme, version=1)
+    Enrolment.objects.create(student=student, programme_version=version, enrolled_by=instructor)
+
+    iclient = Client()
+    iclient.force_login(instructor)
+    response = iclient.post(reverse("simulator-credential-issue", args=(student.pk,)))
+    assert response.status_code == 200
+    raw_password = response.context["raw_password"]
+    assert raw_password.startswith("Ic!")
+
+    credential = SimulatorCredential.objects.get(user=student)
+    assert credential.password_hash
+    assert raw_password not in credential.password_hash
+    assert credential.revealed_at is not None
+    student.refresh_from_db()
+    assert student.student_id  # allocated together with the first credential
+
+    # The student can sign in with the issued password.
+    sclient = Client()
+    session = sclient.session
+    session["simulator_user_id"] = str(student.pk)
+    session.save()
+    signed_in = sclient.post(reverse("simulator-login"), {"student_id": student.student_id, "password": raw_password})
+    assert signed_in.status_code == 302
+
+    # Wrong and old passwords are refused; nothing recoverable is stored.
+    refused = sclient.post(reverse("simulator-login"), {"student_id": student.student_id, "password": "Ic!WRONGPW"})
+    assert refused.status_code == 302
+    assert refused.url == reverse("simulator-portal")
+
+    # The dashboard never shows the password again, only its masked state.
+    dashboard = iclient.get(reverse("instructor-dashboard"))
+    assert raw_password.encode() not in dashboard.content
+    assert b"shown once" in dashboard.content

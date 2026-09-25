@@ -52,23 +52,29 @@ class SimulatorUserAdmin(UserAdmin):
 
 @admin.register(SimulatorCredential)
 class SimulatorCredentialAdmin(admin.ModelAdmin):
-    list_display = ("user", "student_id", "generated_password_display", "issued_at", "expires_at", "is_current", "reset_requested_at")
-    readonly_fields = ("user", "issued_at", "expires_at", "reset_requested_at")
-    actions = ("reset_monthly_credentials",)
+    """Credential status only: the password itself is shown once, on the instructor dashboard."""
+
+    list_display = ("user", "student_id", "password_state_display", "issued_at", "expires_at", "is_current", "reset_requested_at")
+    search_fields = ("user__username", "user__student_id", "user__first_name", "user__last_name")
+    readonly_fields = ("password_hash", "revealed_at", "issued_at", "expires_at", "reset_requested_at")
+
+    def get_readonly_fields(self, request, obj=None):
+        # The user must be selectable when creating a credential; afterwards it is fixed.
+        if obj is None:
+            return ("password_hash", "revealed_at", "issued_at", "expires_at", "reset_requested_at")
+        return ("user", "password_hash", "revealed_at", "issued_at", "expires_at", "reset_requested_at")
 
     @admin.display(description="Student ID")
     def student_id(self, obj):
         return obj.user.student_id
 
-    @admin.display(description="Current generated password")
-    def generated_password_display(self, obj):
-        return obj.generated_password or "Not issued"
-
-    @admin.action(description="Reset selected monthly simulator credentials")
-    def reset_monthly_credentials(self, request, queryset):
-        for credential in queryset.select_related("user"):
-            credential.issue()
-        self.message_user(request, f"Reset {queryset.count()} simulator credential(s).")
+    @admin.display(description="Password")
+    def password_state_display(self, obj):
+        if obj.password_state == "not_issued":
+            return "Not issued"
+        if obj.password_state == "revealed":
+            return f"Hidden — shown once {obj.revealed_at:%Y-%m-%d %H:%M}" if obj.revealed_at else "Hidden"
+        return "Awaiting one-time display"
 
     def has_add_permission(self, request):
         return False

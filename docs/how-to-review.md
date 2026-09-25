@@ -216,7 +216,14 @@ Preparation reproduces the confirmed New Preparation Request and Application Lis
 
 Students sign in to the simulator with their Student ID and monthly password, and every UCR, consignment application, and MDA application belongs to the student who created it. Staff have two ways to see that work:
 
-1. **Review login (view only).** Sign in with your own staff account, open the practical workspace home (`/practical/portal/`), and use the **Review student work** panel: enter the student's ID or name (no password needed) and browse the Single Window menus — you see that student's UCRs, consignment applications, and MDA applications exactly as they do, whether draft or submitted. Saving, submitting, editing, cloning, and deleting are disabled while reviewing, and a banner in the sidebar names the student you are viewing. Use **Exit review** (sidebar or workspace home) to return to your own workspace.
+1. **Review login (view only).** Sign in with your own staff account and click **Simulator sign out** on the workspace home: the popup offers **Review student work** — enter the student's ID or name (no password needed) and browse the Single Window menus — you see that student's UCRs, consignment applications, and MDA applications exactly as they do, whether draft or submitted. Saving, submitting, editing, cloning, and deleting are disabled while reviewing, and a banner in the sidebar names the student you are viewing. Use **Exit review** (sidebar or the same popup) to return to your own workspace.
 2. **Django Admin.** UCR declarations, consignment applications, and MDA consignment requests are registered in Advanced administration with a **Student** column showing which student created each record; search by student ID, name, or record number.
 
 Both routes are read-only for student records: corrections are the learner's to make.
+
+## Simulator student IDs and monthly passwords
+
+- A student's **ID** (for example `BERN00001/26`) is allocated automatically the first time their simulator login is issued: four letters from the first name, a five-digit sequence, and the year.
+- The **monthly password** is generated randomly at issue, stored only as a hash, and **shown exactly once** on the instructor dashboard's one-time password screen (with a Copy button). It is never displayed or stored in a readable form again — if it is lost, use "Reset monthly password" to generate a new one.
+- Passwords expire at the end of the month. Students can flag "Request password reset" from the simulator login dialog, which shows on the instructor dashboard.
+- The one-time reveal lives on the instructor dashboard only; Django Admin shows credential status (never the password) and can create a credential record, but the reveal happens at an instructor reset.

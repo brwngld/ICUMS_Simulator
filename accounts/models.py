@@ -1,10 +1,10 @@
-import hashlib
-import hmac
 import re
 import uuid
 
 from django.conf import settings
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import AbstractUser
+from django.utils.crypto import get_random_string
 from django.db import models, transaction
 from django.utils import timezone
 
@@ -40,8 +40,16 @@ def allocate_student_id(first_name):
 
 
 class SimulatorCredential(models.Model):
+    """Monthly simulator login for a student.
+
+    The password is generated randomly on issue(), stored only as a hash, and
+    shown exactly once (revealed_at) — it can never be looked up again; a reset
+    is the only way to get a new one.
+    """
+
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="simulator_credential")
-    nonce = models.UUIDField(default=uuid.uuid4, editable=False)
+    password_hash = models.CharField(max_length=128, blank=True)
+    revealed_at = models.DateTimeField(blank=True, null=True)
     issued_at = models.DateTimeField(blank=True, null=True)
     expires_at = models.DateTimeField(blank=True, null=True)
     reset_requested_at = models.DateTimeField(blank=True, null=True)
@@ -51,18 +59,20 @@ class SimulatorCredential(models.Model):
         return bool(self.issued_at and self.expires_at and self.expires_at > timezone.now())
 
     @property
-    def generated_password(self):
-        if not self.issued_at:
-            return ""
-        digest = hmac.new(settings.SECRET_KEY.encode(), f"{self.user_id}:{self.nonce}".encode(), hashlib.sha256).hexdigest()
-        return f"Ic!{digest[:4].upper()}{digest[4:10]}"
+    def password_state(self):
+        if not self.password_hash:
+            return "not_issued"
+        return "revealed" if self.revealed_at else "awaiting_reveal"
 
     def issue(self):
+        """Regenerate the password; returns the new plaintext for its single reveal."""
         now = timezone.now()
         if not self.user.student_id:
             self.user.student_id = allocate_student_id(self.user.first_name or self.user.username)
             self.user.save(update_fields=("student_id",))
-        self.nonce = uuid.uuid4()
+        raw_password = f"Ic!{get_random_string(8)}"
+        self.password_hash = make_password(raw_password)
+        self.revealed_at = None
         self.issued_at = now
         if now.month == 12:
             boundary = now.replace(year=now.year + 1, month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -71,6 +81,11 @@ class SimulatorCredential(models.Model):
         self.expires_at = boundary
         self.reset_requested_at = None
         self.save()
+        return raw_password
+
+    def mark_revealed(self):
+        self.revealed_at = timezone.now()
+        self.save(update_fields=("revealed_at",))
 
     def matches(self, value):
-        return self.is_current and hmac.compare_digest(self.generated_password, value or "")
+        return self.is_current and bool(self.password_hash) and check_password(value or "", self.password_hash)
