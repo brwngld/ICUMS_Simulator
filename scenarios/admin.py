@@ -7,7 +7,7 @@ from django.forms.models import BaseInlineFormSet
 import json
 import secrets
 
-from .models import AssistanceEvent, BillOfLading, BillOfLadingCargoItem, CommercialDocument, CommercialDocumentLine, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider
+from .models import AssistanceEvent, BillOfLading, BillOfLadingCargoItem, ConsignmentApplication, CommercialDocument, CommercialDocumentLine, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration
 
 
 @admin.register(GhanaHSCode)
@@ -79,12 +79,45 @@ class MdaProcessAdmin(admin.ModelAdmin):
 
 @admin.register(MdaConsignmentRequest)
 class MdaConsignmentRequestAdmin(admin.ModelAdmin):
-    list_display = ("application_no", "mda", "application", "process", "consignment_type", "status", "created_at")
-    search_fields = ("application_no", "mda__code", "application__code", "process__code", "consignment_application__ucr__ucr_no")
+    list_display = ("application_no", "student", "mda", "application", "process", "consignment_type", "status", "created_at")
+    search_fields = ("application_no", "mda__code", "application__code", "process__code", "consignment_application__ucr__ucr_no", "consignment_application__owner__student_id", "consignment_application__owner__first_name", "consignment_application__owner__last_name")
     list_filter = ("status", "consignment_type", "mda")
     readonly_fields = ("application_no", "created_at")
     autocomplete_fields = ("mda", "application", "process")
     raw_id_fields = ("consignment_application",)
+
+    @admin.display(description="Student", ordering="consignment_application__owner__student_id")
+    def student(self, obj):
+        owner = obj.consignment_application.owner
+        return f"{owner.get_full_name() or owner.username} ({owner.student_id or 'no ID'})"
+
+
+@admin.register(UcrDeclaration)
+class UcrDeclarationAdmin(admin.ModelAdmin):
+    """Every learner's UCRs with their owner, so administrators can trace student work."""
+
+    list_display = ("ucr_no", "temp_no", "student", "regime", "status", "created_at", "submitted_at")
+    search_fields = ("ucr_no", "temp_no", "owner__student_id", "owner__first_name", "owner__last_name", "owner__username", "exporter_name", "importer_name")
+    list_filter = ("status", "regime", "derivation")
+    readonly_fields = ("temp_no", "ucr_no", "owner", "status", "created_at", "updated_at", "submitted_at")
+
+    @admin.display(description="Student", ordering="owner__student_id")
+    def student(self, obj):
+        return f"{obj.owner.get_full_name() or obj.owner.username} ({obj.owner.student_id or 'no ID'})"
+
+
+@admin.register(ConsignmentApplication)
+class ConsignmentApplicationAdmin(admin.ModelAdmin):
+    """Every learner's consignment applications with their owner."""
+
+    list_display = ("application_no", "student", "ucr", "status", "created_at", "submitted_at")
+    search_fields = ("application_no", "owner__student_id", "owner__first_name", "owner__last_name", "owner__username", "exporter_name", "importer_code")
+    list_filter = ("status",)
+    readonly_fields = ("application_no", "owner", "status", "created_at", "submitted_at")
+
+    @admin.display(description="Student", ordering="owner__student_id")
+    def student(self, obj):
+        return f"{obj.owner.get_full_name() or obj.owner.username} ({obj.owner.student_id or 'no ID'})"
 
 
 def declarant_capable_stakeholders():

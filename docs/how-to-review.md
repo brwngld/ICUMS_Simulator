@@ -211,3 +211,12 @@ The exporter screens include the confirmed certificate and GRA-office choices, r
 - Consignment Search: `/practical/single-window/application/consignment/search/`
 
 Preparation reproduces the confirmed New Preparation Request and Application List screens. Master reproduces the confirmed New Master Request with the full eMDA list and dependent Application/Process selectors. Consignment currently uses the same linked, fictional reference-screen shell and is ready for its deeper fields when that screen is available for read-only inspection.
+
+## Reviewing student work (staff, view-only)
+
+Students sign in to the simulator with their Student ID and monthly password, and every UCR, consignment application, and MDA application belongs to the student who created it. Staff have two ways to see that work:
+
+1. **Review login (view only).** Sign in with your own staff account, open the practical workspace home (`/practical/portal/`), and use the **Review student work** panel: enter the student's ID or name (no password needed) and browse the Single Window menus — you see that student's UCRs, consignment applications, and MDA applications exactly as they do, whether draft or submitted. Saving, submitting, editing, cloning, and deleting are disabled while reviewing, and a banner in the sidebar names the student you are viewing. Use **Exit review** (sidebar or workspace home) to return to your own workspace.
+2. **Django Admin.** UCR declarations, consignment applications, and MDA consignment requests are registered in Advanced administration with a **Student** column showing which student created each record; search by student ID, name, or record number.
+
+Both routes are read-only for student records: corrections are the learner's to make.

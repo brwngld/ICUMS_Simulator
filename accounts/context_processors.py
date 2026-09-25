@@ -15,3 +15,16 @@ def role_context(request):
         ).exists(),
         "has_active_enrolment": has_active_enrolment,
     }
+
+
+def simulator_review(request):
+    """Staff review mode: the student whose simulator work is being viewed (view-only)."""
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return {"review_target": None}
+    from django.contrib.auth import get_user_model
+
+    target_id = request.session.get("simulator_review_user_id")
+    if not target_id:
+        return {"review_target": None}
+    target = get_user_model().objects.filter(pk=target_id).first()
+    return {"review_target": target}

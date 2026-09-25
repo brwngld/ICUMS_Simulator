@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.contrib.auth import login as auth_login
+from django.contrib.auth import get_user_model, login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.core.validators import validate_email
 from django.http import HttpResponse, JsonResponse, FileResponse
@@ -42,6 +42,36 @@ def _has_simulator_access(request):
     return bool(credential and credential.is_current)
 
 
+def _review_target(request):
+    """Staff review mode: the student whose simulator work the signed-in staff member is viewing.
+
+    Review sessions are strictly view-only; every write endpoint refuses them.
+    """
+    if not request.user.is_authenticated or not _is_simulator_author(request.user):
+        return None
+    target_id = request.session.get("simulator_review_user_id")
+    if not target_id:
+        return None
+    return get_user_model().objects.filter(pk=target_id).first()
+
+
+def _effective_owner(request):
+    return _review_target(request) or request.user
+
+
+def _review_json_guard(request):
+    if _review_target(request) is None:
+        return None
+    return JsonResponse({"error": "Review access is view-only. Exit student review to make changes."}, status=403)
+
+
+def _review_form_guard(request):
+    if _review_target(request) is None:
+        return None
+    messages.error(request, "Review access is view-only. Exit student review to make changes.")
+    return redirect("simulator-portal")
+
+
 def simulator_access_required(view):
     @wraps(view)
     def wrapped(request, *args, **kwargs):
@@ -55,6 +85,42 @@ def simulator_access_required(view):
 def simulator_portal(request):
     student_id_hint = request.user.student_id if request.user.is_authenticated else ""
     return render(request, "scenarios/portal.html", {"simulator_access": _has_simulator_access(request), "student_id_hint": student_id_hint})
+
+
+@require_POST
+def simulator_review_login(request):
+    """Staff-only: browse one student's simulator work with view-only access."""
+    if not _is_simulator_author(request.user):
+        raise PermissionDenied("Student review is a staff feature.")
+    query = request.POST.get("student", "").strip()
+    if not query:
+        messages.error(request, "Enter the student's ID or name to review their work.")
+        return redirect("simulator-portal")
+    query_lower = query.lower()
+    matches = []
+    for credential in SimulatorCredential.objects.select_related("user"):
+        user = credential.user
+        haystacks = [user.student_id or "", user.username, user.first_name, user.last_name, user.get_full_name()]
+        if any(field.strip().lower() == query_lower for field in haystacks):
+            matches.append(user)
+    if not matches:
+        messages.error(request, f"No simulator student matches “{query}”.")
+    elif len(matches) > 1:
+        messages.error(request, f"Several students match “{query}” — use the Student ID instead.")
+    else:
+        student = matches[0]
+        request.session["simulator_review_user_id"] = str(student.pk)
+        messages.success(request, f"Reviewing the work of {student.get_full_name() or student.username} ({student.student_id or 'no ID'}) — view only.")
+    return redirect("simulator-portal")
+
+
+@require_POST
+def simulator_review_exit(request):
+    if not _is_simulator_author(request.user):
+        raise PermissionDenied("Student review is a staff feature.")
+    request.session.pop("simulator_review_user_id", None)
+    messages.info(request, "Student review ended; you are back to your own workspace.")
+    return redirect("simulator-portal")
 
 
 @require_POST
@@ -77,6 +143,7 @@ def simulator_login(request):
 
 @require_POST
 def simulator_logout(request):
+    request.session.pop("simulator_review_user_id", None)
     if _is_simulator_author(request.user):
         messages.warning(
             request,
@@ -217,11 +284,11 @@ def single_window_create_ucr(request):
     draft = None
     draft_id = request.GET.get("draft")
     if draft_id and draft_id.isdigit():
-        candidate = UcrDeclaration.objects.filter(pk=draft_id, owner=request.user, status=UcrDeclaration.Status.DRAFT).first()
+        candidate = UcrDeclaration.objects.filter(pk=draft_id, owner=_effective_owner(request), status=UcrDeclaration.Status.DRAFT).first()
         if candidate:
             draft = candidate
         else:
-            submitted = UcrDeclaration.objects.filter(pk=draft_id, owner=request.user).first()
+            submitted = UcrDeclaration.objects.filter(pk=draft_id, owner=_effective_owner(request)).first()
             if submitted:
                 return redirect("ucr-detail", record_id=submitted.pk)
     return render(request, "scenarios/ucr_create.html", {"initial_ucr": _ucr_record_payload(draft) if draft else None})
@@ -473,6 +540,9 @@ def _requested_ucr_draft(request, payload):
 @require_POST
 def ucr_save_declaration(request):
     """Save creates or updates the addressed draft and shows its TEMPUCR reference."""
+    blocked = _review_json_guard(request)
+    if blocked:
+        return blocked
     payload, errors = _parse_ucr_payload(request)
     if errors:
         return JsonResponse({"errors": errors}, status=400)
@@ -497,6 +567,9 @@ def ucr_save_declaration(request):
 @require_POST
 def ucr_submit_declaration(request):
     """Submit closes the addressed draft and issues the final KGHTESTUCR… number."""
+    blocked = _review_json_guard(request)
+    if blocked:
+        return blocked
     payload, errors = _parse_ucr_payload(request)
     if errors:
         return JsonResponse({"errors": errors}, status=400)
@@ -525,7 +598,7 @@ def _ucr_search_queryset(request):
     """Owner's UCRs filtered by the Search UCR criteria; text fields match exactly, not partially."""
     purge_expired_ucr_drafts()
     query = request.GET
-    records = UcrDeclaration.objects.filter(owner=request.user).order_by("-created_at")
+    records = UcrDeclaration.objects.filter(owner=_effective_owner(request)).order_by("-created_at")
     searched = False
     if query.get("number", "").strip():
         number = query["number"].strip()
@@ -565,6 +638,7 @@ def single_window_search_ucr(request):
         "records": records[:200] if searched else UcrDeclaration.objects.none(),
         "searched": searched,
         "filters": request.GET,
+        "review_mode": _review_target(request) is not None,
     })
 
 
@@ -680,14 +754,16 @@ def _ucr_form_context(record):
 @simulator_access_required
 @require_GET
 def ucr_detail(request, record_id):
-    record = get_object_or_404(UcrDeclaration.objects.select_related("source_ucr"), pk=record_id, owner=request.user)
-    return render(request, "scenarios/ucr_detail.html", _ucr_form_context(record))
+    record = get_object_or_404(UcrDeclaration.objects.select_related("source_ucr"), pk=record_id, owner=_effective_owner(request))
+    context = _ucr_form_context(record)
+    context["review_mode"] = _review_target(request) is not None
+    return render(request, "scenarios/ucr_detail.html", context)
 
 
 @simulator_access_required
 @require_GET
 def ucr_attachment(request, attachment_id):
-    attachment = get_object_or_404(UcrDocumentAttachment.objects.select_related("ucr"), pk=attachment_id, ucr__owner=request.user)
+    attachment = get_object_or_404(UcrDocumentAttachment.objects.select_related("ucr"), pk=attachment_id, ucr__owner=_effective_owner(request))
     return FileResponse(attachment.file.open("rb"), filename=attachment.original_name)
 
 
@@ -708,6 +784,9 @@ def _copy_ucr_attachments(draft, source):
 @require_POST
 def ucr_clone(request, record_id):
     """Clone copies every detail of the source into a fresh TEMPUCR draft; cloning is unlimited."""
+    blocked = _review_form_guard(request)
+    if blocked:
+        return blocked
     source = get_object_or_404(UcrDeclaration, pk=record_id, owner=request.user)
     draft = UcrDeclaration(owner=request.user)
     _copy_ucr_fields(draft, source)
@@ -723,13 +802,18 @@ def ucr_clone(request, record_id):
 @simulator_access_required
 def ucr_amend(request, record_id):
     """Amend keeps the UCR read-only except for the regime and eDocuments; submitting issues a new linked number."""
+    blocked = _review_form_guard(request)
+    if blocked:
+        return blocked
     source = get_object_or_404(UcrDeclaration.objects.select_related("source_ucr"), pk=record_id, owner=request.user)
     if source.status != UcrDeclaration.Status.SUBMITTED:
         messages.error(request, "Submit the original UCR before creating an amendment.")
         return redirect("ucr-detail", record_id=record_id)
 
     if request.method == "GET":
-        return render(request, "scenarios/ucr_amend.html", _ucr_form_context(source))
+        context = _ucr_form_context(source)
+        context["review_mode"] = _review_target(request) is not None
+        return render(request, "scenarios/ucr_amend.html", context)
 
     regime = request.POST.get("regime", "").strip().upper()
     family = UCR_REGIME_FAMILIES.get(source.regime, (source.regime,))
@@ -823,16 +907,16 @@ def consignment_application_create(request):
     application = None
     app_id = request.GET.get("app", "")
     if app_id.isdigit():
-        application = ConsignmentApplication.objects.filter(pk=app_id, owner=request.user).first()
+        application = ConsignmentApplication.objects.filter(pk=app_id, owner=_effective_owner(request)).first()
     ucr = application.ucr if application else None
     if ucr is None:
         ucr_no = request.GET.get("ucr", "").strip()
-        ucr = UcrDeclaration.objects.filter(owner=request.user, ucr_no__iexact=ucr_no, status=UcrDeclaration.Status.SUBMITTED).first() if ucr_no else None
+        ucr = UcrDeclaration.objects.filter(owner=_effective_owner(request), ucr_no__iexact=ucr_no, status=UcrDeclaration.Status.SUBMITTED).first() if ucr_no else None
         if ucr is None:
             messages.error(request, "Choose an issued UCR number before creating an application form.")
             return redirect("single-window-create-preparation-application")
         if application is None:
-            application = ConsignmentApplication.objects.filter(owner=request.user, ucr=ucr, status=ConsignmentApplication.Status.DRAFT).first()
+            application = ConsignmentApplication.objects.filter(owner=_effective_owner(request), ucr=ucr, status=ConsignmentApplication.Status.DRAFT).first()
     initial = _application_record_payload(application) if application else _application_initial_from_ucr(ucr)
     if initial.get("shipment_date"):
         initial["shipment_date"] = initial["shipment_date"].isoformat()
@@ -858,7 +942,7 @@ def consignment_application_create(request):
         "mda_mode": False,
         "display_application_no": application.application_no if application else "Generated after save",
         "application_type_text": "CD, Consignment Document",
-        "read_only": bool(application and application.status == ConsignmentApplication.Status.SUBMITTED),
+        "read_only": bool(application and application.status == ConsignmentApplication.Status.SUBMITTED) or _review_target(request) is not None,
         "exporter_party_label": "Code" if UCR_PARTY_RULES.get(ucr.regime, ("name", "name"))[0] == "tin" else "Name",
         "importer_party_label": "Code" if UCR_PARTY_RULES.get(ucr.regime, ("name", "name"))[1] == "tin" else "Name",
     })
@@ -906,7 +990,10 @@ def mda_consignment_application(request, request_id):
 @simulator_access_required
 @require_POST
 def mda_consignment_application_save(request, request_id):
-    record = get_object_or_404(MdaConsignmentRequest, pk=request_id, consignment_application__owner=request.user)
+    blocked = _review_json_guard(request)
+    if blocked:
+        return blocked
+    record = get_object_or_404(MdaConsignmentRequest, pk=request_id, consignment_application__owner=_effective_owner(request))
     try:
         payload = json.loads(request.body.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -1224,13 +1311,16 @@ def _apply_application_payload(record, data):
 @require_POST
 def application_save_declaration(request):
     """Save issues the sequential CD number on first save and keeps the draft editable."""
+    blocked = _review_json_guard(request)
+    if blocked:
+        return blocked
     data, error_response = _parse_application_payload(request)
     if error_response:
         return error_response
     record = None
     app_id = str(data.get("app_id") or "")
     if app_id.isdigit():
-        record = ConsignmentApplication.objects.filter(pk=app_id, owner=request.user, status=ConsignmentApplication.Status.DRAFT).first()
+        record = ConsignmentApplication.objects.filter(pk=app_id, owner=_effective_owner(request), status=ConsignmentApplication.Status.DRAFT).first()
         if record is None:
             return JsonResponse({"error": "This application has already been submitted."}, status=400)
     record = record or ConsignmentApplication(owner=request.user, ucr=data["ucr"])
@@ -1245,11 +1335,14 @@ def application_save_declaration(request):
 @require_POST
 def application_submit_declaration(request):
     """Submit closes the draft; the CD number stays as the application's reference."""
+    blocked = _review_json_guard(request)
+    if blocked:
+        return blocked
     data, error_response = _parse_application_payload(request)
     if error_response:
         return error_response
     app_id = str(data.get("app_id") or "")
-    record = ConsignmentApplication.objects.filter(pk=app_id, owner=request.user, status=ConsignmentApplication.Status.DRAFT).first() if app_id.isdigit() else None
+    record = ConsignmentApplication.objects.filter(pk=app_id, owner=_effective_owner(request), status=ConsignmentApplication.Status.DRAFT).first() if app_id.isdigit() else None
     if record is None:
         return JsonResponse({"error": "Save the application before submitting it."}, status=400)
     _apply_application_payload(record, data)
@@ -1289,7 +1382,7 @@ def single_window_preparation_application(request, mode):
     has_criteria = any(filters.values())
     search_attempted = request.GET.get("searched") == "1"
     if mode == "search" and has_criteria:
-        records = ConsignmentApplication.objects.filter(owner=request.user).select_related("ucr")
+        records = ConsignmentApplication.objects.filter(owner=_effective_owner(request)).select_related("ucr")
         if filters["ucr"]:
             records = records.filter(ucr__ucr_no__icontains=filters["ucr"])
         if filters["number"]:
@@ -1308,6 +1401,7 @@ def single_window_preparation_application(request, mode):
         "filters": filters,
         "records": records,
         "search_error": search_attempted and not has_criteria,
+        "review_mode": _review_target(request) is not None,
         "breadcrumb_section": "Preparation Application",
         "breadcrumb_create_path": reverse("single-window-create-preparation-application"),
         "breadcrumb_search_path": reverse("single-window-search-preparation-application"),
@@ -1332,7 +1426,7 @@ def single_window_search_consignment_application(request):
     filters = {key: request.GET.get(key, "").strip() for key in
                ("ucr", "number", "exporter", "importer", "mda", "application", "date_from", "date_to", "status")}
     records = (MdaConsignmentRequest.objects
-               .filter(consignment_application__owner=request.user)
+               .filter(consignment_application__owner=_effective_owner(request))
                .select_related("consignment_application__ucr", "mda", "application", "process")
                .order_by("-created_at"))
     if filters["ucr"]:
@@ -1362,6 +1456,7 @@ def single_window_search_consignment_application(request):
     return render(request, "scenarios/single_window_search_consignment_application.html", {
         "filters": filters,
         "records": records,
+        "review_mode": _review_target(request) is not None,
         "mdas": MdaAgency.objects.filter(is_active=True).order_by("code"),
         "mda_applications": MdaApplication.objects.filter(is_active=True).select_related("mda").order_by("mda__code", "code"),
         "status_options": MdaStatus.choices,
@@ -1372,6 +1467,9 @@ def single_window_search_consignment_application(request):
 @require_POST
 def mda_request_delete(request):
     """Only draft MDA applications can be deleted from the Consignment Application search."""
+    blocked = _review_form_guard(request)
+    if blocked:
+        return blocked
     mda_id = str(request.POST.get("mda_request_id", "")).strip()
     record = (MdaConsignmentRequest.objects.filter(pk=mda_id, consignment_application__owner=request.user).first()
               if mda_id.isdigit() else None)
@@ -1389,6 +1487,9 @@ def mda_request_delete(request):
 @simulator_access_required
 @require_POST
 def application_delete(request):
+    blocked = _review_form_guard(request)
+    if blocked:
+        return blocked
     app_id = str(request.POST.get("application_id", "")).strip()
     record = ConsignmentApplication.objects.filter(pk=app_id, owner=request.user).first() if app_id.isdigit() else None
     if record is None:

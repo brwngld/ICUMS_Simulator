@@ -322,3 +322,9 @@ html[data-theme="dark"] .app-confirm-detail-table td { color: #dce3f4; backgroun
 /* Search Application records panel actions (Delete + Excel Download). */
 .panel-actions { display: flex; align-items: center; gap: .5rem; }
 .panel-actions form { margin: 0; }
+
+/* Staff student-review banner in the sidebar. */
+.portal-review-note { margin: .8rem 1rem 0; padding: .7rem .8rem; border: 1px solid var(--line); border-left: 3px solid var(--primary); border-radius: .4rem; background: rgba(81, 69, 205, .08); font-size: .78rem; }
+.portal-review-note p { margin: 0 0 .5rem; line-height: 1.4; }
+.portal-review-note button { padding: .35rem .6rem; border: 1px solid var(--line); border-radius: .4rem; background: var(--panel); color: var(--ink); font: inherit; font-size: .75rem; cursor: pointer; }
+.portal-review-note button:hover { color: var(--primary-dark); border-color: #aa9cde; }

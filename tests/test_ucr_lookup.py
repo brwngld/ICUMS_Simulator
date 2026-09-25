@@ -971,3 +971,52 @@ def test_consignment_search_application_lists_mda_requests(client):
     response = client.post(reverse("mda-request-delete"), {"mda_request_id": mda_created["id"]})
     assert response.status_code == 302
     assert not MdaConsignmentRequest.objects.filter(pk=mda_created["id"]).exists()
+
+
+@pytest.mark.django_db
+def test_staff_student_review_mode_is_view_only(client):
+    from accounts.models import SimulatorCredential
+    from django.test import Client
+
+    student = User.objects.create_user(username="reviewee", email="reviewee@example.test", first_name="Ada", last_name="Learner", password="x")
+    credential = SimulatorCredential.objects.create(user=student)
+    credential.issue()
+    student.refresh_from_db()
+    sclient = Client()
+    sclient.force_login(student)
+    session = sclient.session
+    session["simulator_user_id"] = str(student.pk)
+    session.save()
+    temp = sclient.post(reverse("ucr-save"), _ucr_payload(), content_type="application/json").json()
+
+    staff = User.objects.create_user(username="reviewer", email="reviewer@example.test", password="x", is_staff=True)
+    client.force_login(staff)
+
+    # Staff log in "as" the student by ID or name, without any password.
+    assert client.post(reverse("simulator-review-login"), {"student": "nobody"}).status_code == 302
+    assert client.post(reverse("simulator-review-login"), {"student": "Ada Learner"}).status_code == 302
+    assert client.session["simulator_review_user_id"] == str(student.pk)
+
+    # The student's UCR is visible and viewable through the staff session.
+    page = client.get(reverse("single-window-search-ucr"), {"number": temp["temp_no"], "searched": "1"})
+    assert temp["temp_no"].encode() in page.content
+    assert client.get(reverse("ucr-detail", args=[temp["id"]])).status_code == 200
+
+    # …but every write is refused while reviewing.
+    assert client.post(reverse("ucr-save"), _ucr_payload(), content_type="application/json").status_code == 403
+    assert client.post(reverse("ucr-submit"), _ucr_payload(), content_type="application/json").status_code == 403
+    assert client.post(reverse("application-save"), {"ucr_no": temp["temp_no"]}, content_type="application/json").status_code == 403
+    assert client.post(reverse("mda-consignment-application-save", args=[1]), {}).status_code == 403
+    assert client.post(reverse("mda-request-delete"), {"mda_request_id": "1"}).status_code == 302
+    assert client.post(reverse("ucr-clone", args=[temp["id"]])).status_code == 302
+
+    # Write controls disappear from the staff view of the search page.
+    assert b">Clone</button>" not in page.content
+    consignment_page = client.get(reverse("single-window-search-consignment-application"))
+    assert b'id="mda-delete-form"' not in consignment_page.content
+
+    # Exiting review returns the staff member to their own (empty) workspace.
+    assert client.post(reverse("simulator-review-exit")).status_code == 302
+    assert "simulator_review_user_id" not in client.session
+    page = client.get(reverse("single-window-search-ucr"), {"number": temp["temp_no"], "searched": "1"})
+    assert b"No data found." in page.content

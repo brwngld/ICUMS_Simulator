@@ -1,6 +1,12 @@
 <aside class="portal-sidebar" aria-label="Single Window navigation">
   <div class="portal-brand"><span class="portal-mark" aria-hidden="true">IS</span><span>ICUMS<br><small>SIMULATOR</small></span></div>
   <div class="portal-user"><span class="avatar" aria-hidden="true">●</span><strong>{{ user.get_full_name|default:user.student_id|default:"ICUMS learner" }}</strong><span>{{ user.student_id|default:"Simulator login required" }} · Single Window</span></div>
+  {% if review_target %}
+  <div class="portal-review-note">
+    <p><strong>Reviewing:</strong> {{ review_target.get_full_name|default:review_target.username }}<br><small>{{ review_target.student_id|default:"no student ID" }} · view only</small></p>
+    <form method="post" action="{% url 'simulator-review-exit' %}">{% csrf_token %}<button type="submit">⎋ Exit review</button></form>
+  </div>
+  {% endif %}
   <a class="portal-home" href="{% url 'simulator-portal' %}">▦ Workspace home</a>
   <nav class="portal-menu" aria-label="Single Window menu">
     <details open>

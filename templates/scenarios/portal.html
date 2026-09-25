@@ -20,7 +20,7 @@
         <nav class="portal-top-nav" aria-label="Logged-in simulator navigation">
           <a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="#collection">Collection</a><a href="{% url 'single-window-create-ucr' %}">Single Window</a><a href="#agent-management">Agent Management</a><a href="#e-docs">e-Docs</a><a href="#post-clearance-audit">Post Clearance Audit</a><a href="#aeo">AEO</a><a href="#more-information">More Information</a><a href="#dw-service">DW Service</a>
         </nav>
-        <div class="portal-header-actions"><button type="button" aria-label="Open notifications">3 notifications</button>{% if simulator_access %}<form method="post" action="{% url 'simulator-logout' %}">{% csrf_token %}<button type="submit">Simulator sign out</button></form>{% else %}<button type="button" data-open-simulator-login>Login</button>{% endif %}</div>
+        <div class="portal-header-actions"><button type="button" aria-label="Open notifications">3 notifications</button>{% if simulator_access %}{% if user.is_staff %}<button type="button" data-open-review-dialog>Simulator sign out</button>{% else %}<form method="post" action="{% url 'simulator-logout' %}">{% csrf_token %}<button type="submit">Simulator sign out</button></form>{% endif %}{% else %}<button type="button" data-open-simulator-login>Login</button>{% endif %}</div>
       </header>
 
       <section class="tracking-search" aria-labelledby="tracking-title">
@@ -79,6 +79,13 @@
     <form method="post" action="{% url 'simulator-login' %}" class="simulator-login-form">{% csrf_token %}<label for="simulator-student-id">Student ID</label><input id="simulator-student-id" name="student_id" value="{{ student_id_hint }}" placeholder="BERN00001/26" autocomplete="username" required><label for="simulator-password">Monthly password</label><input id="simulator-password" name="password" type="password" autocomplete="current-password" required><button type="submit">Continue</button></form>
     <div class="simulator-login-help"><strong>Forgot ID or password?</strong><p>Your monthly password must be reset by an instructor or administrator after it expires.</p><details><summary>Request password reset</summary><form method="post" action="{% url 'simulator-reset-request' %}">{% csrf_token %}<label for="reset-student-id">Student ID</label><input id="reset-student-id" name="student_id" value="{{ student_id_hint }}" placeholder="BERN00001/26" required><button type="submit">Notify instructor</button></form></details>{% if not user.is_authenticated %}<p><a href="{% url 'register' %}">Register as a new student</a> · <a href="{% url 'login' %}">Learning account login</a></p>{% endif %}</div>
   </dialog>
+  <dialog class="simulator-login-dialog" id="simulator-review-dialog" aria-labelledby="simulator-review-title">
+    <div class="simulator-login-heading"><div><h2 id="simulator-review-title">Review student work</h2><p>Staff only · view only</p></div><button type="button" data-close-review-dialog aria-label="Close student review">×</button></div>
+    {% if review_target %}<p class="frontend-note">You are reviewing <strong>{{ review_target.get_full_name|default:review_target.username }}</strong> (<strong>{{ review_target.student_id|default:"no student ID" }}</strong>). You can browse everything the student sees; saving, submitting, and deleting are disabled.</p>
+    <form method="post" action="{% url 'simulator-review-exit' %}">{% csrf_token %}<button type="submit">⎋ Exit student review</button></form>{% endif %}
+    <form method="post" action="{% url 'simulator-review-login' %}" class="simulator-login-form">{% csrf_token %}<label for="review-student">{% if review_target %}Switch to another student{% else %}Student ID or name{% endif %}</label><input id="review-student" name="student" placeholder="e.g. BERN00001/26" autocomplete="off" required><button type="submit">☰ Open student records</button></form>
+    <div class="simulator-login-help"><strong>View only · no password needed</strong><p>You will browse the student's UCRs, consignment applications, and MDA applications exactly as they see them — read-only. A banner in the sidebar reminds you whose work you are viewing; use Exit review to return to your own workspace.</p></div>
+  </dialog>
   <dialog class="cargo-dialog" id="cargo-search-dialog" aria-labelledby="cargo-dialog-title">
     <form class="cargo-dialog-form" method="dialog" id="cargo-search-form">
       <header class="dialog-header"><div><p class="overline">Frontend training tool</p><h2 id="cargo-dialog-title">Cargo search information</h2></div><button class="dialog-close" type="button" data-close-cargo-search aria-label="Close cargo search">×</button></header>
@@ -111,6 +118,9 @@
       const simulatorLogin = document.getElementById('simulator-login-dialog');
       document.querySelectorAll('[data-open-simulator-login]').forEach(button => button.addEventListener('click', () => simulatorLogin.showModal()));
       document.querySelector('[data-close-simulator-login]').addEventListener('click', () => simulatorLogin.close());
+      const reviewDialog = document.getElementById('simulator-review-dialog');
+      document.querySelectorAll('[data-open-review-dialog]').forEach(button => button.addEventListener('click', () => reviewDialog.showModal()));
+      document.querySelector('[data-close-review-dialog]').addEventListener('click', () => reviewDialog.close());
       {% if not simulator_access %}simulatorLogin.showModal();{% endif %}
       const configureDialog = ({ dialogId, formId, statusId, openSelector, closeSelector, message }) => {
         const dialog = document.getElementById(dialogId);
