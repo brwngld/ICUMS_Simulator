@@ -1007,3 +1007,81 @@ class AssistanceEvent(models.Model):
 
     class Meta:
         ordering = ("created_at",)
+
+
+class BoeSequence(models.Model):
+    key = models.CharField(max_length=20, primary_key=True, default="boe", editable=False)
+    current_value = models.PositiveIntegerField(default=0)
+
+
+def allocate_boe_number():
+    """BOE + two-digit year + a 7-digit sequence, e.g. BOE26000001."""
+    from django.db import transaction
+    from django.utils import timezone
+
+    stem = f"BOE{timezone.localtime():%y}"
+    with transaction.atomic():
+        sequence, _ = BoeSequence.objects.select_for_update().get_or_create(key="boe")
+        sequence.current_value += 1
+        sequence.save(update_fields=("current_value",))
+        return f"{stem}{sequence.current_value:07d}"
+
+
+class BoeDeclaration(models.Model):
+    """A BOE declaration created from a reuse document (e.g. an IDF) in Clearance."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        SUBMITTED = "submitted", "Submitted"
+        ASSESSED = "assessed", "Assessed"
+        ACCEPTED = "accepted", "Accepted"
+
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="boe_declarations")
+    declaration_no = models.CharField(max_length=24, unique=True, blank=True, editable=False)
+    idf = models.ForeignKey(MdaConsignmentRequest, on_delete=models.PROTECT, related_name="boe_declarations")
+    ucr = models.OneToOneField(UcrDeclaration, on_delete=models.PROTECT, related_name="boe_declaration")
+    regime = models.CharField(max_length=2, blank=True)
+    cpc = models.CharField(max_length=12, blank=True)
+    zone = models.CharField(max_length=3, blank=True)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
+    form_data = models.JSONField(default=dict, blank=True)
+    assessment_rows = models.JSONField(null=True, blank=True)
+    assessment_total = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    submitted_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return self.declaration_no or f"BOE draft for {self.ucr}"
+
+
+class BoeStageEvent(models.Model):
+    """One customs-response stage a submitted BOE has passed through."""
+
+    declaration = models.ForeignKey(BoeDeclaration, on_delete=models.CASCADE, related_name="stage_events")
+    name = models.CharField(max_length=120)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="boe_stage_events")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at", "pk")
+
+    def __str__(self) -> str:
+        return f"{self.declaration.declaration_no}: {self.name}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # The system assesses the declaration once the officers reach the Assessment stage.
+        if self.name.strip().lower() == "assessment" and self.declaration.status == BoeDeclaration.Status.SUBMITTED:
+            from assessment.service import compute_from_invoice
+
+            data = self.declaration.form_data or {}
+            hs_codes = [str(item.get("hs_code", "")).strip() for item in data.get("items") or []]
+            rows, summary = compute_from_invoice(data.get("fob_ncy"), data.get("freight_ncy"), data.get("insurance_ncy"), hs_codes)
+            self.declaration.assessment_rows = rows
+            self.declaration.assessment_total = summary["total"]
+            self.declaration.status = BoeDeclaration.Status.ASSESSED
+            self.declaration.save(update_fields=("assessment_rows", "assessment_total", "status", "updated_at"))

@@ -1,0 +1,154 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BOE Declaration · {{ declaration.declaration_no }} · ICUMS Simulator</title>
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260925-2">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-2">
+  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260925-6">
+  <style>
+    .boe-tabs { display: flex; flex-wrap: wrap; gap: .4rem; padding: .6rem 0; }
+    .boe-tab { padding: .45rem .8rem; border: 1px solid var(--line); border-radius: .4rem; background: var(--panel); color: var(--ink); font: inherit; font-size: .8rem; cursor: pointer; }
+    .boe-tab[aria-current="tab"] { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .boe-tab-panel[hidden] { display: none; }
+    .bill-empty { padding: 1rem 0; color: var(--muted); font-size: .82rem; }
+  </style>
+</head>
+<body>
+  <a class="portal-skip" href="#main-content">Skip to BOE Declaration form</a>
+  <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+  {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+  <div class="portal-shell">
+    {% include 'scenarios/_clearance_sidebar.html' %}
+    <main id="main-content" class="portal-main cargo-main" tabindex="-1">
+      <header class="portal-header cargo-header">
+        <div class="portal-heading"><p class="overline">Clearance · Declaration · Register Declaration</p><h1>BOE Declaration {{ declaration.declaration_no }}</h1></div>
+        <nav class="portal-top-nav" aria-label="Simulator navigation"><a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="{% url 'single-window-create-ucr' %}">Single Window</a></nav>
+      </header>
+      <div class="cargo-breadcrumb"><a href="{% url 'clearance-workspace' %}">Clearance</a><span>›</span><span>Declaration</span><span>›</span><strong>{{ declaration.declaration_no }}</strong><span>·</span><span>{{ declaration.get_status_display }}</span></div>
+      <div class="cargo-content">
+        <nav class="boe-tabs" aria-label="Declaration sections">
+          <button type="button" class="boe-tab" data-boe-tab="general" aria-current="tab">General</button>
+          <button type="button" class="boe-tab" data-boe-tab="blawb">BL/AWB</button>
+          <button type="button" class="boe-tab" data-boe-tab="invoice">Invoice</button>
+          <button type="button" class="boe-tab" data-boe-tab="documents">Documents</button>
+          <button type="button" class="boe-tab" data-boe-tab="item">Item</button>
+          <button type="button" class="boe-tab" data-boe-tab="summary">Summary</button>
+          {% if declaration.status == 'draft' %}<button type="button" class="boe-tab" data-boe-tab="tax">Tax</button>{% endif %}
+          {% if declaration.status != 'draft' %}<button type="button" class="boe-tab" data-boe-tab="response">Customs Response</button>{% endif %}
+          {% if declaration.status == 'assessed' or declaration.status == 'accepted' %}<button type="button" class="boe-tab" data-boe-tab="assessment">Assessment</button>{% endif %}
+          <button type="button" class="boe-tab" data-boe-tab="bill">Bill of Tax</button>
+        </nav>
+
+        <section class="cargo-panel boe-tab-panel" id="boe-tab-general">
+          <div class="cargo-panel-title"><h2>General</h2></div>
+          <div class="summary-grid">
+            {% for label, value in general_fields %}<label>{{ label }}</label><input value="{{ value }}" readonly>{% endfor %}
+          </div>
+        </section>
+
+        <section class="cargo-panel boe-tab-panel" id="boe-tab-blawb" hidden>
+          <div class="cargo-panel-title"><h2>BL/AWB</h2></div>
+          <div class="summary-grid">
+            {% for label, value in transport_fields %}<label>{{ label }}</label><input value="{{ value }}" readonly>{% endfor %}
+          </div>
+        </section>
+
+        <section class="cargo-panel boe-tab-panel" id="boe-tab-invoice" hidden>
+          <div class="cargo-panel-title"><h2>Invoice</h2></div>
+          <div class="summary-grid">
+            {% for label, value in invoice_fields %}<label>{{ label }}</label><input value="{{ value }}" readonly>{% endfor %}
+          </div>
+        </section>
+
+        <section class="cargo-panel boe-tab-panel" id="boe-tab-documents" hidden>
+          <div class="cargo-panel-title"><h2>Documents</h2></div>
+          <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>No.</th><th>Document</th><th>Reference</th></tr></thead><tbody>
+            <tr><td class="cell-center">1</td><td class="cell-left">IDF</td><td class="cell-left">{{ declaration.idf.application_no }}</td></tr>
+            <tr><td class="cell-center">2</td><td class="cell-left">UCR</td><td class="cell-left">{{ declaration.ucr.ucr_no }}</td></tr>
+          </tbody></table></div>
+        </section>
+
+        <section class="cargo-panel boe-tab-panel" id="boe-tab-item" hidden>
+          <div class="cargo-panel-title"><h2>Item</h2></div>
+          <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Item No.</th><th>HS Code</th><th>Description</th><th>Quantity</th><th>FOB FCY</th></tr></thead><tbody>
+            {% for item in items %}<tr><td class="cell-center">{{ forloop.counter }}</td><td class="cell-center">{{ item.hs_code }}</td><td class="cell-left">{{ item.description }}</td><td class="cell-center">{{ item.quantity }}</td><td class="cell-center">{{ item.fob_fcy|default:"—" }}</td></tr>{% empty %}<tr><td class="empty-row" colspan="5">No data found.</td></tr>{% endfor %}
+          </tbody></table></div>
+        </section>
+
+        <section class="cargo-panel boe-tab-panel" id="boe-tab-summary" hidden>
+          <div class="cargo-panel-title"><h2>Summary</h2></div>
+          <div class="summary-grid">
+            <label>Declaration No.</label><input value="{{ declaration.declaration_no }}" readonly>
+            <label>Status</label><input value="{{ declaration.get_status_display }}" readonly>
+            <label>UCR No.</label><input value="{{ declaration.ucr.ucr_no }}" readonly>
+            <label>IDF No.</label><input value="{{ declaration.idf.application_no }}" readonly>
+            <label>Regime</label><input value="{{ declaration.regime }}" readonly>
+            <label>CPC</label><input value="{{ declaration.cpc }}" readonly>
+            <label>Zone</label><input value="{{ declaration.zone }}" readonly>
+            <label>Customs Value</label><input value="{{ customs_value }}" readonly>
+          </div>
+        </section>
+
+        {% if declaration.status == 'draft' %}
+        <section class="cargo-panel boe-tab-panel" id="boe-tab-tax" hidden>
+          <div class="cargo-panel-title"><h2>Tax</h2><span class="required-note">Draft computation — illustrative training values</span></div>
+          <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Tax</th><th>Code</th><th>Tax base Amt</th><th>TBC</th><th>Rate</th><th>Amount Payable</th></tr></thead><tbody>
+            {% for row in tax_rows %}<tr><td class="cell-left">{{ row.name }}</td><td class="cell-center">{{ row.code }}</td><td class="cell-center">{{ row.base }}</td><td class="cell-center">{{ row.tbc }}</td><td class="cell-center">{{ row.rate }}</td><td class="cell-center">{{ row.amount }}</td></tr>{% endfor %}
+          </tbody><tfoot><tr><th colspan="5">Total</th><th>{{ tax_total }}</th></tr></tfoot></table></div>
+        </section>
+        {% endif %}
+
+        {% if declaration.status != 'draft' %}
+        <section class="cargo-panel boe-tab-panel" id="boe-tab-response" hidden>
+          <div class="cargo-panel-title"><h2>Customs Response</h2></div>
+          <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>No.</th><th>Stage</th><th>Date &amp; Time</th></tr></thead><tbody>
+            {% for stage in declaration.stage_events.all %}<tr><td class="cell-center">{{ forloop.counter }}</td><td class="cell-left">{{ stage.name }}</td><td class="cell-center">{{ stage.created_at|date:'Y-m-d H:i:s' }}</td></tr>{% empty %}<tr><td class="empty-row" colspan="3">No stages recorded yet.</td></tr>{% endfor %}
+          </tbody></table></div>
+        </section>
+        {% endif %}
+
+        {% if declaration.status == 'assessed' or declaration.status == 'accepted' %}
+        <section class="cargo-panel boe-tab-panel" id="boe-tab-assessment" hidden>
+          <div class="cargo-panel-title"><h2>Assessment</h2><span class="required-note">Illustrative training values</span></div>
+          <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Tax</th><th>Code</th><th>Tax base Amt</th><th>TBC</th><th>Rate</th><th>Amount Payable</th></tr></thead><tbody>
+            {% for row in declaration.assessment_rows %}<tr><td class="cell-left">{{ row.name }}</td><td class="cell-center">{{ row.code }}</td><td class="cell-center">{{ row.base }}</td><td class="cell-center">{{ row.tbc }}</td><td class="cell-center">{{ row.rate }}</td><td class="cell-center">{{ row.amount }}</td></tr>{% endfor %}
+          </tbody><tfoot><tr><th colspan="5">Total</th><th>{{ declaration.assessment_total }}</th></tr></tfoot></table></div>
+        </section>
+
+        {% endif %}
+        <section class="cargo-panel boe-tab-panel" id="boe-tab-bill" hidden>
+          <div class="cargo-panel-title"><h2>Bill of Tax</h2></div>
+          {% if declaration.status == 'accepted' %}
+          <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Tax</th><th>Code</th><th>Amount Payable</th></tr></thead><tbody>
+            {% for row in declaration.assessment_rows %}<tr><td class="cell-left">{{ row.name }}</td><td class="cell-center">{{ row.code }}</td><td class="cell-center">{{ row.amount }}</td></tr>{% endfor %}
+          </tbody><tfoot><tr><th colspan="2">Total</th><th>{{ declaration.assessment_total }}</th></tr></tfoot></table></div>
+          {% else %}
+          <p class="bill-empty">The bill of tax becomes available once the assessment has been accepted.</p>
+          {% endif %}
+        </section>
+        {% endif %}
+
+        <div class="cargo-actions">
+          {% if declaration.status == 'draft' %}
+          <form method="post" action="{% url 'boe-submit' declaration.pk %}">{% csrf_token %}<button class="primary-button" type="submit">▣ Submit Declaration</button></form>
+          {% endif %}
+          <a class="secondary-button" href="{% url 'clearance-workspace' %}">☷ Back to Clearance</a>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>
+    (() => {
+      const tabs = [...document.querySelectorAll(".boe-tab")];
+      const activate = (name) => {
+        tabs.forEach((tab) => tab.setAttribute("aria-current", tab.dataset.boeTab === name ? "tab" : "false"));
+        document.querySelectorAll(".boe-tab-panel").forEach((panel) => { panel.hidden = panel.id !== `boe-tab-${name}`; });
+      };
+      tabs.forEach((tab) => tab.addEventListener("click", () => activate(tab.dataset.boeTab)));
+      activate("general");
+    })();
+  </script>
+  <script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script>
+</body></html>

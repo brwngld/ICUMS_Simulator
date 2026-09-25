@@ -23,8 +23,9 @@ from .country_codes import COUNTRY_CODES, COUNTRY_CODE_SET
 from .models import (BillOfLading, CommercialDocument, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument,
                      ScenarioVersion, TrainingStakeholder, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment,
                      allocate_ucr_number, purge_expired_ucr_drafts)
-from .models import ConsignmentApplication, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus, PortCode, allocate_application_number
+from .models import BoeDeclaration, BoeStageEvent, ConsignmentApplication, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus, PortCode, allocate_application_number, allocate_boe_number
 from .pdfs import build_bill_of_lading_pdf, build_commercial_document_pdf, build_fictitious_document_pdf
+from assessment.service import compute_from_invoice
 from .services import available_actions, perform_action, practical_is_unlocked, record_hint, start_or_resume_attempt
 from accounts.models import SimulatorCredential
 
@@ -1531,6 +1532,134 @@ def application_delete(request):
 @simulator_access_required
 def single_window_create_master_application(request):
     return render(request, "scenarios/single_window_create_master_application.html")
+
+
+@simulator_access_required
+@require_GET
+def boe_idf_lookup(request):
+    """Validate an IDF number and return the UCR attached to it."""
+    number = request.GET.get("number", "").strip()
+    if not number:
+        return JsonResponse({"valid": False, "error": "Enter an IDF number."})
+    idf = (MdaConsignmentRequest.objects
+           .filter(application_no__iexact=number, mda__code="MOTI")
+           .select_related("consignment_application__ucr")
+           .first())
+    if idf is None:
+        return JsonResponse({"valid": False, "error": "No IDF with that number exists in the system."})
+    ucr = idf.consignment_application.ucr
+    if BoeDeclaration.objects.filter(ucr=ucr).exists():
+        return JsonResponse({"valid": False, "error": "This IDF's UCR has already been used in a BOE declaration."})
+    return JsonResponse({"valid": True, "ucr_no": ucr.ucr_no, "idf_no": idf.application_no})
+
+
+@simulator_access_required
+@require_POST
+def boe_create(request):
+    """Create a BOE declaration from a reuse document; a UCR can only be declared once."""
+    payload = json.loads(request.body.decode("utf-8") or "{}") if request.body else {}
+    reuse = str(payload.get("reuse", "")).strip().upper()
+    if reuse != "IDF":
+        return JsonResponse({"error": "Only the IDF reuse document is available in this training step."}, status=400)
+    idf_number = str(payload.get("idf_number", "")).strip()
+    idf = (MdaConsignmentRequest.objects
+           .filter(application_no__iexact=idf_number, mda__code="MOTI")
+           .select_related("consignment_application__ucr")
+           .first())
+    if idf is None:
+        return JsonResponse({"error": "The IDF number is not valid. Check it and try again."}, status=400)
+    ucr = idf.consignment_application.ucr
+    if BoeDeclaration.objects.filter(ucr=ucr).exists():
+        return JsonResponse({"error": "This UCR has already been used in a BOE declaration."}, status=400)
+    declaration = BoeDeclaration.objects.create(
+        owner=request.user,
+        idf=idf,
+        ucr=ucr,
+        regime=str(payload.get("regime", "")).strip().upper()[:2],
+        cpc=str(payload.get("cpc", "")).strip().upper()[:12],
+        zone=str(payload.get("zone", "")).strip().upper()[:3],
+        form_data=json.loads(json.dumps(_application_record_payload(idf.consignment_application), cls=DjangoJSONEncoder)),
+        declaration_no=allocate_boe_number(),
+    )
+    return JsonResponse({"url": reverse("boe-declaration", args=(declaration.pk,)), "declaration_no": declaration.declaration_no})
+
+
+@simulator_access_required
+def boe_declaration(request, declaration_id):
+    """The tabbed BOE declaration; tab visibility follows the declaration status."""
+    declaration = get_object_or_404(
+        BoeDeclaration.objects.select_related("ucr", "idf__consignment_application"),
+        pk=declaration_id, owner=request.user,
+    )
+    data = declaration.form_data or {}
+    items = data.get("items") or []
+    hs_codes = [str(item.get("hs_code", "")).strip() for item in items]
+    status = declaration.status
+
+    fob_ncy = data.get("fob_ncy")
+    freight_ncy = data.get("freight_ncy")
+    insurance_ncy = data.get("insurance_ncy")
+    tax_rows, tax_summary = compute_from_invoice(fob_ncy, freight_ncy, insurance_ncy, hs_codes)
+
+    general = [
+        ("Declaration No.", declaration.declaration_no),
+        ("UCR No.", declaration.ucr.ucr_no),
+        ("IDF No.", declaration.idf.application_no if declaration.idf else ""),
+        ("Regime (Customs) Code", declaration.regime),
+        ("CPC", declaration.cpc),
+        ("Zone", declaration.zone),
+        ("Exporter", data.get("exporter.name", "")),
+        ("Importer", data.get("importer.code", "")),
+        ("General Goods Description", ", ".join(filter(None, (item.get("description") for item in items)))),
+    ]
+    transport = [
+        ("Means of Transport", data.get("means_of_transport", "")),
+        ("Vessel Name", data.get("vessel_name", "")),
+        ("Voyage No.", data.get("voyage_no", "")),
+        ("Shipment Date", data.get("shipment_date", "")),
+        ("Carrier", data.get("carrier", "")),
+        ("BL/AWB No.", data.get("bl_awb_no", "")),
+        ("Port of Arrival", data.get("port_arrival", "")),
+        ("Port of Departure", data.get("port_departure", "")),
+        ("Customs Office", data.get("customs_office", "")),
+    ]
+    invoice = [
+        ("Delivery Term", data.get("delivery_term", "")),
+        ("Currency", data.get("currency", "")),
+        ("Exchange Rate", data.get("exchange_rate", "")),
+        ("FOB FCY", data.get("fob_fcy", "")),
+        ("FOB Ncy", data.get("fob_ncy", "")),
+        ("Freight Ncy", data.get("freight_ncy", "")),
+        ("Insurance Ncy", data.get("insurance_ncy", "")),
+        ("Customs Value Ncy", data.get("customs_value_ncy", "")),
+    ]
+
+    return render(request, "scenarios/boe_declaration.html", {
+        "declaration": declaration,
+        "general_fields": general,
+        "transport_fields": transport,
+        "invoice_fields": invoice,
+        "items": items,
+        "tax_rows": tax_rows,
+        "tax_total": tax_summary["total"],
+        "customs_value": tax_summary["customs_value"],
+    })
+
+
+@simulator_access_required
+@require_POST
+def boe_submit(request, declaration_id):
+    """Submit a draft BOE; the declaration enters the customs response stages."""
+    declaration = get_object_or_404(BoeDeclaration, pk=declaration_id, owner=request.user)
+    if declaration.status != BoeDeclaration.Status.DRAFT:
+        messages.info(request, f"Declaration {declaration.declaration_no} has already been submitted.")
+        return redirect("boe-declaration", declaration_id=declaration.pk)
+    declaration.status = BoeDeclaration.Status.SUBMITTED
+    declaration.submitted_at = timezone.now()
+    declaration.save(update_fields=("status", "submitted_at", "updated_at"))
+    BoeStageEvent.objects.create(declaration=declaration, name="BOE Received", created_by=request.user)
+    messages.success(request, f"Declaration {declaration.declaration_no} was submitted.")
+    return redirect("boe-declaration", declaration_id=declaration.pk)
 
 
 SINGLE_WINDOW_REFERENCE_PAGES = {

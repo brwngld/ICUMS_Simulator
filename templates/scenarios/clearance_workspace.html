@@ -39,6 +39,7 @@
             <div id="boe-cancelled-extra" class="boe-reuse-extra" hidden><label>UCR No. <span>*</span></label><input class="boe-wide-value" id="boe-cancelled-ucr"></div>
           </div>
           <div class="cargo-actions"><button class="secondary-button" id="boe-create-form" type="button">Create Declaration Form</button></div>
+          <p id="boe-create-status" class="frontend-note" role="status" hidden></p>
         </section>
       </div>
     </main>
@@ -65,10 +66,13 @@
   <script>
     window.boeRegimes = JSON.parse(document.querySelector("#boe-regimes").textContent);
     window.boeCpcSearchUrl = "{% url 'clearance-cpc-search' %}";
+    window.boeIdfLookupUrl = "{% url 'boe-idf-lookup' %}";
+    window.boeCreateUrl = "{% url 'boe-create' %}";
+    window.boeCsrf = "{{ csrf_token }}";
     window.boeZones = [["ECO", "ECOWAS Imports"], ["GEN", "General Imports"], ["XPT", "Exports"], ["AFR", "AFRICAN UNION IMP. LEVY"], ["TVI", "Temporary Vehicle Imports"], ["ACT", "Africa Continental Free Trade (AfCFTA)"], ["EPA", "GH-EU Economic Partnership Agreement (EPA)"], ["UPA", "GH-UK Trade Partnership Agreement"]];
   </script>
   <script src="{% static 'js/dialog-pagination.js' %}?v=20260918-1" defer></script>
-  <script src="{% static 'js/clearance-boe-create.js' %}?v=20260925-3" defer></script>
+  <script src="{% static 'js/clearance-boe-create.js' %}?v=20260925-4" defer></script>
   <script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script>
 </body>
 </html>

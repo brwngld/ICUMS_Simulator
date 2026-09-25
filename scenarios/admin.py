@@ -7,7 +7,7 @@ from django.forms.models import BaseInlineFormSet
 import json
 import secrets
 
-from .models import AssistanceEvent, BillOfLading, BillOfLadingCargoItem, ConsignmentApplication, CommercialDocument, CommercialDocumentLine, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration
+from .models import AssistanceEvent, BillOfLading, BoeDeclaration, BoeStageEvent, BillOfLadingCargoItem, ConsignmentApplication, CommercialDocument, CommercialDocumentLine, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration
 
 
 @admin.register(GhanaHSCode)
@@ -119,6 +119,39 @@ class MdaProcessAdmin(admin.ModelAdmin):
     search_fields = ("code", "name", "application__code", "application__name", "application__mda__code")
     list_filter = ("is_active", "application__mda")
     autocomplete_fields = ("application",)
+
+
+class BoeStageEventInline(admin.TabularInline):
+    model = BoeStageEvent
+    extra = 0
+    readonly_fields = ("created_at",)
+
+
+@admin.register(BoeDeclaration)
+class BoeDeclarationAdmin(admin.ModelAdmin):
+    """BOE declarations with owner tracing; officers add stage events inline."""
+
+    list_display = ("declaration_no", "student", "ucr", "idf_no", "regime", "status", "submitted_at")
+    search_fields = ("declaration_no", "ucr__ucr_no", "owner__student_id", "owner__first_name", "owner__last_name", "idf__application_no")
+    list_filter = ("status", "regime")
+    readonly_fields = ("declaration_no", "ucr", "idf", "status", "assessment_rows", "assessment_total", "submitted_at", "created_at", "updated_at")
+    inlines = (BoeStageEventInline,)
+    actions = ("mark_accepted",)
+
+    @admin.display(description="Student", ordering="owner__student_id")
+    def student(self, obj):
+        return f"{obj.owner.get_full_name() or obj.owner.username} ({obj.owner.student_id or 'no ID'})"
+
+    @admin.display(description="IDF")
+    def idf_no(self, obj):
+        return obj.idf.application_no if obj.idf else "—"
+
+    @admin.action(description="Mark selected declarations accepted")
+    def mark_accepted(self, request, queryset):
+        for declaration in queryset.filter(status=BoeDeclaration.Status.ASSESSED):
+            declaration.status = BoeDeclaration.Status.ACCEPTED
+            declaration.save(update_fields=("status", "updated_at"))
+        self.message_user(request, "Assessed declarations were marked accepted.")
 
 
 @admin.register(MdaConsignmentRequest)

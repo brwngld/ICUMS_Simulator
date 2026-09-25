@@ -84,6 +84,53 @@
   document.querySelectorAll('input[name="reuse-document"]').forEach((radio) => radio.addEventListener("change", updateReuseDocument));
   updateReuseDocument();
 
+  const idfNumber = document.querySelector("#boe-reuse-number");
+  const idfUcr = document.querySelector("#boe-reuse-ucr");
+  idfUcr.readOnly = true;
+  async function lookupIdf() {
+    const value = idfNumber.value.trim();
+    idfUcr.value = "";
+    if (!value) return;
+    try {
+      const response = await fetch(`${window.boeIdfLookupUrl}?number=${encodeURIComponent(value)}`, { headers: { Accept: "application/json" } });
+      const data = await response.json();
+      idfUcr.value = data.valid ? data.ucr_no : (data.error || "IDF not found.");
+    } catch (_error) {
+      idfUcr.value = "The IDF lookup could not be reached. Please try again.";
+    }
+  }
+  idfNumber.addEventListener("change", lookupIdf);
+  idfNumber.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); lookupIdf(); } });
+
+  const createButton = document.querySelector("#boe-create-form");
+  const createStatus = document.querySelector("#boe-create-status");
+  createButton.addEventListener("click", async () => {
+    const payload = {
+      regime: codeField.value.trim(),
+      cpc: document.querySelector("#boe-cpc-code").value.trim(),
+      zone: zoneCode.value.trim(),
+      reuse: document.querySelector('input[name="reuse-document"]:checked')?.value || "NONE",
+      idf_number: idfNumber.value.trim(),
+    };
+    createStatus.hidden = false;
+    createStatus.textContent = "Creating declaration form…";
+    try {
+      const response = await fetch(window.boeCreateUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": window.boeCsrf || "" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      createStatus.textContent = data.error || "The declaration could not be created.";
+    } catch (_error) {
+      createStatus.textContent = "The declaration could not be created. Please try again.";
+    }
+  });
+
   // CPC results are always restricted to the currently selected regime.
   const cpcDialog = document.querySelector("#boe-cpc-dialog");
   const cpcResults = document.querySelector("#boe-cpc-results");
