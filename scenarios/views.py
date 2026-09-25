@@ -77,7 +77,7 @@ def simulator_access_required(view):
     def wrapped(request, *args, **kwargs):
         if not _has_simulator_access(request):
             messages.warning(request, "Enter your current simulator credentials to continue.")
-            return redirect("simulator-portal")
+            return redirect(f"{reverse('simulator-portal')}?login=1")
         return view(request, *args, **kwargs)
     return wrapped
 

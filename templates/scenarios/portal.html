@@ -121,7 +121,7 @@
       const reviewDialog = document.getElementById('simulator-review-dialog');
       document.querySelectorAll('[data-open-review-dialog]').forEach(button => button.addEventListener('click', () => reviewDialog.showModal()));
       document.querySelector('[data-close-review-dialog]').addEventListener('click', () => reviewDialog.close());
-      {% if not simulator_access %}simulatorLogin.showModal();{% endif %}
+      {% if not simulator_access and request.GET.login %}simulatorLogin.showModal();{% endif %}
       const configureDialog = ({ dialogId, formId, statusId, openSelector, closeSelector, message }) => {
         const dialog = document.getElementById(dialogId);
         const form = document.getElementById(formId);
