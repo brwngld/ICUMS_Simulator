@@ -1,0 +1,55 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Duty assessment · {{ application.application_no|default:"Draft application" }} · ICUMS Simulator</title>
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260925-2">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-2">
+</head>
+<body>
+  <a class="portal-skip" href="#main-content">Skip to duty assessment</a>
+  <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · ILLUSTRATIVE VALUES ONLY</div>
+  {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+  <div class="portal-shell">
+    {% include 'scenarios/_single_window_sidebar.html' %}
+    <main id="main-content" class="portal-main cargo-main" tabindex="-1">
+      <header class="portal-header cargo-header">
+        <div class="portal-heading"><p class="overline">Clearance · Duty Assessment</p><h1>Duty Assessment</h1></div>
+        <nav class="portal-top-nav" aria-label="Simulator navigation"><a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="{% url 'single-window-create-ucr' %}">Single Window</a></nav>
+      </header>
+      <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Workspace</a><span>›</span><span>Clearance</span><span>›</span><strong>Duty Assessment</strong></div>
+      <div class="cargo-content">
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Application</h2><span>{{ application.get_status_display }}</span></div>
+          <div class="summary-grid">
+            <label>Application No.</label><input value="{{ application.application_no|default:'Generated after save' }}" readonly>
+            <label>UCR No.</label><input value="{{ application.ucr.ucr_no }}" readonly>
+            <label>Currency</label><input value="{{ application.currency }}" readonly>
+            <label>Exchange Rate</label><input value="{{ assessment.exchange_rate }}" readonly>
+            <label>FOB Ncy</label><input value="{{ assessment.fob_ncy }}" readonly>
+            <label>Freight Ncy</label><input value="{{ assessment.freight_ncy }}" readonly>
+            <label>Insurance Ncy</label><input value="{{ assessment.insurance_ncy }}" readonly>
+            <label>Customs Value</label><input value="{{ assessment.customs_value }}" readonly>
+            <label>Duty HS Code</label><input value="{{ assessment.duty_hs_code|default:'—' }}" readonly>
+          </div>
+        </section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Taxes</h2><span class="required-note">Illustrative training values — not official duty</span></div>
+          <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Tax</th><th>Code</th><th>Tax base Amt</th><th>TBC</th><th>Rate</th><th>Exempted / Suspended</th><th>Amount Payable</th></tr></thead><tbody>
+            {% for row in assessment.rows %}<tr>
+              <td class="cell-left">{{ row.name }}</td>
+              <td class="cell-center">{{ row.code }}</td>
+              <td class="cell-center">{{ row.base }}</td>
+              <td class="cell-center">{{ row.tbc }}</td>
+              <td class="cell-center">{{ row.rate }}</td>
+              <td class="cell-center">0.00</td>
+              <td class="cell-center">{{ row.amount }}</td>
+            </tr>{% empty %}<tr><td class="empty-row" colspan="7">No active tax codes configured.</td></tr>{% endfor %}
+          </tbody><tfoot><tr><th colspan="6">Total</th><th>{{ assessment.total }}</th></tr></tfoot></table></div>
+          <p class="dialog-help">Tax Code 90, 91, 92 payable by Agent.</p>
+        </section>
+        <div class="cargo-actions"><a class="secondary-button" href="{% url 'single-window-search-consignment-application' %}">☷ Back to Search Application</a></div>
+      </div>
+    </main>
+  </div>
+  <script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script>
+</body></html>
