@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from scenarios.admin import TrainingServiceProviderForm, TrainingStakeholderForm, TrainingStakeholderNameForm, TrainingStakeholderNameFormSet
-from scenarios.models import MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment
+from scenarios.models import MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment
 
 
 @pytest.mark.django_db
@@ -948,9 +948,13 @@ def test_consignment_search_application_lists_mda_requests(client):
     assert ucr_no.encode() in page.content
     assert b"Fictional Exporter Ltd" in page.content
     assert b"FDA" in page.content
-    assert b"Amend" in page.content
     assert reverse("mda-consignment-application", args=(mda_created["id"],)).encode() in page.content
     assert saved["application_no"].encode() not in page.content
+    # Amend only becomes available once the MDA application is approved.
+    assert b">Amend</a>" not in page.content
+    MdaConsignmentRequest.objects.filter(pk=mda_created["id"]).update(status=MdaStatus.APPROVED)
+    approved_page = client.get(search_url)
+    assert b">Amend</a>" in approved_page.content
     # The Status dropdown offers the full shared MDA status list.
     assert b">DR, Draft</option>" in page.content
     assert b">SU, Submitted</option>" in page.content
@@ -963,6 +967,7 @@ def test_consignment_search_application_lists_mda_requests(client):
     assert b"No data found." in empty.content
 
     # Draft MDA applications can be deleted from the search page.
+    MdaConsignmentRequest.objects.filter(pk=mda_created["id"]).update(status=MdaStatus.DRAFT)
     response = client.post(reverse("mda-request-delete"), {"mda_request_id": mda_created["id"]})
     assert response.status_code == 302
     assert not MdaConsignmentRequest.objects.filter(pk=mda_created["id"]).exists()
