@@ -7,6 +7,7 @@ urlpatterns = [
     path("cargo/service-request/", views.cargo_service_request, name="cargo-service-request"),
     path("cargo/reference/<slug:page_key>/", views.cargo_reference_page, name="cargo-reference-page"),
     path("clearance/", views.clearance_workspace, name="clearance-workspace"),
+    path("clearance/cpcs/", views.clearance_cpc_search, name="clearance-cpc-search"),
     path("clearance/reference/<slug:page_key>/", views.clearance_reference_page, name="clearance-reference-page"),
     path("clearance/search/boe/", views.declaration_search, {"search_kind": "boe"}, name="search-boe-declaration"),
     path("clearance/search/simple-amendment/", views.declaration_search, {"search_kind": "simple-amendment"}, name="search-simple-amendment"),

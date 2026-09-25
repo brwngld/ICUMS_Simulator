@@ -7,7 +7,7 @@ from django.forms.models import BaseInlineFormSet
 import json
 import secrets
 
-from .models import AssistanceEvent, BillOfLading, BillOfLadingCargoItem, ConsignmentApplication, CommercialDocument, CommercialDocumentLine, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration
+from .models import AssistanceEvent, BillOfLading, BillOfLadingCargoItem, ConsignmentApplication, CommercialDocument, CommercialDocumentLine, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration
 
 
 @admin.register(GhanaHSCode)
@@ -17,6 +17,50 @@ class GhanaHSCodeAdmin(admin.ModelAdmin):
     list_filter = ("heading_code",)
     ordering = ("code",)
     readonly_fields = ("source_page",)
+
+
+class CustomsProcedureCodeAdminForm(forms.ModelForm):
+    class Meta:
+        model = CustomsProcedureCode
+        fields = "__all__"
+        widgets = {
+            "code": forms.TextInput(attrs={"size": 12}),
+            "description": forms.Textarea(attrs={"rows": 2}),
+        }
+
+
+class CustomsProcedureCodeInline(admin.TabularInline):
+    model = CustomsProcedureCode
+    form = CustomsProcedureCodeAdminForm
+    extra = 1
+    fields = ("code", "description", "is_active")
+
+
+@admin.register(CustomsRegime)
+class CustomsRegimeAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "is_active", "cpc_count")
+    search_fields = ("code", "name")
+    list_filter = ("is_active",)
+    inlines = (CustomsProcedureCodeInline,)
+
+    class Media:
+        css = {"all": ("admin/css/customs-procedure-code.css",)}
+
+    @admin.display(description="CPCs")
+    def cpc_count(self, obj):
+        return obj.procedure_codes.count()
+
+
+@admin.register(CustomsProcedureCode)
+class CustomsProcedureCodeAdmin(admin.ModelAdmin):
+    form = CustomsProcedureCodeAdminForm
+    list_display = ("code", "description", "regime", "is_active")
+    search_fields = ("code", "description", "regime__code", "regime__name")
+    list_filter = ("is_active", "regime")
+    autocomplete_fields = ("regime",)
+
+    class Media:
+        css = {"all": ("admin/css/customs-procedure-code.css",)}
 
 
 @admin.register(PortCode)

@@ -112,13 +112,65 @@ def test_cargo_service_request_frontend_lookup_preview(client):
 
 
 @pytest.mark.django_db
-def test_clearance_workspace_frontend_preview(client):
+def test_clearance_workspace_opens_create_boe_with_regime_lookup(client):
     login_simulator_author(client)
     response = client.get(reverse("clearance-workspace"))
     assert response.status_code == 200
     assert_page_landmarks(response)
-    for item in (b"Create BOE Declaration", b"Search BOE Declaration", b"Request for BOE Suspension", b"Petroleum Management"):
+    for item in (b"Create BOE Declaration", b"Create BoE Type", b"New Declaration", b"Clone Declaration",
+                 b"Regime", b"CL. Plan", b"Reuse Document", b"Create Declaration Form"):
         assert item in response.content
+    assert b'id="boe-regime-dialog"' in response.content
+    assert b'id="boe-regime-search"' in response.content
+    assert b'id="boe-reuse-extra"' in response.content
+    assert b'id="boe-reuse-number"' in response.content
+    assert b'id="boe-reuse-ucr"' in response.content
+    assert b'id="boe-cpc-code"' in response.content
+    assert b'id="boe-zone-code"' in response.content
+    assert b'id="boe-cancelled-ucr"' in response.content
+    assert b'id="boe-cpc-dialog"' in response.content
+    assert b'id="boe-cpc-search"' in response.content
+    assert b'id="boe-zone-dialog"' in response.content
+    assert b'id="boe-zone-search"' in response.content
+    for zone in (b"ECOWAS Imports", b"General Imports", b"Exports", b"AFRICAN UNION IMP. LEVY",
+                 b"Temporary Vehicle Imports", b"Africa Continental Free Trade (AfCFTA)",
+                 b"GH-EU Economic Partnership Agreement (EPA)", b"GH-UK Trade Partnership Agreement"):
+        assert zone in response.content
+    assert b'id="clearancePlanCd"' in response.content
+    assert b'value="PMD">PMD, Pre-Manifest Declaration' in response.content
+    assert b'value="DPM">DPM, Declaration Post-Manifest' in response.content
+    assert b'value="NBD">NBD, Non BL(AWB) Declaration' in response.content
+    assert b'value="CGD">CGD, Courier Goods Declaration' in response.content
+    assert b"When using Reuse Document 'LOC'" in response.content
+    assert b"Direct Export" in response.content
+    assert b"Other Operations" in response.content
+    assert b"Temporary Export following Import into Home Use" in response.content
+    assert b"Register Declaration menu" not in response.content
+    assert len(response.context["boe_regimes"]) == 34
+
+    from scenarios.models import CustomsProcedureCode, CustomsRegime
+    assert CustomsRegime.objects.count() == 34
+    assert CustomsProcedureCode.objects.filter(regime__code="40").count() == 134
+    first_page = client.get(reverse("clearance-cpc-search"), {"regime": "40", "page": 1}).json()
+    second_page = client.get(reverse("clearance-cpc-search"), {"regime": "40", "page": 2}).json()
+    assert first_page["total"] == 134 and len(first_page["results"]) == 100
+    assert len(second_page["results"]) == 34
+    matched = client.get(reverse("clearance-cpc-search"), {"regime": "40", "q": "Grants and Aids"}).json()
+    assert matched["results"][0]["code"] == "40A00"
+    assert client.get(reverse("clearance-cpc-search"), {"regime": "10"}).json()["results"] == []
+    assert client.get(reverse("admin:scenarios_customsregime_changelist")).status_code == 200
+    assert client.get(reverse("admin:scenarios_customsprocedurecode_changelist")).status_code == 200
+    regime_admin = client.get(reverse(
+        "admin:scenarios_customsregime_change",
+        args=(CustomsRegime.objects.get(code="40").pk,),
+    ))
+    assert regime_admin.status_code == 200
+    assert b"admin/css/customs-procedure-code.css" in regime_admin.content
+    assert b'rows="2"' in regime_admin.content
+    cpc_admin = client.get(reverse("admin:scenarios_customsprocedurecode_add"))
+    assert cpc_admin.status_code == 200
+    assert b"admin/css/customs-procedure-code.css" in cpc_admin.content
+    assert b'rows="2"' in cpc_admin.content
 
 
 @pytest.mark.django_db

@@ -645,6 +645,53 @@ class GhanaHSCode(models.Model):
         return f"{self.code} - {self.description}"
 
 
+class CustomsRegime(models.Model):
+    """Admin-managed customs regime used by BOE declaration lookups."""
+
+    code = models.CharField(max_length=2, unique=True)
+    name = models.CharField(max_length=240)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("code",)
+
+    def clean(self):
+        self.code = self.code.strip().upper()
+        self.name = self.name.strip()
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.code}, {self.name}"
+
+
+class CustomsProcedureCode(models.Model):
+    """CPC linked to the customs regime under which it can be selected."""
+
+    regime = models.ForeignKey(CustomsRegime, on_delete=models.CASCADE, related_name="procedure_codes")
+    code = models.CharField(max_length=12, unique=True)
+    description = models.TextField()
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("code",)
+
+    def clean(self):
+        self.code = self.code.strip().upper()
+        self.description = self.description.strip()
+        if self.regime_id and not self.code.startswith(self.regime.code):
+            raise ValidationError({"code": "The CPC must start with its linked regime code."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.code} - {self.description}"
+
+
 class PortCode(models.Model):
     """Admin-maintained port/city code used by the transport lookup."""
 

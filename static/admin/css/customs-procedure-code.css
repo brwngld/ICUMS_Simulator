@@ -1,0 +1,19 @@
+/* Keep the CPC editor compact while still allowing longer descriptions to be resized. */
+#procedure_codes-group textarea {
+    box-sizing: border-box;
+    height: 3.5rem;
+    min-height: 3.5rem;
+    resize: vertical;
+}
+
+#procedure_codes-group input[id$="-code"] {
+    box-sizing: border-box;
+    max-width: 12rem;
+}
+
+#customsprocedurecode_form .field-description textarea {
+    box-sizing: border-box;
+    height: 5rem;
+    min-height: 5rem;
+    resize: vertical;
+}

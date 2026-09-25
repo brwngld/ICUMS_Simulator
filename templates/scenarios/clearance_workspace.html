@@ -5,51 +5,70 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Create BOE Declaration · ICUMS Simulator</title>
-  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260919-3">
-  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-2">
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260923-1">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-4">
+  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260919-3">
 </head>
 <body>
-  <a class="portal-skip" href="#main-content">Skip to clearance workspace</a>
+  <a class="portal-skip" href="#main-content">Skip to Create BOE Declaration</a>
   <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
   <div class="portal-shell">
     {% include "scenarios/_clearance_sidebar.html" %}
     <main id="main-content" class="portal-main cargo-main" tabindex="-1">
       <header class="portal-header cargo-header">
         <div class="portal-heading"><p class="overline">Clearance · Declaration · Register Declaration</p><h1>Create BOE Declaration</h1></div>
-        <nav class="portal-top-nav" aria-label="Logged-in simulator navigation">
-          <a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}" aria-current="page">Clearance</a><a href="#">Collection</a><a href="{% url 'single-window-workspace' %}">Single Window</a><a href="#">Agent Management</a><a href="#">e-Docs</a><a href="#">Post Clearance Audit</a><a href="#">AEO</a><a href="#">More Information</a><a href="#">DW Service</a>
+        <nav class="portal-top-nav" aria-label="Simulator navigation">
+          <a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}" aria-current="page">Clearance</a><a href="#">Collection</a><a href="{% url 'single-window-workspace' %}">Single Window</a><a href="#">Agent Management</a><a href="#">e-Docs</a><a href="#">Post Clearance Audit</a><a href="#">AEO</a><a href="#">More Information</a>
         </nav>
       </header>
-      <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Clearance</a><span>›</span><span>Declaration</span><span>›</span><strong>Create BOE Declaration</strong></div>
+      <div class="cargo-breadcrumb"><a href="{% url 'clearance-workspace' %}">Clearance</a><span>›</span><span>Declaration</span><span>›</span><span>Register Declaration</span><span>›</span><strong>Create BOE Declaration</strong></div>
       <div class="cargo-content">
-        <p class="frontend-note">Clearance navigation is now available for practice. This declaration form is a visual preview; it does not create or submit a BOE.</p>
         <section class="cargo-panel">
-          <div class="cargo-panel-title"><h2>Create Declaration</h2><span class="required-note">* required</span></div>
-          <div class="summary-grid">
-            <label>BOE Type <span>*</span></label><div><label><input type="radio" checked> New Declaration</label> <label><input type="radio"> Clone Declaration</label></div>
-            <label>Regime <span>*</span></label><input placeholder="Select or enter regime">
-            <label>CL Plan <span>*</span></label><select><option>— Select One —</option><option>Standard</option><option>Priority</option></select>
-            <label>Reuse Document <span>*</span></label><div><label><input type="radio" name="reuse" checked> None</label> <label><input type="radio" name="reuse"> IDF</label> <label><input type="radio" name="reuse"> eMda Docs.</label> <label><input type="radio" name="reuse"> LOC</label></div>
+          <div class="cargo-panel-title"><h2>Create Declaration</h2></div>
+          <div class="summary-grid boe-create-grid">
+            <label>Create BoE Type <span>*</span></label><div class="conditional-field boe-radio-group boe-wide-value"><label><input type="radio" name="boe-type" value="new" checked> New Declaration</label><label><input type="radio" name="boe-type" value="clone"> Clone Declaration</label></div>
+            <label>Regime <span>*</span></label><div class="ucr-lookup-field boe-regime-field"><input id="boe-regime-code" maxlength="2" autocomplete="off" aria-label="Regime code"><button id="boe-regime-search" type="button" aria-label="Search regime">⌕</button><input id="boe-regime-name" readonly aria-label="Regime name"></div>
+            <label for="clearancePlanCd">CL. Plan <span>*</span></label><select name="clearancePlanCd" id="clearancePlanCd" class="text_input" required size="1"><option value="">-- Select One --</option><option value="PMD">PMD, Pre-Manifest Declaration</option><option value="DPM">DPM, Declaration Post-Manifest</option><option value="NBD">NBD, Non BL(AWB) Declaration</option><option value="CGD">CGD, Courier Goods Declaration</option></select>
+            <label>Reuse Document <span>*</span></label><div class="conditional-field boe-radio-group boe-wide-value"><label><input type="radio" name="reuse-document" value="IDF"> IDF</label><label><input type="radio" name="reuse-document" value="EMDA"> eMda Docs.</label><label><input type="radio" name="reuse-document" value="LOC"> LOC</label><label><input type="radio" name="reuse-document" value="CANCELLED"> Canceled BOE</label><label><input type="radio" name="reuse-document" value="NONE" checked> None</label><p id="boe-loc-note" hidden>Note: When using Reuse Document 'LOC', there are restrictions on BOE Edit.</p></div>
+            <div id="boe-reuse-extra" class="boe-reuse-extra" hidden>
+              <label><span id="boe-reuse-label">IDF</span> <span>*</span></label><input id="boe-reuse-number">
+              <label>UCR No.</label><input id="boe-reuse-ucr">
+              <label>CPC Code <span>*</span></label><div class="ucr-lookup-field boe-code-field"><input id="boe-cpc-code"><button id="boe-cpc-search" type="button" aria-label="Search CPC code">⌕</button><input id="boe-cpc-name" readonly></div>
+              <label>Zone <span>*</span></label><div class="ucr-lookup-field boe-code-field"><input id="boe-zone-code" maxlength="3" autocomplete="off"><button id="boe-zone-search" type="button" aria-label="Search zone">⌕</button><input id="boe-zone-name" readonly></div>
+            </div>
+            <div id="boe-cancelled-extra" class="boe-reuse-extra" hidden><label>UCR No. <span>*</span></label><input class="boe-wide-value" id="boe-cancelled-ucr"></div>
           </div>
-          <div class="cargo-actions"><button class="primary-button" type="button" onclick="document.querySelector('#clearance-message').hidden=false">Create Declaration Form</button></div>
-          <p id="clearance-message" class="frontend-note" role="status" hidden>The declaration form is a frontend placeholder. No BOE has been created.</p>
-        </section>
-        <section class="cargo-panel">
-          <div class="cargo-panel-title"><h2>Register Declaration menu</h2></div>
-          <div class="clearance-menu-grid">
-            <a href="{% url 'clearance-workspace' %}">Create BOE Declaration</a>
-            <a href="{% url 'search-boe-declaration' %}">Search BOE Declaration</a>
-            <a href="{% url 'create-simple-amendment' %}">Create Simple Amendment</a>
-            <a href="{% url 'search-simple-amendment' %}">Search Simple Amendment</a>
-            <a href="{% url 'create-post-entry-declaration' %}">Create Post Entry Declaration</a>
-            <a href="{% url 'search-post-entry-declaration' %}">Search Post Entry Declaration</a>
-            <a href="{% url 'clearance-reference-page' 'request-for-boe-suspension' %}">Request for BOE Suspension</a>
-            <a href="{% url 'clearance-reference-page' 'petroleum-management' %}">Petroleum Management</a>
-          </div>
+          <div class="cargo-actions"><button class="secondary-button" id="boe-create-form" type="button">Create Declaration Form</button></div>
         </section>
       </div>
     </main>
   </div>
+  <dialog id="boe-regime-dialog" class="code-dialog" aria-labelledby="boe-regime-title"><div class="code-dialog-card">
+    <header><h2 id="boe-regime-title">Common Code</h2><button id="boe-regime-close" type="button" aria-label="Close regime search">×</button></header>
+    <div class="code-search"><label>Code <input id="boe-regime-filter-code" maxlength="2"></label><label>Code Name <input id="boe-regime-filter-name"></label><button id="boe-regime-filter-submit" type="button">⌕ Search</button></div>
+    <div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Code</th><th>Code Name</th><th>Code Description</th></tr></thead><tbody id="boe-regime-results"></tbody></table></div>
+    <div class="code-pagination" id="boe-regime-pagination"></div>
+  </div></dialog>
+  <dialog id="boe-cpc-dialog" class="code-dialog" aria-labelledby="boe-cpc-title"><div class="code-dialog-card">
+    <header><h2 id="boe-cpc-title">CPC</h2><button id="boe-cpc-close" type="button" aria-label="Close CPC search">×</button></header>
+    <div class="code-search"><label>CPC Code &amp; Description <input id="boe-cpc-filter"></label><button id="boe-cpc-filter-submit" type="button">⌕ Search</button></div>
+    <div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>CPC</th><th>CPC Description</th></tr></thead><tbody id="boe-cpc-results"></tbody></table></div>
+    <div class="code-pagination" id="boe-cpc-pagination"></div>
+  </div></dialog>
+  <dialog id="boe-zone-dialog" class="code-dialog" aria-labelledby="boe-zone-title"><div class="code-dialog-card">
+    <header><h2 id="boe-zone-title">Common Code</h2><button id="boe-zone-close" type="button" aria-label="Close zone search">×</button></header>
+    <div class="code-search"><label>Code <input id="boe-zone-filter-code" maxlength="3"></label><label>Code Name <input id="boe-zone-filter-name"></label><button id="boe-zone-filter-submit" type="button">⌕ Search</button></div>
+    <div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Code</th><th>Code Name</th><th>Code Description</th></tr></thead><tbody id="boe-zone-results"></tbody></table></div>
+    <div class="code-pagination" id="boe-zone-pagination"></div>
+  </div></dialog>
+  {{ boe_regimes|json_script:"boe-regimes" }}
+  <script>
+    window.boeRegimes = JSON.parse(document.querySelector("#boe-regimes").textContent);
+    window.boeCpcSearchUrl = "{% url 'clearance-cpc-search' %}";
+    window.boeZones = [["ECO", "ECOWAS Imports"], ["GEN", "General Imports"], ["XPT", "Exports"], ["AFR", "AFRICAN UNION IMP. LEVY"], ["TVI", "Temporary Vehicle Imports"], ["ACT", "Africa Continental Free Trade (AfCFTA)"], ["EPA", "GH-EU Economic Partnership Agreement (EPA)"], ["UPA", "GH-UK Trade Partnership Agreement"]];
+  </script>
+  <script src="{% static 'js/dialog-pagination.js' %}?v=20260918-1" defer></script>
+  <script src="{% static 'js/clearance-boe-create.js' %}?v=20260925-3" defer></script>
   <script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script>
 </body>
 </html>

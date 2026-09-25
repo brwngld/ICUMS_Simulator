@@ -1,0 +1,538 @@
+[
+  {
+    "code": "40A00",
+    "description": "Grants and Aids"
+  },
+  {
+    "code": "40B01",
+    "description": "Ghana Automotive Development Programme (GADP) – fully build unit (FBU) import from original FBU manufacturer by registered automotive manufacturer"
+  },
+  {
+    "code": "40C01",
+    "description": "40C01 - Direct Home Consumption under Africa Continental Free Trade (AfCFTA)"
+  },
+  {
+    "code": "40D00",
+    "description": "40D00 - Enclosures in Vehicles/excess Personal Effects"
+  },
+  {
+    "code": "40D01",
+    "description": "Direct import into home consumption"
+  },
+  {
+    "code": "40D02",
+    "description": "40D02 - Pre-Entry"
+  },
+  {
+    "code": "40D03",
+    "description": "40D - Certified Entry following Short Landing"
+  },
+  {
+    "code": "40D04",
+    "description": "40D - Omnibus Entry for Auctioned Goods"
+  },
+  {
+    "code": "40D05",
+    "description": "40D - Clearance on Permit"
+  },
+  {
+    "code": "40D06",
+    "description": "40D - Premises Examination"
+  },
+  {
+    "code": "40D07",
+    "description": "Ministry of Finance (MoF) granted Exemption charged against MDA’s budgetary allocation"
+  },
+  {
+    "code": "40D08",
+    "description": "40D - Ministry of Trade Relief on ECO/EDAIF/EXIM"
+  },
+  {
+    "code": "40D09",
+    "description": "40D - Live Animals"
+  },
+  {
+    "code": "40D11",
+    "description": "Import into home consumption for used motor vehicles"
+  },
+  {
+    "code": "40D12",
+    "description": "40D12 - Home Consumption of Vehicles following Diplomatic Exemption"
+  },
+  {
+    "code": "40D13",
+    "description": "Home Consumption of one Private Vehicle for Personal Use"
+  },
+  {
+    "code": "40D14",
+    "description": "Post entry on BOE passed before Import Levy introduction"
+  },
+  {
+    "code": "40D15",
+    "description": "Post entry on BOE passed before import duty amendment on rice etc.-2010"
+  },
+  {
+    "code": "40D16",
+    "description": "TAX STAMPS IMPORT-AFFIXED ABROAD"
+  },
+  {
+    "code": "40D20",
+    "description": "Special Post Event Rectification"
+  },
+  {
+    "code": "40D21",
+    "description": "Transfer of ownership of exempt item by holder of an exemption as per Section 30 of the Exemptions Act, 2020 (Act 1083)"
+  },
+  {
+    "code": "40D22",
+    "description": "Processing of Items in ICUMS with duty already paid for in GCMS"
+  },
+  {
+    "code": "40D23",
+    "description": "Processing of Items in ICUMS with CCVR already acquired in PAARS and BOE created in GCNet/GCMS with tax not paid"
+  },
+  {
+    "code": "40E10",
+    "description": "40E10 - Unmanufactured Tobacco"
+  },
+  {
+    "code": "40E21",
+    "description": "Tariff No. 9801.10.00.00 - Raw materials of base metal for the manufacture of agricultural implements and machinery"
+  },
+  {
+    "code": "40E22",
+    "description": "Tariff No. 9801.20.00.00 - Raw materials for the manufacture of machetes"
+  },
+  {
+    "code": "40E23",
+    "description": "Tariff No. 9801.30.00.00 - Raw material for the manufacture of fishing nets and fishing ropes"
+  },
+  {
+    "code": "40E24",
+    "description": "Tariff No. 9801.40.00.00 - Steel wire for the manufacture of hexagonal wire netting"
+  },
+  {
+    "code": "40E30",
+    "description": "Tariff No. 9803.10.00.00 - Raw materials including packaging materials for the manufacture of pharmaceutical products"
+  },
+  {
+    "code": "40E31",
+    "description": "Tariff No. 9803.20.00.00 - Raw materials for the manufacture of containers for pharmaceutical products"
+  },
+  {
+    "code": "40E40",
+    "description": "Tariff No. 9805.10.00.00 - Raw materials for the manufacture of pipes and tubes of plastics"
+  },
+  {
+    "code": "40E41",
+    "description": "Tariff No. 9805.20.00.00 - Plastic granules imported by COCOBOD"
+  },
+  {
+    "code": "40E50",
+    "description": "40E50 - Materials of heading 38.11"
+  },
+  {
+    "code": "40E52",
+    "description": "Tariff No. 9804.20.00.00 - Polyethylene materials for the manufacture of mosquito nets"
+  },
+  {
+    "code": "40E53",
+    "description": "Tariff No. 9801.50.00.00 - Raw materials for the manufacture of disinfectants, fungicides, weed killers, rodenticides, anti-sprouting products, plant growth regulators"
+  },
+  {
+    "code": "40E61",
+    "description": "Tariff No. 9806.10.00.00 - Materials for manufacture, processing of or prospecting for timber and other natural products"
+  },
+  {
+    "code": "40E62",
+    "description": "Tariff No. 9802.00.00.00 - Raw material, for the manufacture of evaporated milk including tin plates for the manufacture of cans for packaging"
+  },
+  {
+    "code": "40E63",
+    "description": "Tariff No. 9808.00.00.00 - Raw materials for the manufacture of corrugated roofing sheets"
+  },
+  {
+    "code": "40E64",
+    "description": "Tariff No. 9809.00.00.00 - Billets, waste and scrap of iron for the manufacture of iron rods"
+  },
+  {
+    "code": "40E65",
+    "description": "40E65 - Wire of iron or steel, not plated or coated"
+  },
+  {
+    "code": "40E66",
+    "description": "40E66 - Asbestos"
+  },
+  {
+    "code": "40E67",
+    "description": "Tariff No. 9810.00.00.00 - Materials not elsewhere specified in Chapter 98 for the manufacture of building materials excluding packaging materials and asbestos, approved by the Commissioner-General"
+  },
+  {
+    "code": "40E68",
+    "description": "Tariff No. 9812.00.00.00 - Materials not elsewhere specified under Chapters 9801 to 9811, including packaging materials not locally available (confirmed by Association of Ghana Industry) and approved by the Commissioner-General"
+  },
+  {
+    "code": "40E69",
+    "description": "Tariff No. 9811.20.00.00 - Materials for the manufacture or assembly of bicycles and other cycles (including delivery tricycles) not motorised"
+  },
+  {
+    "code": "40E70",
+    "description": "40E70 - Crude palm oil for the manufacture of soaps and food"
+  },
+  {
+    "code": "40E71",
+    "description": "Tariff No. 9807.10.00.00 - Dye stuff, chemicals, grey baft and other inputs for the production of textiles"
+  },
+  {
+    "code": "40E72",
+    "description": "Plastic packaging material exempted from environmental excise tax"
+  },
+  {
+    "code": "40E73",
+    "description": "Tariff No. 9812.10.00.00 - Raw materials not locally available for the manufacture of sanitary towels"
+  },
+  {
+    "code": "40E74",
+    "description": "Tariff No. 9811.10.00.00 - Component parts for automotive assembly: semi-knocked down, enhanced semi-knocked down, completely knocked down and original equipment components for the automotive manufacturers and assemblers registered by the Commissioner- General under the Ghana Automotive Manufacturing Development Programme"
+  },
+  {
+    "code": "40F01",
+    "description": "Goods imported for the use of the President or Vice-President of Ghana as defined under Section 8 of the Exemptions Act, 2022 (Act 1083)"
+  },
+  {
+    "code": "40F02",
+    "description": "Goods and vehicles imported by or for the official use of a diplomat or diplomatic mission as defined under Section 9 of the Exemptions Act, 2022 (Act 1083)"
+  },
+  {
+    "code": "40F03",
+    "description": "Goods imported under the technical cooperation programmes or project as defined under Section 21 of the Exemptions Act, 2022 (Act 1083)"
+  },
+  {
+    "code": "40F04",
+    "description": "40F - British Council"
+  },
+  {
+    "code": "40F05",
+    "description": "Goods imported by persons with disability as defined under Section 10 of the Exemptions Act, 2022 (Act 1083)"
+  },
+  {
+    "code": "40F06",
+    "description": "Goods imported by religious organisations as listed under Section 11 of the Exemptions Act 2022 (Act 1083)"
+  },
+  {
+    "code": "40F07",
+    "description": "40F - Trade fairs and Exhibitions"
+  },
+  {
+    "code": "40F08",
+    "description": "40F - Volta Aluminum Company Limited"
+  },
+  {
+    "code": "40F09",
+    "description": "Volta River Authority"
+  },
+  {
+    "code": "40F10",
+    "description": "ECG/Ghana Water Company (Special Projects)-ECG Law, 91 (PNDC LAW 250)"
+  },
+  {
+    "code": "40F11",
+    "description": "Goods imported by a State security agency as defined under Section 25 of the Exemptions Act 2022 (Act 1083)"
+  },
+  {
+    "code": "40F12",
+    "description": "40F12 - Copyright levy on unrecorded media"
+  },
+  {
+    "code": "40F13",
+    "description": "40F13 - Miscellaneous Exemptions"
+  },
+  {
+    "code": "40F14",
+    "description": "Ghana Civil Aviation Authority (GCAA) Act, 2004 (Act 678)"
+  },
+  {
+    "code": "40F51",
+    "description": "40F51 - Advertising Matter"
+  },
+  {
+    "code": "40F52",
+    "description": "40F52 - Aircraft, accessories and parts knocked down aircraft for assembly"
+  },
+  {
+    "code": "40F53",
+    "description": "Baggage and effects as defined under Section 17 of the Exemptions Act 2022 (Act 1083)"
+  },
+  {
+    "code": "40F54",
+    "description": "40F54 - Materials for Education, Cultural and Scientific purposes approved by MOE"
+  },
+  {
+    "code": "40F55",
+    "description": "Imported foodstuffs of West Africa origin (raw foodstuffs; fresh, chilled frozen, dried, smoked or salted fish) as defined under Section 18 of the Exemptions Act 2022 (Act 1083)"
+  },
+  {
+    "code": "40F56",
+    "description": "40F56 - Foodstuffs (specially prepared for infants)"
+  },
+  {
+    "code": "40F57",
+    "description": "40F57 - Fishing floats and other fishing gear admitted as such by the Commissioner"
+  },
+  {
+    "code": "40F59",
+    "description": "40F59 - Machinery, plants apparatus, spare parts"
+  },
+  {
+    "code": "40F60",
+    "description": "40F60 - Agro-chemicals, drugs and ingredients for poultry feed"
+  },
+  {
+    "code": "40F61",
+    "description": "40F61 - Jute bags and seals imported by COCOBOD or any of its approved agents"
+  },
+  {
+    "code": "40F62",
+    "description": "Education or health related items imported by a development partner, a charity organisation, a philanthropist or any other not-for-profit organisation as defined under Section 12 of the Exemptions Act 2022 (Act 1083)"
+  },
+  {
+    "code": "40F63",
+    "description": "40F63 - Packing materials bearing the company’s logo, solely for local produce for export"
+  },
+  {
+    "code": "40F64",
+    "description": "Imports of equipment, replacement parts and kits for production trials imported by a manufacturer or assembler of plants and machinery, including an automobile under Section 19 of the Exemptions Act 2022 (Act 1083)"
+  },
+  {
+    "code": "40F66",
+    "description": "Items imported under an executed treaty, agreement or convention as defined under Section 20 of Exemptions Act, 2022 (Act 1083)"
+  },
+  {
+    "code": "40F67",
+    "description": "Imported items for programmes or projects funded with grants as defined under Section 22 of Exemptions Act, 2022 (Act 1083)"
+  },
+  {
+    "code": "40F68",
+    "description": "Imports under concessional facility projects as defined under Section 23 of Exemptions Act, 2022 (Act 1083)"
+  },
+  {
+    "code": "40F99",
+    "description": "40F99 - Imports of live animals originating from West Africa"
+  },
+  {
+    "code": "40G00",
+    "description": "G00 - Ghana National Petroleum Corporation Exemption (PNDC Law 64 )"
+  },
+  {
+    "code": "40G01",
+    "description": "40G - OMC import of petroleum products"
+  },
+  {
+    "code": "40I01",
+    "description": "I01 - General Exemptions under the GIPC Act, 2013 (Act 865)"
+  },
+  {
+    "code": "40I02",
+    "description": "40I Restaurants - Items as contained in chapter. 98.14. of the tariff."
+  },
+  {
+    "code": "40I03",
+    "description": "40I Local film production and electronic media - items as contained in chapter 98.15 of the tariff."
+  },
+  {
+    "code": "40I04",
+    "description": "40I Hotels - items as contained in Chapter 98.13"
+  },
+  {
+    "code": "40I05",
+    "description": "DEFERRED LIABILITIES ON TOURISM INFRASTRUCTURE 'IN'"
+  },
+  {
+    "code": "40I06",
+    "description": "DEFERRED LIABILITIES ON TOURISM INFRASTRUCTURE 'OUT'"
+  },
+  {
+    "code": "40I70",
+    "description": "Hotels - items as contained in Chapt 98.07 of the Tariff"
+  },
+  {
+    "code": "40M00",
+    "description": "Exemptions as per Mining List"
+  },
+  {
+    "code": "40M01",
+    "description": "40M - New plant, machinery and equipment and zero rated import duty on the mining list"
+  },
+  {
+    "code": "40M02",
+    "description": "M02 - Dutiable materials and spare parts on the mining list (Minerals and Mining Act, 2006 (Act 703))"
+  },
+  {
+    "code": "40M03",
+    "description": "NEW PLANT, MACH.& EQUIPT & 0% RATED MAT. & SPARE PARTS ON MINING LIST"
+  },
+  {
+    "code": "40M04",
+    "description": "Dutiable materials and spare parts not on the mining list"
+  },
+  {
+    "code": "40M05",
+    "description": "New plant, machinery and equipment, 0% rated materials and spare parts not on mining list"
+  },
+  {
+    "code": "40M06",
+    "description": "Exceptional items under exemptions - CEPS approval required"
+  },
+  {
+    "code": "40P01",
+    "description": "40P Food and agriculture"
+  },
+  {
+    "code": "40P02",
+    "description": "40P Communications"
+  },
+  {
+    "code": "40P03",
+    "description": "40P Defence"
+  },
+  {
+    "code": "40P04",
+    "description": "40P Education"
+  },
+  {
+    "code": "40P05",
+    "description": "40P Employment and Labour Relations"
+  },
+  {
+    "code": "40P06",
+    "description": "40P Energy"
+  },
+  {
+    "code": "40P07",
+    "description": "40P Environment, Science and Technology"
+  },
+  {
+    "code": "40P08",
+    "description": "Tax exemptions on imports as aproved by Parliamentary Resolutions"
+  },
+  {
+    "code": "40P09",
+    "description": "40P Foreign Affairs and Regional Integration"
+  },
+  {
+    "code": "40P10",
+    "description": "40P10 Health"
+  },
+  {
+    "code": "40P11",
+    "description": "40P11 Power"
+  },
+  {
+    "code": "40P12",
+    "description": "40P12 Interior"
+  },
+  {
+    "code": "40P13",
+    "description": "40P13 Justice and Attorney General"
+  },
+  {
+    "code": "40P14",
+    "description": "40P14 Lands and Natural Resources"
+  },
+  {
+    "code": "40P15",
+    "description": "40P15 Local Government and Rural Development"
+  },
+  {
+    "code": "40P16",
+    "description": "40P16 Mines - Items not contained in Mining list (Approved by Parliament)"
+  },
+  {
+    "code": "40P17",
+    "description": "40P17 Parliamentary Affairs"
+  },
+  {
+    "code": "40P18",
+    "description": "40P18 Roads and Highways"
+  },
+  {
+    "code": "40P19",
+    "description": "Science and Technology"
+  },
+  {
+    "code": "40P20",
+    "description": "40P20 Tourism"
+  },
+  {
+    "code": "40P21",
+    "description": "40P21 Trade and Industry"
+  },
+  {
+    "code": "40P22",
+    "description": "40P22 Works and Housing"
+  },
+  {
+    "code": "40P23",
+    "description": "40P23 Youth and Sports"
+  },
+  {
+    "code": "40P24",
+    "description": "40P24 Chieftaincy and Traditional Affairs"
+  },
+  {
+    "code": "40P25",
+    "description": "40P25 National Mobilisation"
+  },
+  {
+    "code": "40P26",
+    "description": "Regional Integration"
+  },
+  {
+    "code": "40P27",
+    "description": "40P27 Gender, Children and Social protection"
+  },
+  {
+    "code": "40P28",
+    "description": "40P28 Special Permits (awaiting Parliamentary approval"
+  },
+  {
+    "code": "40P29",
+    "description": "40P29 Ministry of Transport: Ports, Harbours, Railways, etc"
+  },
+  {
+    "code": "40P30",
+    "description": "40P Electoral Commission"
+  },
+  {
+    "code": "40P31",
+    "description": "40P31 Millennium Development Authority"
+  },
+  {
+    "code": "40P32",
+    "description": "Ministry of Finance approved exemption for persons not contained in the Exemptions Act 2022, (Act 1083), charged on a Ministry's budgetary allocations"
+  },
+  {
+    "code": "40R01",
+    "description": "Direct import of petroleum proleum producrs by PPMC (OMC/LPGMC)"
+  },
+  {
+    "code": "40U01",
+    "description": "40U01 - Direct Import into Home Consumption under EU-Ghana Economic Partnership Agreement (EPA)"
+  },
+  {
+    "code": "40U02",
+    "description": "40U02 - Direct Import into Home Consumption under UK-Ghana Economic Partnership Agreement (UPA)"
+  },
+  {
+    "code": "40V01",
+    "description": "40V - General VAT Exemption"
+  },
+  {
+    "code": "40V02",
+    "description": "40V - Upfront VAT Reliefs for manufacturers"
+  },
+  {
+    "code": "40W01",
+    "description": "ECOWAS preferential rates for products and enterprises under the ETLS scheme"
+  }
+]

@@ -237,6 +237,40 @@ html[data-theme="dark"] #mda-code-list tr:hover, html[data-theme="dark"] #gsa-pr
 .app-port-field { width: 100%; grid-template-columns: minmax(0, 1fr) 2.6rem; }
 .summary-grid .app-approval-check { justify-content: flex-start; gap: .5rem; background: var(--panel); }
 .summary-grid .app-approval-check input { width: auto; min-height: auto; }
+.boe-radio-group { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem 1rem; }
+.boe-radio-group label { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+.boe-radio-group input { width: auto !important; min-height: auto !important; }
+.boe-regime-field { width: 100%; }
+
+/* Compact table-like Create BOE selector from the Clearance reference. */
+.boe-create-grid { grid-template-columns: 8rem minmax(12rem, 1fr) 8rem minmax(12rem, 1fr); gap: 0; border: 1px solid var(--line); }
+.boe-create-grid > label,
+.boe-reuse-extra > label { min-height: 2.4rem; padding: .45rem .55rem; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); border-radius: 0; background: #f6f7fa; }
+.boe-create-grid > input,
+.boe-create-grid > select,
+.boe-create-grid > .conditional-field,
+.boe-create-grid > .ucr-lookup-field,
+.boe-reuse-extra > input,
+.boe-reuse-extra > .ucr-lookup-field { min-height: 2.4rem; padding: .3rem .45rem; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); border-radius: 0; background: var(--panel); }
+.boe-create-grid .boe-wide-value { grid-column: 2 / -1; }
+.boe-reuse-extra { display: contents; }
+.boe-reuse-extra[hidden] { display: none; }
+.boe-create-grid .ucr-lookup-field { grid-template-columns: minmax(4rem, .65fr) 2.3rem minmax(7rem, 1.35fr); }
+.boe-create-grid .ucr-lookup-field input,
+.boe-create-grid .ucr-lookup-field button { min-height: 1.75rem; border-radius: .18rem; }
+#boe-loc-note { flex-basis: 100%; margin: 0; color: #d92d20; font-size: .7rem; line-height: 1.35; }
+html[data-theme="dark"] .boe-create-grid > label,
+html[data-theme="dark"] .boe-reuse-extra > label { background: #202b47; color: var(--ink); }
+
+@media (max-width: 62rem) {
+  .boe-create-grid { grid-template-columns: 7rem minmax(0, 1fr); }
+  .boe-create-grid .boe-wide-value { grid-column: 2; }
+}
+
+@media (max-width: 42rem) {
+  .boe-create-grid { grid-template-columns: 1fr; }
+  .boe-create-grid .boe-wide-value { grid-column: 1; }
+}
 .app-country-field:has(button[hidden]) { grid-template-columns: minmax(4.5rem, .65fr) minmax(8rem, 1.35fr); }
 .app-country-field button[hidden] { display: none; }
 #app-tab-general [readonly] { color: #515b70; background: #f4f6fa; cursor: default; }
