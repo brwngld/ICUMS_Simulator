@@ -43,3 +43,4 @@
 .ucr-view-table th, .ucr-view-table td { border:1px solid var(--line); padding:.45rem .6rem; font-size:.78rem; text-align:left; vertical-align:middle; overflow-wrap:anywhere; }
 .ucr-view-table th { width:10rem; font-weight:400; }
 .ucr-view-table td { min-width:0; }
+.ucr-view-table select { width:100%; }

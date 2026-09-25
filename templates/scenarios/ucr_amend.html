@@ -4,9 +4,9 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Amend UCR · ICUMS Simulator</title>
-  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260919-3">
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260923-2">
   <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-2">
-  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260925-5">
+  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260925-6">
 </head>
 <body>
   <a class="portal-skip" href="#main-content">Skip to Amend UCR form</a>
@@ -22,75 +22,61 @@
       <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Workspace</a><span>›</span><span>Registration</span><span>›</span><a href="{% url 'ucr-detail' record.pk %}">{{ record.ucr_no }}</a><span>›</span><strong>Amend</strong></div>
       <div class="cargo-content">
         <section class="cargo-panel"><div class="cargo-panel-title"><h2>UCR Details</h2><span>{{ record.get_status_display }}</span></div>
-          <div class="summary-grid">
-            <label for="ucr-temp">Temp. No.</label><input id="ucr-temp" value="{{ record.ucr_no }}" readonly>
-            <label for="ucr-regime">Regime Type <span>*</span></label><select id="ucr-regime" name="regime" form="ucr-amend-form" required>{% for code, label in regime_family_choices %}<option value="{{ code }}" {% if record.regime == code %}selected{% endif %}>{{ code }}, {{ label }}</option>{% endfor %}</select>
-            <label for="ucr-show-provider">Display Service Provider</label><div><input id="ucr-show-provider" type="checkbox" {% if record.show_provider %}checked{% endif %} disabled></div>
-          </div>
+          <table class="ucr-view-table"><tbody>
+            <tr><th>Temp. No.</th><td>{{ values.ucr_no }}</td><th>Regime Type <span>*</span></th><td><select id="ucr-regime" name="regime" form="ucr-amend-form" required>{% for code, label in regime_family_choices %}<option value="{{ code }}" {% if record.regime == code %}selected{% endif %}>{{ code }}, {{ label }}</option>{% endfor %}</select></td></tr>
+            <tr><th>Display Service Provider</th><td colspan="3">{% if record.show_provider %}Yes{% else %}No{% endif %}</td></tr>
+          </tbody></table>
         </section>
-        <section class="cargo-panel" id="ucr-provider"{% if not record.show_provider %} hidden{% endif %}><div class="cargo-panel-title"><h2>Service Provider</h2></div><div class="summary-grid">
-          <label for="ucr-declarant">Declarant Code</label><input id="ucr-declarant" value="{{ record.declarant_code }}" readonly>
-          <label for="ucr-provider-country">Country <span>*</span></label><div class="ucr-lookup-field"><input id="ucr-provider-country" maxlength="2" data-country-code value="{{ record.provider_country }}" readonly><input data-country-name-for="ucr-provider-country" aria-label="Service provider country name" readonly></div>
-          <label for="ucr-provider-code">Code</label><input id="ucr-provider-code" aria-label="Service provider TIN and name" value="{{ record.provider_code }}{% if record.provider_name %}, {{ record.provider_name }}{% endif %}" readonly>
-          <label for="ucr-provider-address">Address <span>*</span></label><textarea id="ucr-provider-address" rows="2" readonly>{{ record.provider_address }}</textarea>
-          <label for="ucr-provider-contact">Contact Name <span>*</span></label><input id="ucr-provider-contact" value="{{ record.provider_contact }}" readonly>
-          <label for="ucr-provider-phone">Tel. No. <span>*</span></label><input id="ucr-provider-phone" value="{{ record.provider_phone }}" readonly>
-          <label for="ucr-provider-email">Approved Email Address 1 <span>*</span></label><input id="ucr-provider-email" type="email" value="{{ record.provider_email }}" readonly>
-          <label for="ucr-provider-email-2">Approved Email Address 2</label><input id="ucr-provider-email-2" type="email" value="{{ record.provider_email_2 }}" readonly>
-        </div></section>
-        <section class="cargo-panel ucr-party" id="ucr-exporter"><div class="cargo-panel-title"><h2>Exporter</h2></div><div class="summary-grid">
-          {% if record.regime == 'EX' or record.regime == 'FO' %}
-          <label for="ucr-exporter-identity" id="ucr-exporter-label">TIN <span>*</span></label><div class="ucr-identity"><input id="ucr-exporter-identity" value="{{ record.exporter_identity }}" readonly><input id="ucr-exporter-name" aria-label="Exporter name" value="{{ record.exporter_name }}" readonly></div>
-          {% else %}
-          <label for="ucr-exporter-identity" id="ucr-exporter-label">Exporter Name <span>*</span></label><div class="ucr-identity"><input id="ucr-exporter-identity" value="{{ record.exporter_name }}" readonly></div>
-          {% endif %}
-          <label for="ucr-exporter-country">Country <span>*</span></label><div class="ucr-lookup-field"><input id="ucr-exporter-country" maxlength="2" data-country-code value="{{ record.exporter_country }}" readonly><input data-country-name-for="ucr-exporter-country" aria-label="Exporter country name" readonly></div>
-          <label for="ucr-exporter-address">Address <span>*</span></label><textarea id="ucr-exporter-address" rows="2" readonly>{{ record.exporter_address }}</textarea>
-          <label for="ucr-exporter-phone">Tel. No. <span>*</span></label><input id="ucr-exporter-phone" value="{{ record.exporter_phone }}" readonly>
-          <label for="ucr-exporter-fax">Fax No.</label><input id="ucr-exporter-fax" value="{{ record.exporter_fax }}" readonly>
-          <label for="ucr-exporter-contact">Contact Person <span>*</span></label><input id="ucr-exporter-contact" value="{{ record.exporter_contact }}" readonly>
-          <label for="ucr-exporter-contact-no">Contact No. <span>*</span></label><input id="ucr-exporter-contact-no" value="{{ record.exporter_contact_no }}" readonly>
-          <label for="ucr-exporter-designation">Contact Designation <span>*</span></label><input id="ucr-exporter-designation" value="{{ record.exporter_designation }}" readonly>
-        </div></section>
-        <section class="cargo-panel ucr-party" id="ucr-importer"><div class="cargo-panel-title"><h2>Importer</h2></div><div class="summary-grid">
-          {% if record.regime == 'IM' or record.regime == 'FI' or record.regime == 'TR' %}
-          <label for="ucr-importer-identity" id="ucr-importer-label">TIN <span>*</span></label><div class="ucr-identity"><input id="ucr-importer-identity" value="{{ record.importer_identity }}" readonly><input id="ucr-importer-name" aria-label="Importer name" value="{{ record.importer_name }}" readonly></div>
-          {% else %}
-          <label for="ucr-importer-identity" id="ucr-importer-label">Importer Name <span>*</span></label><div class="ucr-identity"><input id="ucr-importer-identity" value="{{ record.importer_name }}" readonly></div>
-          {% endif %}
-          <label for="ucr-importer-country">Country <span>*</span></label><div class="ucr-lookup-field"><input id="ucr-importer-country" maxlength="2" data-country-code value="{{ record.importer_country }}" readonly><input data-country-name-for="ucr-importer-country" aria-label="Importer country name" readonly></div>
-          <label for="ucr-importer-address">Address <span>*</span></label><textarea id="ucr-importer-address" rows="2" readonly>{{ record.importer_address }}</textarea>
-          <label for="ucr-importer-phone">Tel. No. <span>*</span></label><input id="ucr-importer-phone" value="{{ record.importer_phone }}" readonly>
-          <label for="ucr-importer-fax">Fax No.</label><input id="ucr-importer-fax" value="{{ record.importer_fax }}" readonly>
-          <label for="ucr-importer-contact">Contact Person <span>*</span></label><input id="ucr-importer-contact" value="{{ record.importer_contact }}" readonly>
-          <label for="ucr-importer-contact-no">Contact No. <span>*</span></label><input id="ucr-importer-contact-no" value="{{ record.importer_contact_no }}" readonly>
-          <label for="ucr-importer-designation">Contact Designation <span>*</span></label><input id="ucr-importer-designation" value="{{ record.importer_designation }}" readonly>
-        </div></section>
-        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Consignment Details</h2></div><div class="summary-grid">
-          <label for="ucr-goods">General Goods Description <span>*</span></label><textarea id="ucr-goods" rows="3" readonly>{{ record.goods_description }}</textarea>
-          <label for="ucr-origin">Country of Origin <span>*</span></label><div class="ucr-lookup-field"><input id="ucr-origin" maxlength="2" data-country-code value="{{ record.origin_country }}" readonly><input data-country-name-for="ucr-origin" aria-label="Country of origin name" readonly></div>
-          <label for="ucr-destination">Country of Destination <span>*</span></label><div class="ucr-lookup-field"><input id="ucr-destination" maxlength="2" data-country-code value="{{ record.destination_country }}" readonly><input data-country-name-for="ucr-destination" aria-label="Country of destination name" readonly></div>
-          <label for="ucr-mode">Transport Mode <span>*</span></label><select id="ucr-mode" disabled><option{% if record.transport_mode != '30, Road Transport' and record.transport_mode != '40, Air Transport' %} selected{% endif %}>10, Sea Transport</option><option{% if record.transport_mode == '30, Road Transport' %} selected{% endif %}>30, Road Transport</option><option{% if record.transport_mode == '40, Air Transport' %} selected{% endif %}>40, Air Transport</option></select>
-          <label for="ucr-reference">User Reference No.</label><input id="ucr-reference" value="{{ record.user_reference }}" readonly>
-          <label for="ucr-email">UCR Email Distribution</label><textarea id="ucr-email" rows="2" readonly>{{ record.ucr_email }}</textarea>
-        </div></section>
-        <section class="cargo-panel"><div class="cargo-panel-title"><h2>eDocuments Details</h2></div>{% if document_rows %}<div class="cargo-table-wrap"><table class="ucr-documents"><thead><tr><th>No.</th><th>Document Type</th><th>Reference No.</th><th>Attached File</th><th></th></tr></thead><tbody>{% for row in document_rows %}<tr><td>{{ row.number }}</td><td><div class="document-type-field"><input data-document-code value="{{ row.document.code }}" readonly><input data-document-name value="{{ row.document.name }}" readonly></div></td><td><input value="{{ row.document.reference }}" readonly></td><td>{% for attachment in row.attachments %}<a href="{% url 'ucr-attachment' attachment.pk %}">{{ attachment.original_name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td><td></td></tr>{% endfor %}</tbody></table></div>{% endif %}<div class="cargo-table-wrap"><table class="ucr-documents"><thead><tr><th>No.</th><th>Document Type</th><th>Reference No.</th><th>Attached File</th><th><button id="add-document" class="document-add-button" type="button">Add</button></th></tr></thead><tbody id="document-rows"></tbody></table></div><p class="dialog-help">Only the Regime Type and eDocuments Details can be changed in an amendment.</p></section>
+        <section class="cargo-panel" id="ucr-provider"{% if not record.show_provider %} hidden{% endif %}><div class="cargo-panel-title"><h2>Service Provider</h2></div>
+          <table class="ucr-view-table"><tbody>
+            <tr><th>Declarant Code</th><td>{{ values.declarant_code }}</td><th>Country</th><td>{{ values.provider_country }}</td></tr>
+            <tr><th>Code</th><td colspan="3">{{ values.provider_code }}</td></tr>
+            <tr><th>Address</th><td colspan="3">{{ record.provider_address }}</td></tr>
+            <tr><th>Contact Name</th><td>{{ record.provider_contact }}</td><th>Tel. No.</th><td>{{ record.provider_phone }}</td></tr>
+            <tr><th>Approved Email Address 1</th><td>{{ record.provider_email }}</td><th>Approved Email Address 2</th><td>{{ record.provider_email_2 }}</td></tr>
+          </tbody></table>
+        </section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Exporter</h2></div>
+          <table class="ucr-view-table"><tbody>
+            {% if record.regime == 'EX' or record.regime == 'FO' %}
+            <tr><th>TIN</th><td>{{ values.exporter_party }}</td><th>Country</th><td>{{ values.exporter_country }}</td></tr>
+            {% else %}
+            <tr><th>Exporter Name</th><td>{{ values.exporter_party }}</td><th>Country</th><td>{{ values.exporter_country }}</td></tr>
+            {% endif %}
+            <tr><th>Address</th><td colspan="3">{{ record.exporter_address }}</td></tr>
+            <tr><th>Tel. No.</th><td>{{ record.exporter_phone }}</td><th>Fax No.</th><td>{{ record.exporter_fax }}</td></tr>
+            <tr><th>Contact Person</th><td>{{ record.exporter_contact }}</td><th>Contact No.</th><td>{{ record.exporter_contact_no }}</td></tr>
+            <tr><th>Contact Designation</th><td colspan="3">{{ record.exporter_designation }}</td></tr>
+          </tbody></table>
+        </section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Importer</h2></div>
+          <table class="ucr-view-table"><tbody>
+            {% if record.regime == 'IM' or record.regime == 'FI' or record.regime == 'TR' %}
+            <tr><th>Code</th><td>{{ values.importer_party }}</td><th>Country</th><td>{{ values.importer_country }}</td></tr>
+            {% else %}
+            <tr><th>Importer Name</th><td>{{ values.importer_party }}</td><th>Country</th><td>{{ values.importer_country }}</td></tr>
+            {% endif %}
+            <tr><th>Address</th><td colspan="3">{{ record.importer_address }}</td></tr>
+            <tr><th>Tel. No.</th><td>{{ record.importer_phone }}</td><th>Fax No.</th><td>{{ record.importer_fax }}</td></tr>
+            <tr><th>Contact Person</th><td>{{ record.importer_contact }}</td><th>Contact No.</th><td>{{ record.importer_contact_no }}</td></tr>
+            <tr><th>Contact Designation</th><td colspan="3">{{ record.importer_designation }}</td></tr>
+          </tbody></table>
+        </section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Consignment Details</h2></div>
+          <table class="ucr-view-table"><tbody>
+            <tr><th>General Goods Description</th><td colspan="3">{{ record.goods_description }}</td></tr>
+            <tr><th>Country of Origin</th><td>{{ values.origin_country }}</td><th>Country of Destination</th><td>{{ values.destination_country }}</td></tr>
+            <tr><th>Transport Mode</th><td>{{ record.transport_mode }}</td><th>User Reference No.</th><td>{{ record.user_reference }}</td></tr>
+            <tr><th>UCR Email Distribution</th><td colspan="3">{{ record.ucr_email }}</td></tr>
+          </tbody></table>
+        </section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>eDocuments Details</h2></div>{% if document_rows %}<div class="cargo-table-wrap"><table class="ucr-documents"><thead><tr><th>No.</th><th>Document Type</th><th>Reference No.</th><th>Attached File</th><th></th></tr></thead><tbody>{% for row in document_rows %}<tr><td>{{ row.number }}</td><td><div class="document-type-field"><input data-document-code value="{{ row.document.code }}" readonly><input data-document-name value="{{ row.document.name }}" readonly></div></td><td><input value="{{ row.document.reference }}" readonly></td><td>{% for attachment in row.attachments %}<a href="{% url 'ucr-attachment' attachment.pk %}">{{ attachment.original_name }}</a>{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</td><td class="cell-center">{% if row.attachments %}<a class="ucr-row-action" href="{% url 'ucr-attachment' row.attachments.0.pk %}" target="_blank" rel="noopener">View</a>{% else %}—{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}<div class="cargo-table-wrap"><table class="ucr-documents"><thead><tr><th>No.</th><th>Document Type</th><th>Reference No.</th><th>Attached File</th><th><button id="add-document" class="document-add-button" type="button">Add</button></th></tr></thead><tbody id="document-rows"></tbody></table></div><p class="dialog-help">Only the Regime Type and eDocuments Details can be changed in an amendment.</p></section>
         <div class="cargo-actions"><a class="secondary-button" href="{% url 'ucr-detail' record.pk %}">Cancel</a><button class="primary-button" type="submit" form="ucr-amend-form">▣ Submit Amendment</button></div>
       </div>
     </main>
   </div>
   <form id="ucr-amend-form" method="post" action="{% url 'ucr-amend' record.pk %}" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="new_documents" id="amend-new-documents" value="[]"></form>
   {% include 'scenarios/_document_code_dialog.html' %}
-  {{ country_names|json_script:"ucr-country-names" }}
-  <script>
-    (() => {
-      const names = JSON.parse(document.querySelector('#ucr-country-names').textContent);
-      document.querySelectorAll('[data-country-code]').forEach((field) => {
-        const output = document.querySelector(`[data-country-name-for="${field.id}"]`);
-        if (output) output.value = names[field.value.trim().toUpperCase()] || '';
-      });
-    })();
-  </script>
   <script src="{% static 'js/dialog-pagination.js' %}?v=20260918-1"></script>
   <script src="{% static 'js/ucr-document-codes.js' %}?v=20260918-2"></script>
   <script src="{% static 'js/ucr-amend.js' %}?v=20260925-1"></script>
