@@ -23,7 +23,7 @@ from .country_codes import COUNTRY_CODES, COUNTRY_CODE_SET
 from .models import (BillOfLading, CommercialDocument, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument,
                      ScenarioVersion, TrainingStakeholder, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment,
                      allocate_ucr_number, purge_expired_ucr_drafts)
-from .models import ConsignmentApplication, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus, PortCode, allocate_application_number
+from .models import ConsignmentApplication, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus, PortCode, allocate_application_number
 from .pdfs import build_bill_of_lading_pdf, build_commercial_document_pdf, build_fictitious_document_pdf
 from .services import available_actions, perform_action, practical_is_unlocked, record_hint, start_or_resume_attempt
 from accounts.models import SimulatorCredential
@@ -143,14 +143,26 @@ def simulator_login(request):
 
 @require_POST
 def simulator_logout(request):
-    request.session.pop("simulator_review_user_id", None)
+    """Sign out is decided by the session type, not by the account's privileges.
+
+    Review mode ends back at the staff member's own workspace; a simulator
+    credential session (a student login) always signs out; bare staff sessions
+    have permanent simulator access and therefore nothing to sign out of.
+    """
+    if _review_target(request) is not None:
+        request.session.pop("simulator_review_user_id", None)
+        messages.info(request, "Student review ended; you are back to your own workspace.")
+        return redirect("simulator-portal")
+    if request.session.get("simulator_user_id"):
+        request.session.pop("simulator_user_id", None)
+        messages.info(request, "You have signed out of the simulator workspace.")
+        return redirect("simulator-portal")
     if _is_simulator_author(request.user):
         messages.warning(
             request,
             "Staff and administrators have permanent simulator access, so simulator sign-out is unavailable. Use the main account sign-out to end your session.",
         )
         return redirect("simulator-portal")
-    request.session.pop("simulator_user_id", None)
     messages.info(request, "You have signed out of the simulator workspace.")
     return redirect("simulator-portal")
 
@@ -226,20 +238,33 @@ def cargo_reference_page(request, page_key):
 
 @simulator_access_required
 def clearance_workspace(request):
-    """Frontend-only Clearance navigation and Create BOE Declaration preview."""
-    declaration_items = [
-        "Create BOE Declaration",
-        "Search BOE Declaration", "Create Simple Amendment", "Search Simple Amendment",
-        "Create Post Entry Declaration", "Search Post Entry Declaration", "Search Cancellation Request",
-        "Create Release Prior to BOE", "Search Release Prior to BOE", "Export Booking Schedule Update",
-        "Reply to Appeal Correction Query", "Request for BOE Suspension", "Request Physical Inspection by CHA",
-        "Request for NBD Allow (Direct Import)", "Request BOE Release in Lab Analysis incomplete",
-        "Request for release of BOE Blocking", "Request to change BL No before Manifest Matching",
-        "Request to enable BL No Swap", "Request BOE Release without MDA Approval",
-        "Request to allow for Importer Name matching", "BOE Annexed Document Registration",
-        "Request UCL Check Skip before Manifest Matching",
-    ]
-    return render(request, "scenarios/clearance_workspace.html", {"declaration_items": declaration_items})
+    """Clearance entry point: the Create BOE Declaration selector."""
+    regimes = list(CustomsRegime.objects.filter(is_active=True).values_list("code", "name"))
+    return render(request, "scenarios/clearance_workspace.html", {"boe_regimes": regimes})
+
+
+@simulator_access_required
+@require_GET
+def clearance_cpc_search(request):
+    """Return active CPCs belonging to the selected customs regime."""
+    regime = request.GET.get("regime", "").strip().upper()[:2]
+    query = request.GET.get("q", "").strip()[:240]
+    code = request.GET.get("code", "").strip().upper()[:12]
+    description = request.GET.get("description", "").strip()[:240]
+    records = CustomsProcedureCode.objects.filter(is_active=True, regime__is_active=True, regime__code=regime)
+    if query:
+        records = records.filter(Q(code__icontains=query) | Q(description__icontains=query))
+    if code:
+        records = records.filter(code__icontains=code)
+    if description:
+        records = records.filter(description__icontains=description)
+    page = Paginator(records, 100).get_page(request.GET.get("page", 1))
+    return JsonResponse({
+        "results": [{"code": record.code, "description": record.description} for record in page.object_list],
+        "total": page.paginator.count,
+        "page": page.number,
+        "page_count": page.paginator.num_pages,
+    })
 
 
 @simulator_access_required
