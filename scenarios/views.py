@@ -659,7 +659,7 @@ def ucr_detail(request, record_id):
 @require_GET
 def ucr_attachment(request, attachment_id):
     attachment = get_object_or_404(UcrDocumentAttachment.objects.select_related("ucr"), pk=attachment_id, ucr__owner=request.user)
-    return FileResponse(attachment.file.open("rb"), as_attachment=True, filename=attachment.original_name)
+    return FileResponse(attachment.file.open("rb"), filename=attachment.original_name)
 
 
 def _copy_ucr_fields(draft, source):
@@ -855,7 +855,7 @@ def mda_consignment_application(request, request_id):
             "name": document.get("name", ""),
             "reference": document.get("reference", ""),
             "file_name": attachment.original_name if attachment else "",
-            "file_url": attachment.file.url if attachment and attachment.file else "",
+            "file_url": reverse("ucr-attachment", args=(attachment.pk,)) if attachment else "",
         })
     return render(request, "scenarios/consignment_application.html", {
         "application": parent,

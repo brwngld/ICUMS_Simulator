@@ -1,8 +1,7 @@
 (() => {
   const rows = document.querySelector('#document-rows');
   const form = document.querySelector('#ucr-amend-form');
-  const deleteButton = document.querySelector('#delete-document');
-  if (!rows || !form || !deleteButton) return;
+  if (!rows || !form) return;
 
   function renumber() {
     [...rows.children].forEach((row, index) => {
@@ -11,23 +10,11 @@
       if (file) file.name = `file_${index}`;
     });
   }
-  function selectRow(row) {
-    [...rows.children].forEach((other) => other.classList.toggle('document-row-selected', other === row));
-    deleteButton.disabled = !rows.querySelector('tr.document-row-selected');
-  }
-  deleteButton.addEventListener('click', () => {
-    const selected = rows.querySelector('tr.document-row-selected');
-    if (!selected) return;
-    selected.remove();
-    renumber();
-    deleteButton.disabled = true;
-  });
   function addDocument() {
     const row = document.createElement('tr');
-    row.innerHTML = '<td data-row-number></td><td><div class="document-type-field"><input type="text" data-document-code aria-label="Document code" autocomplete="off"><button class="document-type-search" type="button" aria-label="Search document type">⌕</button><input type="text" data-document-name aria-label="Document name" readonly></div></td><td><input type="text" aria-label="Reference number"></td><td class="document-file-cell"><input type="file" aria-label="Attached file" form="ucr-amend-form"></td><td></td>';
-    row.addEventListener('click', (event) => { if (event.target.closest('button')) return; selectRow(row); });
-    const selected = rows.querySelector('tr.document-row-selected');
-    if (selected) selected.after(row); else rows.append(row);
+    row.innerHTML = '<td data-row-number></td><td><div class="document-type-field"><input type="text" data-document-code aria-label="Document code" autocomplete="off"><button class="document-type-search" type="button" aria-label="Search document type">⌕</button><input type="text" data-document-name aria-label="Document name" readonly></div></td><td><input type="text" aria-label="Reference number"></td><td class="document-file-cell"><input type="file" aria-label="Attached file" form="ucr-amend-form"></td><td><button class="document-delete-button document-row-delete" type="button">Del</button></td>';
+    row.querySelector('.document-row-delete').addEventListener('click', () => { row.remove(); renumber(); });
+    rows.append(row);
     renumber();
   }
   document.querySelector('#add-document').addEventListener('click', () => {
