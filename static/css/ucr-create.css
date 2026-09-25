@@ -37,3 +37,9 @@
 /* Read-only country rows (View/Amend) have no search button; drop its column. */
 .ucr-lookup-field:not(:has(button)) { grid-template-columns: minmax(4.5rem,.65fr) minmax(8rem,1.35fr); }
 #ucr-party-results tr:hover td:nth-child(4) { text-decoration: underline; }
+
+/* Read-only View UCR sections: bordered label/value grid like the reference. */
+.ucr-view-table { width:100%; border-collapse:collapse; }
+.ucr-view-table th, .ucr-view-table td { border:1px solid var(--line); padding:.45rem .6rem; font-size:.78rem; text-align:left; vertical-align:middle; overflow-wrap:anywhere; }
+.ucr-view-table th { width:10rem; font-weight:400; }
+.ucr-view-table td { min-width:0; }

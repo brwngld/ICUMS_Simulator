@@ -19,7 +19,7 @@ import json
 
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 
-from .country_codes import COUNTRY_CODE_SET
+from .country_codes import COUNTRY_CODES, COUNTRY_CODE_SET
 from .models import (BillOfLading, CommercialDocument, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument,
                      ScenarioVersion, TrainingStakeholder, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment,
                      allocate_ucr_number, purge_expired_ucr_drafts)
@@ -628,6 +628,21 @@ def _ucr_record_payload(record):
     }
 
 
+COUNTRY_DISPLAY_NAMES = dict(COUNTRY_CODES)
+
+
+def _country_display(code):
+    code = (code or "").strip().upper()
+    return f"{code}, {COUNTRY_DISPLAY_NAMES.get(code, '')}" if code else ""
+
+
+def _party_value(identity, name):
+    identity, name = (identity or "").strip(), (name or "").strip()
+    if identity and name and identity != name:
+        return f"{identity}, {name}"
+    return name or identity
+
+
 def _ucr_form_context(record):
     """Shared context for the create-form-shaped View and Amend pages."""
     from .country_codes import COUNTRY_CODES
@@ -639,8 +654,22 @@ def _ucr_form_context(record):
         {"number": index + 1, "document": document, "attachments": attachments_by_row.get(index, [])}
         for index, document in enumerate(record.documents)
     ]
+    values = {
+        "ucr_no": record.ucr_no or record.temp_no,
+        "regime": f"{record.regime}, {UCR_REGIME_LABELS.get(record.regime, record.regime)}",
+        "declarant_code": record.declarant_code,
+        "provider_code": _party_value(record.provider_code, record.provider_name),
+        "provider_country": _country_display(record.provider_country),
+        "exporter_party": _party_value(record.exporter_identity, record.exporter_name),
+        "exporter_country": _country_display(record.exporter_country),
+        "importer_party": _party_value(record.importer_identity, record.importer_name),
+        "importer_country": _country_display(record.importer_country),
+        "origin_country": _country_display(record.origin_country),
+        "destination_country": _country_display(record.destination_country),
+    }
     return {
         "record": record,
+        "values": values,
         "country_names": dict(COUNTRY_CODES),
         "regime_labels": UCR_REGIME_LABELS,
         "regime_family_choices": [(code, UCR_REGIME_LABELS.get(code, code)) for code in UCR_REGIME_FAMILIES.get(record.regime, (record.regime,))],
