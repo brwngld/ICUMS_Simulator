@@ -27,6 +27,7 @@
     document.querySelector('#ucr-provider').hidden = false;
     selectedProvider = null;
     document.querySelector('#document-rows').replaceChildren();
+    deleteButton.disabled = true;
     requiredFields.forEach((entry) => markRequired(entry, false));
     status.hidden = true;
   }
@@ -34,6 +35,7 @@
     content.querySelectorAll('input, textarea, select, button').forEach((field) => {
       if (field !== regime && field.id !== 'ucr-save' && field.id !== 'ucr-submit' && field.id !== 'ucr-show-provider') field.disabled = !regime.value;
     });
+    syncDeleteButton();
   }
   regime.addEventListener('change', () => { resetForRegime(); updateRegime(); setRegimeGate(); loadAssignedProvider(); });
   updateRegime();
@@ -222,19 +224,46 @@
   });
 
   const rows = document.querySelector('#document-rows');
+  const deleteButton = document.querySelector('#delete-document');
   function renumber() { [...rows.children].forEach((row, index) => { row.querySelector('[data-row-number]').textContent = index + 1; }); }
+  function syncDeleteButton() { deleteButton.disabled = !regime.value || !rows.querySelector('tr.document-row-selected'); }
+  function selectRow(row) {
+    [...rows.children].forEach((other) => other.classList.toggle('document-row-selected', other === row));
+    syncDeleteButton();
+  }
+  deleteButton.addEventListener('click', () => {
+    const selected = rows.querySelector('tr.document-row-selected');
+    if (!selected) return;
+    selected.remove();
+    renumber();
+    syncDeleteButton();
+  });
+  function renderAttachment(row, attachment) {
+    const cell = row.querySelector('.document-file-cell');
+    if (!cell || !attachment || !attachment.url) return;
+    const link = document.createElement('a');
+    link.href = attachment.url;
+    link.textContent = attachment.name;
+    cell.replaceChildren(link);
+  }
   function addDocument(data = null) {
     const row = document.createElement('tr');
-    row.innerHTML = '<td data-row-number></td><td><div class="document-type-field"><input type="text" data-document-code aria-label="Document code" autocomplete="off"><button class="document-type-search" type="button" aria-label="Search document type">⌕</button><input type="text" data-document-name aria-label="Document name" readonly></div></td><td><input type="text" aria-label="Reference number"></td><td><input type="file" aria-label="Attached file"></td><td><button class="document-delete-button" type="button">Del</button></td>';
-    row.querySelector('.document-delete-button').addEventListener('click', () => { row.remove(); renumber(); });
-    rows.append(row); renumber();
+    row.innerHTML = '<td data-row-number></td><td><div class="document-type-field"><input type="text" data-document-code aria-label="Document code" autocomplete="off"><button class="document-type-search" type="button" aria-label="Search document type">⌕</button><input type="text" data-document-name aria-label="Document name" readonly></div></td><td><input type="text" aria-label="Reference number"></td><td class="document-file-cell"><input type="file" aria-label="Attached file"></td><td></td>';
+    row.addEventListener('click', (event) => { if (event.target.closest('button')) return; selectRow(row); });
+    const selected = rows.querySelector('tr.document-row-selected');
+    if (selected) selected.after(row); else rows.append(row);
+    renumber();
+    if (data && data.attachment) renderAttachment(row, data.attachment);
     if (data) {
       row.querySelector('[data-document-code]').value = data.code || '';
       row.querySelector('[data-document-name]').value = data.name || '';
       row.querySelector('td:nth-child(3) input').value = data.reference || '';
     }
   }
-  document.querySelector('#add-document').addEventListener('click', () => addDocument());
+  document.querySelector('#add-document').addEventListener('click', () => {
+    addDocument();
+    rows.querySelector('tr:last-child input[data-document-code]')?.focus();
+  });
   if (initialDraft) {
     regime.value = initialDraft.regime;
     updateRegime();
@@ -257,7 +286,9 @@
     [['goods', 'goods'], ['mode', 'mode'], ['reference', 'reference'], ['email', 'email']].forEach(([id, key]) => { document.querySelector(`#ucr-${id}`).value = consignment[key] || ''; });
     setCountry(document.querySelector('#ucr-origin'), consignment.origin);
     setCountry(document.querySelector('#ucr-destination'), consignment.destination);
-    (initialDraft.documents || []).forEach(addDocument);
+    (initialDraft.documents || []).forEach((document, index) => {
+      addDocument({...document, attachment: (initialDraft.attachments || []).find((entry) => entry.row_index === index)});
+    });
   }
 
   const saveButton = document.querySelector('#ucr-save');
@@ -314,14 +345,15 @@
   }
   async function postUcr(url, payload) {
     const allRows = [...rows.querySelectorAll('tr')];
-    if (allRows.some((row) => row.querySelector('input[type=file]').files[0] && !row.querySelector('[data-document-code]').value.trim() && !row.querySelector('td:nth-child(3) input').value.trim())) {
-      throw new Error('Enter a document code or reference number for each attached file.');
-    }
-    const files = allRows.map((row) => row.querySelector('input[type=file]').files[0]).filter(Boolean);
+    const missingCode = allRows.some((row) => {
+      const input = row.querySelector('input[type=file]');
+      return input && input.files[0] && !row.querySelector('[data-document-code]').value.trim() && !row.querySelector('td:nth-child(3) input').value.trim();
+    });
+    if (missingCode) throw new Error('Enter a document code or reference number for each attached file.');
     const form = new FormData();
     form.append('payload', JSON.stringify(payload));
     allRows.filter((row) => row.querySelector('[data-document-code]').value.trim() || row.querySelector('td:nth-child(3) input').value.trim()).forEach((row, index) => {
-      const file = row.querySelector('input[type=file]').files[0];
+      const file = row.querySelector('input[type=file]')?.files[0];
       if (file) form.append(`file_${index}`, file);
     });
     const response = await fetch(url, {
@@ -335,8 +367,16 @@
       error.fieldErrors = data.errors || null;
       throw error;
     }
-    if (files.length) rows.querySelectorAll('input[type=file]').forEach((input) => { input.value = ''; });
     return data;
+  }
+  function applyAttachments(data) {
+    const attachments = data.attachments || [];
+    if (!attachments.length) return;
+    const indexedRows = [...rows.querySelectorAll('tr')].filter((row) => row.querySelector('[data-document-code]').value.trim() || row.querySelector('td:nth-child(3) input').value.trim());
+    attachments.forEach((attachment) => {
+      const row = indexedRows[attachment.row_index];
+      if (row) renderAttachment(row, attachment);
+    });
   }
   function reportStatus(message, isError) {
     status.hidden = false;
@@ -383,6 +423,7 @@
         history.replaceState(null, '', url);
       }
       document.querySelector('#ucr-temp').value = data.temp_no;
+      applyAttachments(data);
       submitButton.disabled = false;
       reportStatus(`Draft saved as ${data.temp_no}. Select Submit to generate the final UCR number.`);
     } catch (error) {
@@ -399,7 +440,8 @@
       const data = await postUcr(window.ucrSubmitUrl, collectUcrPayload());
       document.querySelector('#ucr-temp').value = data.ucr_no;
       saveButton.disabled = true;
-      reportStatus(`Submitted. UCR No.: ${data.ucr_no} — use this reference in later clearance steps.`);
+      reportStatus(`Submitted. UCR No.: ${data.ucr_no} — opening the UCR view.`);
+      if (data.detail_url) window.location.href = data.detail_url;
     } catch (error) {
       if (error.fieldErrors) reportFieldErrors(error.fieldErrors);
       else reportStatus(error.message, true);

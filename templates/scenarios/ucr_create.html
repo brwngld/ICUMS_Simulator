@@ -6,7 +6,7 @@
   <title>Create UCR · ICUMS Simulator</title>
   <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260923-1">
   <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260919-4">
-  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260919-3">
+  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260924-1">
 </head>
 <body>
   <a class="portal-skip" href="#main-content">Skip to Create UCR form</a>
@@ -66,7 +66,7 @@
           <label for="ucr-reference">User Reference No.</label><input id="ucr-reference">
           <label for="ucr-email">UCR Email Distribution</label><textarea id="ucr-email" rows="2"></textarea>
         </div></section>
-        <section class="cargo-panel"><div class="cargo-panel-title"><h2>eDocuments Details</h2></div><div class="cargo-table-wrap"><table class="ucr-documents"><thead><tr><th>No.</th><th>Document Type</th><th>Reference No.</th><th>Attached File</th><th><button id="add-document" class="document-add-button" type="button">Add</button></th></tr></thead><tbody id="document-rows"></tbody></table></div>{% if initial_attachments %}<p>Previously attached: {% for attachment in initial_attachments %}<a href="{% url 'ucr-attachment' attachment.pk %}">{{ attachment.original_name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}</section>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>eDocuments Details</h2></div><div class="cargo-table-wrap"><table class="ucr-documents"><thead><tr><th>No.</th><th>Document Type</th><th>Reference No.</th><th>Attached File</th><th><div class="doc-header-actions"><button id="add-document" class="document-add-button" type="button">Add</button><button id="delete-document" class="document-delete-button" type="button" disabled>Del</button></div></th></tr></thead><tbody id="document-rows"></tbody></table></div></section>
         <div class="cargo-actions"><a class="secondary-button" href="{% url 'single-window-search-ucr' %}">☷ List</a><button class="primary-button" id="ucr-save" type="button">✎ Save</button><button class="primary-button" id="ucr-submit" type="button" disabled>▣ Submit</button></div>
         <p id="ucr-status" role="status" class="dialog-help" hidden></p>
       </div>
@@ -81,7 +81,7 @@
   <script src="{% static 'js/dialog-pagination.js' %}?v=20260918-1" defer></script>
   {{ initial_ucr|json_script:"ucr-initial-draft" }}
   <script>window.ucrInitialDraft = JSON.parse(document.querySelector('#ucr-initial-draft').textContent);</script>
-  <script src="{% static 'js/ucr-create.js' %}?v=20260919-1" defer></script>
+  <script src="{% static 'js/ucr-create.js' %}?v=20260924-2" defer></script>
   <script src="{% static 'js/ucr-document-codes.js' %}?v=20260918-2" defer></script>
   <script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script>
 </body></html>

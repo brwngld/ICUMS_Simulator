@@ -224,8 +224,7 @@ def single_window_create_ucr(request):
             submitted = UcrDeclaration.objects.filter(pk=draft_id, owner=request.user).first()
             if submitted:
                 return redirect("ucr-detail", record_id=submitted.pk)
-    return render(request, "scenarios/ucr_create.html", {"initial_ucr": _ucr_record_payload(draft) if draft else None,
-                                                          "initial_attachments": draft.attachments.all() if draft else ()})
+    return render(request, "scenarios/ucr_create.html", {"initial_ucr": _ucr_record_payload(draft) if draft else None})
 
 
 @simulator_access_required
@@ -490,7 +489,8 @@ def ucr_save_declaration(request):
         record.temp_no = allocate_ucr_number(UcrDeclaration.TEMP_PREFIX)
     record.save()
     _save_ucr_attachments(record, request)
-    return JsonResponse({"id": record.pk, "temp_no": record.temp_no, "status": record.status})
+    return JsonResponse({"id": record.pk, "temp_no": record.temp_no, "status": record.status,
+                         "attachments": _ucr_attachment_payload(record)})
 
 
 @simulator_access_required
@@ -515,7 +515,9 @@ def ucr_submit_declaration(request):
     record.submitted_at = timezone.now()
     record.save()
     _save_ucr_attachments(record, request)
-    return JsonResponse({"id": record.pk, "temp_no": record.temp_no, "ucr_no": record.ucr_no, "status": record.status})
+    return JsonResponse({"id": record.pk, "temp_no": record.temp_no, "ucr_no": record.ucr_no, "status": record.status,
+                         "detail_url": reverse("ucr-detail", args=(record.pk,)),
+                         "attachments": _ucr_attachment_payload(record)})
 
 
 @simulator_access_required
@@ -595,6 +597,17 @@ def ucr_reference_search(request):
     return JsonResponse({"results": results})
 
 
+def _ucr_attachment_payload(record):
+    """First saved attachment per document row so the form can show file names as links."""
+    first_by_row = {}
+    for attachment in record.attachments.all():
+        first_by_row.setdefault(attachment.row_index, attachment)
+    return [
+        {"row_index": row_index, "name": attachment.original_name, "url": reverse("ucr-attachment", args=(attachment.pk,))}
+        for row_index, attachment in sorted(first_by_row.items())
+    ]
+
+
 def _ucr_record_payload(record):
     if record is None:
         return None
@@ -611,6 +624,7 @@ def _ucr_record_payload(record):
                         "destination": record.destination_country, "mode": record.transport_mode,
                         "reference": record.user_reference, "email": record.ucr_email},
         "documents": record.documents,
+        "attachments": _ucr_attachment_payload(record),
     }
 
 
@@ -1265,6 +1279,44 @@ def single_window_preparation_application(request, mode):
         "filters": filters,
         "records": records,
         "search_error": search_attempted and not has_criteria,
+        "breadcrumb_section": "Preparation Application",
+        "breadcrumb_create_path": reverse("single-window-create-preparation-application"),
+        "breadcrumb_search_path": reverse("single-window-search-preparation-application"),
+    })
+
+
+@simulator_access_required
+def single_window_create_consignment_application(request):
+    """Consignment Application entry screen; mirrors the Preparation Application create flow."""
+    return render(request, "scenarios/single_window_preparation_application.html", {
+        "mode": "create",
+        "page_title": "Create Application",
+        "breadcrumb_section": "Consignment Application",
+        "breadcrumb_create_path": reverse("single-window-create-consignment-application"),
+        "breadcrumb_search_path": reverse("single-window-search-consignment-application"),
+    })
+
+
+@simulator_access_required
+def single_window_search_consignment_application(request):
+    """Consignment Application search; every created application is listed and filters are optional."""
+    filters = {key: request.GET.get(key, "").strip() for key in ("ucr", "number", "exporter", "importer", "date_from", "date_to")}
+    records = ConsignmentApplication.objects.filter(owner=request.user).select_related("ucr").order_by("-created_at")
+    if filters["ucr"]:
+        records = records.filter(ucr__ucr_no__icontains=filters["ucr"])
+    if filters["number"]:
+        records = records.filter(application_no__icontains=filters["number"])
+    if filters["exporter"]:
+        records = records.filter(Q(exporter_name__icontains=filters["exporter"]) | Q(ucr__exporter_identity__icontains=filters["exporter"]) | Q(ucr__exporter_name__icontains=filters["exporter"]))
+    if filters["importer"]:
+        records = records.filter(Q(importer_code__icontains=filters["importer"]) | Q(ucr__importer_identity__icontains=filters["importer"]) | Q(ucr__importer_name__icontains=filters["importer"]))
+    if filters["date_from"]:
+        records = records.filter(created_at__date__gte=filters["date_from"])
+    if filters["date_to"]:
+        records = records.filter(created_at__date__lte=filters["date_to"])
+    return render(request, "scenarios/single_window_search_consignment_application.html", {
+        "filters": filters,
+        "records": records,
     })
 
 
@@ -1307,8 +1359,6 @@ SINGLE_WINDOW_REFERENCE_PAGES = {
     "fcie-create": {"title": "Create FCIE Registration", "section": "Registration · FCIE Registration", "panel": "New Registration", "fields": ["Application Ref. No.", "Importer Code", "Importer Name", "Registration Type", "Remarks"]},
     "fcie-search": {"title": "Search FCIE Registration", "section": "Registration · FCIE Registration", "panel": "Registration Search", "fields": ["Application No.", "Importer Code or Name", "Status", "Register Date"], "columns": ["No.", "Application No.", "Importer", "Status", "Register Date"]},
     "master-search": {"title": "Search Master Application", "section": "Application · Master Application", "panel": "Application List", "fields": ["Application No.", "eMDA", "Applicant Code or Name", "Status", "Register Date"], "columns": ["No.", "Application No.", "eMDA", "Applicant", "Process", "Status", "Register Date"]},
-    "consignment-create": {"title": "Create Consignment Application", "section": "Application · Consignment Application", "panel": "New Consignment Request", "fields": ["UCR No.", "Master Application No.", "eMDA", "Application", "Process"]},
-    "consignment-search": {"title": "Search Consignment Application", "section": "Application · Consignment Application", "panel": "Application List", "fields": ["UCR No.", "Application No.", "Exporter Code or Name", "Importer Code or Name", "Register Date"], "columns": ["No.", "Application No.", "UCR No.", "Exporter", "Importer", "Register Date"]},
     "bank-create": {"title": "Create Bank Pre-Registration", "section": "Letter of Commitment · Bank Pre-Registration", "panel": "New Bank Pre-Registration", "fields": ["Bank", "Branch", "Applicant TIN", "Applicant Name", "Reference No."]},
     "bank-search": {"title": "Search Bank Pre-Registration", "section": "Letter of Commitment · Bank Pre-Registration", "panel": "Bank Pre-Registration Search", "fields": ["Registration No.", "Bank", "Applicant Code or Name", "Register Date"], "columns": ["No.", "Registration No.", "Bank", "Applicant", "Status", "Register Date"]},
     "letter-create": {"title": "Create Letter of Commitment", "section": "Letter of Commitment", "panel": "New Letter of Commitment", "fields": ["Bank Registration No.", "Importer Code", "UCR No.", "Currency", "Amount", "Remarks"]},

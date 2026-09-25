@@ -19,7 +19,13 @@
 #ucr-status.ucr-status-error { font-weight:700; }
 .ucr-documents { width:100%; table-layout:fixed; }
 .ucr-documents th:first-child,.ucr-documents td:first-child { width:3rem; text-align:center; }
-.ucr-documents th:last-child,.ucr-documents td:last-child { width:4rem; text-align:center; }
+.ucr-documents th:last-child,.ucr-documents td:last-child { width:5.5rem; text-align:center; }
+.doc-header-actions { display:flex; flex-direction:column; gap:.3rem; align-items:stretch; }
+.doc-header-actions button { min-width:0; margin:0; white-space:nowrap; }
+.doc-header-actions .document-delete-button:disabled { opacity:.5; cursor:not-allowed; }
+.doc-header-actions .document-delete-button:disabled:hover { color:#384158; border-color:#b9c1d1; background:linear-gradient(#fff,#f0f2f7); }
+#document-rows tr { cursor:pointer; }
+#document-rows tr.document-row-selected td { background:rgba(81,69,205,.10); }
 .ucr-documents th:nth-child(2) { width:32%; }
 .ucr-documents th:nth-child(3) { width:34%; }
 .ucr-documents th:nth-child(4) { width:auto; }
@@ -30,6 +36,7 @@
 .ucr-documents .document-type-field button { min-width:0; }
 .ucr-documents td>input[type=text] { min-width:0; }
 .ucr-documents td>input[type=file] { min-width:0; max-width:100%; font-size:.72rem; }
+.ucr-documents .document-file-cell a { word-break:break-all; }
 #ucr-party-results tr { cursor:pointer; }
 #ucr-party-results tr:hover { background:var(--canvas); }
 @media (max-width:55rem) { .ucr-documents { min-width:42rem; } }

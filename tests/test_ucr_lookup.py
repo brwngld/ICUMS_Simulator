@@ -876,3 +876,69 @@ def test_application_delete_is_draft_only_and_owner_scoped(client):
     # Importer filters are partial and search the inherited UCR TIN/name too.
     importer_match = client.get(search_url, {"importer": "progress", "searched": "1"})
     assert b"P0001234567, Work In Progress" in importer_match.content
+
+
+@pytest.mark.django_db
+def test_ucr_save_and_submit_return_attachment_links_and_view_url(client):
+    user = User.objects.create_user(username="ucr-view-flow", password="test-pass", is_staff=True)
+    client.force_login(user)
+    with override_settings(STORAGES={
+        "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }):
+        upload = lambda: SimpleUploadedFile("invoice.pdf", b"%PDF-1.4\nfictional training attachment", content_type="application/pdf")
+        saved = client.post(reverse("ucr-save"), {"payload": json.dumps(_ucr_payload()), "file_0": upload()}).json()
+        assert saved["attachments"][0]["name"] == "invoice.pdf"
+        assert "/attachments/" in saved["attachments"][0]["url"]
+        submitted = client.post(reverse("ucr-submit"), {
+            "payload": json.dumps({**_ucr_payload(), "draft_id": saved["id"]}),
+            "file_0": upload(),
+        }).json()
+        assert submitted["ucr_no"]
+        assert submitted["attachments"][0]["name"] == "invoice.pdf"
+        view = client.get(submitted["detail_url"])
+        assert view.status_code == 200
+        assert submitted["ucr_no"].encode() in view.content
+        assert b"invoice.pdf" in view.content
+
+
+@pytest.mark.django_db
+def test_consignment_create_application_mirrors_preparation_create(client):
+    user = User.objects.create_user(username="consignment-creator", password="test-pass", is_staff=True)
+    client.force_login(user)
+    page = client.get(reverse("single-window-create-consignment-application"))
+    assert page.status_code == 200
+    assert b"Consignment Application" in page.content
+    assert b"New Master Request" in page.content
+    assert b'id="preparation-ucr-search"' in page.content
+    assert b'id="ucr-reference-dialog"' in page.content
+    assert b"Create Application Form" in page.content
+
+
+@pytest.mark.django_db
+def test_consignment_search_application_lists_every_created_application(client):
+    user = User.objects.create_user(username="consignment-searcher", password="test-pass", is_staff=True)
+    client.force_login(user)
+    draft_id = client.post(reverse("ucr-save"), _ucr_payload(), content_type="application/json").json()["id"]
+    ucr_no = client.post(reverse("ucr-submit"), {**_ucr_payload(), "draft_id": draft_id}, content_type="application/json").json()["ucr_no"]
+    payload = {
+        "ucr_no": ucr_no,
+        "exporter": {"name": "Fictional Exporter Ltd", "physical_country": "GH", "physical_address": "Training address", "tel": "233"},
+        "consignor": {"same": True},
+        "importer": {"code": "Fictional Importer Ltd", "physical_country": "CN", "physical_address": "Fictional importer address", "tel": "233"},
+        "consignee": {"same": True},
+        "means_of_transport": "10, Sea Transport", "shipment_date": "2026-09-19",
+        "delivery_term": "CFR", "currency": "USD", "fob_fcy": "257", "freight_fcy": "80",
+        "items": [{"hs_code": "6309000000", "description": "USED SHOES GRADE C", "state_of_goods": "02", "quantity_unit": "KGM", "quantity": "20", "package_unit": "KG", "package_quantity": "20", "origin_country": "CA", "net_weight": "20.00", "gross_weight": "20.00", "currency": "USD", "exchange_rate": "12.41", "price_fcy": "10.00", "price_ncy": "124.10", "unit_fob_fcy": "0.5000", "unit_fob_ncy": "6.205", "fob_fcy": "10", "fob_ncy": "124.10", "remarks": "OK"}],
+    }
+    saved = client.post(reverse("application-save"), payload, content_type="application/json").json()
+    search_url = reverse("single-window-search-consignment-application")
+    page = client.get(search_url)
+    assert page.status_code == 200
+    assert saved["application_no"].encode() in page.content
+    assert ucr_no.encode() in page.content
+    assert b"Fictional Exporter Ltd" in page.content
+    filtered = client.get(search_url, {"number": saved["application_no"]})
+    assert saved["application_no"].encode() in filtered.content
+    empty = client.get(search_url, {"number": "CD999999"})
+    assert b"No data found." in empty.content
