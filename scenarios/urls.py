@@ -45,6 +45,7 @@ urlpatterns = [
     path("single-window/application/consignment-document/mda-requests/", views.application_mda_request_create, name="application-mda-request-create"),
     path("single-window/application/mda/<int:request_id>/", views.mda_consignment_application, name="mda-consignment-application"),
     path("single-window/application/mda/<int:request_id>/save/", views.mda_consignment_application_save, name="mda-consignment-application-save"),
+    path("single-window/application/mda/delete/", views.mda_request_delete, name="mda-request-delete"),
     path("single-window/application/consignment-document/save/", views.application_save_declaration, name="application-save"),
     path("single-window/application/consignment-document/submit/", views.application_submit_declaration, name="application-submit"),
     path("single-window/application/master/create/", views.single_window_create_master_application, name="single-window-create-master-application"),

@@ -329,3 +329,7 @@ html[data-theme="dark"] .app-confirm-detail-table td { color: #dce3f4; backgroun
   .cargo-table-wrap > table, .ucr-search-table { min-width: 100%; }
   .cargo-table-wrap > table th, .ucr-search-table th { padding-inline: .35rem; }
 }
+
+/* Search Application records panel actions (Delete + Excel Download). */
+.panel-actions { display: flex; align-items: center; gap: .5rem; }
+.panel-actions form { margin: 0; }

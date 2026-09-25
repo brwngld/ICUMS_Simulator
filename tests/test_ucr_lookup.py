@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from scenarios.admin import TrainingServiceProviderForm, TrainingStakeholderForm, TrainingStakeholderNameForm, TrainingStakeholderNameFormSet
-from scenarios.models import TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment
+from scenarios.models import MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment
 
 
 @pytest.mark.django_db
@@ -916,9 +916,12 @@ def test_consignment_create_application_mirrors_preparation_create(client):
 
 
 @pytest.mark.django_db
-def test_consignment_search_application_lists_every_created_application(client):
+def test_consignment_search_application_lists_mda_requests(client):
     user = User.objects.create_user(username="consignment-searcher", password="test-pass", is_staff=True)
     client.force_login(user)
+    fda = MdaAgency.objects.get(code="FDA")
+    permit = MdaApplication.objects.create(mda=fda, code="IDF", name="Import Duty Framework")
+    new_process = MdaProcess.objects.create(application=permit, code="NEW", name="New Application")
     draft_id = client.post(reverse("ucr-save"), _ucr_payload(), content_type="application/json").json()["id"]
     ucr_no = client.post(reverse("ucr-submit"), {**_ucr_payload(), "draft_id": draft_id}, content_type="application/json").json()["ucr_no"]
     payload = {
@@ -932,13 +935,29 @@ def test_consignment_search_application_lists_every_created_application(client):
         "items": [{"hs_code": "6309000000", "description": "USED SHOES GRADE C", "state_of_goods": "02", "quantity_unit": "KGM", "quantity": "20", "package_unit": "KG", "package_quantity": "20", "origin_country": "CA", "net_weight": "20.00", "gross_weight": "20.00", "currency": "USD", "exchange_rate": "12.41", "price_fcy": "10.00", "price_ncy": "124.10", "unit_fob_fcy": "0.5000", "unit_fob_ncy": "6.205", "fob_fcy": "10", "fob_ncy": "124.10", "remarks": "OK"}],
     }
     saved = client.post(reverse("application-save"), payload, content_type="application/json").json()
+    mda_created = client.post(reverse("application-mda-request-create"), {
+        "consignment_application_id": saved["id"], "mda_id": fda.pk, "application_id": permit.pk,
+        "process_id": new_process.pk, "consignment_type": "SG", "master_no": "",
+    }, content_type="application/json").json()
+
     search_url = reverse("single-window-search-consignment-application")
     page = client.get(search_url)
     assert page.status_code == 200
-    assert saved["application_no"].encode() in page.content
+    # The MDA's own application number is listed, not the consignment document number.
+    assert mda_created["application_no"].encode() in page.content
     assert ucr_no.encode() in page.content
     assert b"Fictional Exporter Ltd" in page.content
-    filtered = client.get(search_url, {"number": saved["application_no"]})
-    assert saved["application_no"].encode() in filtered.content
-    empty = client.get(search_url, {"number": "CD999999"})
+    assert b"FDA" in page.content
+    assert b"Amend" in page.content
+    assert reverse("mda-consignment-application", args=(mda_created["id"],)).encode() in page.content
+    assert saved["application_no"].encode() not in page.content
+
+    filtered = client.get(search_url, {"mda": "FDA"})
+    assert mda_created["application_no"].encode() in filtered.content
+    empty = client.get(search_url, {"mda": "GSA"})
     assert b"No data found." in empty.content
+
+    # Draft MDA applications can be deleted from the search page.
+    response = client.post(reverse("mda-request-delete"), {"mda_request_id": mda_created["id"]})
+    assert response.status_code == 302
+    assert not MdaConsignmentRequest.objects.filter(pk=mda_created["id"]).exists()

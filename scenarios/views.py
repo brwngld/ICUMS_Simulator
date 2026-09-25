@@ -1299,25 +1299,63 @@ def single_window_create_consignment_application(request):
 
 @simulator_access_required
 def single_window_search_consignment_application(request):
-    """Consignment Application search; every created application is listed and filters are optional."""
-    filters = {key: request.GET.get(key, "").strip() for key in ("ucr", "number", "exporter", "importer", "date_from", "date_to")}
-    records = ConsignmentApplication.objects.filter(owner=request.user).select_related("ucr").order_by("-created_at")
+    """Consignment Application search; the records are the MDA applications created from consignment documents."""
+    filters = {key: request.GET.get(key, "").strip() for key in
+               ("ucr", "number", "exporter", "importer", "mda", "application", "date_from", "date_to", "status")}
+    records = (MdaConsignmentRequest.objects
+               .filter(consignment_application__owner=request.user)
+               .select_related("consignment_application__ucr", "mda", "application", "process")
+               .order_by("-created_at"))
     if filters["ucr"]:
-        records = records.filter(ucr__ucr_no__icontains=filters["ucr"])
+        records = records.filter(consignment_application__ucr__ucr_no__icontains=filters["ucr"])
     if filters["number"]:
         records = records.filter(application_no__icontains=filters["number"])
     if filters["exporter"]:
-        records = records.filter(Q(exporter_name__icontains=filters["exporter"]) | Q(ucr__exporter_identity__icontains=filters["exporter"]) | Q(ucr__exporter_name__icontains=filters["exporter"]))
+        records = records.filter(
+            Q(consignment_application__exporter_name__icontains=filters["exporter"])
+            | Q(consignment_application__ucr__exporter_identity__icontains=filters["exporter"])
+            | Q(consignment_application__ucr__exporter_name__icontains=filters["exporter"]))
     if filters["importer"]:
-        records = records.filter(Q(importer_code__icontains=filters["importer"]) | Q(ucr__importer_identity__icontains=filters["importer"]) | Q(ucr__importer_name__icontains=filters["importer"]))
+        records = records.filter(
+            Q(consignment_application__importer_code__icontains=filters["importer"])
+            | Q(consignment_application__ucr__importer_identity__icontains=filters["importer"])
+            | Q(consignment_application__ucr__importer_name__icontains=filters["importer"]))
+    if filters["mda"]:
+        records = records.filter(mda__code__iexact=filters["mda"])
+    if filters["application"]:
+        records = records.filter(application__pk=filters["application"]) if filters["application"].isdigit() else records.none()
+    if filters["status"]:
+        records = records.filter(status__iexact=filters["status"])
     if filters["date_from"]:
         records = records.filter(created_at__date__gte=filters["date_from"])
     if filters["date_to"]:
         records = records.filter(created_at__date__lte=filters["date_to"])
+    status_options = list(MdaConsignmentRequest.objects.values_list("status", flat=True).distinct().order_by("status")) or ["Draft"]
     return render(request, "scenarios/single_window_search_consignment_application.html", {
         "filters": filters,
         "records": records,
+        "mdas": MdaAgency.objects.filter(is_active=True).order_by("code"),
+        "mda_applications": MdaApplication.objects.filter(is_active=True).select_related("mda").order_by("mda__code", "code"),
+        "status_options": status_options,
     })
+
+
+@simulator_access_required
+@require_POST
+def mda_request_delete(request):
+    """Only draft MDA applications can be deleted from the Consignment Application search."""
+    mda_id = str(request.POST.get("mda_request_id", "")).strip()
+    record = (MdaConsignmentRequest.objects.filter(pk=mda_id, consignment_application__owner=request.user).first()
+              if mda_id.isdigit() else None)
+    if record is None:
+        messages.error(request, "Select an MDA application record to delete.")
+    elif record.status != "Draft":
+        messages.error(request, "Only draft MDA applications can be deleted.")
+    else:
+        application_no = record.application_no
+        record.delete()
+        messages.success(request, f"Draft MDA application {application_no} was deleted.")
+    return redirect("single-window-search-consignment-application")
 
 
 @simulator_access_required
