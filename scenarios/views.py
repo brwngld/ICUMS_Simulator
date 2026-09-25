@@ -14,16 +14,18 @@ from django.views.decorators.http import require_GET, require_POST
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from functools import wraps
-from datetime import date
+from datetime import date, timedelta
 import json
 
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 
 from .country_codes import COUNTRY_CODES, COUNTRY_CODE_SET
+
+COUNTRY_DISPLAY_NAMES = dict(COUNTRY_CODES)
 from .models import (BillOfLading, CommercialDocument, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument,
                      ScenarioVersion, TrainingStakeholder, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment,
                      allocate_ucr_number, purge_expired_ucr_drafts)
-from .models import BoeDeclaration, BoeStageEvent, ConsignmentApplication, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus, PortCode, allocate_application_number, allocate_boe_number
+from .models import BoeDeclaration, BoeStageEvent, ConsignmentApplication, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus, PortCode, allocate_application_number, allocate_boe_number, allocate_job_number
 from .pdfs import build_bill_of_lading_pdf, build_commercial_document_pdf, build_fictitious_document_pdf
 from assessment.service import compute_from_invoice
 from .services import available_actions, perform_action, practical_is_unlocked, record_hint, start_or_resume_attempt
@@ -1579,9 +1581,9 @@ def boe_create(request):
         cpc=str(payload.get("cpc", "")).strip().upper()[:12],
         zone=str(payload.get("zone", "")).strip().upper()[:3],
         form_data=json.loads(json.dumps(_application_record_payload(idf.consignment_application), cls=DjangoJSONEncoder)),
-        declaration_no=allocate_boe_number(),
+        job_no=allocate_job_number(),
     )
-    return JsonResponse({"url": reverse("boe-declaration", args=(declaration.pk,)), "declaration_no": declaration.declaration_no})
+    return JsonResponse({"url": reverse("boe-declaration", args=(declaration.pk,)), "job_no": declaration.job_no})
 
 
 @simulator_access_required
@@ -1601,16 +1603,52 @@ def boe_declaration(request, declaration_id):
     insurance_ncy = data.get("insurance_ncy")
     tax_rows, tax_summary = compute_from_invoice(fob_ncy, freight_ncy, insurance_ncy, hs_codes)
 
-    general = [
-        ("Declaration No.", declaration.declaration_no),
-        ("UCR No.", declaration.ucr.ucr_no),
-        ("IDF No.", declaration.idf.application_no if declaration.idf else ""),
-        ("Regime (Customs) Code", declaration.regime),
-        ("CPC", declaration.cpc),
-        ("Zone", declaration.zone),
-        ("Exporter", data.get("exporter.name", "")),
-        ("Importer", data.get("importer.code", "")),
-        ("General Goods Description", ", ".join(filter(None, (item.get("description") for item in items)))),
+    regime_name = CustomsRegime.objects.filter(code=declaration.regime).values_list("name", flat=True).first() or ""
+    country = lambda code: f"{code}, {COUNTRY_DISPLAY_NAMES.get((code or '').strip().upper(), '')}" if code else ""
+    consignee_same = bool(data.get("consignee_same"))
+    doc_date = timezone.localtime(declaration.created_at)
+    expiry_date = doc_date + timedelta(days=90)
+    general_sections = [
+        ("Header", [
+            ("Job No.", declaration.job_no),
+            ("Status", declaration.status_code_display),
+            ("BoE No.", declaration.declaration_no),
+            ("UCR No. *", declaration.ucr.ucr_no),
+            ("Regime *", declaration.regime + (f" — {regime_name}" if regime_name else "")),
+            ("Customs Office *", data.get("customs_office", "")),
+            ("CL. Plan *", "PMD — PMD, Pre-Arrival Declaration"),
+            ("Declaration Form Type *", "G — G, General"),
+            ("User Reference No.", declaration.ucr.user_reference),
+            ("Doc Date *", doc_date.strftime("%d/%m/%Y")),
+            ("Expiry Date For First Payment *", expiry_date.strftime("%d/%m/%Y")),
+            ("Dec Date", timezone.localtime(declaration.submitted_at).strftime("%d/%m/%Y") if declaration.submitted_at else ""),
+            ("Post Entry Date", ""),
+        ]),
+        ("Exporter", [
+            ("Exporter Name *", data.get("exporter.name", "")),
+            ("Country of Exporter *", country(data.get("exporter.physical_country"))),
+            ("Exporter Address *", data.get("exporter.physical_address", "")),
+        ]),
+        ("Importer", [
+            ("Importer Code *", data.get("importer.code", "")),
+            ("Country of Importer *", country(data.get("importer.physical_country"))),
+            ("Importer Address *", data.get("importer.physical_address", "")),
+        ]),
+        ("Consignee", [
+            ("Same as Importer", "Yes" if data.get("consignee_same") else "No"),
+            ("Consignee Code *", data.get("consignee.code", "")),
+            ("Consignee Address *", data.get("consignee.physical_address", "")),
+        ]),
+        ("Declarant Code", [
+            ("Declarant TIN", declaration.ucr.provider_code),
+            ("Declarant Code", declaration.ucr.declarant_code),
+            ("Declarant Name", declaration.ucr.provider_name),
+            ("Declarant Address", declaration.ucr.provider_address),
+        ]),
+        ("Taxpayer", [
+            ("Taxpayer Code", data.get("importer.code", "")),
+            ("Taxpayer *", "Importer"),
+        ]),
     ]
     transport = [
         ("Means of Transport", data.get("means_of_transport", "")),
@@ -1636,7 +1674,7 @@ def boe_declaration(request, declaration_id):
 
     return render(request, "scenarios/boe_declaration.html", {
         "declaration": declaration,
-        "general_fields": general,
+        "general_sections": general_sections,
         "transport_fields": transport,
         "invoice_fields": invoice,
         "items": items,
@@ -1656,7 +1694,9 @@ def boe_submit(request, declaration_id):
         return redirect("boe-declaration", declaration_id=declaration.pk)
     declaration.status = BoeDeclaration.Status.SUBMITTED
     declaration.submitted_at = timezone.now()
-    declaration.save(update_fields=("status", "submitted_at", "updated_at"))
+    if not declaration.declaration_no:
+        declaration.declaration_no = allocate_boe_number()
+    declaration.save(update_fields=("status", "submitted_at", "declaration_no", "updated_at"))
     BoeStageEvent.objects.create(declaration=declaration, name="BOE Received", created_by=request.user)
     messages.success(request, f"Declaration {declaration.declaration_no} was submitted.")
     return redirect("boe-declaration", declaration_id=declaration.pk)

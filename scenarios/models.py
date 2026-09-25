@@ -1014,6 +1014,24 @@ class BoeSequence(models.Model):
     current_value = models.PositiveIntegerField(default=0)
 
 
+class JobSequence(models.Model):
+    key = models.CharField(max_length=20, primary_key=True, default="job", editable=False)
+    current_value = models.PositiveIntegerField(default=0)
+
+
+def allocate_job_number():
+    """yymmdd + 4-digit sequence + GCH + 6-digit sequence, e.g. 2606230416GCH000869."""
+    from django.db import transaction
+    from django.utils import timezone
+
+    date_part = timezone.localtime().strftime("%y%m%d")
+    with transaction.atomic():
+        sequence, _ = JobSequence.objects.select_for_update().get_or_create(key="job")
+        sequence.current_value += 1
+        sequence.save(update_fields=("current_value",))
+        return f"{date_part}{sequence.current_value % 10000:04d}GCH{sequence.current_value:06d}"
+
+
 def allocate_boe_number():
     """BOE + two-digit year + a 7-digit sequence, e.g. BOE26000001."""
     from django.db import transaction
@@ -1037,7 +1055,14 @@ class BoeDeclaration(models.Model):
         ACCEPTED = "accepted", "Accepted"
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="boe_declarations")
+
+    @property
+    def status_code_display(self):
+        codes = {self.Status.DRAFT: "ER - Draft", self.Status.SUBMITTED: "SU - Submitted",
+                 self.Status.ASSESSED: "AS - Assessed", self.Status.ACCEPTED: "AC - Accepted"}
+        return codes.get(self.status, self.status)
     declaration_no = models.CharField(max_length=24, unique=True, blank=True, editable=False)
+    job_no = models.CharField(max_length=24, unique=True, blank=True, editable=False)
     idf = models.ForeignKey(MdaConsignmentRequest, on_delete=models.PROTECT, related_name="boe_declarations")
     ucr = models.OneToOneField(UcrDeclaration, on_delete=models.PROTECT, related_name="boe_declaration")
     regime = models.CharField(max_length=2, blank=True)

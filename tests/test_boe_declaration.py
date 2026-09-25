@@ -76,12 +76,13 @@ def test_boe_create_enforces_single_ucr_use(client):
         "regime": "IM", "cpc": "4000000", "zone": "ECO",
     }, content_type="application/json")
     assert created.status_code == 200
-    declaration_no = created.json()["declaration_no"]
-    assert declaration_no.startswith("BOE")
+    job_no = created.json()["job_no"]
+    assert "GCH" in job_no  # job numbers are allocated at creation
 
-    declaration = BoeDeclaration.objects.get(declaration_no=declaration_no)
+    declaration = BoeDeclaration.objects.get(job_no=job_no)
     assert declaration.ucr.ucr_no == "KGHTESTUCR9900000019"
     assert declaration.status == "draft"
+    assert declaration.declaration_no == ""  # the BoE number only exists after submission
 
     # The same UCR can never be declared twice.
     again = client.post(reverse("boe-create"), {
@@ -101,7 +102,7 @@ def test_boe_tabs_follow_the_declaration_status(client):
         "reuse": "IDF", "idf_number": idf.application_no,
         "regime": "IM", "cpc": "4000000", "zone": "ECO",
     }, content_type="application/json").json()
-    declaration = BoeDeclaration.objects.get(declaration_no=created["declaration_no"])
+    declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
     page_url = reverse("boe-declaration", args=(declaration.pk,))
 
     # Draft: the Tax tab is present; Customs Response is not.
@@ -109,12 +110,14 @@ def test_boe_tabs_follow_the_declaration_status(client):
     assert b'data-boe-tab="tax"' in draft.content
     assert b"Customs Response" not in draft.content
 
-    # Submission opens the customs response stages with BOE Received first.
+    # Submission generates the BoE number and opens the customs response stages.
     client.post(reverse("boe-submit", args=(declaration.pk,)))
     submitted = client.get(page_url)
     assert b"BOE Received" in submitted.content
     assert b'data-boe-tab="tax"' not in submitted.content
-    assert declaration.status == "submitted" or BoeDeclaration.objects.get(pk=declaration.pk).status == "submitted"
+    refreshed = BoeDeclaration.objects.get(pk=declaration.pk)
+    assert refreshed.status == "submitted"
+    assert refreshed.declaration_no.startswith("BOE")
 
     # The system assesses once the officers register the Assessment stage.
     declaration = BoeDeclaration.objects.get(pk=declaration.pk)

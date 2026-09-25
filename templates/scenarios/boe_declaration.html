@@ -5,7 +5,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BOE Declaration · {{ declaration.declaration_no }} · ICUMS Simulator</title>
   <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260925-2">
-  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-2">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-3">
   <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260925-6">
   <style>
     .boe-tabs { display: flex; flex-wrap: wrap; gap: .4rem; padding: .6rem 0; }
@@ -23,10 +23,10 @@
     {% include 'scenarios/_clearance_sidebar.html' %}
     <main id="main-content" class="portal-main cargo-main" tabindex="-1">
       <header class="portal-header cargo-header">
-        <div class="portal-heading"><p class="overline">Clearance · Declaration · Register Declaration</p><h1>BOE Declaration {{ declaration.declaration_no }}</h1></div>
+        <div class="portal-heading"><p class="overline">Clearance · Declaration · Register Declaration</p><h1>BOE Declaration {{ declaration.job_no }}</h1></div>
         <nav class="portal-top-nav" aria-label="Simulator navigation"><a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="{% url 'single-window-create-ucr' %}">Single Window</a></nav>
       </header>
-      <div class="cargo-breadcrumb"><a href="{% url 'clearance-workspace' %}">Clearance</a><span>›</span><span>Declaration</span><span>›</span><strong>{{ declaration.declaration_no }}</strong><span>·</span><span>{{ declaration.get_status_display }}</span></div>
+      <div class="cargo-breadcrumb"><a href="{% url 'clearance-workspace' %}">Clearance</a><span>›</span><span>Declaration</span><span>›</span><strong>{{ declaration.job_no }}</strong><span>·</span><span>{{ declaration.status_code_display }}</span></div>
       <div class="cargo-content">
         <nav class="boe-tabs" aria-label="Declaration sections">
           <button type="button" class="boe-tab" data-boe-tab="general" aria-current="tab">General</button>
@@ -38,14 +38,21 @@
           {% if declaration.status == 'draft' %}<button type="button" class="boe-tab" data-boe-tab="tax">Tax</button>{% endif %}
           {% if declaration.status != 'draft' %}<button type="button" class="boe-tab" data-boe-tab="response">Customs Response</button>{% endif %}
           {% if declaration.status == 'assessed' or declaration.status == 'accepted' %}<button type="button" class="boe-tab" data-boe-tab="assessment">Assessment</button>{% endif %}
-          <button type="button" class="boe-tab" data-boe-tab="bill">Bill of Tax</button>
+          {% if declaration.status != 'draft' %}<button type="button" class="boe-tab" data-boe-tab="bill">Bill of Tax</button>{% endif %}
         </nav>
 
         <section class="cargo-panel boe-tab-panel" id="boe-tab-general">
-          <div class="cargo-panel-title"><h2>General</h2></div>
-          <div class="summary-grid">
-            {% for label, value in general_fields %}<label>{{ label }}</label><input value="{{ value }}" readonly>{% endfor %}
+          {% for section_name, rows in general_sections %}
+          <div class="boe-section"><h2 class="boe-section-title">{{ section_name }}</h2>
+          <table class="ucr-view-table"><tbody>
+            {% for label, value in rows %}<tr><th>{{ label }}</th><td{% if forloop.parentloop.counter0 == 0 and label == 'BoE No.' %} class="boe-no-cell"{% endif %}>{{ value }}</td></tr>{% endfor %}
+          </tbody></table></div>
+          {% endfor %}
+          {% if declaration.status == 'draft' %}
+          <div class="cargo-actions">
+            <form method="post" action="{% url 'boe-submit' declaration.pk %}">{% csrf_token %}<button class="primary-button" type="submit">▣ Submit Declaration</button></form>
           </div>
+          {% endif %}
         </section>
 
         <section class="cargo-panel boe-tab-panel" id="boe-tab-blawb" hidden>
@@ -80,8 +87,9 @@
         <section class="cargo-panel boe-tab-panel" id="boe-tab-summary" hidden>
           <div class="cargo-panel-title"><h2>Summary</h2></div>
           <div class="summary-grid">
-            <label>Declaration No.</label><input value="{{ declaration.declaration_no }}" readonly>
-            <label>Status</label><input value="{{ declaration.get_status_display }}" readonly>
+            <label>Job No.</label><input value="{{ declaration.job_no }}" readonly>
+            <label>Status</label><input value="{{ declaration.status_code_display }}" readonly>
+            <label>BoE No.</label><input value="{{ declaration.declaration_no }}" readonly>
             <label>UCR No.</label><input value="{{ declaration.ucr.ucr_no }}" readonly>
             <label>IDF No.</label><input value="{{ declaration.idf.application_no }}" readonly>
             <label>Regime</label><input value="{{ declaration.regime }}" readonly>
@@ -130,10 +138,10 @@
         </section>
 
         <div class="cargo-actions">
+          <a class="secondary-button" href="{% url 'clearance-workspace' %}">☷ Back to Clearance</a>
           {% if declaration.status == 'draft' %}
           <form method="post" action="{% url 'boe-submit' declaration.pk %}">{% csrf_token %}<button class="primary-button" type="submit">▣ Submit Declaration</button></form>
           {% endif %}
-          <a class="secondary-button" href="{% url 'clearance-workspace' %}">☷ Back to Clearance</a>
         </div>
       </div>
     </main>
