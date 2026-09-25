@@ -47,21 +47,17 @@ def hs_duty_rate(hs_code: str) -> Decimal:
         return Decimal("0")
 
 
-def compute_assessment(application):
-    """Return (rows, totals) for the application using the configured TaxCodes."""
-    exchange_rate = application.exchange_rate or Decimal("1")
-    fob_ncy = _q2(application.fob_ncy if application.fob_ncy is not None else (application.fob_fcy or 0) * exchange_rate)
-    freight_ncy = _q2(application.freight_ncy or 0)
-    if application.insurance_ncy:
-        insurance_ncy = _q2(application.insurance_ncy)
+def compute_from_invoice(fob_ncy, freight_ncy, insurance_ncy, hs_codes):
+    """Compute the tax rows from invoice values. Returns (rows, summary)."""
+    fob_ncy = _q2(fob_ncy or 0)
+    freight_ncy = _q2(freight_ncy or 0)
+    if insurance_ncy:
+        insurance_ncy = _q2(insurance_ncy)
     else:
         insurance_ncy = _q2((fob_ncy + freight_ncy) * INSURANCE_RATE)
     customs_value = _q2(fob_ncy + freight_ncy + insurance_ncy)
-
-    items = application.items or []
-    hs_codes = [str(item.get("hs_code", "")).strip() for item in items]
-    is_vehicle = any(code.startswith(VEHICLE_HS_PREFIX) for code in hs_codes)
     duty_hs_code = hs_codes[0] if hs_codes else ""
+    is_vehicle = any(code.startswith(VEHICLE_HS_PREFIX) for code in hs_codes)
 
     from .models import TaxCode
 
@@ -101,16 +97,34 @@ def compute_assessment(application):
         })
 
     total = _q2(sum(amounts.values(), Decimal("0")))
-    totals = {
-        "exchange_rate": exchange_rate,
-        "fob_ncy": fob_ncy,
-        "freight_ncy": freight_ncy,
-        "insurance_ncy": insurance_ncy,
+    summary = {
         "customs_value": customs_value,
         "import_duty": amounts.get(IMPORT_DUTY_CODE),
         "duty_hs_code": duty_hs_code,
         "is_vehicle": is_vehicle,
         "total": total,
+    }
+    return rows, summary
+
+
+def compute_assessment(application):
+    """Return (rows, totals) for a consignment application using the configured TaxCodes."""
+    exchange_rate = application.exchange_rate or Decimal("1")
+    fob_ncy = _q2(application.fob_ncy if application.fob_ncy is not None else (application.fob_fcy or 0) * exchange_rate)
+    freight_ncy = _q2(application.freight_ncy or 0)
+    if application.insurance_ncy:
+        insurance_ncy = _q2(application.insurance_ncy)
+    else:
+        insurance_ncy = _q2((fob_ncy + freight_ncy) * INSURANCE_RATE)
+    items = application.items or []
+    hs_codes = [str(item.get("hs_code", "")).strip() for item in items]
+    rows, summary = compute_from_invoice(fob_ncy, freight_ncy, insurance_ncy, hs_codes)
+    totals = {
+        "exchange_rate": exchange_rate,
+        "fob_ncy": fob_ncy,
+        "freight_ncy": freight_ncy,
+        "insurance_ncy": insurance_ncy,
+        **summary,
     }
     return rows, totals
 
