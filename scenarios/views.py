@@ -288,7 +288,7 @@ def declaration_search(request, search_kind):
         keys = ("job", "boe", "bl_awb", "ucr", "regime", "importer", "exporter", "user_reference", "status", "date_from", "date_to")
         filters = {key: request.GET.get(key, "").strip() for key in keys}
         records = (BoeDeclaration.objects
-                   .filter(owner=request.user)
+                   .filter(owner=_effective_owner(request))
                    .select_related("ucr")
                    .order_by("-created_at"))
         if filters["job"]:

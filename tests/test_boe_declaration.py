@@ -15,6 +15,7 @@ def _make_idf(owner, ucr_no, idf_no="CD202609MOTIIDF0000001"):
     ucr = UcrDeclaration.objects.create(
         owner=owner, regime="IM", goods_description="VEHICLE",
         origin_country="CN", destination_country="GH", transport_mode="10, Sea Transport",
+        temp_no="TEMPUCR" + ucr_no[-7:],
         ucr_no=ucr_no, status=UcrDeclaration.Status.SUBMITTED,
     )
     from onboarding.models import Enrolment, Programme, ProgrammeVersion
@@ -162,6 +163,24 @@ def test_search_boe_lists_drafts_and_submitted(client):
     page = client.get(search_url)
     assert declaration.declaration_no.encode() in page.content
     assert b"SU - Submitted" in page.content
+
+    # Staff in review mode see the reviewed student's BOEs.
+    student = User.objects.create_user(username="boe-reviewee", email="boe-reviewee@example.test", password="x")
+    student_idf = _make_idf(student, "KGHTESTUCR9900000049", idf_no="CD202609MOTIIDF0000049")
+    student_boe = BoeDeclaration.objects.create(
+        owner=student,
+        idf=student_idf,
+        ucr=student_idf.consignment_application.ucr,
+        job_no="2609250003GCH000003",
+        form_data={"fob_ncy": "10000", "items": []},
+    )
+    iclient = Client()
+    iclient.force_login(staff)
+    isession = iclient.session
+    isession["simulator_review_user_id"] = str(student.pk)
+    isession.save()
+    review_page = iclient.get(search_url)
+    assert student_boe.job_no.encode() in review_page.content
 
     # Filters narrow the results; another student's records stay private.
     other = User.objects.create_user(username="other-boe-owner", email="other-boe-owner@example.test", password="x", is_staff=True)
