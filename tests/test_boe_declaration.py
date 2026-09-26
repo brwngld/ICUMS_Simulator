@@ -136,3 +136,41 @@ def test_boe_tabs_follow_the_declaration_status(client):
     accepted_page = client.get(page_url)
     assert b"becomes available once" not in accepted_page.content
     assert refreshed.assessment_total.__str__().encode() in accepted_page.content or str(refreshed.assessment_total).encode() in accepted_page.content
+
+
+@pytest.mark.django_db
+def test_search_boe_lists_drafts_and_submitted(client):
+    from django.test import Client
+
+    staff = User.objects.create_user(username="boe-searcher", email="boe-searcher@example.test", password="x", is_staff=True)
+    client.force_login(staff)
+    idf = _make_idf(staff, "KGHTESTUCR9900000039")
+    created = client.post(reverse("boe-create"), {
+        "reuse": "IDF", "idf_number": idf.application_no,
+        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+    }, content_type="application/json").json()
+    declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
+    search_url = reverse("search-boe-declaration")
+
+    # The draft is listed without any search criteria.
+    page = client.get(search_url)
+    assert page.status_code == 200
+    assert created["job_no"].encode() in page.content
+    assert b"ER - Draft" in page.content
+    # Submitted records carry their BoE number.
+    client.post(reverse("boe-submit", args=(declaration.pk,)))
+    page = client.get(search_url)
+    assert declaration.declaration_no.encode() in page.content
+    assert b"SU - Submitted" in page.content
+
+    # Filters narrow the results; another student's records stay private.
+    other = User.objects.create_user(username="other-boe-owner", email="other-boe-owner@example.test", password="x", is_staff=True)
+    oclient = Client()
+    oclient.force_login(other)
+    other_page = oclient.get(search_url)
+    assert created["job_no"].encode() not in other_page.content
+
+    filtered = client.get(search_url, {"boe": declaration.declaration_no})
+    assert declaration.declaration_no.encode() in filtered.content
+    empty = client.get(search_url, {"boe": "BOE999999"})
+    assert b"No data found." in empty.content

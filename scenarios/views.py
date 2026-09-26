@@ -283,7 +283,48 @@ def declaration_search(request, search_kind):
         "simple-amendment": "Search Simple Amendment",
         "post-entry": "Search Post Entry Declaration",
     }
-    return render(request, "scenarios/declaration_search.html", {"page_title": titles[search_kind]})
+    context = {"page_title": titles[search_kind]}
+    if search_kind == "boe":
+        keys = ("job", "boe", "bl_awb", "ucr", "regime", "importer", "exporter", "user_reference", "status", "date_from", "date_to")
+        filters = {key: request.GET.get(key, "").strip() for key in keys}
+        records = (BoeDeclaration.objects
+                   .filter(owner=request.user)
+                   .select_related("ucr")
+                   .order_by("-created_at"))
+        if filters["job"]:
+            records = records.filter(job_no__icontains=filters["job"])
+        if filters["boe"]:
+            records = records.filter(declaration_no__icontains=filters["boe"])
+        if filters["bl_awb"]:
+            records = records.filter(form_data__bl_awb_no__icontains=filters["bl_awb"])
+        if filters["ucr"]:
+            records = records.filter(ucr__ucr_no__icontains=filters["ucr"])
+        if filters["regime"]:
+            records = records.filter(regime__iexact=filters["regime"])
+        if filters["importer"]:
+            records = records.filter(form_data__importer__code__icontains=filters["importer"])
+        if filters["exporter"]:
+            records = records.filter(form_data__exporter__name__icontains=filters["exporter"])
+        if filters["user_reference"]:
+            records = records.filter(ucr__user_reference__icontains=filters["user_reference"])
+        if filters["status"]:
+            records = records.filter(status__iexact=filters["status"])
+        if filters["date_from"]:
+            records = records.filter(submitted_at__date__gte=filters["date_from"])
+        if filters["date_to"]:
+            records = records.filter(submitted_at__date__lte=filters["date_to"])
+        context.update({
+            "records": records,
+            "filters": filters,
+            "boe_search": True,
+            "status_options": [
+                (BoeDeclaration.Status.DRAFT, "ER - Draft"),
+                (BoeDeclaration.Status.SUBMITTED, "SU - Submitted"),
+                (BoeDeclaration.Status.ASSESSED, "AS - Assessed"),
+                (BoeDeclaration.Status.ACCEPTED, "AC - Accepted"),
+            ],
+        })
+    return render(request, "scenarios/declaration_search.html", context)
 
 
 @simulator_access_required
