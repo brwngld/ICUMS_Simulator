@@ -961,6 +961,7 @@ class MdaConsignmentRequest(models.Model):
     approval_remarks = models.TextField(blank=True)
     additional_parties = models.JSONField(default=list, blank=True)
     status = models.CharField(max_length=2, choices=MdaStatus.choices, default=MdaStatus.DRAFT)
+    submitted_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

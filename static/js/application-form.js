@@ -977,6 +977,22 @@
       button.disabled = false;
     }
   });
+  const submitButton = document.querySelector("#app-submit");
+  if (submitButton) {
+    submitButton.addEventListener("click", async () => {
+      submitButton.disabled = true;
+      try {
+        const data = await post(window.appSubmitUrl, {});
+        report(`${data.application_no} submitted — status ${data.status}.`);
+        window.alert(`Submitted successfully. ${data.application_no} — status ${data.status}.`);
+        window.location.reload();
+      } catch (error) {
+        report(error.message, true);
+        window.alert(`Submit failed. ${error.message}`);
+        submitButton.disabled = false;
+      }
+    });
+  }
   if (window.appReadOnly) {
     document.querySelectorAll("[data-app-field], [data-app-same], #app-item-add, #app-item-duplicate, #app-item-delete").forEach((control) => { control.disabled = true; });
     document.querySelector("#app-save").disabled = true;

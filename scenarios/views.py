@@ -6,6 +6,7 @@ from django.http import HttpResponse, JsonResponse, FileResponse
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Q, Max
+from django.db.models.functions import Coalesce
 from django.db.models import Case, IntegerField, Value, When
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
@@ -797,6 +798,18 @@ def _ucr_form_context(record):
         {"number": index + 1, "document": document, "attachments": attachments_by_row.get(index, [])}
         for index, document in enumerate(record.documents)
     ]
+    submitted_mda_rows = []
+    if record.status == UcrDeclaration.Status.SUBMITTED:
+        submitted_mdas = (MdaConsignmentRequest.objects
+                          .filter(consignment_application__ucr=record)
+                          .exclude(status=MdaStatus.DRAFT)
+                          .select_related("mda", "application")
+                          .order_by("created_at"))
+        for mda_request in submitted_mdas:
+            submitted_mda_rows.append({
+                "type": f"{mda_request.mda.code}, {mda_request.application.name}",
+                "reference": mda_request.application_no,
+            })
     values = {
         "ucr_no": record.ucr_no or record.temp_no,
         "regime": f"{record.regime}, {UCR_REGIME_LABELS.get(record.regime, record.regime)}",
@@ -817,6 +830,7 @@ def _ucr_form_context(record):
         "regime_labels": UCR_REGIME_LABELS,
         "regime_family_choices": [(code, UCR_REGIME_LABELS.get(code, code)) for code in UCR_REGIME_FAMILIES.get(record.regime, (record.regime,))],
         "document_rows": document_rows,
+        "mda_rows": submitted_mda_rows,
     }
 
 
@@ -1077,6 +1091,25 @@ def mda_consignment_application_save(request, request_id):
     record.form_data = payload
     record.save(update_fields=("approval_terms", "approval_purpose", "approval_remarks", "additional_parties", "form_data"))
     return JsonResponse({"id": record.pk, "application_no": record.application_no, "status": record.get_status_display()})
+
+
+@simulator_access_required
+@require_POST
+def mda_consignment_application_submit(request, request_id):
+    """Submit (or resubmit) the MDA application: status SU with a real submitted date."""
+    blocked = _review_json_guard(request)
+    if blocked:
+        return blocked
+    record = get_object_or_404(MdaConsignmentRequest, pk=request_id, consignment_application__owner=request.user)
+    record.status = MdaStatus.SUBMITTED
+    record.submitted_at = timezone.now()
+    record.save(update_fields=("status", "submitted_at"))
+    return JsonResponse({
+        "id": record.pk,
+        "application_no": record.application_no,
+        "status": record.get_status_display(),
+        "submitted_at": timezone.localtime(record.submitted_at).strftime("%d/%m/%Y %H:%M:%S"),
+    })
 
 
 @simulator_access_required
