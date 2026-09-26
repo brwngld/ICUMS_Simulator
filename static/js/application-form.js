@@ -18,10 +18,18 @@
 
   // --- Tabs ---
   const tabs = [...document.querySelectorAll(".app-tab")];
+  const tabOrder = tabs.map((tab) => tab.dataset.appTab);
+  const submitButton = document.querySelector("#app-submit");
   function showTab(name) {
     tabs.forEach((tab) => tab.setAttribute("aria-current", tab.dataset.appTab === name ? "tab" : "false"));
     document.querySelectorAll(".app-tab-panel").forEach((panel) => { panel.hidden = panel.id !== `app-tab-${name}`; });
     if (name === "confirmation") renderConfirmation();
+    updateActionButtons(name);
+  }
+  function updateActionButtons(activeTab) {
+    if (!window.appMdaMode) return;
+    if (saveButton) saveButton.hidden = activeTab === "confirmation";
+    if (submitButton) submitButton.hidden = activeTab !== "confirmation";
   }
   tabs.forEach((tab) => tab.addEventListener("click", () => {
     showTab(tab.dataset.appTab);
@@ -969,7 +977,19 @@
       }
       document.querySelector("#app-no").value = data.application_no;
       report(`Application saved as ${data.application_no}.`);
-      window.alert(`Saved successfully. Application ${data.application_no} is still a draft and has not been submitted.`);
+      const activeTab = document.querySelector(".app-tab[aria-current='tab']")?.dataset.appTab;
+      const nextTab = tabOrder[Math.min(tabOrder.indexOf(activeTab) + 1, tabOrder.length - 1)];
+      const moveOn = window.appMdaMode && nextTab !== activeTab
+        ? window.confirm(`Saved successfully. Application ${data.application_no} is still a draft.
+
+Click OK to continue to the ${document.querySelector(`.app-tab[data-app-tab="${nextTab}"]`)?.textContent.trim() || "next tab"}.`)
+        : window.confirm(`Saved successfully. Application ${data.application_no} is still a draft and has not been submitted.
+
+Click OK to continue to the next tab.`);
+      if (moveOn && nextTab && nextTab !== activeTab) {
+        showTab(nextTab);
+        history.replaceState(null, "", `#${nextTab}`);
+      }
     } catch (error) {
       report(error.message, true);
       window.alert(`Save failed. ${error.message}`);
@@ -977,7 +997,6 @@
       button.disabled = false;
     }
   });
-  const submitButton = document.querySelector("#app-submit");
   if (submitButton) {
     submitButton.addEventListener("click", async () => {
       submitButton.disabled = true;

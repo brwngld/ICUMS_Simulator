@@ -1038,8 +1038,11 @@ def mda_consignment_application(request, request_id):
             "consignment_application__ucr", "mda", "application", "process"
         ),
         pk=request_id,
-        consignment_application__owner=request.user,
     )
+    is_owner = record.consignment_application.owner_id == request.user.pk
+    if not is_owner and not _is_simulator_author(request.user):
+        raise PermissionDenied("This MDA application belongs to another learner.")
+    amend_mode = request.GET.get("amend") == "1" and is_owner
     parent = record.consignment_application
     initial = record.form_data or _application_record_payload(parent)
     attachments = {attachment.row_index: attachment for attachment in parent.ucr.attachments.all()}
@@ -1064,7 +1067,7 @@ def mda_consignment_application(request, request_id):
         "mda_documents": documents,
         "display_application_no": record.application_no,
         "application_type_text": f"{record.application.code}, {record.application.name}",
-        "read_only": False,
+        "read_only": not is_owner or (record.status != MdaStatus.DRAFT and not amend_mode),
         "exporter_party_label": "Name",
         "importer_party_label": "Code",
     })
@@ -1101,8 +1104,23 @@ def mda_consignment_application_submit(request, request_id):
     if blocked:
         return blocked
     record = get_object_or_404(MdaConsignmentRequest, pk=request_id, consignment_application__owner=request.user)
+    ucr = record.consignment_application.ucr
+    document_codes = {str(doc.get("code", "")).strip() for doc in (ucr.documents or [])}
+    application_code = (record.application.code or "").upper()
+    mda_code = (record.mda.code or "").upper()
+    if application_code.startswith("IDF"):
+        if not document_codes & {"003", "104"}:
+            return JsonResponse({"error": "Attach Invoice (003) or Proforma Invoice (104) to the UCR before submitting this IDF application."}, status=400)
+    else:
+        required = {"003": "Invoice (003)", "005": "BL/Air Waybill (005)", "021": "Packing List (021)"}
+        missing = [label for code, label in required.items() if code not in document_codes]
+        if missing:
+            return JsonResponse({"error": "Attach " + ", ".join(missing) + " to the UCR before submitting."}, status=400)
     record.status = MdaStatus.SUBMITTED
     record.submitted_at = timezone.now()
+    # IDF applications and the GSA are approved automatically on submission.
+    if application_code.startswith("IDF") or mda_code == "GSA":
+        record.status = MdaStatus.APPROVED
     record.save(update_fields=("status", "submitted_at"))
     return JsonResponse({
         "id": record.pk,
