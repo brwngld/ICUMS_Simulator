@@ -42,15 +42,70 @@
         </nav>
 
         <section class="cargo-panel boe-tab-panel" id="boe-tab-general">
-          {% for section_name, rows in general_sections %}
-          <div class="boe-section"><h2 class="boe-section-title">{{ section_name }}</h2>
-          <table class="ucr-view-table"><tbody>
-            {% for label, value in rows %}<tr><th>{{ label }}</th><td{% if forloop.parentloop.counter0 == 0 and label == 'BoE No.' %} class="boe-no-cell"{% endif %}>{{ value }}</td></tr>{% endfor %}
-          </tbody></table></div>
-          {% endfor %}
-          {% if declaration.status == 'draft' %}
+          <div class="boe-section"><h2 class="boe-section-title">Header</h2>
+            <table class="ucr-view-table"><tbody>
+              <tr><th>Job No.</th><td>{{ general_values.job_no }}</td></tr>
+              <tr><th>Status</th><td>{{ declaration.status_code_display }}</td></tr>
+              <tr><th>BoE No.</th><td>{{ general_values.boe_no|default:"—" }}</td></tr>
+              <tr><th>UCR No. *</th><td>{{ general_values.ucr_no }}</td></tr>
+              <tr><th>Regime *</th><td>{{ general_values.regime }}</td></tr>
+              <tr><th>Customs Office *</th><td>{{ general_values.customs_office }}</td></tr>
+              <tr><th>CL. Plan *</th><td>PMD — PMD, Pre-Arrival Declaration</td></tr>
+              <tr><th>Declaration Form Type *</th><td>G — G, General</td></tr>
+              {% if is_draft %}<tr><th><label for="general-user-reference">User Reference No.</label></th><td><input id="general-user-reference" value="{{ general_values.user_reference }}" maxlength="200" style="width:100%;"></td></tr>
+              {% else %}<tr><th>User Reference No.</th><td>{{ general_values.user_reference|default:"—" }}</td></tr>{% endif %}
+              <tr><th>Doc Date *</th><td>{{ general_values.doc_date }}</td></tr>
+              <tr><th>Expiry Date For First Payment *</th><td>{{ general_values.expiry_date }}</td></tr>
+              <tr><th>Dec Date</th><td>{{ general_values.dec_date|default:"—" }}</td></tr>
+              <tr><th>Post Entry Date</th><td>—</td></tr>
+            </tbody></table>
+          </div>
+          <div class="boe-section"><h2 class="boe-section-title">Exporter</h2>
+            <table class="ucr-view-table"><tbody>
+              <tr><th>Exporter Name *</th><td>{{ general_values.exporter_name }}</td></tr>
+              <tr><th>Country of Exporter *</th><td>{{ general_values.exporter_country }}</td></tr>
+              <tr><th>Exporter Address *</th><td>{{ general_values.exporter_address }}</td></tr>
+            </tbody></table>
+          </div>
+          <div class="boe-section"><h2 class="boe-section-title">Importer</h2>
+            <table class="ucr-view-table"><tbody>
+              <tr><th>Importer Code *</th><td><div>{{ importer_code }}</div><div>{{ importer_name }}</div></td></tr>
+              <tr><th>Country of Importer *</th><td>{{ general_values.importer_country }}</td></tr>
+              <tr><th>Importer Address *</th><td>{{ general_values.importer_address }}</td></tr>
+            </tbody></table>
+          </div>
+          <div class="boe-section"><h2 class="boe-section-title">Consignee</h2>
+            {% if is_draft %}<label style="display:inline-flex; align-items:center; gap:.4rem; margin-bottom:.5rem;"><input type="checkbox" id="consignee-same" {% if consignee_same %}checked{% endif %}> Same as Importer</label>{% endif %}
+            <table class="ucr-view-table"><tbody>
+              <tr><th>Consignee Code *</th><td><div id="consignee-code">{{ consignee_code }}</div><div id="consignee-name">{{ consignee_name }}</div></td></tr>
+              <tr><th>Consignee Address *</th><td id="consignee-address">{{ general_values.consignee_address }}</td></tr>
+            </tbody></table>
+          </div>
+          <div class="boe-section"><h2 class="boe-section-title">Declarant Code</h2>
+            <table class="ucr-view-table"><tbody>
+              <tr><th>Declarant TIN</th><td>{{ general_values.declarant_tin }}</td></tr>
+              <tr><th>Declarant Code</th><td>{{ general_values.declarant_code }}</td></tr>
+              <tr><th>Declarant Name</th><td>{{ general_values.declarant_name }}</td></tr>
+              <tr><th>Declarant Address</th><td>{{ general_values.declarant_address }}</td></tr>
+            </tbody></table>
+          </div>
+          <div class="boe-section"><h2 class="boe-section-title">Taxpayer</h2>
+            <table class="ucr-view-table"><tbody>
+              <tr><th>Taxpayer Code</th><td id="taxpayer-code">{{ general_values.taxpayer_code|default:"—" }}</td></tr>
+              <tr><th>Taxpayer *</th><td>
+                {% if is_draft %}
+                <label style="margin-right:1rem;"><input type="radio" name="taxpayer" value="importer" {% if taxpayer == 'importer' %}checked{% endif %}> Importer</label>
+                <label style="margin-right:1rem;"><input type="radio" name="taxpayer" value="consignee" {% if taxpayer == 'consignee' %}checked{% endif %}> Consignee/Actual Exporter</label>
+                <label><input type="radio" name="taxpayer" value="declarant" {% if taxpayer == 'declarant' %}checked{% endif %}> Declarant</label>
+                {% else %}{{ taxpayer|capfirst }}{% endif %}
+              </td></tr>
+            </tbody></table>
+          </div>
+          {% if is_draft %}
           <div class="cargo-actions">
-            <form method="post" action="{% url 'boe-submit' declaration.pk %}">{% csrf_token %}<button class="primary-button" type="submit">▣ Submit Declaration</button></form>
+            <a class="secondary-button" href="{% url 'clearance-workspace' %}">Back</a>
+            <button class="secondary-button" id="save-general-draft" type="button">Save as Draft</button>
+            <button class="secondary-button" id="go-next-tab" type="button">Next</button>
           </div>
           {% endif %}
         </section>
@@ -137,15 +192,15 @@
           {% endif %}
         </section>
 
+        {% if declaration.status != 'draft' %}
         <div class="cargo-actions">
           <a class="secondary-button" href="{% url 'clearance-workspace' %}">☷ Back to Clearance</a>
-          {% if declaration.status == 'draft' %}
-          <form method="post" action="{% url 'boe-submit' declaration.pk %}">{% csrf_token %}<button class="primary-button" type="submit">▣ Submit Declaration</button></form>
-          {% endif %}
         </div>
+        {% endif %}
       </div>
     </main>
   </div>
+  {{ importer_code|json_script:"importer-code-data" }}{{ consignee_code|json_script:"consignee-code-data" }}{{ general_values.declarant_tin|json_script:"declarant-code-data" }}
   <script>
     (() => {
       const tabs = [...document.querySelectorAll(".boe-tab")];
@@ -155,6 +210,62 @@
       };
       tabs.forEach((tab) => tab.addEventListener("click", () => activate(tab.dataset.boeTab)));
       activate("general");
+      document.querySelector("#go-next-tab")?.addEventListener("click", () => activate("blawb"));
+
+      const partyCodes = JSON.parse(document.querySelector("#importer-code-data").textContent) || "";
+      const consigneeCode = JSON.parse(document.querySelector("#consignee-code-data").textContent) || "";
+      const declarantTin = JSON.parse(document.querySelector("#declarant-code-data").textContent) || "";
+      const originalConsignee = {
+        code: document.querySelector("#consignee-code")?.textContent?.trim() || "",
+        name: document.querySelector("#consignee-name")?.textContent?.trim() || "",
+        address: document.querySelector("#consignee-address")?.textContent?.trim() || "",
+      };
+      function updateTaxpayerCode() {
+        const chosen = document.querySelector('input[name="taxpayer"]:checked')?.value || "importer";
+        const code = { importer: partyCodes, consignee: consigneeCode, declarant: declarantTin }[chosen] || "—";
+        const cell = document.querySelector("#taxpayer-code");
+        if (cell) cell.textContent = code;
+      }
+      document.querySelectorAll('input[name="taxpayer"]').forEach((radio) => radio.addEventListener("change", updateTaxpayerCode));
+
+      const sameBox = document.querySelector("#consignee-same");
+      if (sameBox) sameBox.addEventListener("change", () => {
+        const codeEl = document.querySelector("#consignee-code");
+        const nameEl = document.querySelector("#consignee-name");
+        const addressEl = document.querySelector("#consignee-address");
+        if (sameBox.checked) {
+          if (codeEl) codeEl.textContent = partyCodes;
+          if (nameEl) nameEl.textContent = "";
+          if (addressEl) addressEl.textContent = originalConsignee.address;
+        } else {
+          if (codeEl) codeEl.textContent = originalConsignee.code;
+          if (nameEl) nameEl.textContent = originalConsignee.name;
+          if (addressEl) addressEl.textContent = originalConsignee.address;
+        }
+      });
+
+      document.querySelector("#save-general-draft")?.addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+          const response = await fetch("{% url 'boe-save-draft' declaration.pk %}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+            body: JSON.stringify({
+              user_reference: document.querySelector("#general-user-reference")?.value || "",
+              taxpayer: document.querySelector('input[name="taxpayer"]:checked')?.value || "importer",
+              consignee_same: document.querySelector("#consignee-same")?.checked || false,
+            }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || "The draft could not be saved.");
+          window.alert("Saved as draft. Your General tab entries are stored.");
+        } catch (error) {
+          window.alert(`Save failed. ${error.message}`);
+        } finally {
+          button.disabled = false;
+        }
+      });
     })();
   </script>
   <script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script>

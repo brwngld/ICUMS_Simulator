@@ -12,6 +12,7 @@ urlpatterns = [
     path("clearance/boe/idf-lookup/", views.boe_idf_lookup, name="boe-idf-lookup"),
     path("clearance/boe/create/", views.boe_create, name="boe-create"),
     path("clearance/boe/<int:declaration_id>/", views.boe_declaration, name="boe-declaration"),
+    path("clearance/boe/<int:declaration_id>/save-draft/", views.boe_save_general_draft, name="boe-save-draft"),
     path("clearance/boe/<int:declaration_id>/submit/", views.boe_submit, name="boe-submit"),
     path("clearance/search/boe/", views.declaration_search, {"search_kind": "boe"}, name="search-boe-declaration"),
     path("clearance/search/simple-amendment/", views.declaration_search, {"search_kind": "simple-amendment"}, name="search-simple-amendment"),

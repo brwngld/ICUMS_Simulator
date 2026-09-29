@@ -307,7 +307,9 @@ def declaration_search(request, search_kind):
         if filters["exporter"]:
             records = records.filter(form_data__exporter__name__icontains=filters["exporter"])
         if filters["user_reference"]:
-            records = records.filter(ucr__user_reference__icontains=filters["user_reference"])
+            records = records.filter(
+                Q(form_data__user_reference__iexact=filters["user_reference"])
+                | Q(ucr__user_reference__iexact=filters["user_reference"]))
         if filters["status"]:
             records = records.filter(status__iexact=filters["status"])
         if filters["date_from"]:
@@ -319,7 +321,7 @@ def declaration_search(request, search_kind):
             "filters": filters,
             "boe_search": True,
             "status_options": [
-                (BoeDeclaration.Status.DRAFT, "ER - Draft"),
+                (BoeDeclaration.Status.DRAFT, "DR - Draft"),
                 (BoeDeclaration.Status.SUBMITTED, "SU - Submitted"),
                 (BoeDeclaration.Status.ASSESSED, "AS - Assessed"),
                 (BoeDeclaration.Status.ACCEPTED, "AC - Accepted"),
@@ -1697,51 +1699,50 @@ def boe_declaration(request, declaration_id):
 
     regime_name = CustomsRegime.objects.filter(code=declaration.regime).values_list("name", flat=True).first() or ""
     country = lambda code: f"{code}, {COUNTRY_DISPLAY_NAMES.get((code or '').strip().upper(), '')}" if code else ""
-    consignee_same = bool(data.get("consignee_same"))
+
+    def split_party(value):
+        value = (value or "").strip()
+        if ", " in value:
+            code, name = value.split(", ", 1)
+            return code, name
+        return value, ""
+
+    is_draft = declaration.status == BoeDeclaration.Status.DRAFT
+    importer_code, importer_name = split_party(data.get("importer.code"))
+    if consignee_same := bool(data.get("consignee_same")):
+        consignee_code, consignee_name = importer_code, importer_name
+    else:
+        consignee_code, consignee_name = split_party(data.get("consignee.code"))
+    taxpayer = data.get("taxpayer") or "importer"
+    taxpayer_codes = {
+        "importer": importer_code,
+        "consignee": consignee_code,
+        "declarant": declaration.ucr.provider_code,
+    }
     doc_date = timezone.localtime(declaration.created_at)
     expiry_date = doc_date + timedelta(days=90)
-    general_sections = [
-        ("Header", [
-            ("Job No.", declaration.job_no),
-            ("Status", declaration.status_code_display),
-            ("BoE No.", declaration.declaration_no),
-            ("UCR No. *", declaration.ucr.ucr_no),
-            ("Regime *", declaration.regime + (f" — {regime_name}" if regime_name else "")),
-            ("Customs Office *", data.get("customs_office", "")),
-            ("CL. Plan *", "PMD — PMD, Pre-Arrival Declaration"),
-            ("Declaration Form Type *", "G — G, General"),
-            ("User Reference No.", declaration.ucr.user_reference),
-            ("Doc Date *", doc_date.strftime("%d/%m/%Y")),
-            ("Expiry Date For First Payment *", expiry_date.strftime("%d/%m/%Y")),
-            ("Dec Date", timezone.localtime(declaration.submitted_at).strftime("%d/%m/%Y") if declaration.submitted_at else ""),
-            ("Post Entry Date", ""),
-        ]),
-        ("Exporter", [
-            ("Exporter Name *", data.get("exporter.name", "")),
-            ("Country of Exporter *", country(data.get("exporter.physical_country"))),
-            ("Exporter Address *", data.get("exporter.physical_address", "")),
-        ]),
-        ("Importer", [
-            ("Importer Code *", data.get("importer.code", "")),
-            ("Country of Importer *", country(data.get("importer.physical_country"))),
-            ("Importer Address *", data.get("importer.physical_address", "")),
-        ]),
-        ("Consignee", [
-            ("Same as Importer", "Yes" if data.get("consignee_same") else "No"),
-            ("Consignee Code *", data.get("consignee.code", "")),
-            ("Consignee Address *", data.get("consignee.physical_address", "")),
-        ]),
-        ("Declarant Code", [
-            ("Declarant TIN", declaration.ucr.provider_code),
-            ("Declarant Code", declaration.ucr.declarant_code),
-            ("Declarant Name", declaration.ucr.provider_name),
-            ("Declarant Address", declaration.ucr.provider_address),
-        ]),
-        ("Taxpayer", [
-            ("Taxpayer Code", data.get("importer.code", "")),
-            ("Taxpayer *", "Importer"),
-        ]),
-    ]
+    general_values = {
+        "job_no": declaration.job_no,
+        "boe_no": declaration.declaration_no,
+        "ucr_no": declaration.ucr.ucr_no,
+        "regime": declaration.regime + (f" — {regime_name}" if regime_name else ""),
+        "customs_office": data.get("customs_office", ""),
+        "user_reference": data.get("user_reference") or declaration.ucr.user_reference or "",
+        "doc_date": doc_date.strftime("%d/%m/%Y"),
+        "expiry_date": expiry_date.strftime("%d/%m/%Y"),
+        "dec_date": timezone.localtime(declaration.submitted_at).strftime("%d/%m/%Y") if declaration.submitted_at else "",
+        "exporter_name": data.get("exporter.name", ""),
+        "exporter_country": country(data.get("exporter.physical_country")),
+        "exporter_address": data.get("exporter.physical_address", ""),
+        "importer_country": country(data.get("importer.physical_country")),
+        "importer_address": data.get("importer.physical_address", ""),
+        "consignee_address": data.get("consignee.physical_address", ""),
+        "taxpayer_code": taxpayer_codes.get(taxpayer, ""),
+        "declarant_tin": declaration.ucr.provider_code,
+        "declarant_code": declaration.ucr.declarant_code,
+        "declarant_name": declaration.ucr.provider_name,
+        "declarant_address": declaration.ucr.provider_address,
+    }
     transport = [
         ("Means of Transport", data.get("means_of_transport", "")),
         ("Vessel Name", data.get("vessel_name", "")),
@@ -1766,7 +1767,14 @@ def boe_declaration(request, declaration_id):
 
     return render(request, "scenarios/boe_declaration.html", {
         "declaration": declaration,
-        "general_sections": general_sections,
+        "is_draft": is_draft,
+        "general_values": general_values,
+        "taxpayer": taxpayer,
+        "consignee_same": consignee_same,
+        "importer_code": importer_code,
+        "importer_name": importer_name,
+        "consignee_code": consignee_code,
+        "consignee_name": consignee_name,
         "transport_fields": transport,
         "invoice_fields": invoice,
         "items": items,
@@ -1774,6 +1782,27 @@ def boe_declaration(request, declaration_id):
         "tax_total": tax_summary["total"],
         "customs_value": tax_summary["customs_value"],
     })
+
+
+@simulator_access_required
+@require_POST
+def boe_save_general_draft(request, declaration_id):
+    """Save the editable General tab fields (user reference, taxpayer, consignee) on a draft."""
+    declaration = get_object_or_404(BoeDeclaration, pk=declaration_id, owner=request.user)
+    if declaration.status != BoeDeclaration.Status.DRAFT:
+        return JsonResponse({"error": "Only drafts can be saved."}, status=400)
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "The request body is not valid JSON."}, status=400)
+    data = declaration.form_data or {}
+    data["user_reference"] = str(payload.get("user_reference", "")).strip()[:200]
+    taxpayer = str(payload.get("taxpayer", "importer")).strip().lower()
+    data["taxpayer"] = taxpayer if taxpayer in ("importer", "consignee", "declarant") else "importer"
+    data["consignee_same"] = bool(payload.get("consignee_same"))
+    declaration.form_data = data
+    declaration.save(update_fields=("form_data", "updated_at"))
+    return JsonResponse({"saved": True, "user_reference": data["user_reference"], "taxpayer": data["taxpayer"]})
 
 
 @simulator_access_required

@@ -1059,7 +1059,7 @@ class BoeDeclaration(models.Model):
 
     @property
     def status_code_display(self):
-        codes = {self.Status.DRAFT: "ER - Draft", self.Status.SUBMITTED: "SU - Submitted",
+        codes = {self.Status.DRAFT: "DR - Draft", self.Status.SUBMITTED: "SU - Submitted",
                  self.Status.ASSESSED: "AS - Assessed", self.Status.ACCEPTED: "AC - Accepted"}
         return codes.get(self.status, self.status)
     declaration_no = models.CharField(max_length=24, blank=True, editable=False)

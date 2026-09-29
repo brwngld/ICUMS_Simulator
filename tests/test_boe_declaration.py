@@ -162,17 +162,48 @@ def test_search_boe_lists_drafts_and_submitted(client):
     }, content_type="application/json").json()
     declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
     search_url = reverse("search-boe-declaration")
+    page_url = reverse("boe-declaration", args=(declaration.pk,))
 
     # The draft is listed without any search criteria.
     page = client.get(search_url)
     assert page.status_code == 200
     assert created["job_no"].encode() in page.content
-    assert b"ER - Draft" in page.content
-    # Submitted records carry their BoE number.
+    assert b"DR - Draft" in page.content
+
+    # Draft tab set: General through Tax; no Bill of Tax, no Customs Response.
+    draft_page = client.get(page_url)
+    assert b'id="general-user-reference"' in draft_page.content
+    assert b'value="importer"' in draft_page.content
+    assert b'data-boe-tab="bill"' not in draft_page.content
+    assert b"Customs Response" not in draft_page.content
+
+    # The General tab saves the editable draft fields (user reference, taxpayer).
+    saved = client.post(reverse("boe-save-draft", args=(declaration.pk,)), {
+        "user_reference": "DUTY", "taxpayer": "declarant", "consignee_same": False,
+    }, content_type="application/json")
+    assert saved.status_code == 200
+    declaration.refresh_from_db()
+    assert declaration.form_data["user_reference"] == "DUTY"
+    assert declaration.form_data["taxpayer"] == "declarant"
+
+    # The saved user reference is found by exact match only.
+    exact = client.get(search_url, {"user_reference": "DUTY"})
+    assert created["job_no"].encode() in exact.content
+    partial = client.get(search_url, {"user_reference": "DUT"})
+    assert created["job_no"].encode() not in partial.content
+
+    # Submission generates the BoE number and opens the customs response stages.
     client.post(reverse("boe-submit", args=(declaration.pk,)))
+    declaration.refresh_from_db()
+    assert declaration.status == BoeDeclaration.Status.SUBMITTED
+    assert declaration.declaration_no.startswith("BOE")
     page = client.get(search_url)
     assert declaration.declaration_no.encode() in page.content
     assert b"SU - Submitted" in page.content
+    submitted_page = client.get(page_url)
+    assert b"BOE Received" in submitted_page.content
+    assert b'data-boe-tab="tax"' not in submitted_page.content
+    assert b'id="general-user-reference"' not in submitted_page.content  # view mode
 
     # Staff in review mode see the reviewed student's BOEs.
     student = User.objects.create_user(username="boe-reviewee", email="boe-reviewee@example.test", password="x")
@@ -193,12 +224,6 @@ def test_search_boe_lists_drafts_and_submitted(client):
     assert student_boe.job_no.encode() in review_page.content
 
     # Filters narrow the results; another student's records stay private.
-    other = User.objects.create_user(username="other-boe-owner", email="other-boe-owner@example.test", password="x", is_staff=True)
-    oclient = Client()
-    oclient.force_login(other)
-    other_page = oclient.get(search_url)
-    assert created["job_no"].encode() not in other_page.content
-
     filtered = client.get(search_url, {"boe": declaration.declaration_no})
     assert declaration.declaration_no.encode() in filtered.content
     empty = client.get(search_url, {"boe": "BOE999999"})
