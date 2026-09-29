@@ -15,6 +15,11 @@ from django.views.decorators.http import require_GET, require_POST
 from django.utils import timezone
 from django.core.serializers.json import DjangoJSONEncoder
 from functools import wraps
+from decimal import Decimal, ROUND_HALF_UP
+
+
+def _q2(value):
+    return Decimal(str(value or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 from datetime import date, timedelta
 import json
 
@@ -1743,6 +1748,36 @@ def boe_declaration(request, declaration_id):
         "declarant_name": declaration.ucr.provider_name,
         "declarant_address": declaration.ucr.provider_address,
     }
+
+    def _dec(value):
+        try:
+            return Decimal(str(value or "0"))
+        except Exception:
+            return Decimal("0")
+
+    fob_fcy = _dec(data.get("fob_fcy"))
+    freight_fcy = _dec(data.get("freight_fcy"))
+    insurance_fcy = _dec(data.get("insurance_fcy"))
+    other_fcy = _dec(data.get("other_costs_fcy"))
+    fob_ncy = _dec(data.get("fob_ncy"))
+    freight_ncy = _dec(data.get("freight_ncy"))
+    insurance_ncy = _dec(data.get("insurance_ncy"))
+    other_ncy = _dec(data.get("other_costs_ncy"))
+    invoice_fcy = _q2(fob_fcy + freight_fcy + insurance_fcy + other_fcy)
+    invoice_ncy = _q2(fob_ncy + freight_ncy + insurance_ncy + other_ncy)
+    invoice_values = {
+        "delivery_term": data.get("delivery_term", ""),
+        "country_of_delivery": data.get("invoice_country_of_delivery") or data.get("importer.physical_country", ""),
+        "delivery_place": data.get("invoice_delivery_place", ""),
+        "currency": data.get("currency", ""),
+        "exchange_rate": data.get("exchange_rate", ""),
+        "fob_fcy": fob_fcy, "fob_ncy": fob_ncy,
+        "freight_fcy": freight_fcy, "freight_ncy": freight_ncy,
+        "insurance_fcy": insurance_fcy, "insurance_ncy": insurance_ncy,
+        "other_fcy": other_fcy, "other_ncy": other_ncy,
+        "invoice_fcy": invoice_fcy, "invoice_ncy": invoice_ncy,
+        "mode_of_payment": data.get("mode_of_payment_cd", "01"),
+    }
     bl = data.get("bl") or {}
     item_gross = sum((float(str(item.get("gross_weight", "") or 0) or 0) for item in items), 0.0)
     item_net = sum((float(str(item.get("net_weight", "") or 0) or 0) for item in items), 0.0)
@@ -1779,6 +1814,55 @@ def boe_declaration(request, declaration_id):
     }
     containers = data.get("containers") or []
     ports = list(PortCode.objects.filter(is_active=True).values_list("code", "name")[:200])
+
+    ucr_documents = {str(doc.get("code", "")).strip(): doc for doc in (declaration.ucr.documents or [])}
+    idf_numbers = list(MdaConsignmentRequest.objects
+                       .filter(consignment_application__ucr=declaration.ucr, mda__code="MOTI")
+                       .exclude(status=MdaStatus.DRAFT)
+                       .values_list("application_no", flat=True))
+    invoice_doc = ucr_documents.get("003", {})
+    bl_doc = ucr_documents.get("005", {})
+    packing_doc = ucr_documents.get("021", {})
+    system_documents = [
+        {"code": "003", "name": "INVOICE", "requirement": "Y",
+         "reference": str(invoice_doc.get("reference", "") or ""), "manual": False},
+        {"code": "005", "name": "BILL OF LADING /AIRWAYBILL", "requirement": "Y",
+         "reference": str(bl_doc.get("reference", "") or ""), "manual": False},
+        {"code": "017", "name": "IMPORT DECLARATION FORM", "requirement": "Y",
+         "reference": ", ".join(idf_numbers), "manual": False},
+        {"code": "021", "name": "PACKING LIST", "requirement": "Y",
+         "reference": str(packing_doc.get("reference", "") or ""), "manual": False},
+        {"code": "025", "name": "INCOME TAX CLEARANCE CERTIFICATE", "requirement": "Y",
+         "reference": data.get("income_tax_reference", "NA"), "manual": True},
+        {"code": "UCR", "name": "UCR(Unique Consgn. Ref')", "requirement": "Y",
+         "reference": declaration.ucr.ucr_no, "manual": False},
+    ]
+    user_documents = [
+        {"code": r.mda.code, "name": r.application.name, "requirement": "Y",
+         "reference": r.application_no}
+        for r in MdaConsignmentRequest.objects
+        .filter(consignment_application__ucr=declaration.ucr)
+        .exclude(mda__code="MOTI")
+        .exclude(status=MdaStatus.DRAFT)
+        .select_related("mda", "application")
+        .order_by("created_at")
+    ]
+    delivery_term_options = [
+        ("CFR", "CFR, COST & FREIGHT"), ("CIF", "CIF, COST, INSURANCE & FREIGHT"),
+        ("CIP", "CIP, CARRIAGE AND INSURANCE PAID TO"), ("CPT", "CPT, CARRIAGE PAID TO"),
+        ("DAF", "DAF, DELIVERED AT FRONTIER"), ("DAP", "DAP, DELIVERED AT PLACE"),
+        ("DDP", "DDP, DELIVERED DUTY PAID"), ("DAT", "DAT, DELIVERED AT TERMINAL"),
+        ("DDU", "DDU, DELIVERED DUTY UNPAID"), ("DEQ", "DEQ, DELIVERED EX QUAYS"),
+        ("DES", "DES, DELIVERED EX SHIP"), ("EXW", "EXW, EX WORKS"),
+        ("FAS", "FAS, FREE ALONGSIDE SHIP"), ("FCA", "FCA, FREE CARRIER"),
+        ("FOB", "FOB, FREE ON BOARD"), ("ZZZ", "ZZZ, OTHER"),
+    ]
+    mode_of_payment_options = [
+        ("01", "01, Cash Payment"), ("02", "02, Telegraphic Transfer"),
+        ("03", "03, Money Orders"), ("04", "04, Bill of Exchange"),
+        ("05", "05, Promissory Notes"), ("06", "06, Cheque"),
+        ("07", "07, Bank Draft"), ("08", "08, Letter of Credit"),
+    ]
     invoice = [
         ("Delivery Term", data.get("delivery_term", "")),
         ("Currency", data.get("currency", "")),
@@ -1810,6 +1894,13 @@ def boe_declaration(request, declaration_id):
         ],
         "country_display_items": list(COUNTRY_DISPLAY_NAMES.items()),
         "invoice_fields": invoice,
+        "invoice_values": invoice_values,
+        "mode_of_payment_options": mode_of_payment_options,
+        "delivery_term_options": delivery_term_options,
+        "mode_of_payment_display": dict(mode_of_payment_options).get(invoice_values["mode_of_payment"], invoice_values["mode_of_payment"]),
+        "system_documents": system_documents,
+        "user_documents": user_documents,
+        "income_tax_reference": data.get("income_tax_reference", "NA"),
         "items": items,
         "tax_rows": tax_rows,
         "tax_total": tax_summary["total"],
@@ -1820,7 +1911,7 @@ def boe_declaration(request, declaration_id):
 @simulator_access_required
 @require_POST
 def boe_save_general_draft(request, declaration_id):
-    """Save the editable General tab fields (user reference, taxpayer, consignee) on a draft."""
+    """Save the editable fields of a BOE draft tab (general or BL/AWB)."""
     declaration = get_object_or_404(BoeDeclaration, pk=declaration_id, owner=request.user)
     if declaration.status != BoeDeclaration.Status.DRAFT:
         return JsonResponse({"error": "Only drafts can be saved."}, status=400)
@@ -1843,16 +1934,22 @@ def boe_save_general_draft(request, declaration_id):
         containers = payload.get("containers")
         if isinstance(containers, list):
             data["containers"] = [row for row in containers if isinstance(row, dict)][:100]
-        declaration.form_data = data
-        declaration.save(update_fields=("form_data", "updated_at"))
-        return JsonResponse({"saved": True, "section": "bl_awb"})
-    data["user_reference"] = str(payload.get("user_reference", "")).strip()[:200]
-    taxpayer = str(payload.get("taxpayer", "importer")).strip().lower()
-    data["taxpayer"] = taxpayer if taxpayer in ("importer", "consignee", "declarant") else "importer"
-    data["consignee_same"] = bool(payload.get("consignee_same"))
+    elif section == "invoice":
+        fields = payload.get("fields") or {}
+        data["invoice_country_of_delivery"] = str(fields.get("country_of_delivery", "")).strip()[:80]
+        data["invoice_delivery_place"] = str(fields.get("delivery_place", "")).strip()[:120]
+        data["mode_of_payment_cd"] = str(fields.get("mode_of_payment_cd", "01")).strip()[:2]
+    elif section == "documents":
+        fields = payload.get("fields") or {}
+        data["income_tax_reference"] = str(fields.get("income_tax_reference", "NA")).strip()[:120]
+    else:
+        data["user_reference"] = str(payload.get("user_reference", "")).strip()[:200]
+        taxpayer = str(payload.get("taxpayer", "importer")).strip().lower()
+        data["taxpayer"] = taxpayer if taxpayer in ("importer", "consignee", "declarant") else "importer"
+        data["consignee_same"] = bool(payload.get("consignee_same"))
     declaration.form_data = data
     declaration.save(update_fields=("form_data", "updated_at"))
-    return JsonResponse({"saved": True, "user_reference": data["user_reference"], "taxpayer": data["taxpayer"]})
+    return JsonResponse({"saved": True, "section": section})
 
 
 @simulator_access_required

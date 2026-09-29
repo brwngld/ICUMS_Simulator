@@ -368,6 +368,58 @@
           seal: tr.querySelector(".container-seal")?.value || "",
         }));
       }
+      document.querySelector("#save-invoice-draft")?.addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+          const response = await fetch("{% url 'boe-save-draft' declaration.pk %}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+            body: JSON.stringify({ section: "invoice", fields: {
+              country_of_delivery: document.querySelector("#inv-country-of-delivery")?.value || "",
+              delivery_place: document.querySelector("#inv-delivery-place")?.value || "",
+              mode_of_payment_cd: document.querySelector("#inv-mode-of-payment")?.value || "01",
+            } }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || "The draft could not be saved.");
+          const moveOn = window.confirm("Saved as draft. Invoice entries stored.
+
+Click OK to continue to Documents.");
+          if (moveOn) document.querySelector('.boe-tab[data-boe-tab="documents"]')?.click();
+        } catch (error) {
+          window.alert(`Save failed. ${error.message}`);
+        } finally {
+          button.disabled = false;
+        }
+      });
+      document.querySelector("#go-documents")?.addEventListener("click", () => {
+        document.querySelector('.boe-tab[data-boe-tab="documents"]')?.click();
+      });
+      document.querySelector("#save-documents-draft")?.addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+          const response = await fetch("{% url 'boe-save-draft' declaration.pk %}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+            body: JSON.stringify({ section: "documents", fields: {
+              income_tax_reference: document.querySelector("#doc-income-tax")?.value || "",
+            } }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || "The draft could not be saved.");
+          window.alert("Saved as draft. Document entries stored.");
+        } catch (error) {
+          window.alert(`Save failed. ${error.message}`);
+        } finally {
+          button.disabled = false;
+        }
+      });
+      document.querySelector("#go-item")?.addEventListener("click", () => {
+        document.querySelector('.boe-tab[data-boe-tab="item"]')?.click();
+      });
+
       document.querySelector("#save-bl-draft")?.addEventListener("click", async (event) => {
         const button = event.currentTarget;
         button.disabled = true;
@@ -379,7 +431,10 @@
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.error || "The draft could not be saved.");
-          window.alert("Saved as draft. Your BL/AWB tab entries are stored.");
+          const moveOn = window.confirm("Saved as draft. Your BL/AWB tab entries are stored.
+
+Click OK to continue to Invoice.");
+          if (moveOn) document.querySelector('.boe-tab[data-boe-tab="invoice"]')?.click();
         } catch (error) {
           window.alert(`Save failed. ${error.message}`);
         } finally {
@@ -405,7 +460,10 @@
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.error || "The draft could not be saved.");
-          window.alert("Saved as draft. Your General tab entries are stored.");
+          const moveOn = window.confirm("Saved as draft. Your General tab entries are stored.
+
+Click OK to continue to BL/AWB.");
+          if (moveOn) document.querySelector('.boe-tab[data-boe-tab="blawb"]')?.click();
         } catch (error) {
           window.alert(`Save failed. ${error.message}`);
         } finally {
