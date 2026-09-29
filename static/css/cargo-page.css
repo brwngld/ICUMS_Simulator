@@ -367,3 +367,10 @@ html[data-theme="dark"] .app-confirm-detail-table td { color: #dce3f4; backgroun
 .boe-section { margin-bottom: 1.1rem; }
 .boe-section-title { margin: 0 0 .5rem; font-size: .95rem; color: var(--ink); }
 .boe-section-title::before { content: "●"; margin-right: .4rem; color: #cf3d4d; font-size: .7rem; }
+
+/* BOE declaration BL/AWB two-column field grid (reference layout). */
+.boe-form-grid th, .boe-form-grid td { width: auto; }
+.boe-form-grid th { width: 9.5rem; font-weight: 400; }
+.boe-form-grid td input, .boe-form-grid td select, .boe-form-grid td textarea { border: 1px solid #c3cad8; border-radius: .25rem; background: #fff; }
+.boe-form-grid td div input { margin-bottom: .15rem; }
+html[data-theme="dark"] .boe-form-grid td input, html[data-theme="dark"] .boe-form-grid td select, html[data-theme="dark"] .boe-form-grid td textarea { background: #202b47; color: #d6dced; border-color: #465271; }

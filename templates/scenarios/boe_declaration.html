@@ -112,50 +112,37 @@
 
         <section class="cargo-panel boe-tab-panel" id="boe-tab-blawb" hidden>
           <div class="boe-section"><h2 class="boe-section-title">BL/AWB Details</h2>
-            <table class="ucr-view-table"><tbody>
-              <tr><th>Manifest No.</th><td>{% if is_draft %}<input id="bl-manifest-no" value="{{ bl_values.manifest_no }}" style="width:100%;">{% else %}{{ bl_values.manifest_no|default:'—' }}{% endif %}</td></tr>
-              <tr><th>BL/AWB No. *</th><td>{% if is_draft %}<input id="bl-bl-awb-no" value="{{ bl_values.bl_awb_no }}" style="width:100%;">{% else %}{{ bl_values.bl_awb_no|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Transport Mode *</th><td>{% if is_draft %}{{ declaration.ucr.transport_mode }}{% else %}{{ declaration.ucr.transport_mode }}{% endif %}</td></tr>
-              <tr><th>Manifest No. Date</th><td>{% if is_draft %}<input id="bl-manifest-date" type="date" value="{{ bl_values.manifest_date }}">{% else %}{{ bl_values.manifest_date|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Entry/Exit Office *</th><td>{% if is_draft %}<input id="bl-office" value="{{ bl_values.customs_office }}" style="width:100%;">{% else %}{{ bl_values.customs_office|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Customs Area</th><td>{% if is_draft %}<input id="bl-customs-area" value="{{ bl_values.customs_area }}" style="width:100%;">{% else %}{{ bl_values.customs_area|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Location of Goods *</th><td>{% if is_draft %}<div style="display:grid; gap:.15rem;"><input id="bl-location-code" value="{{ bl_values.location_code }}" placeholder="Code" style="width:100%;"><input id="bl-location-name" value="{{ bl_values.location_name }}" placeholder="Name" style="width:100%;"></div>{% else %}{{ bl_values.location_code|default:"—" }} {{ bl_values.location_name }}{% endif %}</td></tr>
-              <tr><th>Vessel Name</th><td>{% if is_draft %}<input id="bl-vessel-name" value="{{ bl_values.vessel_name }}" style="width:100%;">{% else %}{{ bl_values.vessel_name|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Voyage/Flight No.</th><td>{% if is_draft %}<input id="bl-voyage-no" value="{{ bl_values.voyage_no }}" style="width:100%;">{% else %}{{ bl_values.voyage_no|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Manifest Freight</th><td>{% if is_draft %}<input id="bl-manifest-freight" value="{{ bl_values.manifest_freight }}" style="width:100%;">{% else %}{{ bl_values.manifest_freight|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Nationality</th><td>{% if is_draft %}<input id="bl-nationality" list="country-options" value="{{ bl_values.nationality }}" style="width:100%;">{% else %}{{ bl_values.nationality|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Port of Loading</th><td>{% if is_draft %}<input id="bl-port-of-loading" list="port-options" value="{{ bl_values.port_of_loading }}" style="width:100%;">{% else %}{{ bl_values.port_of_loading|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Place of Landing</th><td>{% if is_draft %}<input id="bl-place-of-landing" value="{{ bl_values.place_of_landing }}" style="width:100%;">{% else %}{{ bl_values.place_of_landing|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Estimated Time of Departure</th><td>{% if is_draft %}<input id="bl-etd" type="date" value="{{ bl_values.etd }}">{% else %}{{ bl_values.etd|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Gross Weight(Kgs) *</th><td style="text-align:right;">{% if is_draft %}<input id="bl-gross-weight" value="{{ bl_values.gross_weight }}" style="width:100%; text-align:right;">{% else %}{{ bl_values.gross_weight }}{% endif %}</td></tr>
-              <tr><th>Net Weight(Kgs)</th><td>{% if is_draft %}<input id="bl-net-weight" value="{{ bl_values.net_weight }}" style="width:100%; text-align:right;">{% else %}{{ bl_values.net_weight }}{% endif %}</td></tr>
-              <tr><th>Total Package *</th><td>{% if is_draft %}<div style="display:grid; gap:.15rem;"><input id="bl-package-unit" list="package-options" value="{{ bl_values.package_unit }}" style="width:100%;"><input id="bl-package-count" value="{{ bl_values.package_count }}" style="width:100%; text-align:right;"></div>{% else %}{{ bl_values.package_unit }} {{ bl_values.package_count }}{% endif %}</td></tr>
-              <tr><th>Volume (m3)</th><td>{% if is_draft %}<input id="bl-volume" value="{{ bl_values.volume }}" style="width:100%;">{% else %}{{ bl_values.volume|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Country of Consignment *</th><td>{% if is_draft %}<input id="bl-consignment-country" list="country-options" value="{{ bl_values.consignment_country }}" style="width:100%;">{% else %}{{ bl_values.consignment_country|default:"—" }}{% endif %}</td></tr>
-              <tr><th>Consignment Date</th><td>{% if is_draft %}<input id="bl-consignment-date" type="date" value="{{ bl_values.consignment_date }}">{% else %}{{ bl_values.consignment_date|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Container Indicator (G/F/L) *</th><td>{% if is_draft %}<select id="bl-container-indicator" style="width:100%;"><option value="">— Select One —</option>{% for value, label in container_indicators %}<option value="{{ value }}" {% if bl_values.container_indicator == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% else %}{{ bl_values.container_indicator|default:"—" }}{% endif %}</td></tr>
-              <tr><th>Risk Level</th><td>{% if is_draft %}<input id="bl-risk-level" value="{{ bl_values.risk_level }}" style="width:100%;">{% else %}{{ bl_values.risk_level|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Marks and Numbers *</th><td>{% if is_draft %}<textarea id="bl-marks-numbers" rows="3" style="width:100%;">{{ bl_values.marks_numbers }}</textarea>{% else %}{{ bl_values.marks_numbers|default:'—' }}{% endif %}</td></tr>
+            <table class="ucr-view-table boe-form-grid"><tbody>
+              <tr><th>Manifest No.</th><td><input id="bl-manifest-no" value="{{ bl_values.manifest_no }}" style="width:100%;"></td><th>BL/AWB No. *</th><td><input id="bl-bl-awb-no" value="{{ bl_values.bl_awb_no }}" style="width:100%;"><button class="ucr-row-action" type="button" disabled title="Select from the attached documents">Click to select</button></td></tr>
+              <tr><th>Transport Mode *</th><td colspan="3">{{ declaration.ucr.transport_mode }}</td></tr>
+              <tr><th>Manifest No. Date</th><td><input id="bl-manifest-date" type="date" value="{{ bl_values.manifest_date }}" style="width:100%;"></td><th>Entry/Exit Office *</th><td><input id="bl-office" value="{{ bl_values.customs_office }}" style="width:100%;"></td></tr>
+              <tr><th>Customs Area</th><td><input id="bl-customs-area" value="{{ bl_values.customs_area }}" style="width:100%;"></td><th>Location of Goods *</th><td><div style="display:grid; gap:.15rem;"><input id="bl-location-code" value="{{ bl_values.location_code }}" placeholder="Code" style="width:100%;"><input id="bl-location-name" value="{{ bl_values.location_name }}" placeholder="Name" style="width:100%;"></div></td></tr>
+              <tr><th>Vessel Name</th><td><input id="bl-vessel-name" value="{{ bl_values.vessel_name }}" style="width:100%;"></td><th>Voyage/Flight No.</th><td><input id="bl-voyage-no" value="{{ bl_values.voyage_no }}" style="width:100%;"></td></tr>
+              <tr><th>Manifest Freight</th><td><input id="bl-manifest-freight" value="{{ bl_values.manifest_freight }}" style="width:100%;"></td><th>Nationality</th><td><input id="bl-nationality" value="{{ bl_values.nationality }}" style="width:100%;" list="country-options"></td></tr>
+              <tr><th>Port of Loading</th><td><input id="bl-port-of-loading" value="{{ bl_values.port_of_loading }}" style="width:100%;" list="port-options"></td><th>Place of Landing</th><td><input id="bl-place-of-landing" value="{{ bl_values.place_of_landing }}" style="width:100%;"></td></tr>
+              <tr><th>Estimated Time of Departure</th><td colspan="3"><input id="bl-etd" type="date" value="{{ bl_values.etd }}" style="width:100%;"></td></tr>
+              <tr><th>Gross Weight(Kgs) *</th><td><input id="bl-gross-weight" value="{{ bl_values.gross_weight }}" style="width:100%;" style="width:100%; text-align:right;"></td><th>Net Weight(Kgs)</th><td><input id="bl-net-weight" value="{{ bl_values.net_weight }}" style="width:100%;" style="width:100%; text-align:right;"></td></tr>
+              <tr><th>Total Package *</th><td><div style="display:grid; gap:.15rem;"><input id="bl-package-unit" list="package-options" value="{{ bl_values.package_unit }}" style="width:100%;"><input id="bl-package-count" value="{{ bl_values.package_count }}" style="width:100%; text-align:right;"></div></td><th>Volume (m3)</th><td><input id="bl-volume" value="{{ bl_values.volume }}" style="width:100%;"></td></tr>
+              <tr><th>Country of Consignment *</th><td><input id="bl-consignment-country" value="{{ bl_values.consignment_country }}" style="width:100%;" list="country-options"></td><th>Consignment Date</th><td><input id="bl-consignment-date" type="date" value="{{ bl_values.consignment_date }}" style="width:100%;"></td></tr>
+              <tr><th>Container Indicator (G/F/L) *</th><td><select id="bl-container-indicator" style="width:100%;"><option value="G, G Indicator" {% if bl_values.container_indicator == 'G, G Indicator' %}selected{% endif %}>G, G Indicator</option><option value="F, F Indicator" {% if bl_values.container_indicator == 'F, F Indicator' %}selected{% endif %}>F, F Indicator</option><option value="L, L Indicator" {% if bl_values.container_indicator == 'L, L Indicator' %}selected{% endif %}>L, L Indicator</option></select></td><th>Risk Level</th><td><input id="bl-risk-level" value="{{ bl_values.risk_level }}" style="width:100%;"></td></tr>
+              <tr><th>Marks and Numbers *</th><td colspan="3"><textarea id="bl-marks-numbers" rows="4" style="width:100%;">{{ bl_values.marks_numbers }}</textarea></td></tr>
             </tbody></table></div>
           <div class="boe-section"><h2 class="boe-section-title">Number Of Containers Status</h2>
-            {% if is_draft %}<button class="secondary-button" type="button" disabled title="Container Excel upload is not part of this training step">Container Excel Upload</button>{% endif %}
-            <table class="ucr-view-table" style="margin-top:.5rem;"><tbody>
-              <tr><th>Container Category *</th><td>{% if is_draft %}<select id="bl-container-category" style="width:100%;"><option value="">— Select One —</option><option value="B, Bulk Cargo" {% if bl_values.container_category == "B, Bulk Cargo" %}selected{% endif %}>B, Bulk Cargo</option><option value="L, Loose Cargo" {% if bl_values.container_category == "L, Loose Cargo" %}selected{% endif %}>L, Loose Cargo</option><option value="E, Etc" {% if bl_values.container_category == "E, Etc" %}selected{% endif %}>E, Etc</option></select>{% else %}{{ bl_values.container_category|default:'—' }}{% endif %}</td></tr>
-              <tr><th>Up to 20 feet</th><td style="text-align:right;">{% if is_draft %}<input id="bl-containers-20" value="{{ bl_values.containers_20 }}" style="width:100%; text-align:right;">{% else %}{{ bl_values.containers_20 }}{% endif %}</td></tr>
-              <tr><th>30 feet or more (30/35/40, etc) feet</th><td style="text-align:right;">{% if is_draft %}<input id="bl-containers-30" value="{{ bl_values.containers_30 }}" style="width:100%; text-align:right;">{% else %}{{ bl_values.containers_30 }}{% endif %}</td></tr>
-              <tr><th>Cars and Non-containerised Vehicles</th><td style="text-align:right;">{% if is_draft %}<input id="bl-containers-cars" value="{{ bl_values.containers_cars }}" style="width:100%; text-align:right;">{% else %}{{ bl_values.containers_cars }}{% endif %}</td></tr>
+            <div style="text-align:right; margin-bottom:.4rem;"><button class="secondary-button" type="button" disabled title="Container Excel upload is not part of this training step">Container Excel Upload</button></div>
+            <table class="ucr-view-table boe-form-grid"><tbody>
+              <tr><th>Container Category *</th><td><select id="bl-container-category" style="width:100%;"><option value="B, Bulk Cargo" {% if bl_values.container_category == 'B, Bulk Cargo' %}selected{% endif %}>B, Bulk Cargo</option><option value="L, Loose Cargo" {% if bl_values.container_category == 'L, Loose Cargo' %}selected{% endif %}>L, Loose Cargo</option><option value="E, Etc" {% if bl_values.container_category == 'E, Etc' %}selected{% endif %}>E, Etc</option></select></td><th>Up to 20 feet</th><td><input id="bl-containers-20" value="{{ bl_values.containers_20 }}" style="width:100%; text-align:right;"></td></tr>
+              <tr><th>30 feet or more (30/35/40, etc) feet</th><td><input id="bl-containers-30" value="{{ bl_values.containers_30 }}" style="width:100%; text-align:right;"></td><th>Cars and Non-containerised Vehicles</th><td><input id="bl-containers-cars" value="{{ bl_values.containers_cars }}" style="width:100%; text-align:right;"></td></tr>
             </tbody></table>
-            <p class="dialog-help">Click the corresponding context (in brackets) of the Container Category box: [Bulk] for Bulk Cargo, [Loose] for Loose cargo, and [Etc] for Container/Vehicle, etc.</p>
+            <p class="dialog-help">Click the corresponding context (in brackets) of the Container Category combo box : [Bulk] for Bulk Cargo, [Loose] for Loose cargo, and [Etc] for Container/Vehicle, etc.</p>
           </div>
           <div class="boe-section"><h2 class="boe-section-title">Container / Chassis List</h2>
-            <div style="text-align:right; font-size:.78rem; color:var(--muted);">Total : <span id="container-total">{{ containers|length }}</span></div>
+            <div style="text-align:right; font-size:.78rem; color:var(--muted); margin-bottom:.3rem;">Total : <span id="container-total">{{ containers|length }}</span></div>
             <table class="ucr-search-table"><thead><tr><th>No.</th><th>Packing Type</th><th>Container No. / Chassis No.</th><th>Container Size</th><th>Seal No.</th><th>{% if is_draft %}<button class="ucr-row-action" id="container-add" type="button">Add</button>{% endif %}</th></tr></thead><tbody id="container-rows"></tbody></table></div>
-          </div>
           {% if is_draft %}
           <div class="cargo-actions">
-            <a class="secondary-button" href="{% url 'clearance-workspace' %}">Back</a>
-            <button class="secondary-button" id="save-bl-draft" type="button">Save as Draft</button>
-            <button class="secondary-button" id="go-invoice" type="button">Next</button>
+            <a class="secondary-button" href="{% url 'clearance-workspace' %}">⏮ Back</a>
+            <button class="secondary-button" id="save-bl-draft" type="button">💾 Save as Draft</button>
+            <button class="secondary-button" id="go-invoice" type="button">⏭ Next</button>
           </div>
           {% endif %}
         </section>
@@ -251,8 +238,9 @@
         tabs.forEach((tab) => tab.setAttribute("aria-current", tab.dataset.boeTab === name ? "tab" : "false"));
         document.querySelectorAll(".boe-tab-panel").forEach((panel) => { panel.hidden = panel.id !== `boe-tab-${name}`; });
       };
-      tabs.forEach((tab) => tab.addEventListener("click", () => activate(tab.dataset.boeTab)));
-      activate("general");
+      tabs.forEach((tab) => tab.addEventListener("click", () => { activate(tab.dataset.boeTab); history.replaceState(null, "", "#" + tab.dataset.boeTab); }));
+      const initialTab = location.hash.slice(1);
+      activate(tabs.some((tab) => tab.dataset.boeTab === initialTab) ? initialTab : "general");
       document.querySelector("#go-next-tab")?.addEventListener("click", () => activate("blawb"));
 
       const partyCodes = JSON.parse(document.querySelector("#importer-code-data").textContent) || "";
