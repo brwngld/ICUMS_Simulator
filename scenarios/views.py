@@ -317,10 +317,11 @@ def declaration_search(request, search_kind):
                 | Q(ucr__user_reference__iexact=filters["user_reference"]))
         if filters["status"]:
             records = records.filter(status__iexact=filters["status"])
+        records = records.annotate(relevant_date=Coalesce("submitted_at", "created_at"))
         if filters["date_from"]:
-            records = records.filter(submitted_at__date__gte=filters["date_from"])
+            records = records.filter(relevant_date__date__gte=filters["date_from"])
         if filters["date_to"]:
-            records = records.filter(submitted_at__date__lte=filters["date_to"])
+            records = records.filter(relevant_date__date__lte=filters["date_to"])
         context.update({
             "records": records,
             "filters": filters,

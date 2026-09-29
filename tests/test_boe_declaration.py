@@ -186,6 +186,11 @@ def test_search_boe_lists_drafts_and_submitted(client):
     assert declaration.form_data["user_reference"] == "DUTY"
     assert declaration.form_data["taxpayer"] == "declarant"
 
+    # A draft (no submission date) still matches a Submission Date filter via its created date.
+    today = declaration.created_at.strftime("%Y-%m-%d")
+    dated = client.get(search_url, {"date_from": today, "date_to": today})
+    assert created["job_no"].encode() in dated.content
+
     # The saved user reference is found by exact match only.
     exact = client.get(search_url, {"user_reference": "DUTY"})
     assert created["job_no"].encode() in exact.content
