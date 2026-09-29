@@ -111,13 +111,55 @@
         </section>
 
         <section class="cargo-panel boe-tab-panel" id="boe-tab-blawb" hidden>
-          <div class="cargo-panel-title"><h2>BL/AWB</h2></div>
-          <div class="summary-grid">
-            {% for label, value in transport_fields %}<label>{{ label }}</label><input value="{{ value }}" readonly>{% endfor %}
+          <div class="boe-section"><h2 class="boe-section-title">BL/AWB Details</h2>
+            <table class="ucr-view-table"><tbody>
+              <tr><th>Manifest No.</th><td>{% if is_draft %}<input id="bl-manifest-no" value="{{ bl_values.manifest_no }}" style="width:100%;">{% else %}{{ bl_values.manifest_no|default:'—' }}{% endif %}</td></tr>
+              <tr><th>BL/AWB No. *</th><td>{% if is_draft %}<input id="bl-bl-awb-no" value="{{ bl_values.bl_awb_no }}" style="width:100%;">{% else %}{{ bl_values.bl_awb_no|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Transport Mode *</th><td>{% if is_draft %}{{ declaration.ucr.transport_mode }}{% else %}{{ declaration.ucr.transport_mode }}{% endif %}</td></tr>
+              <tr><th>Manifest No. Date</th><td>{% if is_draft %}<input id="bl-manifest-date" type="date" value="{{ bl_values.manifest_date }}">{% else %}{{ bl_values.manifest_date|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Entry/Exit Office *</th><td>{% if is_draft %}<input id="bl-office" value="{{ bl_values.customs_office }}" style="width:100%;">{% else %}{{ bl_values.customs_office|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Customs Area</th><td>{% if is_draft %}<input id="bl-customs-area" value="{{ bl_values.customs_area }}" style="width:100%;">{% else %}{{ bl_values.customs_area|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Location of Goods *</th><td>{% if is_draft %}<div style="display:grid; gap:.15rem;"><input id="bl-location-code" value="{{ bl_values.location_code }}" placeholder="Code" style="width:100%;"><input id="bl-location-name" value="{{ bl_values.location_name }}" placeholder="Name" style="width:100%;"></div>{% else %}{{ bl_values.location_code|default:"—" }} {{ bl_values.location_name }}{% endif %}</td></tr>
+              <tr><th>Vessel Name</th><td>{% if is_draft %}<input id="bl-vessel-name" value="{{ bl_values.vessel_name }}" style="width:100%;">{% else %}{{ bl_values.vessel_name|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Voyage/Flight No.</th><td>{% if is_draft %}<input id="bl-voyage-no" value="{{ bl_values.voyage_no }}" style="width:100%;">{% else %}{{ bl_values.voyage_no|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Manifest Freight</th><td>{% if is_draft %}<input id="bl-manifest-freight" value="{{ bl_values.manifest_freight }}" style="width:100%;">{% else %}{{ bl_values.manifest_freight|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Nationality</th><td>{% if is_draft %}<input id="bl-nationality" list="country-options" value="{{ bl_values.nationality }}" style="width:100%;">{% else %}{{ bl_values.nationality|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Port of Loading</th><td>{% if is_draft %}<input id="bl-port-of-loading" list="port-options" value="{{ bl_values.port_of_loading }}" style="width:100%;">{% else %}{{ bl_values.port_of_loading|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Place of Landing</th><td>{% if is_draft %}<input id="bl-place-of-landing" value="{{ bl_values.place_of_landing }}" style="width:100%;">{% else %}{{ bl_values.place_of_landing|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Estimated Time of Departure</th><td>{% if is_draft %}<input id="bl-etd" type="date" value="{{ bl_values.etd }}">{% else %}{{ bl_values.etd|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Gross Weight(Kgs) *</th><td style="text-align:right;">{% if is_draft %}<input id="bl-gross-weight" value="{{ bl_values.gross_weight }}" style="width:100%; text-align:right;">{% else %}{{ bl_values.gross_weight }}{% endif %}</td></tr>
+              <tr><th>Net Weight(Kgs)</th><td>{% if is_draft %}<input id="bl-net-weight" value="{{ bl_values.net_weight }}" style="width:100%; text-align:right;">{% else %}{{ bl_values.net_weight }}{% endif %}</td></tr>
+              <tr><th>Total Package *</th><td>{% if is_draft %}<div style="display:grid; gap:.15rem;"><input id="bl-package-unit" list="package-options" value="{{ bl_values.package_unit }}" style="width:100%;"><input id="bl-package-count" value="{{ bl_values.package_count }}" style="width:100%; text-align:right;"></div>{% else %}{{ bl_values.package_unit }} {{ bl_values.package_count }}{% endif %}</td></tr>
+              <tr><th>Volume (m3)</th><td>{% if is_draft %}<input id="bl-volume" value="{{ bl_values.volume }}" style="width:100%;">{% else %}{{ bl_values.volume|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Country of Consignment *</th><td>{% if is_draft %}<input id="bl-consignment-country" list="country-options" value="{{ bl_values.consignment_country }}" style="width:100%;">{% else %}{{ bl_values.consignment_country|default:"—" }}{% endif %}</td></tr>
+              <tr><th>Consignment Date</th><td>{% if is_draft %}<input id="bl-consignment-date" type="date" value="{{ bl_values.consignment_date }}">{% else %}{{ bl_values.consignment_date|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Container Indicator (G/F/L) *</th><td>{% if is_draft %}<select id="bl-container-indicator" style="width:100%;"><option value="">— Select One —</option>{% for value, label in container_indicators %}<option value="{{ value }}" {% if bl_values.container_indicator == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% else %}{{ bl_values.container_indicator|default:"—" }}{% endif %}</td></tr>
+              <tr><th>Risk Level</th><td>{% if is_draft %}<input id="bl-risk-level" value="{{ bl_values.risk_level }}" style="width:100%;">{% else %}{{ bl_values.risk_level|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Marks and Numbers *</th><td>{% if is_draft %}<textarea id="bl-marks-numbers" rows="3" style="width:100%;">{{ bl_values.marks_numbers }}</textarea>{% else %}{{ bl_values.marks_numbers|default:'—' }}{% endif %}</td></tr>
+            </tbody></table></div>
+          <div class="boe-section"><h2 class="boe-section-title">Number Of Containers Status</h2>
+            {% if is_draft %}<button class="secondary-button" type="button" disabled title="Container Excel upload is not part of this training step">Container Excel Upload</button>{% endif %}
+            <table class="ucr-view-table" style="margin-top:.5rem;"><tbody>
+              <tr><th>Container Category *</th><td>{% if is_draft %}<select id="bl-container-category" style="width:100%;"><option value="">— Select One —</option><option value="B, Bulk Cargo" {% if bl_values.container_category == "B, Bulk Cargo" %}selected{% endif %}>B, Bulk Cargo</option><option value="L, Loose Cargo" {% if bl_values.container_category == "L, Loose Cargo" %}selected{% endif %}>L, Loose Cargo</option><option value="E, Etc" {% if bl_values.container_category == "E, Etc" %}selected{% endif %}>E, Etc</option></select>{% else %}{{ bl_values.container_category|default:'—' }}{% endif %}</td></tr>
+              <tr><th>Up to 20 feet</th><td style="text-align:right;">{% if is_draft %}<input id="bl-containers-20" value="{{ bl_values.containers_20 }}" style="width:100%; text-align:right;">{% else %}{{ bl_values.containers_20 }}{% endif %}</td></tr>
+              <tr><th>30 feet or more (30/35/40, etc) feet</th><td style="text-align:right;">{% if is_draft %}<input id="bl-containers-30" value="{{ bl_values.containers_30 }}" style="width:100%; text-align:right;">{% else %}{{ bl_values.containers_30 }}{% endif %}</td></tr>
+              <tr><th>Cars and Non-containerised Vehicles</th><td style="text-align:right;">{% if is_draft %}<input id="bl-containers-cars" value="{{ bl_values.containers_cars }}" style="width:100%; text-align:right;">{% else %}{{ bl_values.containers_cars }}{% endif %}</td></tr>
+            </tbody></table>
+            <p class="dialog-help">Click the corresponding context (in brackets) of the Container Category box: [Bulk] for Bulk Cargo, [Loose] for Loose cargo, and [Etc] for Container/Vehicle, etc.</p>
           </div>
+          <div class="boe-section"><h2 class="boe-section-title">Container / Chassis List</h2>
+            <div style="text-align:right; font-size:.78rem; color:var(--muted);">Total : <span id="container-total">{{ containers|length }}</span></div>
+            <table class="ucr-search-table"><thead><tr><th>No.</th><th>Packing Type</th><th>Container No. / Chassis No.</th><th>Container Size</th><th>Seal No.</th><th>{% if is_draft %}<button class="ucr-row-action" id="container-add" type="button">Add</button>{% endif %}</th></tr></thead><tbody id="container-rows"></tbody></table></div>
+          </div>
+          {% if is_draft %}
+          <div class="cargo-actions">
+            <a class="secondary-button" href="{% url 'clearance-workspace' %}">Back</a>
+            <button class="secondary-button" id="save-bl-draft" type="button">Save as Draft</button>
+            <button class="secondary-button" id="go-invoice" type="button">Next</button>
+          </div>
+          {% endif %}
         </section>
-
-        <section class="cargo-panel boe-tab-panel" id="boe-tab-invoice" hidden>
+<section class="cargo-panel boe-tab-panel" id="boe-tab-invoice" hidden>
           <div class="cargo-panel-title"><h2>Invoice</h2></div>
           <div class="summary-grid">
             {% for label, value in invoice_fields %}<label>{{ label }}</label><input value="{{ value }}" readonly>{% endfor %}
@@ -200,6 +242,7 @@
       </div>
     </main>
   </div>
+  {{ containers|json_script:"containers-data" }}
   {{ importer_code|json_script:"importer-code-data" }}{{ consignee_code|json_script:"consignee-code-data" }}{{ general_values.declarant_tin|json_script:"declarant-code-data" }}
   <script>
     (() => {
@@ -242,6 +285,121 @@
           if (nameEl) nameEl.textContent = originalConsignee.name;
           if (addressEl) addressEl.textContent = originalConsignee.address;
         }
+      });
+
+      // --- BL/AWB tab ---
+      const containerRows = document.querySelector("#container-rows");
+      const packingOptions = ["PK", "PACKAGE", "PARCEL", "PACKET"];
+      const sizeOptions = ["20", "30", "35", "40", "45"];
+      function addContainerRow(row = {}) {
+        if (!containerRows) return;
+        const tr = document.createElement("tr");
+        const select = (options, value, cls) => {
+          const el = document.createElement("select");
+          el.className = cls || "";
+          el.style.width = "100%";
+          el.append(new Option("-- Select One --", ""));
+          options.forEach((opt) => el.append(new Option(opt, opt)));
+          el.value = value || "";
+          return el;
+        };
+        const numberInput = document.createElement("input");
+        numberInput.className = "container-number";
+        numberInput.style.width = "100%";
+        numberInput.value = row.number || "";
+        const sealInput = document.createElement("input");
+        sealInput.className = "container-seal";
+        sealInput.style.width = "100%";
+        sealInput.value = row.seal || "";
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "ucr-row-action";
+        del.textContent = "Del";
+        del.addEventListener("click", () => { tr.remove(); updateContainerTotal(); });
+        tr.append(
+          Object.assign(document.createElement("td"), { className: "cell-center" }),
+        );
+        const packingTd = document.createElement("td");
+        packingTd.append(select(packingOptions, row.packing));
+        const numberTd = document.createElement("td");
+        numberTd.append(numberInput);
+        const sizeTd = document.createElement("td");
+        sizeTd.append(select(sizeOptions, row.size));
+        const sealTd = document.createElement("td");
+        sealTd.append(sealInput);
+        const delTd = document.createElement("td");
+        delTd.style.textAlign = "right";
+        delTd.append(del);
+        tr.append(packingTd, numberTd, sizeTd, sealTd, delTd);
+        containerRows.append(tr);
+        updateContainerTotal();
+      }
+      function updateContainerTotal() {
+        const total = document.querySelector("#container-total");
+        if (total) total.textContent = String(containerRows.querySelectorAll("tr").length);
+      }
+      document.querySelector("#container-add")?.addEventListener("click", () => addContainerRow());
+      try {
+        JSON.parse(document.querySelector("#containers-data").textContent).forEach((row) => addContainerRow(row));
+      } catch (_error) { /* no saved containers */ }
+
+      function collectBlFields() {
+        const value = (id) => document.getElementById(id)?.value || "";
+        return {
+          manifest_no: value("bl-manifest-no"),
+          bl_awb_no: value("bl-bl-awb-no"),
+          manifest_date: value("bl-manifest-date"),
+          customs_office: value("bl-office"),
+          customs_area: value("bl-customs-area"),
+          location_code: value("bl-location-code"),
+          location_name: value("bl-location-name"),
+          vessel_name: value("bl-vessel-name"),
+          voyage_no: value("bl-voyage-no"),
+          manifest_freight: value("bl-manifest-freight"),
+          nationality: value("bl-nationality"),
+          port_of_loading: value("bl-port-of-loading"),
+          place_of_landing: value("bl-place-of-landing"),
+          etd: value("bl-etd"),
+          gross_weight: value("bl-gross-weight"),
+          net_weight: value("bl-net-weight"),
+          package_unit: value("bl-package-unit"),
+          package_count: value("bl-package-count"),
+          volume: value("bl-volume"),
+          consignment_country: value("bl-consignment-country"),
+          consignment_date: value("bl-consignment-date"),
+          container_indicator: value("bl-container-indicator"),
+          risk_level: value("bl-risk-level"),
+          marks_numbers: value("bl-marks-numbers"),
+        };
+      }
+      function collectContainers() {
+        return [...(containerRows?.querySelectorAll("tr") || [])].map((tr) => ({
+          packing: tr.querySelector("select")?.value || "",
+          number: tr.querySelector(".container-number")?.value || "",
+          size: tr.querySelector(".container-size-select")?.value || tr.querySelectorAll("select")[1]?.value || "",
+          seal: tr.querySelector(".container-seal")?.value || "",
+        }));
+      }
+      document.querySelector("#save-bl-draft")?.addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+          const response = await fetch("{% url 'boe-save-draft' declaration.pk %}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+            body: JSON.stringify({ section: "bl_awb", fields: collectBlFields(), containers: collectContainers() }),
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || "The draft could not be saved.");
+          window.alert("Saved as draft. Your BL/AWB tab entries are stored.");
+        } catch (error) {
+          window.alert(`Save failed. ${error.message}`);
+        } finally {
+          button.disabled = false;
+        }
+      });
+      document.querySelector("#go-invoice")?.addEventListener("click", () => {
+        document.querySelector('.boe-tab[data-boe-tab="invoice"]')?.click();
       });
 
       document.querySelector("#save-general-draft")?.addEventListener("click", async (event) => {

@@ -1743,17 +1743,42 @@ def boe_declaration(request, declaration_id):
         "declarant_name": declaration.ucr.provider_name,
         "declarant_address": declaration.ucr.provider_address,
     }
-    transport = [
-        ("Means of Transport", data.get("means_of_transport", "")),
-        ("Vessel Name", data.get("vessel_name", "")),
-        ("Voyage No.", data.get("voyage_no", "")),
-        ("Shipment Date", data.get("shipment_date", "")),
-        ("Carrier", data.get("carrier", "")),
-        ("BL/AWB No.", data.get("bl_awb_no", "")),
-        ("Port of Arrival", data.get("port_arrival", "")),
-        ("Port of Departure", data.get("port_departure", "")),
-        ("Customs Office", data.get("customs_office", "")),
-    ]
+    bl = data.get("bl") or {}
+    item_gross = sum((float(str(item.get("gross_weight", "") or 0) or 0) for item in items), 0.0)
+    item_net = sum((float(str(item.get("net_weight", "") or 0) or 0) for item in items), 0.0)
+    item_packages = sum((float(str(item.get("package_quantity", "") or 0) or 0) for item in items), 0.0)
+    item_package_unit = (items[0].get("package_unit", "") if items else "") or "PK"
+    bl_values = {
+        "manifest_no": bl.get("manifest_no", data.get("manifest_no", "")),
+        "bl_awb_no": bl.get("bl_awb_no", data.get("bl_awb_no", "")),
+        "manifest_date": bl.get("manifest_date", ""),
+        "customs_area": bl.get("customs_area", ""),
+        "location_code": bl.get("location_code", ""),
+        "location_name": bl.get("location_name", ""),
+        "vessel_name": bl.get("vessel_name", data.get("vessel_name", "")),
+        "voyage_no": bl.get("voyage_no", data.get("voyage_no", "")),
+        "manifest_freight": bl.get("manifest_freight", ""),
+        "nationality": bl.get("nationality", ""),
+        "port_of_loading": bl.get("port_of_loading", data.get("port_departure", "")),
+        "place_of_landing": bl.get("place_of_landing", ""),
+        "etd": bl.get("etd", ""),
+        "gross_weight": bl.get("gross_weight") or f"{item_gross:g}",
+        "net_weight": bl.get("net_weight") or f"{item_net:g}",
+        "package_unit": bl.get("package_unit", item_package_unit),
+        "package_count": bl.get("package_count") or f"{item_packages:g}",
+        "volume": bl.get("volume", ""),
+        "consignment_country": bl.get("consignment_country", ""),
+        "consignment_date": bl.get("consignment_date", ""),
+        "container_indicator": bl.get("container_indicator", ""),
+        "risk_level": bl.get("risk_level", ""),
+        "marks_numbers": bl.get("marks_numbers", data.get("marks_numbers", "")),
+        "container_category": bl.get("container_category", ""),
+        "containers_20": bl.get("containers_20", data.get("containers_up_to_20", 0)),
+        "containers_30": bl.get("containers_30", data.get("containers_30_plus", 0)),
+        "containers_cars": bl.get("containers_cars", 0),
+    }
+    containers = data.get("containers") or []
+    ports = list(PortCode.objects.filter(is_active=True).values_list("code", "name")[:200])
     invoice = [
         ("Delivery Term", data.get("delivery_term", "")),
         ("Currency", data.get("currency", "")),
@@ -1775,7 +1800,15 @@ def boe_declaration(request, declaration_id):
         "importer_name": importer_name,
         "consignee_code": consignee_code,
         "consignee_name": consignee_name,
-        "transport_fields": transport,
+        "bl_values": bl_values,
+        "containers": containers,
+        "ports": ports,
+        "container_indicators": [
+            ("G, G Indicator", "G, G Indicator"),
+            ("F, F Indicator", "F, F Indicator"),
+            ("L, L Indicator", "L, L Indicator"),
+        ],
+        "country_display_items": list(COUNTRY_DISPLAY_NAMES.items()),
         "invoice_fields": invoice,
         "items": items,
         "tax_rows": tax_rows,
@@ -1796,6 +1829,23 @@ def boe_save_general_draft(request, declaration_id):
     except json.JSONDecodeError:
         return JsonResponse({"error": "The request body is not valid JSON."}, status=400)
     data = declaration.form_data or {}
+    section = str(payload.get("section", "general")).strip().lower()
+    if section == "bl_awb":
+        fields = payload.get("fields") or {}
+        bl = data.get("bl") or {}
+        for key in ("manifest_no", "bl_awb_no", "manifest_date", "customs_area", "location_code", "location_name",
+                    "vessel_name", "voyage_no", "manifest_freight", "nationality", "port_of_loading",
+                    "place_of_landing", "etd", "gross_weight", "net_weight", "package_unit", "package_count",
+                    "volume", "consignment_country", "consignment_date", "container_indicator", "risk_level", "marks_numbers"):
+            if key in fields:
+                bl[key] = str(fields[key]).strip()[:240]
+        data["bl"] = bl
+        containers = payload.get("containers")
+        if isinstance(containers, list):
+            data["containers"] = [row for row in containers if isinstance(row, dict)][:100]
+        declaration.form_data = data
+        declaration.save(update_fields=("form_data", "updated_at"))
+        return JsonResponse({"saved": True, "section": "bl_awb"})
     data["user_reference"] = str(payload.get("user_reference", "")).strip()[:200]
     taxpayer = str(payload.get("taxpayer", "importer")).strip().lower()
     data["taxpayer"] = taxpayer if taxpayer in ("importer", "consignee", "declarant") else "importer"

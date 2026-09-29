@@ -228,3 +228,56 @@ def test_search_boe_lists_drafts_and_submitted(client):
     assert declaration.declaration_no.encode() in filtered.content
     empty = client.get(search_url, {"boe": "BOE999999"})
     assert b"No data found." in empty.content
+
+
+@pytest.mark.django_db
+def test_bl_awb_tab_edits_and_saves(client):
+    from django.test import Client
+
+    staff = User.objects.create_user(username="bl-awb-user", email="bl-awb-user@example.test", password="x", is_staff=True)
+    client.force_login(staff)
+    idf = _make_idf(staff, "KGHTESTUCR9900000059")
+    created = client.post(reverse("boe-create"), {
+        "reuse": "IDF", "idf_number": idf.application_no,
+        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+    }, content_type="application/json").json()
+    declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
+    page_url = reverse("boe-declaration", args=(declaration.pk,))
+
+    # Draft page renders the reference BL/AWB fields and container controls.
+    draft_page = client.get(page_url)
+    assert b'id="bl-manifest-no"' in draft_page.content
+    assert b'id="bl-location-code"' in draft_page.content
+    assert b'Container Indicator (G/F/L)' in draft_page.content
+    assert b'container-add' in draft_page.content
+    assert b"Number Of Containers Status" in draft_page.content
+    # Item weights prefill the gross/net weight totals.
+    assert b"200" in draft_page.content
+
+    # Saving the BL/AWB section stores its fields and the container list.
+    saved = client.post(reverse("boe-save-draft", args=(declaration.pk,)), {
+        "section": "bl_awb",
+        "fields": {
+            "manifest_no": "MAN-001", "bl_awb_no": "DUTY",
+            "customs_office": "TMA1, CEPS TEMA",
+            "location_code": "WITMA1GVHE", "location_name": "GOLDEN JUBILEE VEHICLE",
+            "vessel_name": "GOLDEN JUBILEE", "voyage_no": "V-9",
+            "gross_weight": "126345", "net_weight": "26345",
+            "package_unit": "PK", "package_count": "1",
+            "consignment_country": "US, United States",
+            "container_indicator": "F, F Indicator",
+            "marks_numbers": "AS ADD",
+        },
+        "containers": [{"packing": "PK", "number": "CONT-1", "size": "40", "seal": "SEAL-1"}],
+    }, content_type="application/json")
+    assert saved.status_code == 200
+
+    declaration.refresh_from_db()
+    assert declaration.form_data["bl"]["bl_awb_no"] == "DUTY"
+    assert declaration.form_data["bl"]["container_indicator"] == "F, F Indicator"
+    assert declaration.form_data["containers"][0]["number"] == "CONT-1"
+
+    # The rendered draft now reflects the saved values.
+    rendered = client.get(page_url)
+    assert b"CONT-1" in rendered.content
+    assert b"F, F Indicator" in rendered.content
