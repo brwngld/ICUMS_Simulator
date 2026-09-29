@@ -41,6 +41,30 @@ DJANGO_CSRF_TRUSTED_ORIGINS=https://customsclearancepractice.com
 
 (the production settings already read these from the environment alongside the PostgreSQL and secret-key variables).
 
+## Temporary VPS deployment (SQLite)
+
+For short-lived training runs on an Ubuntu VPS, the SQLite database works as-is with Waitress bound externally. The `config/settings/vps.py` module exists for exactly this.
+
+1. Copy the project to the VPS (git clone), create a virtualenv, and `pip install -r requirements.txt`.
+2. Bring your current data: copy `local_data/db.sqlite3` (and `local_data/media/` if used) to the same paths — student accounts, passwords, and all records live there.
+3. Serve with Waitress on an external interface:
+
+```bash
+export DJANGO_SETTINGS_MODULE=config.settings.vps
+export DJANGO_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+export DJANGO_ALLOWED_HOSTS="your.domain.or.vps.ip"
+python manage.py migrate
+python manage.py collectstatic --noinput
+python -m waitress --listen=0.0.0.0:8000 config.wsgi:application
+```
+
+4. Open `http://<vps-ip>:8000/` (or the domain once DNS points at the VPS). Put nginx + certbot in front for HTTPS before real use — logins happen over this connection.
+
+Notes:
+- SQLite is fine for roughly ten concurrent trainees; heavy simultaneous saves can hit write locks briefly.
+- Back up by copying `local_data/db.sqlite3` (the backup_local_system command also works).
+- This module is temporary by design; the Phase 6 PostgreSQL gate supersedes it.
+
 ## Tests and checks
 
 ```powershell
