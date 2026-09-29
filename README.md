@@ -17,6 +17,7 @@ The repository contains the approved planning baseline and an operational local 
 - Certificates are issued automatically after passing in V1. Instructor approval will later be configurable.
 - Initial learning and scenario content may be loaded by a developer or administrator.
 - Temporary branding: **ICUMS Simulator**.
+- Chosen domain for future hosting: **customsclearancepractice.com**.
 
 ## Planning package
 

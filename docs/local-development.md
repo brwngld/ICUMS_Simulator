@@ -30,6 +30,17 @@ Open `http://127.0.0.1:8000/`. The launcher performs a Django system check, coll
 
 This mode is suitable for controlled use on the same computer. It deliberately refuses `0.0.0.0` or another network-facing bind address. A later hosted or local-network deployment requires the Phase 6 PostgreSQL, HTTPS, secrets, proxy, backup, and concurrency readiness work.
 
+## Chosen hosting domain
+
+`customsclearancepractice.com` has been set aside for the hosted deployment. When Phase 6 happens, point the DNS at the server, obtain the TLS certificate, and start the production server with:
+
+```text
+DJANGO_ALLOWED_HOSTS=customsclearancepractice.com,www.customsclearancepractice.com
+DJANGO_CSRF_TRUSTED_ORIGINS=https://customsclearancepractice.com
+```
+
+(the production settings already read these from the environment alongside the PostgreSQL and secret-key variables).
+
 ## Tests and checks
 
 ```powershell
