@@ -1062,8 +1062,8 @@ class BoeDeclaration(models.Model):
         codes = {self.Status.DRAFT: "ER - Draft", self.Status.SUBMITTED: "SU - Submitted",
                  self.Status.ASSESSED: "AS - Assessed", self.Status.ACCEPTED: "AC - Accepted"}
         return codes.get(self.status, self.status)
-    declaration_no = models.CharField(max_length=24, unique=True, blank=True, editable=False)
-    job_no = models.CharField(max_length=24, unique=True, blank=True, editable=False)
+    declaration_no = models.CharField(max_length=24, blank=True, editable=False)
+    job_no = models.CharField(max_length=24, unique=True, editable=False)
     idf = models.ForeignKey(MdaConsignmentRequest, on_delete=models.PROTECT, related_name="boe_declarations")
     ucr = models.OneToOneField(UcrDeclaration, on_delete=models.PROTECT, related_name="boe_declaration")
     regime = models.CharField(max_length=2, blank=True)
@@ -1079,6 +1079,10 @@ class BoeDeclaration(models.Model):
 
     class Meta:
         ordering = ("-created_at",)
+        constraints = [
+            # Drafts carry an empty BoE number; uniqueness applies once it is issued on submission.
+            models.UniqueConstraint(fields=("declaration_no",), condition=models.Q(declaration_no__gt=""), name="unique_boe_number_when_issued"),
+        ]
 
     def __str__(self) -> str:
         return self.declaration_no or f"BOE draft for {self.ucr}"

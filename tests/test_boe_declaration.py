@@ -93,6 +93,16 @@ def test_boe_create_enforces_single_ucr_use(client):
     assert again.status_code == 400
     assert "already been used" in again.json()["error"]
 
+    # A second draft BOE (different UCR/IDF) is created without a number clash.
+    idf_two = _make_idf(staff, "KGHTESTUCR9900000029", idf_no="CD202609MOTIIDF0000029")
+    second = client.post(reverse("boe-create"), {
+        "reuse": "IDF", "idf_number": idf_two.application_no,
+        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+    }, content_type="application/json")
+    assert second.status_code == 200
+    second_declaration = BoeDeclaration.objects.get(job_no=second.json()["job_no"])
+    assert second_declaration.declaration_no == ""
+
 
 @pytest.mark.django_db
 def test_boe_tabs_follow_the_declaration_status(client):
