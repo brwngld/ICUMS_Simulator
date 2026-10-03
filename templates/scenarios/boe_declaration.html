@@ -5,7 +5,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BOE Declaration · {{ declaration.declaration_no }} · ICUMS Simulator</title>
   <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260925-2">
-  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261003-2">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261003-3">
   <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260925-6">
   <style>
     .boe-tabs { display: flex; flex-wrap: wrap; gap: .4rem; padding: .6rem 0; }
@@ -117,7 +117,7 @@
         <section class="cargo-panel boe-tab-panel" id="boe-tab-blawb" hidden>
           <div class="boe-section"><h2 class="boe-section-title">BL/AWB Details</h2>
             <table class="ucr-view-table boe-form-grid"><tbody>
-              <tr><th>Manifest No.</th><td><input id="bl-manifest-no" value="{{ bl_values.manifest_no }}" style="width:100%;"></td><th>BL/AWB No. *</th><td><input id="bl-bl-awb-no" value="{{ bl_values.bl_awb_no }}" style="width:100%;"><button class="ucr-row-action" type="button" disabled title="Select from the attached documents">Click to select</button></td></tr>
+              <tr><th>Manifest No.</th><td><input id="bl-manifest-no" value="{{ bl_values.manifest_no }}" style="width:100%;"></td><th>BL/AWB No. *</th><td><span class="boe-money"><input id="bl-bl-awb-no" value="{{ bl_values.bl_awb_no }}" style="flex:1 1 0; min-width:0;"><button class="ucr-row-action" type="button" disabled title="Select from the attached documents" style="flex:0 0 auto; white-space:nowrap;">Click to select</button></span></td></tr>
               <tr><th>Transport Mode *</th><td colspan="3">{{ declaration.ucr.transport_mode }}</td></tr>
               <tr><th>Manifest No. Date</th><td><input id="bl-manifest-date" type="date" value="{{ bl_values.manifest_date }}" style="width:100%;"></td><th>Entry/Exit Office *</th><td><span class="boe-compound boe-compound-split"><input id="bl-office-code" class="boe-code-box" aria-label="Entry/Exit office code" list="port-options"><button class="boe-lookup-btn" type="button" disabled title="Office lookup is not part of this training step">&#128269;</button><input id="bl-office" value="{{ general_values.customs_office }}" aria-label="Entry/Exit office name"></span></td></tr>
               <tr><th>Customs Area</th><td><input id="bl-customs-area" value="{{ bl_values.customs_area }}" style="width:100%;"></td><th>Location of Goods *</th><td><span class="boe-compound"><input id="bl-location-code" value="{{ bl_values.location_code }}" placeholder="Code" aria-label="Location code"><button class="boe-lookup-btn" type="button" disabled title="Location lookup is not part of this training step">&#128269;</button><input id="bl-location-name" value="{{ bl_values.location_name }}" placeholder="Name" aria-label="Location name"></span></td></tr>

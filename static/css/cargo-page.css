@@ -403,3 +403,6 @@ td > .boe-box { width: 100%; box-sizing: border-box; }
 .boe-lookup-btn { flex: 0 0 auto; border: 1px solid var(--line); border-radius: .35rem; background: transparent; color: var(--muted); padding: .22rem .45rem; font-size: .78rem; cursor: default; }
 .boe-field { width: 100%; box-sizing: border-box; padding: .3rem .55rem; border: 1px solid var(--line); border-radius: .35rem; background: var(--panel); color: var(--ink); font: inherit; font-size: .82rem; }
 .boe-field:disabled { color: var(--muted); background: color-mix(in srgb, var(--panel) 82%, transparent); }
+.boe-money { display: flex; align-items: center; gap: .4rem; width: 100%; }
+.boe-money > input { flex: 1 1 0; min-width: 0; }
+.boe-money > .boe-currency-tag { flex: 0 0 auto; }
