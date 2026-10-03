@@ -33,7 +33,7 @@ from .models import (BillOfLading, CommercialDocument, ScenarioActionDefinition,
                      allocate_ucr_number, purge_expired_ucr_drafts)
 from .models import BoeDeclaration, BoeStageEvent, ConsignmentApplication, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus, PortCode, allocate_application_number, allocate_boe_number, allocate_job_number
 from .pdfs import build_bill_of_lading_pdf, build_commercial_document_pdf, build_fictitious_document_pdf
-from assessment.service import compute_from_invoice
+from assessment.service import compute_tax_preview
 from .services import available_actions, perform_action, practical_is_unlocked, record_hint, start_or_resume_attempt
 from accounts.models import SimulatorCredential
 
@@ -1843,11 +1843,6 @@ def boe_declaration(request, declaration_id):
     hs_codes = [str(item.get("hs_code", "")).strip() for item in items]
     status = declaration.status
 
-    fob_ncy = data.get("fob_ncy")
-    freight_ncy = data.get("freight_ncy")
-    insurance_ncy = data.get("insurance_ncy")
-    tax_rows, tax_summary = compute_from_invoice(fob_ncy, freight_ncy, insurance_ncy, hs_codes)
-
     regime_name = CustomsRegime.objects.filter(code=declaration.regime).values_list("name", flat=True).first() or ""
     country = lambda code: f"{code}, {COUNTRY_DISPLAY_NAMES.get((code or '').strip().upper(), '')}" if code else ""
 
@@ -1992,6 +1987,10 @@ def boe_declaration(request, declaration_id):
         .exclude(status=MdaStatus.DRAFT)
         .select_related("mda", "application")
         .order_by("created_at")
+    ] + [
+        {"code": "", "name": row.get("description", ""), "requirement": row.get("requirement", "Y"),
+         "reference": row.get("reference", "")}
+        for row in (data.get("user_documents_manual") or []) if isinstance(row, dict)
     ]
     delivery_term_options = [
         ("CFR", "CFR, COST & FREIGHT"), ("CIF", "CIF, COST, INSURANCE & FREIGHT"),
@@ -2196,9 +2195,7 @@ def boe_declaration(request, declaration_id):
         "user_tax_rows": user_tax_rows,
         "summary_items": summary_items,
         "summary_item_totals": summary_item_totals,
-        "tax_rows": tax_rows,
-        "tax_total": tax_summary["total"],
-        "customs_value": tax_summary["customs_value"],
+        **_boe_tax_panel_context(declaration),
     })
 
 
@@ -2247,9 +2244,21 @@ def boe_save_general_draft(request, declaration_id):
         data["invoice_country_of_delivery"] = str(fields.get("country_of_delivery", "")).strip()[:80]
         data["invoice_delivery_place"] = str(fields.get("delivery_place", "")).strip()[:120]
         data["mode_of_payment_cd"] = str(fields.get("mode_of_payment_cd", "01")).strip()[:2]
+        if "delivery_term" in fields:
+            data["delivery_term"] = str(fields.get("delivery_term", "")).strip()[:3].upper()
     elif section == "documents":
         fields = payload.get("fields") or {}
         data["income_tax_reference"] = str(fields.get("income_tax_reference", "NA")).strip()[:120]
+        user_rows = payload.get("user_rows")
+        if isinstance(user_rows, list):
+            data["user_documents_manual"] = [
+                {
+                    "description": str(row.get("description", "")).strip()[:240],
+                    "requirement": str(row.get("requirement", "Y")).strip()[:1].upper() or "Y",
+                    "reference": str(row.get("reference", "")).strip()[:240],
+                }
+                for row in user_rows if isinstance(row, dict) and str(row.get("description", "")).strip()
+            ][:100]
     elif section == "item":
         items, index, error = _boe_target_item(data, payload)
         if error:
@@ -2542,3 +2551,48 @@ def commercial_document_pdf(request, document_id):
     disposition = "attachment" if request.GET.get("download") == "1" else "inline"
     response["Content-Disposition"] = f'{disposition}; filename="training-{document.document_type}-{document.reference}.pdf"'
     return response
+
+
+# --- BOE Tax tab (draft duty estimation panel) -------------------------------
+
+def _boe_tax_panel_context(declaration):
+    """Initial Tax tab context: the full 18-row tax catalog with zero amounts.
+
+    Spread into the boe_declaration render context (`**_boe_tax_panel_context(declaration)`).
+    Nothing is computed here — the Compute Tax button fills the amounts on demand
+    via boe_compute_tax, so the panel renders the catalog structure only.
+    """
+    data = declaration.form_data or {}
+    # The zero phase renders the catalog structure only — even the flat fees
+    # stay 0.00 until the Compute Tax button fills them on demand.
+    tax_rows = [dict(row, payable="0.00") for row in compute_tax_preview({})["declaration_rows"]]
+    tax_items = []
+    for index, item in enumerate(data.get("items") or []):
+        if not isinstance(item, dict):
+            continue
+        tax_items.append({
+            "index": index,
+            "item_no": str(item.get("item_no") or f"{index + 1:04d}").strip() or f"{index + 1:04d}",
+            "hs_code": str(item.get("hs_code", "") or ""),
+            "cpc": str(item.get("cpc", "") or declaration.cpc or ""),
+            "fob_ncy": _boe_fmt_money(item.get("fob_ncy")) or "0.00",
+            "customs_value_ncy": _boe_fmt_money(item.get("customs_value_ncy")) or "0.00",
+            "payable": "0.00",
+        })
+    return {
+        "tax_rows": tax_rows,
+        "tax_totals": {"tax": "0.00", "exempted": "0.00", "guarantee": "0.00", "payable": "0.00"},
+        "tax_items": tax_items,
+        "tax_cv": {
+            "fcy": _boe_fmt_money(data.get("customs_value_fcy")) or "0.00",
+            "ncy": _boe_fmt_money(data.get("customs_value_ncy")) or "0.00",
+        },
+    }
+
+
+@simulator_access_required
+@require_POST
+def boe_compute_tax(request, declaration_id):
+    """Compute the estimated duty preview for a draft BOE (Tax tab's Compute Tax)."""
+    declaration = get_object_or_404(BoeDeclaration, pk=declaration_id, owner=request.user)
+    return JsonResponse({"tax": compute_tax_preview(declaration.form_data or {})})

@@ -1,0 +1,156 @@
+{# BOE Declaration — Tax tab panel content. Included inside <section class="cargo-panel boe-tab-panel" id="boe-tab-tax">. Inner content only. #}
+{# Context contract: declaration (model or namespace with pk/job_no/status/status_code_display/form_data), #}
+{# tax_rows (18 catalog rows: code/name/user_defined/exempted/suspended/payable), tax_totals {tax, exempted, guarantee, payable}, #}
+{# tax_items [{index, item_no, hs_code, cpc, fob_ncy, customs_value_ncy, payable}], optional tax_cv {fcy, ncy}. #}
+
+<p class="required-note">* From this tab, you can calculate the tax amount on the BOE declaration before customs verification starts. The tax amount calculation results after customs assessment can be found on the Assessment tab.</p>
+
+<div class="boe-section"><h2 class="boe-section-title">Total Payable Tax</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Job No.</th><td>{{ declaration.job_no|default:"—" }}</td><th>Status</th><td>{{ declaration.status_code_display|default:declaration.status|default:"—" }}</td></tr>
+    <tr><th>Total Tax(GHS)</th><td style="text-align:right;" id="tax-total">{{ tax_totals.tax|default:"0.00" }}</td><th>Exempted Tax(GHS)</th><td style="text-align:right;" id="tax-exempted">{{ tax_totals.exempted|default:"0.00" }}</td></tr>
+    <tr><th>Guarantee(GHS)</th><td style="text-align:right;" id="tax-guarantee">{{ tax_totals.guarantee|default:"0.00" }}</td><th>Payable Tax(GHS)</th><td style="text-align:right;" id="tax-payable">{{ tax_totals.payable|default:"0.00" }}</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Total Customs Value</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    {% if tax_cv %}<tr><th>Total Customs Value(FCY)</th><td style="text-align:right;" id="tax-cv-fcy">{{ tax_cv.fcy|default:"0.00" }}</td><th>Total Customs Value(NCY)</th><td style="text-align:right;" id="tax-cv-ncy">{{ tax_cv.ncy|default:"0.00" }}</td></tr>
+    {% else %}<tr><th>Total Customs Value(FCY)</th><td style="text-align:right;" id="tax-cv-fcy">{{ declaration.form_data.customs_value_fcy|default:"0.00" }}</td><th>Total Customs Value(NCY)</th><td style="text-align:right;" id="tax-cv-ncy">{{ declaration.form_data.customs_value_ncy|default:"0.00" }}</td></tr>{% endif %}
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Calculation of Duties/Taxes</h2>
+  <div style="text-align:right; margin-bottom:.4rem;"><button class="secondary-button" id="tax-compute" type="button">🧮 Compute Tax</button></div>
+  <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr>
+    <th>User Defined</th><th>Tax Code</th><th>Tax</th><th>Amount Exempted(GHS)</th><th>Amount Suspended(GHS)</th><th>Amount Payable(GHS)</th>
+  </tr></thead><tbody>
+    {% for row in tax_rows %}<tr>
+      <td class="cell-center">{{ row.user_defined }}</td>
+      <td class="cell-center">{{ row.code }}</td>
+      <td class="cell-left">{{ row.name }}</td>
+      <td class="cell-center">{{ row.exempted }}</td>
+      <td class="cell-center">{{ row.suspended }}</td>
+      <td class="tax-payable-cell" data-tax-code="{{ row.code }}" style="text-align:right;">{{ row.payable }}</td>
+    </tr>{% empty %}<tr><td class="empty-row" colspan="6">No data found.</td></tr>{% endfor %}
+  </tbody><tfoot><tr id="tax-total-row"><th colspan="3">Total Taxes</th><th style="text-align:right;" id="tax-total-exempted">{{ tax_totals.exempted|default:"0.00" }}</th><th style="text-align:right;" id="tax-total-suspended">{{ tax_totals.suspended|default:"0.00" }}</th><th style="text-align:right;" id="tax-total-payable">{{ tax_totals.payable|default:"0.00" }}</th></tr></tfoot></table></div>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Item</h2>
+  <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr>
+    <th style="width:2%;"></th><th>Item No.</th><th>HS</th><th>CPC</th><th>FOB(GHS)</th><th>Customs Value(GHS)</th><th>Amount Exempted(GHS)</th><th>Amount Suspended(GHS)</th><th>Amount Payable(GHS)</th>
+  </tr></thead><tbody>
+    {% for item in tax_items %}<tr>
+      <td class="cell-center"><input type="radio" name="tax-item-radio" data-index="{{ item.index }}" aria-label="Select item {{ item.item_no }}"{% if forloop.first %} checked{% endif %}></td>
+      <td class="cell-center">{{ item.item_no }}</td>
+      <td class="cell-center">{{ item.hs_code }}</td>
+      <td class="cell-center">{{ item.cpc }}</td>
+      <td style="text-align:right;">{{ item.fob_ncy }}</td>
+      <td style="text-align:right;">{{ item.customs_value_ncy }}</td>
+      <td class="cell-center">0.00</td>
+      <td class="cell-center">0.00</td>
+      <td class="tax-item-payable" data-index="{{ item.index }}" style="text-align:right;">{{ item.payable }}</td>
+    </tr>{% empty %}<tr><td class="empty-row" colspan="9">No data found.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% for item in tax_items %}
+  <div data-tax-item-detail="{{ item.index }}" hidden>
+    <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr>
+      <th>User Defined</th><th>Tax</th><th>Tax Base</th><th>TBC</th><th>Rate(%)</th><th>Amount Exempted(GHS)</th><th>Amount Suspended(GHS)</th><th>Amount Payable(GHS)</th>
+    </tr></thead><tbody class="tax-item-detail-body" data-index="{{ item.index }}"></tbody>
+    <tfoot><tr><th colspan="5">Total Taxes by Item</th><th style="text-align:right;" class="tax-itemtotal-cell" data-index="{{ item.index }}">0.00</th><th style="text-align:right;" class="tax-itemtotal-cell" data-index="{{ item.index }}">0.00</th><th style="text-align:right;" class="tax-itemtotal-cell" data-index="{{ item.index }}">0.00</th></tr></tfoot></table></div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+  (() => {
+    const computeButton = document.querySelector("#tax-compute");
+    const computeUrl = "{% url 'boe-compute-tax' declaration.pk %}";
+    const headers = { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" };
+    const setText = (selector, value) => {
+      const element = document.querySelector(selector);
+      if (element) element.textContent = value;
+    };
+
+    const showDetail = (index) => {
+      document.querySelectorAll("[data-tax-item-detail]").forEach((container) => {
+        container.hidden = container.dataset.taxItemDetail !== String(index);
+      });
+    };
+    document.querySelectorAll('input[name="tax-item-radio"]').forEach((radio) => {
+      radio.addEventListener("change", () => showDetail(radio.dataset.index));
+    });
+
+    const fillItemDetail = (index, rows) => {
+      const body = document.querySelector(`.tax-item-detail-body[data-index="${index}"]`);
+      if (!body) return;
+      body.textContent = "";
+      rows.forEach((row) => {
+        const cells = [
+          row.user_defined || "N",
+          `${row.code}. ${row.name}`,
+          row.base,
+          row.tbc,
+          row.rate,
+          row.exempted || "0.00",
+          row.suspended || "0.00",
+          row.payable,
+        ];
+        const tr = document.createElement("tr");
+        cells.forEach((value, position) => {
+          const td = document.createElement("td");
+          td.textContent = value;
+          if (position !== 1) td.style.textAlign = "right";
+          tr.appendChild(td);
+        });
+        body.appendChild(tr);
+      });
+      const payable = rows.reduce((sum, row) => sum + Number(String(row.payable).replace(/,/g, "")), 0);
+      const totalCells = document.querySelectorAll(`.tax-itemtotal-cell[data-index="${index}"]`);
+      totalCells.forEach((cell, position) => {
+        if (position === totalCells.length - 1) {
+          cell.textContent = payable.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } else {
+          cell.textContent = "0.00";
+        }
+      });
+    };
+
+    if (computeButton) computeButton.addEventListener("click", async () => {
+      computeButton.disabled = true;
+      try {
+        const response = await fetch(computeUrl, { method: "POST", headers, body: "{}" });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || response.statusText);
+        const tax = payload.tax || {};
+        (tax.declaration_rows || []).forEach((row) => {
+          setText(`.tax-payable-cell[data-tax-code="${row.code}"]`, row.payable);
+        });
+        const totals = tax.totals || {};
+        setText("#tax-total", totals.tax || "0.00");
+        setText("#tax-exempted", totals.exempted || "0.00");
+        setText("#tax-guarantee", totals.guarantee || "0.00");
+        setText("#tax-payable", totals.payable || "0.00");
+        setText("#tax-total-exempted", totals.exempted || "0.00");
+        setText("#tax-total-suspended", totals.suspended || "0.00");
+        setText("#tax-total-payable", totals.payable || "0.00");
+        const customsValue = tax.customs_value || {};
+        ["fcy", "ncy"].forEach((key) => {
+          const cell = document.querySelector(`#tax-cv-${key}`);
+          if (cell && !cell.textContent.trim()) cell.textContent = customsValue[key] || "0.00";
+        });
+        (tax.items || []).forEach((item, position) => {
+          const index = item.index === undefined ? position : item.index;
+          setText(`.tax-item-payable[data-index="${index}"]`, item.payable);
+          fillItemDetail(index, item.rows || []);
+        });
+        const checked = document.querySelector('input[name="tax-item-radio"]:checked');
+        if (checked) showDetail(checked.dataset.index);
+      } catch (error) {
+        window.alert(`Compute failed. ${error.message}`);
+      } finally {
+        computeButton.disabled = false;
+      }
+    });
+  })();
+</script>

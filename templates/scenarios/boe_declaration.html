@@ -5,7 +5,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BOE Declaration · {{ declaration.declaration_no }} · ICUMS Simulator</title>
   <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260925-2">
-  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-3">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261003-2">
   <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260925-6">
   <style>
     .boe-tabs { display: flex; flex-wrap: wrap; gap: .4rem; padding: .6rem 0; }
@@ -43,69 +43,73 @@
 
         <section class="cargo-panel boe-tab-panel" id="boe-tab-general">
           <div class="boe-section"><h2 class="boe-section-title">Header</h2>
-            <table class="ucr-view-table"><tbody>
-              <tr><th>Job No.</th><td>{{ general_values.job_no }}</td></tr>
-              <tr><th>Status</th><td>{{ declaration.status_code_display }}</td></tr>
-              <tr><th>BoE No.</th><td>{{ general_values.boe_no|default:"—" }}</td></tr>
-              <tr><th>UCR No. *</th><td>{{ general_values.ucr_no }}</td></tr>
-              <tr><th>Regime *</th><td>{{ general_values.regime }}</td></tr>
-              <tr><th>Customs Office *</th><td>{{ general_values.customs_office }}</td></tr>
-              <tr><th>CL. Plan *</th><td>PMD — PMD, Pre-Arrival Declaration</td></tr>
-              <tr><th>Declaration Form Type *</th><td>G — G, General</td></tr>
-              {% if is_draft %}<tr><th><label for="general-user-reference">User Reference No.</label></th><td><input id="general-user-reference" value="{{ general_values.user_reference }}" maxlength="200" style="width:100%;"></td></tr>
-              {% else %}<tr><th>User Reference No.</th><td>{{ general_values.user_reference|default:"—" }}</td></tr>{% endif %}
-              <tr><th>Doc Date *</th><td>{{ general_values.doc_date }}</td></tr>
-              <tr><th>Expiry Date For First Payment *</th><td>{{ general_values.expiry_date }}</td></tr>
-              <tr><th>Dec Date</th><td>{{ general_values.dec_date|default:"—" }}</td></tr>
-              <tr><th>Post Entry Date</th><td>—</td></tr>
+            <table class="ucr-view-table boe-box-grid"><tbody>
+              <tr><th>Job No.</th><td><span class="boe-box">{{ general_values.job_no }}</span></td><th>Status</th><td><span class="boe-box">{{ declaration.status_code_display }}</span></td></tr>
+              <tr><th>BoE No.</th><td><span class="boe-box">{{ general_values.boe_no|default:"—" }}</span></td><th>UCR No. <span class="boe-req">*</span></th><td><span class="boe-box">{{ general_values.ucr_no }}</span></td></tr>
+              <tr><th>Regime <span class="boe-req">*</span></th><td><span class="boe-compound boe-compound-pair" data-raw="{{ general_values.regime }}" data-sep=" — "><span class="boe-box boe-code-box"></span><span class="boe-box boe-name-box"></span></span></td><th>Customs Office <span class="boe-req">*</span></th><td><span class="boe-compound" data-raw="{{ general_values.customs_office }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Office lookup is not part of this training step">&#128269;</button><span class="boe-box boe-name-box"></span></span></td></tr>
+              <tr><th>CL. Plan <span class="boe-req">*</span></th><td><span class="boe-compound boe-compound-pair" data-raw="DPM — DPM, Declaration Post-Arrival" data-sep=" — "><span class="boe-box boe-code-box"></span><span class="boe-box boe-name-box"></span></span></td><th>Declaration Form Type <span class="boe-req">*</span></th><td><select class="boe-field" disabled aria-label="Declaration form type"><option>G, General</option></select></td></tr>
+              {% if is_draft %}<tr><th><label for="general-user-reference">User Reference No.</label></th><td colspan="3"><input id="general-user-reference" class="boe-field boe-wide-field" value="{{ general_values.user_reference }}" maxlength="200"></td></tr>
+              {% else %}<tr><th>User Reference No.</th><td colspan="3"><span class="boe-box">{{ general_values.user_reference|default:"—" }}</span></td></tr>{% endif %}
+              <tr><th>Doc Date <span class="boe-req">*</span></th><td><span class="boe-box">{{ general_values.doc_date }}</span></td><th>Expiry Date For First Payment <span class="boe-req">*</span></th><td><span class="boe-box">{{ general_values.expiry_date }}</span></td></tr>
+              <tr><th>Dec Date</th><td><span class="boe-box">{{ general_values.dec_date|default:"—" }}</span></td><th>Post Entry Date</th><td><span class="boe-box">—</span></td></tr>
             </tbody></table>
           </div>
           <div class="boe-section"><h2 class="boe-section-title">Exporter</h2>
-            <table class="ucr-view-table"><tbody>
-              <tr><th>Exporter Name *</th><td>{{ general_values.exporter_name }}</td></tr>
-              <tr><th>Country of Exporter *</th><td>{{ general_values.exporter_country }}</td></tr>
-              <tr><th>Exporter Address *</th><td>{{ general_values.exporter_address }}</td></tr>
+            <table class="ucr-view-table boe-box-grid"><tbody>
+              <tr><th><label for="general-exporter-name">Exporter Name <span class="boe-req">*</span></label></th><td><input id="general-exporter-name" class="boe-field boe-wide-field" value="{{ general_values.exporter_name }}" readonly></td><th>Country of Exporter <span class="boe-req">*</span></th><td><span class="boe-compound" data-raw="{{ general_values.exporter_country }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">&#128269;</button><span class="boe-box boe-name-box"></span></span></td></tr>
+              <tr><th>Exporter Address <span class="boe-req">*</span></th><td colspan="3"><span class="boe-box boe-box-area">{{ general_values.exporter_address|default:"—" }}</span></td></tr>
             </tbody></table>
           </div>
           <div class="boe-section"><h2 class="boe-section-title">Importer</h2>
-            <table class="ucr-view-table"><tbody>
-              <tr><th>Importer Code *</th><td><div>{{ importer_code }}</div><div>{{ importer_name }}</div></td></tr>
-              <tr><th>Country of Importer *</th><td>{{ general_values.importer_country }}</td></tr>
-              <tr><th>Importer Address *</th><td>{{ general_values.importer_address }}</td></tr>
+            <table class="ucr-view-table boe-box-grid"><tbody>
+              <tr><th>Importer Code <span class="boe-req">*</span></th><td><span class="boe-compound boe-compound-pair"><span class="boe-box boe-code-box">{{ importer_code }}</span><span class="boe-box boe-name-box">{{ importer_name }}</span></span></td><th>Country of Importer <span class="boe-req">*</span></th><td><span class="boe-compound" data-raw="{{ general_values.importer_country }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">&#128269;</button><span class="boe-box boe-name-box"></span></span></td></tr>
+              <tr><th>Importer Address <span class="boe-req">*</span></th><td colspan="3"><span class="boe-box boe-box-area">{{ general_values.importer_address|default:"—" }}</span></td></tr>
             </tbody></table>
           </div>
-          <div class="boe-section"><h2 class="boe-section-title">Consignee</h2>
-            {% if is_draft %}<label style="display:inline-flex; align-items:center; gap:.4rem; margin-bottom:.5rem;"><input type="checkbox" id="consignee-same" {% if consignee_same %}checked{% endif %}> Same as Importer</label>{% endif %}
-            <table class="ucr-view-table"><tbody>
-              <tr><th>Consignee Code *</th><td><div id="consignee-code">{{ consignee_code }}</div><div id="consignee-name">{{ consignee_name }}</div></td></tr>
-              <tr><th>Consignee Address *</th><td id="consignee-address">{{ general_values.consignee_address }}</td></tr>
+          <div class="boe-section">
+            <div class="boe-section-head">
+              <h2 class="boe-section-title">Consignee</h2>
+              {% if is_draft %}<label class="boe-same-check"><input type="checkbox" id="consignee-same" {% if consignee_same %}checked{% endif %}> Same as Importer</label>{% endif %}
+            </div>
+            <table class="ucr-view-table boe-box-grid"><tbody>
+              <tr><th>Consignee Code <span class="boe-req">*</span></th><td colspan="3"><span class="boe-compound boe-compound-pair"><span class="boe-box boe-code-box" id="consignee-code">{{ consignee_code }}</span><span class="boe-box boe-name-box" id="consignee-name">{{ consignee_name }}</span></span></td></tr>
+              <tr><th>Consignee Address <span class="boe-req">*</span></th><td colspan="3"><span class="boe-box boe-box-area" id="consignee-address">{{ general_values.consignee_address|default:"—" }}</span></td></tr>
             </tbody></table>
           </div>
           <div class="boe-section"><h2 class="boe-section-title">Declarant Code</h2>
-            <table class="ucr-view-table"><tbody>
-              <tr><th>Declarant TIN</th><td>{{ general_values.declarant_tin }}</td></tr>
-              <tr><th>Declarant Code</th><td>{{ general_values.declarant_code }}</td></tr>
-              <tr><th>Declarant Name</th><td>{{ general_values.declarant_name }}</td></tr>
-              <tr><th>Declarant Address</th><td>{{ general_values.declarant_address }}</td></tr>
+            <table class="ucr-view-table boe-box-grid"><tbody>
+              <tr><th>Declarant TIN</th><td><span class="boe-box">{{ general_values.declarant_tin|default:"—" }}</span></td><th>Declarant Code</th><td><span class="boe-box">{{ general_values.declarant_code|default:"—" }}</span></td></tr>
+              <tr><th>Declarant Name</th><td><span class="boe-box">{{ general_values.declarant_name|default:"—" }}</span></td><th>Declarant Address</th><td><span class="boe-box">{{ general_values.declarant_address|default:"—" }}</span></td></tr>
             </tbody></table>
           </div>
           <div class="boe-section"><h2 class="boe-section-title">Taxpayer</h2>
-            <table class="ucr-view-table"><tbody>
-              <tr><th>Taxpayer Code</th><td id="taxpayer-code">{{ general_values.taxpayer_code|default:"—" }}</td></tr>
-              <tr><th>Taxpayer *</th><td>
+            <table class="ucr-view-table boe-box-grid"><tbody>
+              <tr><th>Taxpayer Code</th><td><span class="boe-box" id="taxpayer-code">{{ general_values.taxpayer_code|default:"—" }}</span></td><th>Taxpayer <span class="boe-req">*</span></th><td>
                 {% if is_draft %}
-                <label style="margin-right:1rem;"><input type="radio" name="taxpayer" value="importer" {% if taxpayer == 'importer' %}checked{% endif %}> Importer</label>
-                <label style="margin-right:1rem;"><input type="radio" name="taxpayer" value="consignee" {% if taxpayer == 'consignee' %}checked{% endif %}> Consignee/Actual Exporter</label>
-                <label><input type="radio" name="taxpayer" value="declarant" {% if taxpayer == 'declarant' %}checked{% endif %}> Declarant</label>
+                <span class="boe-radio-group">
+                  <label><input type="radio" name="taxpayer" value="importer" {% if taxpayer == 'importer' %}checked{% endif %}> Importer</label>
+                  <label><input type="radio" name="taxpayer" value="consignee" {% if taxpayer == 'consignee' %}checked{% endif %}> Consignee/Actual Exporter</label>
+                  <label><input type="radio" name="taxpayer" value="declarant" {% if taxpayer == 'declarant' %}checked{% endif %}> Declarant</label>
+                </span>
                 {% else %}{{ taxpayer|capfirst }}{% endif %}
               </td></tr>
             </tbody></table>
           </div>
+          <div class="boe-section"><h2 class="boe-section-title">Cargo Information</h2>
+            <table class="ucr-view-table boe-box-grid"><tbody>
+              <tr>
+                <th><label for="general-manifest-no">Manifest No.</label></th>
+                <td>{% if is_draft %}<input id="general-manifest-no" class="boe-field" value="{{ bl_values.manifest_no }}" maxlength="240">{% else %}<span class="boe-box">{{ bl_values.manifest_no|default:"—" }}</span>{% endif %}</td>
+                <th><label for="general-bl-awb-no">BL/AWB No.</label></th>
+                <td>{% if is_draft %}<input id="general-bl-awb-no" class="boe-field" value="{{ bl_values.bl_awb_no }}" maxlength="240">{% else %}<span class="boe-box">{{ bl_values.bl_awb_no|default:"—" }}</span>{% endif %}</td>
+              </tr>
+            </tbody></table>
+          </div>
           {% if is_draft %}
           <div class="cargo-actions">
-            <a class="secondary-button" href="{% url 'clearance-workspace' %}">Back</a>
-            <button class="secondary-button" id="save-general-draft" type="button">Save as Draft</button>
-            <button class="secondary-button" id="go-next-tab" type="button">Next</button>
+            <a class="secondary-button" href="{% url 'clearance-workspace' %}">⏮ Back</a>
+            <button class="secondary-button" id="save-general-draft" type="button">💾 Save as Draft</button>
+            <button class="secondary-button" id="go-next-tab" type="button">⏭ Next</button>
           </div>
           {% endif %}
         </section>
@@ -115,15 +119,15 @@
             <table class="ucr-view-table boe-form-grid"><tbody>
               <tr><th>Manifest No.</th><td><input id="bl-manifest-no" value="{{ bl_values.manifest_no }}" style="width:100%;"></td><th>BL/AWB No. *</th><td><input id="bl-bl-awb-no" value="{{ bl_values.bl_awb_no }}" style="width:100%;"><button class="ucr-row-action" type="button" disabled title="Select from the attached documents">Click to select</button></td></tr>
               <tr><th>Transport Mode *</th><td colspan="3">{{ declaration.ucr.transport_mode }}</td></tr>
-              <tr><th>Manifest No. Date</th><td><input id="bl-manifest-date" type="date" value="{{ bl_values.manifest_date }}" style="width:100%;"></td><th>Entry/Exit Office *</th><td><input id="bl-office" value="{{ bl_values.customs_office }}" style="width:100%;"></td></tr>
-              <tr><th>Customs Area</th><td><input id="bl-customs-area" value="{{ bl_values.customs_area }}" style="width:100%;"></td><th>Location of Goods *</th><td><div style="display:grid; gap:.15rem;"><input id="bl-location-code" value="{{ bl_values.location_code }}" placeholder="Code" style="width:100%;"><input id="bl-location-name" value="{{ bl_values.location_name }}" placeholder="Name" style="width:100%;"></div></td></tr>
+              <tr><th>Manifest No. Date</th><td><input id="bl-manifest-date" type="date" value="{{ bl_values.manifest_date }}" style="width:100%;"></td><th>Entry/Exit Office *</th><td><span class="boe-compound boe-compound-split"><input id="bl-office-code" class="boe-code-box" aria-label="Entry/Exit office code" list="port-options"><button class="boe-lookup-btn" type="button" disabled title="Office lookup is not part of this training step">&#128269;</button><input id="bl-office" value="{{ general_values.customs_office }}" aria-label="Entry/Exit office name"></span></td></tr>
+              <tr><th>Customs Area</th><td><input id="bl-customs-area" value="{{ bl_values.customs_area }}" style="width:100%;"></td><th>Location of Goods *</th><td><span class="boe-compound"><input id="bl-location-code" value="{{ bl_values.location_code }}" placeholder="Code" aria-label="Location code"><button class="boe-lookup-btn" type="button" disabled title="Location lookup is not part of this training step">&#128269;</button><input id="bl-location-name" value="{{ bl_values.location_name }}" placeholder="Name" aria-label="Location name"></span></td></tr>
               <tr><th>Vessel Name</th><td><input id="bl-vessel-name" value="{{ bl_values.vessel_name }}" style="width:100%;"></td><th>Voyage/Flight No.</th><td><input id="bl-voyage-no" value="{{ bl_values.voyage_no }}" style="width:100%;"></td></tr>
-              <tr><th>Manifest Freight</th><td><input id="bl-manifest-freight" value="{{ bl_values.manifest_freight }}" style="width:100%;"></td><th>Nationality</th><td><input id="bl-nationality" value="{{ bl_values.nationality }}" style="width:100%;" list="country-options"></td></tr>
-              <tr><th>Port of Loading</th><td><input id="bl-port-of-loading" value="{{ bl_values.port_of_loading }}" style="width:100%;" list="port-options"></td><th>Place of Landing</th><td><input id="bl-place-of-landing" value="{{ bl_values.place_of_landing }}" style="width:100%;"></td></tr>
+              <tr><th>Manifest Freight</th><td><input id="bl-manifest-freight" value="{{ bl_values.manifest_freight }}" style="width:100%;"></td><th>Nationality</th><td><span class="boe-compound boe-compound-split"><input id="bl-nationality-code" class="boe-code-box" aria-label="Nationality code" list="country-options"><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">&#128269;</button><input id="bl-nationality" value="{{ bl_values.nationality }}" aria-label="Nationality name"></span></td></tr>
+              <tr><th>Port of Loading</th><td><span class="boe-compound boe-compound-split"><input id="bl-port-of-loading-code" class="boe-code-box" aria-label="Port of loading code" list="port-options"><button class="boe-lookup-btn" type="button" disabled title="Port lookup is not part of this training step">&#128269;</button><input id="bl-port-of-loading" value="{{ bl_values.port_of_loading }}" aria-label="Port of loading name"></span></td><th>Place of Landing</th><td><span class="boe-compound boe-compound-split"><input id="bl-place-of-landing-code" class="boe-code-box" aria-label="Place of landing code"><button class="boe-lookup-btn" type="button" disabled title="Place lookup is not part of this training step">&#128269;</button><input id="bl-place-of-landing" value="{{ bl_values.place_of_landing }}" aria-label="Place of landing name"></span></td></tr>
               <tr><th>Estimated Time of Departure</th><td colspan="3"><input id="bl-etd" type="date" value="{{ bl_values.etd }}" style="width:100%;"></td></tr>
-              <tr><th>Gross Weight(Kgs) *</th><td><input id="bl-gross-weight" value="{{ bl_values.gross_weight }}" style="width:100%;" style="width:100%; text-align:right;"></td><th>Net Weight(Kgs)</th><td><input id="bl-net-weight" value="{{ bl_values.net_weight }}" style="width:100%;" style="width:100%; text-align:right;"></td></tr>
-              <tr><th>Total Package *</th><td><div style="display:grid; gap:.15rem;"><input id="bl-package-unit" list="package-options" value="{{ bl_values.package_unit }}" style="width:100%;"><input id="bl-package-count" value="{{ bl_values.package_count }}" style="width:100%; text-align:right;"></div></td><th>Volume (m3)</th><td><input id="bl-volume" value="{{ bl_values.volume }}" style="width:100%;"></td></tr>
-              <tr><th>Country of Consignment *</th><td><input id="bl-consignment-country" value="{{ bl_values.consignment_country }}" style="width:100%;" list="country-options"></td><th>Consignment Date</th><td><input id="bl-consignment-date" type="date" value="{{ bl_values.consignment_date }}" style="width:100%;"></td></tr>
+              <tr><th>Gross Weight(Kgs) *</th><td><input id="bl-gross-weight" class="boe-num-input" value="{{ bl_values.gross_weight }}"></td><th>Net Weight(Kgs)</th><td><input id="bl-net-weight" class="boe-num-input" value="{{ bl_values.net_weight }}"></td></tr>
+              <tr><th>Total Package *</th><td><span class="boe-compound"><input id="bl-package-unit" list="package-options" value="{{ bl_values.package_unit }}" aria-label="Package unit"><input id="bl-package-count" class="boe-num-input" value="{{ bl_values.package_count }}" aria-label="Package count"></span></td><th>Volume (m3)</th><td><input id="bl-volume" class="boe-num-input" value="{{ bl_values.volume }}"></td></tr>
+              <tr><th>Country of Consignment *</th><td><span class="boe-compound boe-compound-split"><input id="bl-consignment-country-code" class="boe-code-box" aria-label="Country of consignment code" list="country-options"><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">&#128269;</button><input id="bl-consignment-country" value="{{ bl_values.consignment_country }}" aria-label="Country of consignment name"></span></td><th>Consignment Date</th><td><input id="bl-consignment-date" type="date" value="{{ bl_values.consignment_date }}" style="width:100%;"></td></tr>
               <tr><th>Container Indicator (G/F/L) *</th><td><select id="bl-container-indicator" style="width:100%;"><option value="G, G Indicator" {% if bl_values.container_indicator == 'G, G Indicator' %}selected{% endif %}>G, G Indicator</option><option value="F, F Indicator" {% if bl_values.container_indicator == 'F, F Indicator' %}selected{% endif %}>F, F Indicator</option><option value="L, L Indicator" {% if bl_values.container_indicator == 'L, L Indicator' %}selected{% endif %}>L, L Indicator</option></select></td><th>Risk Level</th><td><input id="bl-risk-level" value="{{ bl_values.risk_level }}" style="width:100%;"></td></tr>
               <tr><th>Marks and Numbers *</th><td colspan="3"><textarea id="bl-marks-numbers" rows="4" style="width:100%;">{{ bl_values.marks_numbers }}</textarea></td></tr>
             </tbody></table></div>
@@ -135,6 +139,8 @@
             </tbody></table>
             <p class="dialog-help">Click the corresponding context (in brackets) of the Container Category combo box : [Bulk] for Bulk Cargo, [Loose] for Loose cargo, and [Etc] for Container/Vehicle, etc.</p>
           </div>
+          <datalist id="port-options">{% for code, name in ports %}<option value="{{ code }}">{{ name }}</option>{% endfor %}</datalist>
+          <datalist id="package-options">{% for unit in package_units %}<option value="{{ unit }}">{{ unit }}</option>{% endfor %}</datalist>
           <div class="boe-section"><h2 class="boe-section-title">Container / Chassis List</h2>
             <div style="text-align:right; font-size:.78rem; color:var(--muted); margin-bottom:.3rem;">Total : <span id="container-total">{{ containers|length }}</span></div>
             <table class="ucr-search-table"><thead><tr><th>No.</th><th>Packing Type</th><th>Container No. / Chassis No.</th><th>Container Size</th><th>Seal No.</th><th>{% if is_draft %}<button class="ucr-row-action" id="container-add" type="button">Add</button>{% endif %}</th></tr></thead><tbody id="container-rows"></tbody></table></div>
@@ -147,18 +153,87 @@
           {% endif %}
         </section>
 <section class="cargo-panel boe-tab-panel" id="boe-tab-invoice" hidden>
-          <div class="cargo-panel-title"><h2>Invoice</h2></div>
-          <div class="summary-grid">
-            {% for label, value in invoice_fields %}<label>{{ label }}</label><input value="{{ value }}" readonly>{% endfor %}
+          <div class="boe-section"><h2 class="boe-section-title">Invoice Details</h2>
+            <table class="ucr-view-table boe-box-grid"><tbody>
+              <tr>
+                <th><label for="inv-delivery-term">Delivery Terms <span class="boe-req">*</span></label></th>
+                <td><select id="inv-delivery-term" class="boe-field" data-current="{{ invoice_values.delivery_term }}" {% if not is_draft %}disabled{% endif %}>{% for code, label in delivery_term_options %}<option value="{{ code }}" {% if invoice_values.delivery_term == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
+                <th><label for="inv-country-of-delivery">Country of Delivery <span class="boe-req">*</span></label></th>
+                <td><span class="boe-compound boe-compound-split"><input id="inv-country-of-delivery-code" class="boe-code-box" aria-label="Country of delivery code" {% if not is_draft %}readonly{% endif %}><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">&#128269;</button><input id="inv-country-of-delivery" value="{{ invoice_values.country_of_delivery }}" aria-label="Country of delivery name" {% if not is_draft %}readonly{% endif %}></span></td>
+              </tr>
+              <tr><th><label for="inv-delivery-place">Delivery Place <span class="boe-req">*</span></label></th><td colspan="3"><input id="inv-delivery-place" class="boe-field boe-wide-field" value="{{ invoice_values.delivery_place }}" {% if not is_draft %}readonly{% endif %}></td></tr>
+              <tr>
+                <th>Currency <span class="boe-req">*</span></th>
+                <td><span class="boe-compound boe-currency-split" data-raw="{{ invoice_values.currency }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Currency lookup is not part of this training step">&#128269;</button><span class="boe-box boe-name-box"></span></span></td>
+                <th>Exchange Rate</th><td><input class="boe-field boe-num-field" value="{{ invoice_values.exchange_rate }}" readonly></td>
+              </tr>
+              <tr>
+                <th>Total FOB FCY</th>
+                <td><span class="boe-money"><span class="boe-box boe-currency-tag boe-currency-fcy">USD</span><input class="boe-field boe-num-field inv-amount" value="{{ invoice_values.fob_fcy }}" readonly></span></td>
+                <th>Total FOB NCY</th>
+                <td><span class="boe-money"><span class="boe-box boe-currency-tag">GHS</span><input class="boe-field boe-num-field inv-amount" value="{{ invoice_values.fob_ncy }}" readonly></span></td>
+              </tr>
+              <tr>
+                <th>Total Freight FCY</th>
+                <td><span class="boe-money"><span class="boe-box boe-currency-tag boe-currency-fcy">USD</span><input class="boe-field boe-num-field inv-amount" value="{{ invoice_values.freight_fcy }}" readonly></span></td>
+                <th>Total Freight NCY</th>
+                <td><span class="boe-money"><span class="boe-box boe-currency-tag">GHS</span><input class="boe-field boe-num-field inv-amount" value="{{ invoice_values.freight_ncy }}" readonly></span></td>
+              </tr>
+              <tr>
+                <th>Total Insurance FCY</th>
+                <td><span class="boe-money"><span class="boe-box boe-currency-tag boe-currency-fcy">USD</span><input class="boe-field boe-num-field inv-amount" value="{{ invoice_values.insurance_fcy }}" readonly></span></td>
+                <th>Total Insurance NCY</th>
+                <td><span class="boe-money"><span class="boe-box boe-currency-tag">GHS</span><input class="boe-field boe-num-field inv-amount" value="{{ invoice_values.insurance_ncy }}" readonly></span></td>
+              </tr>
+              <tr>
+                <th>Total Other Costs FCY</th>
+                <td><span class="boe-money"><span class="boe-box boe-currency-tag boe-currency-fcy">USD</span><input class="boe-field boe-num-field inv-amount" value="{{ invoice_values.other_fcy }}" readonly></span></td>
+                <th>Total Other Costs NCY</th>
+                <td><span class="boe-money"><span class="boe-box boe-currency-tag">GHS</span><input class="boe-field boe-num-field inv-amount" value="{{ invoice_values.other_ncy }}" readonly></span></td>
+              </tr>
+              <tr>
+                <th>Total Invoice FCY</th>
+                <td><span class="boe-money"><span class="boe-box boe-currency-tag boe-currency-fcy">USD</span><input class="boe-field boe-num-field inv-amount" value="{{ invoice_values.invoice_fcy }}" readonly></span></td>
+                <th>Total Invoice NCY</th>
+                <td><span class="boe-money"><span class="boe-box boe-currency-tag">GHS</span><input class="boe-field boe-num-field inv-amount" value="{{ invoice_values.invoice_ncy }}" readonly></span></td>
+              </tr>
+            </tbody></table>
+          </div>
+          <div class="boe-section"><h2 class="boe-section-title">Additional Info.</h2>
+            <table class="ucr-view-table boe-box-grid"><tbody>
+              <tr><th><label for="inv-mode-of-payment">Mode of payment <span class="boe-req">*</span></label></th><td colspan="3"><select id="inv-mode-of-payment" class="boe-field" {% if not is_draft %}disabled{% endif %}>{% for code, label in mode_of_payment_options %}<option value="{{ code }}" {% if invoice_values.mode_of_payment == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td></tr>
+            </tbody></table>
+          </div>
+          <div class="cargo-actions">
+            <button class="secondary-button" id="inv-back" type="button">⏮ Back</button>
+            {% if is_draft %}<button class="secondary-button" id="save-invoice-draft" type="button">💾 Save as Draft</button>{% endif %}
+            <button class="secondary-button" id="go-documents" type="button">⏭ Next</button>
           </div>
         </section>
 
         <section class="cargo-panel boe-tab-panel" id="boe-tab-documents" hidden>
-          <div class="cargo-panel-title"><h2>Documents</h2></div>
-          <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>No.</th><th>Document</th><th>Reference</th></tr></thead><tbody>
-            <tr><td class="cell-center">1</td><td class="cell-left">IDF</td><td class="cell-left">{{ declaration.idf.application_no }}</td></tr>
-            <tr><td class="cell-center">2</td><td class="cell-left">UCR</td><td class="cell-left">{{ declaration.ucr.ucr_no }}</td></tr>
-          </tbody></table></div>
+          <div class="boe-section"><h2 class="boe-section-title">System Defined Attached Documents</h2>
+            <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Document Code</th><th>Description</th><th>Requirement</th><th>Document Reference No.</th></tr></thead><tbody>
+              {% for doc in system_documents %}
+              <tr><td class="cell-center">{{ doc.code }}</td><td class="cell-left">{{ doc.name }}</td><td class="cell-center">{{ doc.requirement }}</td>
+                <td class="cell-left">{% if is_draft %}<span class="doc-ref-field"><input class="doc-system-ref" {% if doc.manual %}id="doc-income-tax"{% else %}id="doc-system-ref-{{ forloop.counter }}"{% endif %} data-code="{{ doc.code }}" value="{{ doc.reference }}"><button class="boe-lookup-btn" type="button" disabled title="Document lookup is not part of this training step">&#128269;</button></span>{% else %}{{ doc.reference|default:"—" }}{% endif %}</td></tr>
+              {% empty %}<tr><td colspan="4" class="empty-row">No data found.</td></tr>
+              {% endfor %}
+            </tbody></table></div>
+          </div>
+          <div class="boe-section"><h2 class="boe-section-title">User Defined Attached Documents</h2>
+            <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Description</th><th>Requirement</th><th>Document Reference No.</th><th>{% if is_draft %}<button class="ucr-row-action" id="doc-user-add" type="button">Add</button>{% endif %}</th></tr></thead>
+            <tbody id="doc-user-rows">
+              {% for doc in user_documents %}<tr><td class="cell-left">{{ doc.name }}</td><td class="cell-center">{{ doc.requirement }}</td><td class="cell-left">{{ doc.reference }}</td><td></td></tr>
+              {% empty %}<tr class="doc-user-empty"><td colspan="4" class="empty-row">No data found.</td></tr>
+              {% endfor %}
+            </tbody></table></div>
+          </div>
+          <div class="cargo-actions">
+            <button class="secondary-button" id="doc-back-invoice" type="button">⏮ Back</button>
+            {% if is_draft %}<button class="secondary-button" id="save-documents-draft" type="button">💾 Save as Draft</button>{% endif %}
+            <button class="secondary-button" id="go-item" type="button">⏭ Next</button>
+          </div>
         </section>
 
         <section class="cargo-panel boe-tab-panel" id="boe-tab-item" hidden>
@@ -297,10 +372,7 @@
 
         {% if declaration.status == 'draft' %}
         <section class="cargo-panel boe-tab-panel" id="boe-tab-tax" hidden>
-          <div class="cargo-panel-title"><h2>Tax</h2><span class="required-note">Draft computation — illustrative training values</span></div>
-          <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Tax</th><th>Code</th><th>Tax base Amt</th><th>TBC</th><th>Rate</th><th>Amount Payable</th></tr></thead><tbody>
-            {% for row in tax_rows %}<tr><td class="cell-left">{{ row.name }}</td><td class="cell-center">{{ row.code }}</td><td class="cell-center">{{ row.base }}</td><td class="cell-center">{{ row.tbc }}</td><td class="cell-center">{{ row.rate }}</td><td class="cell-center">{{ row.amount }}</td></tr>{% endfor %}
-          </tbody><tfoot><tr><th colspan="5">Total</th><th>{{ tax_total }}</th></tr></tfoot></table></div>
+          {% include "scenarios/boe_tax_panel.html" %}
         </section>
         {% endif %}
 
@@ -387,6 +459,72 @@
         }
       });
 
+      // --- Boxed-layout helpers: split "CODE, Name" compounds, format numerics ---
+      const stripCommas = (raw) => String(raw === null || raw === undefined ? "" : raw).replace(/,/g, "").trim();
+      const formatBoeAmount = (raw) => {
+        const cleaned = stripCommas(raw);
+        if (!cleaned) return "";
+        const number = Number(cleaned);
+        if (Number.isNaN(number)) return String(raw);
+        const parts = cleaned.split(".");
+        const decimals = parts.length > 1 ? Math.min(parts[1].length, 6) : 0;
+        return number.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      };
+      document.querySelectorAll(".boe-compound[data-raw]").forEach((wrap) => {
+        const raw = wrap.dataset.raw || "";
+        const sep = wrap.dataset.sep || ", ";
+        const cut = raw.indexOf(sep);
+        const code = cut >= 0 ? raw.slice(0, cut) : raw;
+        const name = cut >= 0 ? raw.slice(cut + sep.length) : "";
+        const codeEl = wrap.querySelector(".boe-code-box");
+        const nameEl = wrap.querySelector(".boe-name-box");
+        if (codeEl) codeEl.textContent = code;
+        if (nameEl) nameEl.textContent = name;
+      });
+      const currencyWrap = document.querySelector(".boe-currency-split");
+      if (currencyWrap) {
+        const currencyCode = (currencyWrap.querySelector(".boe-code-box")?.textContent || "").trim();
+        if (currencyCode) document.querySelectorAll(".boe-currency-fcy").forEach((tag) => { tag.textContent = currencyCode; });
+      }
+      const resplitCompound = (wrap) => {
+        const main = wrap.querySelector("input:not(.boe-code-box)");
+        const codeBox = wrap.querySelector(".boe-code-box");
+        if (!main || !codeBox) return;
+        const sep = wrap.dataset.sep || ", ";
+        const cut = main.value.indexOf(sep);
+        if (cut >= 0) { codeBox.value = main.value.slice(0, cut); main.value = main.value.slice(cut + sep.length); }
+        else if (!codeBox.value && main.value) { codeBox.value = main.value; main.value = ""; }
+      };
+      document.querySelectorAll(".boe-compound-split").forEach((wrap) => {
+        resplitCompound(wrap);
+        wrap.querySelector("input:not(.boe-code-box)")?.addEventListener("change", () => resplitCompound(wrap));
+      });
+      const bindCodeLookup = (codeId, nameId, listId) => {
+        const codeBox = document.getElementById(codeId);
+        const nameBox = document.getElementById(nameId);
+        if (!codeBox || !nameBox) return;
+        codeBox.addEventListener("input", () => {
+          const chosen = [...(document.getElementById(listId)?.options || [])].find((opt) => opt.value === codeBox.value);
+          if (chosen) nameBox.value = chosen.textContent.trim();
+        });
+      };
+      bindCodeLookup("bl-nationality-code", "bl-nationality", "country-options");
+      bindCodeLookup("bl-consignment-country-code", "bl-consignment-country", "country-options");
+      bindCodeLookup("bl-port-of-loading-code", "bl-port-of-loading", "port-options");
+      bindCodeLookup("bl-office-code", "bl-office", "port-options");
+      document.querySelectorAll(".boe-num-input, .inv-amount").forEach((input) => { input.value = formatBoeAmount(input.value); });
+      const compoundPairValue = (wrap) => {
+        const code = (wrap.querySelector(".boe-code-box")?.value || "").trim();
+        const name = (wrap.querySelector("input:not(.boe-code-box)")?.value || "").trim();
+        if (code && name) return code + ", " + name;
+        return name || code;
+      };
+      const boeCompoundValue = (inputId) => {
+        const input = document.getElementById(inputId);
+        const wrap = input?.closest(".boe-compound-split");
+        return wrap ? compoundPairValue(wrap) : input?.value || "";
+      };
+
       // --- BL/AWB tab ---
       const containerRows = document.querySelector("#container-rows");
       const packingOptions = ["PK", "PACKAGE", "PARCEL", "PACKET"];
@@ -445,27 +583,28 @@
 
       function collectBlFields() {
         const value = (id) => document.getElementById(id)?.value || "";
+        const numeric = (id) => stripCommas(value(id));
         return {
           manifest_no: value("bl-manifest-no"),
           bl_awb_no: value("bl-bl-awb-no"),
           manifest_date: value("bl-manifest-date"),
-          customs_office: value("bl-office"),
+          customs_office: boeCompoundValue("bl-office"),
           customs_area: value("bl-customs-area"),
           location_code: value("bl-location-code"),
           location_name: value("bl-location-name"),
           vessel_name: value("bl-vessel-name"),
           voyage_no: value("bl-voyage-no"),
-          manifest_freight: value("bl-manifest-freight"),
-          nationality: value("bl-nationality"),
-          port_of_loading: value("bl-port-of-loading"),
-          place_of_landing: value("bl-place-of-landing"),
+          manifest_freight: numeric("bl-manifest-freight"),
+          nationality: boeCompoundValue("bl-nationality"),
+          port_of_loading: boeCompoundValue("bl-port-of-loading"),
+          place_of_landing: boeCompoundValue("bl-place-of-landing"),
           etd: value("bl-etd"),
-          gross_weight: value("bl-gross-weight"),
-          net_weight: value("bl-net-weight"),
+          gross_weight: numeric("bl-gross-weight"),
+          net_weight: numeric("bl-net-weight"),
           package_unit: value("bl-package-unit"),
-          package_count: value("bl-package-count"),
-          volume: value("bl-volume"),
-          consignment_country: value("bl-consignment-country"),
+          package_count: numeric("bl-package-count"),
+          volume: numeric("bl-volume"),
+          consignment_country: boeCompoundValue("bl-consignment-country"),
           consignment_date: value("bl-consignment-date"),
           container_indicator: value("bl-container-indicator"),
           risk_level: value("bl-risk-level"),
@@ -480,6 +619,17 @@
           seal: tr.querySelector(".container-seal")?.value || "",
         }));
       }
+      const deliveryTermSelect = document.querySelector("#inv-delivery-term");
+      if (deliveryTermSelect) {
+        const current = (deliveryTermSelect.dataset.current || "").trim();
+        const code = current.split(",")[0].trim().toUpperCase();
+        const known = [...deliveryTermSelect.options].some((opt) => opt.value.toUpperCase() === code);
+        if (current && known) deliveryTermSelect.value = code;
+        else if (current) deliveryTermSelect.append(new Option(current, current, true, true));
+      }
+      document.querySelector("#inv-back")?.addEventListener("click", () => {
+        document.querySelector('.boe-tab[data-boe-tab="blawb"]')?.click();
+      });
       document.querySelector("#save-invoice-draft")?.addEventListener("click", async (event) => {
         const button = event.currentTarget;
         button.disabled = true;
@@ -488,8 +638,9 @@
             method: "POST",
             headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
             body: JSON.stringify({ section: "invoice", fields: {
-              country_of_delivery: document.querySelector("#inv-country-of-delivery")?.value || "",
+              country_of_delivery: boeCompoundValue("inv-country-of-delivery"),
               delivery_place: document.querySelector("#inv-delivery-place")?.value || "",
+              delivery_term: document.querySelector("#inv-delivery-term")?.value || "",
               mode_of_payment_cd: document.querySelector("#inv-mode-of-payment")?.value || "01",
             } }),
           });
@@ -506,6 +657,48 @@
       document.querySelector("#go-documents")?.addEventListener("click", () => {
         document.querySelector('.boe-tab[data-boe-tab="documents"]')?.click();
       });
+      const docUserRows = document.querySelector("#doc-user-rows");
+      const collectUserDocRows = () => [...(docUserRows?.querySelectorAll("tr.user-doc-row") || [])]
+        .map((tr) => ({
+          description: tr.querySelector(".doc-user-description")?.value.trim() || "",
+          requirement: tr.querySelector(".doc-user-requirement")?.textContent.trim() || "Y",
+          reference: tr.querySelector(".doc-user-reference")?.value.trim() || "",
+        }))
+        .filter((row) => row.description || row.reference);
+      document.querySelector("#doc-user-add")?.addEventListener("click", () => {
+        if (!docUserRows) return;
+        docUserRows.querySelector(".doc-user-empty")?.remove();
+        const tr = document.createElement("tr");
+        tr.className = "user-doc-row";
+        const descriptionTd = document.createElement("td");
+        descriptionTd.className = "cell-left";
+        const description = document.createElement("input");
+        description.className = "doc-user-description";
+        description.style.width = "100%";
+        descriptionTd.append(description);
+        const requirementTd = document.createElement("td");
+        requirementTd.className = "cell-center doc-user-requirement";
+        requirementTd.textContent = "Y";
+        const referenceTd = document.createElement("td");
+        referenceTd.className = "cell-left";
+        const reference = document.createElement("input");
+        reference.className = "doc-user-reference";
+        reference.style.width = "100%";
+        referenceTd.append(reference);
+        const delTd = document.createElement("td");
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "ucr-row-action";
+        del.textContent = "Del";
+        del.addEventListener("click", () => tr.remove());
+        delTd.append(del);
+        tr.append(descriptionTd, requirementTd, referenceTd, delTd);
+        docUserRows.append(tr);
+        description.focus();
+      });
+      document.querySelector("#doc-back-invoice")?.addEventListener("click", () => {
+        document.querySelector('.boe-tab[data-boe-tab="invoice"]')?.click();
+      });
       document.querySelector("#save-documents-draft")?.addEventListener("click", async (event) => {
         const button = event.currentTarget;
         button.disabled = true;
@@ -515,6 +708,8 @@
             headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
             body: JSON.stringify({ section: "documents", fields: {
               income_tax_reference: document.querySelector("#doc-income-tax")?.value || "",
+              references: [...document.querySelectorAll(".doc-system-ref")].map((input) => ({ code: input.dataset.code || "", reference: input.value.trim() })),
+              user_rows: collectUserDocRows(),
             } }),
           });
           const data = await response.json().catch(() => ({}));
@@ -568,6 +763,17 @@
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.error || "The draft could not be saved.");
+          const manifestInput = document.querySelector("#general-manifest-no");
+          const blAwbInput = document.querySelector("#general-bl-awb-no");
+          if (manifestInput || blAwbInput) {
+            const cargoResponse = await fetch("{% url 'boe-save-draft' declaration.pk %}", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+              body: JSON.stringify({ section: "bl_awb", fields: { manifest_no: manifestInput?.value || "", bl_awb_no: blAwbInput?.value || "" } }),
+            });
+            const cargoData = await cargoResponse.json().catch(() => ({}));
+            if (!cargoResponse.ok) throw new Error(cargoData.error || "The draft could not be saved.");
+          }
           const moveOn = window.confirm("Saved as draft. Your General tab entries are stored.\n\nClick OK to continue to BL/AWB.");
           if (moveOn) document.querySelector('.boe-tab[data-boe-tab="blawb"]')?.click();
         } catch (error) {

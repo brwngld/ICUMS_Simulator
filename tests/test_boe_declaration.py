@@ -286,3 +286,40 @@ def test_bl_awb_tab_edits_and_saves(client):
     rendered = client.get(page_url)
     assert b"CONT-1" in rendered.content
     assert b"F, F Indicator" in rendered.content
+
+
+@pytest.mark.django_db
+def test_invoice_and_documents_draft_sections_persist_new_fields(client):
+    staff = User.objects.create_user(username="inv-doc-user", email="inv-doc-user@example.test", password="x", is_staff=True)
+    client.force_login(staff)
+    idf = _make_idf(staff, "KGHTESTUCR9900000109")
+    created = client.post(reverse("boe-create"), {
+        "reuse": "IDF", "idf_number": idf.application_no,
+        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+    }, content_type="application/json").json()
+    declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
+    page_url = reverse("boe-declaration", args=(declaration.pk,))
+
+    # The Invoice tab persists the delivery term dropdown alongside its fields.
+    saved = client.post(reverse("boe-save-draft", args=(declaration.pk,)), {
+        "section": "invoice",
+        "fields": {"country_of_delivery": "GH", "delivery_place": "TEMA", "mode_of_payment_cd": "07", "delivery_term": "CIF"},
+    }, content_type="application/json")
+    assert saved.status_code == 200
+    declaration.refresh_from_db()
+    assert declaration.form_data["delivery_term"] == "CIF"
+
+    # The Documents tab persists manually added user-defined document rows.
+    saved = client.post(reverse("boe-save-draft", args=(declaration.pk,)), {
+        "section": "documents",
+        "fields": {"income_tax_reference": "NA"},
+        "user_rows": [{"description": "Supplier Certificate", "requirement": "Y", "reference": "SUP-001"}],
+    }, content_type="application/json")
+    assert saved.status_code == 200
+    declaration.refresh_from_db()
+    assert declaration.form_data["user_documents_manual"][0]["reference"] == "SUP-001"
+
+    # The saved manual row renders in the declaration's user documents list.
+    rendered = client.get(page_url)
+    assert b"Supplier Certificate" in rendered.content
+    assert b"SUP-001" in rendered.content
