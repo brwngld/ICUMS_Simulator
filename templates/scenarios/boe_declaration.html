@@ -162,25 +162,137 @@
         </section>
 
         <section class="cargo-panel boe-tab-panel" id="boe-tab-item" hidden>
-          <div class="cargo-panel-title"><h2>Item</h2></div>
-          <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Item No.</th><th>HS Code</th><th>Description</th><th>Quantity</th><th>FOB FCY</th></tr></thead><tbody>
-            {% for item in items %}<tr><td class="cell-center">{{ forloop.counter }}</td><td class="cell-center">{{ item.hs_code }}</td><td class="cell-left">{{ item.description }}</td><td class="cell-center">{{ item.quantity }}</td><td class="cell-center">{{ item.fob_fcy|default:"—" }}</td></tr>{% empty %}<tr><td class="empty-row" colspan="5">No data found.</td></tr>{% endfor %}
-          </tbody></table></div>
+          <div id="item-list-view">
+            <div class="item-panel-heading">
+              <h2 class="boe-section-title">Item List</h2>
+              {% if is_draft %}
+              <div class="item-panel-actions">
+                <button class="ucr-row-action" id="item-add" type="button">Add Item</button>
+                <button class="ucr-row-action" id="item-duplicate" type="button">Duplicate Item</button>
+                <button class="ucr-row-action" type="button" disabled title="Excel upload is not part of this training step">Excel Upload</button>
+                <button class="ucr-row-action" id="item-delete" type="button">Delete Item</button>
+                <button class="ucr-row-action" id="item-valuation-update" type="button">Update Valuation Method</button>
+                <select id="item-valuation-select">
+                  <option value="">-- Select One --</option>
+                  {% for method in valuation_methods %}<option value="{{ method }}">{{ method }}</option>{% endfor %}
+                </select>
+              </div>
+              {% endif %}
+            </div>
+            <div class="cargo-table-wrap"><table class="ucr-search-table" id="item-list-table"><thead><tr>
+              {% if is_draft %}<th><input type="checkbox" id="item-check-all" aria-label="Select all items"></th>{% endif %}
+              <th>Item No.</th><th>HS</th><th>CPC</th><th>Valuation Method</th><th>Gross Weight</th><th>Net Weight</th><th>FOB FCY</th><th>Freight FCY</th><th>Insurance FCY</th><th>Other Costs FCY</th><th>Customs Value FCY</th><th>Customs Value NCY</th>
+            </tr></thead><tbody>
+              {% for row in item_rows %}<tr>
+                {% if is_draft %}<td class="cell-center"><input type="checkbox" class="item-row-check" data-index="{{ row.index }}" aria-label="Select item {{ row.item_no }}"></td>{% endif %}
+                <td class="cell-center">{% if is_draft %}<button type="button" class="ucr-row-action item-open" data-index="{{ row.index }}">{{ row.item_no }}</button>{% else %}{{ row.item_no }}{% endif %}</td>
+                <td class="cell-center">{{ row.hs_code }}</td>
+                <td class="cell-center">{{ row.cpc }}</td>
+                <td class="cell-center">{{ row.valuation_method }}</td>
+                <td class="cell-right">{{ row.gross_weight }}</td>
+                <td class="cell-right">{{ row.net_weight }}</td>
+                <td class="cell-right">{{ row.fob_fcy }}</td>
+                <td class="cell-right">{{ row.freight_fcy }}</td>
+                <td class="cell-right">{{ row.insurance_fcy }}</td>
+                <td class="cell-right">{{ row.other_costs_fcy }}</td>
+                <td class="cell-right">{{ row.customs_value_fcy }}</td>
+                <td class="cell-right">{{ row.customs_value_ncy }}</td>
+              </tr>{% empty %}<tr><td class="empty-row" colspan="{% if is_draft %}13{% else %}12{% endif %}">No data found.</td></tr>{% endfor %}
+              {% if item_rows %}<tr class="item-total-row">
+                {% if is_draft %}<td></td>{% endif %}
+                <td colspan="4">Total</td>
+                <td class="cell-right">{{ item_totals.gross_weight }}</td>
+                <td class="cell-right">{{ item_totals.net_weight }}</td>
+                <td class="cell-right">{{ item_totals.fob_fcy }}</td>
+                <td class="cell-right">{{ item_totals.freight_fcy }}</td>
+                <td class="cell-right">{{ item_totals.insurance_fcy }}</td>
+                <td class="cell-right">{{ item_totals.other_costs_fcy }}</td>
+                <td class="cell-right">{{ item_totals.customs_value_fcy }}</td>
+                <td class="cell-right">{{ item_totals.customs_value_ncy }}</td>
+              </tr>{% endif %}
+            </tbody></table></div>
+            <div class="cargo-actions">
+              <button class="secondary-button" id="item-back-documents" type="button">⏮ Back</button>
+              <button class="secondary-button" id="go-summary" type="button">⏭ Next</button>
+            </div>
+          </div>
+
+          {% if is_draft %}
+          {% for detail in item_details %}
+          <div data-item-detail="{{ detail.index }}" hidden>
+            <div class="item-subtabs" role="tablist" aria-label="Item sub sections">
+              <button type="button" class="boe-tab item-subtab" data-item-subtab="details" aria-current="tab">Item Details</button>
+              <button type="button" class="boe-tab item-subtab" data-item-subtab="annexed">Annexed Document</button>
+            </div>
+            <div data-item-subpanel="details">
+              <div class="boe-section"><h2 class="boe-section-title">Item Details</h2>
+                <table class="ucr-view-table boe-form-grid"><tbody>
+                  <tr><th>Item No.</th><td><input id="item-{{ detail.index }}-item-no" value="{{ detail.item_no }}" style="width:100%;"></td><th>Regime</th><td>{{ detail.regime }}</td></tr>
+                  <tr><th>HS *</th><td><div style="display:flex; gap:.35rem; align-items:center;"><input id="item-{{ detail.index }}-hs-code" value="{{ detail.hs_code }}" style="flex:1;"><button class="ucr-row-action" type="button" data-item-action="hs-search" data-index="{{ detail.index }}">Search</button></div><div class="item-hs-results" id="item-{{ detail.index }}-hs-results"></div></td><th></th><td></td></tr>
+                  <tr><th>Item Description *</th><td colspan="3"><textarea id="item-{{ detail.index }}-description" rows="3" style="width:100%;">{{ detail.description }}</textarea></td></tr>
+                  <tr><th>CPC *</th><td><div style="display:grid; gap:.2rem;"><input id="item-{{ detail.index }}-cpc" value="{{ detail.cpc }}" style="width:100%;"><span class="dialog-help">{{ detail.cpc_description }}</span></div></td><th>State of Goods *</th><td><select id="item-{{ detail.index }}-state-of-goods"><option value="01, NEW" {% if not detail.state_is_old %}selected{% endif %}>01, NEW</option><option value="02, OLD/SECONDHAND" {% if detail.state_is_old %}selected{% endif %}>02, OLD/SECONDHAND</option></select></td></tr>
+                  <tr><th>Zone *</th><td><div style="display:grid; gap:.2rem;"><input id="item-{{ detail.index }}-zone" value="{{ detail.zone }}" style="width:100%;"><span class="dialog-help">{% if detail.zone == 'GEN' %}General Imports{% endif %}</span></div></td><th>Country of Origin *</th><td><input id="item-{{ detail.index }}-country-of-origin" value="{{ detail.country_of_origin }}" style="width:100%;" list="country-options"></td></tr>
+                </tbody></table></div>
+              <div class="boe-section"><h2 class="boe-section-title">Quantity</h2>
+                <div style="text-align:right; margin-bottom:.3rem;"><label style="font-size:.75rem;"><input type="checkbox" id="item-{{ detail.index }}-manual-calc"> Turn off automatic calculation</label></div>
+                <table class="ucr-view-table boe-form-grid"><tbody>
+                  <tr><th>Quantity (PKG) *</th><td><div style="display:grid; grid-template-columns: 1fr 1fr; gap:.35rem;"><select id="item-{{ detail.index }}-package-unit"><option value="">-- Select One --</option>{% for unit in package_units %}<option value="{{ unit }}" {% if detail.package_unit == unit %}selected{% endif %}>{{ unit }}</option>{% endfor %}{% if detail.package_unit and detail.package_unit not in package_units %}<option value="{{ detail.package_unit }}" selected>{{ detail.package_unit }}</option>{% endif %}</select><input id="item-{{ detail.index }}-package-quantity" value="{{ detail.package_quantity }}" style="text-align:right;"></div></td><th>Volume</th><td><input id="item-{{ detail.index }}-volume" value="{{ detail.volume }}" style="width:100%;"></td></tr>
+                  <tr><th>Gross Weight(Kgs) *</th><td><input id="item-{{ detail.index }}-gross-weight" value="{{ detail.gross_weight }}" style="width:100%; text-align:right;"></td><th>Net Weight(Kgs) *</th><td><input id="item-{{ detail.index }}-net-weight" value="{{ detail.net_weight }}" style="width:100%; text-align:right;"></td></tr>
+                  <tr><th>Item Quantity *</th><td><div style="display:grid; grid-template-columns: 1fr 1fr; gap:.35rem;"><select id="item-{{ detail.index }}-item-quantity-unit"><option value="">-- Select One --</option>{% for unit in item_quantity_units %}<option value="{{ unit }}" {% if detail.item_quantity_unit == unit %}selected{% endif %}>{{ unit }}</option>{% endfor %}{% if detail.item_quantity_unit and detail.item_quantity_unit not in item_quantity_units %}<option value="{{ detail.item_quantity_unit }}" selected>{{ detail.item_quantity_unit }}</option>{% endif %}</select><input id="item-{{ detail.index }}-item-quantity" value="{{ detail.item_quantity }}" style="text-align:right;"></div></td><th>Supplementary Unit 1</th><td><div style="display:grid; grid-template-columns: 1fr 1fr; gap:.35rem;"><select id="item-{{ detail.index }}-sup-unit-1-unit" aria-label="Supplementary Unit 1 type"><option value="">-- Select One --</option><option value="KGM">KGM, Kilogram</option><option value="LTR">LTR, Litre</option><option value="MTR">MTR, Metre</option><option value="NO">NO, Number</option></select><input id="item-{{ detail.index }}-sup-unit-1" value="{{ detail.sup_unit_1 }}" style="text-align:right;"></div></td></tr>
+                  <tr><th></th><td></td><th>Supplementary Unit 2</th><td><div style="display:grid; grid-template-columns: 1fr 1fr; gap:.35rem;"><select id="item-{{ detail.index }}-sup-unit-2-unit" aria-label="Supplementary Unit 2 type"><option value="">-- Select One --</option><option value="KGM">KGM, Kilogram</option><option value="LTR">LTR, Litre</option><option value="MTR">MTR, Metre</option><option value="NO">NO, Number</option></select><input id="item-{{ detail.index }}-sup-unit-2" value="{{ detail.sup_unit_2 }}" style="text-align:right;"></div></td></tr>
+                </tbody></table></div>
+              <div class="boe-section"><h2 class="boe-section-title">Additional Information</h2>
+                <table class="ucr-view-table boe-form-grid"><tbody>
+                  <tr><th>Currency *</th><td><input id="item-{{ detail.index }}-currency" value="{{ detail.currency }}" readonly style="width:100%;"></td><th>Exchange Rate</th><td><input id="item-{{ detail.index }}-exchange-rate" value="{{ detail.exchange_rate }}" readonly style="width:100%; text-align:right;"></td></tr>
+                  <tr><th>Unit FOB FCY *</th><td><div class="item-currency-field"><input value="{{ detail.currency }}" readonly aria-label="Currency code"><input id="item-{{ detail.index }}-unit-fob-fcy" value="{{ detail.unit_fob_fcy }}" style="text-align:right;"></div></td><th>Unit FOB NCY *</th><td><div class="item-currency-field"><input value="GHS" readonly aria-label="National currency code"><input id="item-{{ detail.index }}-unit-fob-ncy" value="{{ detail.unit_fob_ncy }}" style="text-align:right;"></div></td></tr>
+                  <tr><th>FOB FCY *</th><td><div class="item-currency-field"><input value="{{ detail.currency }}" readonly aria-label="Currency code"><input id="item-{{ detail.index }}-fob-fcy" value="{{ detail.fob_fcy }}" style="text-align:right;"></div></td><th>FOB NCY *</th><td><div class="item-currency-field"><input value="GHS" readonly aria-label="National currency code"><input id="item-{{ detail.index }}-fob-ncy" value="{{ detail.fob_ncy }}" style="text-align:right;"></div></td></tr>
+                  <tr><th>Freight FCY</th><td><div class="item-currency-field"><input value="{{ detail.currency }}" readonly aria-label="Currency code"><input id="item-{{ detail.index }}-freight-fcy" value="{{ detail.freight_fcy }}" style="text-align:right;"></div></td><th>Freight NCY</th><td><div class="item-currency-field"><input value="GHS" readonly aria-label="National currency code"><input id="item-{{ detail.index }}-freight-ncy" value="{{ detail.freight_ncy }}" style="text-align:right;"></div></td></tr>
+                  <tr><th>Insurance FCY</th><td><div class="item-currency-field"><input value="{{ detail.currency }}" readonly aria-label="Currency code"><input id="item-{{ detail.index }}-insurance-fcy" value="{{ detail.insurance_fcy }}" style="text-align:right;"></div></td><th>Insurance NCY</th><td><div class="item-currency-field"><input value="GHS" readonly aria-label="National currency code"><input id="item-{{ detail.index }}-insurance-ncy" value="{{ detail.insurance_ncy }}" style="text-align:right;"></div></td></tr>
+                  <tr><th>Other Costs FCY</th><td><div class="item-currency-field"><input value="{{ detail.currency }}" readonly aria-label="Currency code"><input id="item-{{ detail.index }}-other-costs-fcy" value="{{ detail.other_costs_fcy }}" style="text-align:right;"></div></td><th>Other Costs NCY</th><td><div class="item-currency-field"><input value="GHS" readonly aria-label="National currency code"><input id="item-{{ detail.index }}-other-costs-ncy" value="{{ detail.other_costs_ncy }}" style="text-align:right;"></div></td></tr>
+                  <tr><th>Customs Value FCY *</th><td><div class="item-currency-field"><input value="{{ detail.currency }}" readonly aria-label="Currency code"><input id="item-{{ detail.index }}-customs-value-fcy" value="{{ detail.customs_value_fcy }}" readonly style="text-align:right;"></div></td><th>Customs Value NCY *</th><td><div class="item-currency-field"><input value="GHS" readonly aria-label="National currency code"><input id="item-{{ detail.index }}-customs-value-ncy" value="{{ detail.customs_value_ncy }}" readonly style="text-align:right;"></div></td></tr>
+                  <tr><th>Valuation Method *</th><td><select id="item-{{ detail.index }}-valuation-method" style="width:100%;">{% for method in valuation_methods %}<option value="{{ method }}" {% if detail.valuation_method == method %}selected{% endif %}>{{ method }}</option>{% endfor %}</select></td><th>Vehicle Indicator</th><td><input id="item-{{ detail.index }}-vehicle-indicator" value="{{ detail.vehicle_indicator }}" maxlength="1" style="width:4rem;"></td></tr>
+                </tbody></table></div>
+              <div class="boe-section"><h2 class="boe-section-title">User Defined Tax Item</h2>
+                <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>User Defined</th><th>Tax Code</th><th>Tax</th><th>Amount Payable</th><th><button class="ucr-row-action" type="button" data-item-action="tax-add" data-index="{{ detail.index }}">Add</button></th></tr></thead>
+                <tbody id="item-{{ detail.index }}-tax-rows">
+                  {% for tax in detail.taxes %}<tr><td class="cell-center"><input type="checkbox" aria-label="User defined tax"></td><td><input class="item-tax-code" value="{{ tax.code }}" style="width:100%;"></td><td><input class="item-tax-name" value="{{ tax.name }}" style="width:100%;"></td><td><input class="item-tax-amount" value="{{ tax.amount }}" style="width:100%; text-align:right;"></td><td><button class="ucr-row-action" type="button" data-item-action="tax-del">Del</button></td></tr>
+                  {% empty %}<tr class="item-empty-row"><td colspan="5" class="empty-row">No Data.</td></tr>
+                  {% endfor %}
+                </tbody></table></div></div>
+              <div class="cargo-actions">
+                <button class="secondary-button" type="button" data-item-action="back-to-list">⏮ Back to Item List</button>
+                <button class="secondary-button" type="button" data-item-action="save-item" data-index="{{ detail.index }}">💾 Save Item</button>
+              </div>
+            </div>
+            <div data-item-subpanel="annexed" hidden>
+              <div class="boe-section"><h2 class="boe-section-title">System Defined Annexed Document</h2>
+                <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Document Code</th><th>Description</th><th>Requirement</th><th>Document Reference No.</th></tr></thead><tbody>
+                  {% for doc in detail.annexed_system %}<tr><td class="cell-center">{{ doc.code }}</td><td class="cell-left">{{ doc.description }}</td><td class="cell-center">{{ doc.requirement }}</td><td class="cell-center">{{ doc.reference }}</td></tr>
+                  {% empty %}<tr><td colspan="4" class="empty-row">No data found.</td></tr>
+                  {% endfor %}
+                </tbody></table></div></div>
+              <div class="boe-section"><h2 class="boe-section-title">User Defined Annexed Document</h2>
+                <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Description</th><th>Requirement</th><th>Document Reference No.</th><th><button class="ucr-row-action" type="button" data-item-action="annexed-add" data-index="{{ detail.index }}">Add</button></th></tr></thead>
+                <tbody id="item-{{ detail.index }}-annexed-rows">
+                  {% for doc in detail.annexed_user %}
+                  {% if doc.manual %}<tr class="annexed-manual-row" data-code="{{ doc.code }}"><td><input class="annexed-description" value="{{ doc.description }}" style="width:100%;"></td><td class="cell-center">{{ doc.requirement }}</td><td><input class="annexed-reference" value="{{ doc.reference }}" style="width:100%;"></td><td><button class="ucr-row-action" type="button" data-item-action="annexed-del">Del</button></td></tr>
+                  {% else %}<tr><td class="cell-left">{{ doc.description }}</td><td class="cell-center">{{ doc.requirement }}</td><td class="cell-center">{{ doc.reference }}</td><td></td></tr>{% endif %}
+                  {% empty %}<tr class="item-empty-row"><td colspan="4" class="empty-row">No data found.</td></tr>
+                  {% endfor %}
+                </tbody></table></div></div>
+              <div class="cargo-actions">
+                <button class="secondary-button" type="button" data-item-action="back-to-list">⏮ Back to Item List</button>
+                <button class="secondary-button" type="button" data-item-action="save-annexed" data-index="{{ detail.index }}">💾 Save Annexed Docs</button>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+          <datalist id="country-options">{% for code, name in country_display_items %}<option value="{{ code }}">{{ name }}</option>{% endfor %}</datalist>
+          {% endif %}
         </section>
 
         <section class="cargo-panel boe-tab-panel" id="boe-tab-summary" hidden>
-          <div class="cargo-panel-title"><h2>Summary</h2></div>
-          <div class="summary-grid">
-            <label>Job No.</label><input value="{{ declaration.job_no }}" readonly>
-            <label>Status</label><input value="{{ declaration.status_code_display }}" readonly>
-            <label>BoE No.</label><input value="{{ declaration.declaration_no }}" readonly>
-            <label>UCR No.</label><input value="{{ declaration.ucr.ucr_no }}" readonly>
-            <label>IDF No.</label><input value="{{ declaration.idf.application_no }}" readonly>
-            <label>Regime</label><input value="{{ declaration.regime }}" readonly>
-            <label>CPC</label><input value="{{ declaration.cpc }}" readonly>
-            <label>Zone</label><input value="{{ declaration.zone }}" readonly>
-            <label>Customs Value</label><input value="{{ customs_value }}" readonly>
-          </div>
+          {% include "scenarios/boe_summary_panel.html" %}
         </section>
 
         {% if declaration.status == 'draft' %}
@@ -233,7 +345,7 @@
   {{ importer_code|json_script:"importer-code-data" }}{{ consignee_code|json_script:"consignee-code-data" }}{{ general_values.declarant_tin|json_script:"declarant-code-data" }}
   <script>
     (() => {
-      const tabs = [...document.querySelectorAll(".boe-tab")];
+      const tabs = [...document.querySelectorAll(".boe-tab[data-boe-tab]")];
       const activate = (name) => {
         tabs.forEach((tab) => tab.setAttribute("aria-current", tab.dataset.boeTab === name ? "tab" : "false"));
         document.querySelectorAll(".boe-tab-panel").forEach((panel) => { panel.hidden = panel.id !== `boe-tab-${name}`; });
@@ -383,9 +495,7 @@
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.error || "The draft could not be saved.");
-          const moveOn = window.confirm("Saved as draft. Invoice entries stored.
-
-Click OK to continue to Documents.");
+          const moveOn = window.confirm("Saved as draft. Invoice entries stored.\n\nClick OK to continue to Documents.");
           if (moveOn) document.querySelector('.boe-tab[data-boe-tab="documents"]')?.click();
         } catch (error) {
           window.alert(`Save failed. ${error.message}`);
@@ -431,9 +541,7 @@ Click OK to continue to Documents.");
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.error || "The draft could not be saved.");
-          const moveOn = window.confirm("Saved as draft. Your BL/AWB tab entries are stored.
-
-Click OK to continue to Invoice.");
+          const moveOn = window.confirm("Saved as draft. Your BL/AWB tab entries are stored.\n\nClick OK to continue to Invoice.");
           if (moveOn) document.querySelector('.boe-tab[data-boe-tab="invoice"]')?.click();
         } catch (error) {
           window.alert(`Save failed. ${error.message}`);
@@ -460,9 +568,7 @@ Click OK to continue to Invoice.");
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(data.error || "The draft could not be saved.");
-          const moveOn = window.confirm("Saved as draft. Your General tab entries are stored.
-
-Click OK to continue to BL/AWB.");
+          const moveOn = window.confirm("Saved as draft. Your General tab entries are stored.\n\nClick OK to continue to BL/AWB.");
           if (moveOn) document.querySelector('.boe-tab[data-boe-tab="blawb"]')?.click();
         } catch (error) {
           window.alert(`Save failed. ${error.message}`);
@@ -470,6 +576,317 @@ Click OK to continue to BL/AWB.");
           button.disabled = false;
         }
       });
+
+      // --- Item tab: list <-> per-item detail <-> annexed document sub-views ---
+      const itemPanel = document.querySelector("#boe-tab-item");
+      const itemSaveUrl = "{% url 'boe-save-draft' declaration.pk %}";
+      const hsSearchUrl = "{% url 'application-hs-code-search' %}";
+      const itemHeaders = { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" };
+      const showItemView = (target) => {
+        const key = String(target);
+        const listView = document.querySelector("#item-list-view");
+        if (listView) listView.hidden = key !== "list";
+        itemPanel?.querySelectorAll("[data-item-detail]").forEach((node) => { node.hidden = node.dataset.itemDetail !== key; });
+        itemPanel?.scrollIntoView({ block: "start" });
+      };
+      itemPanel?.querySelectorAll(".item-open").forEach((button) => button.addEventListener("click", () => showItemView(button.dataset.index)));
+      itemPanel?.querySelectorAll(".item-subtab").forEach((pill) => pill.addEventListener("click", () => {
+        const wrap = pill.closest("[data-item-detail]");
+        if (!wrap) return;
+        wrap.querySelectorAll(".item-subtab").forEach((other) => other.setAttribute("aria-current", other === pill ? "tab" : "false"));
+        wrap.querySelectorAll("[data-item-subpanel]").forEach((panel) => { panel.hidden = panel.dataset.itemSubpanel !== pill.dataset.itemSubtab; });
+      }));
+      document.querySelector("#item-back-documents")?.addEventListener("click", () => {
+        document.querySelector('.boe-tab[data-boe-tab="documents"]')?.click();
+      });
+      document.querySelector("#go-summary")?.addEventListener("click", () => {
+        document.querySelector('.boe-tab[data-boe-tab="summary"]')?.click();
+      });
+
+      const itemField = (index, suffix) => document.getElementById("item-" + index + "-" + suffix);
+      const itemValue = (index, suffix) => itemField(index, suffix)?.value || "";
+      const setItemValue = (index, suffix, text) => { const el = itemField(index, suffix); if (el) el.value = text; };
+      const itemNumber = (index, suffix) => {
+        const parsed = parseFloat((itemValue(index, suffix) || "").replace(/,/g, ""));
+        return Number.isNaN(parsed) ? 0 : parsed;
+      };
+      const recalcCustomsValue = (index) => {
+        const sum = (suffixes) => suffixes.reduce((acc, suffix) => acc + itemNumber(index, suffix), 0);
+        setItemValue(index, "customs-value-fcy", sum(["fob-fcy", "freight-fcy", "insurance-fcy", "other-costs-fcy"]).toFixed(2));
+        setItemValue(index, "customs-value-ncy", sum(["fob-ncy", "freight-ncy", "insurance-ncy", "other-costs-ncy"]).toFixed(2));
+      };
+      const recalcItemAmounts = (index) => {
+        if (!itemField(index, "manual-calc")?.checked) {
+          const quantity = itemNumber(index, "item-quantity");
+          const unitFob = itemNumber(index, "unit-fob-fcy");
+          const rate = itemNumber(index, "exchange-rate");
+          const fob = quantity > 0 && unitFob > 0 ? quantity * unitFob : itemNumber(index, "fob-fcy");
+          setItemValue(index, "fob-fcy", fob.toFixed(2));
+          if (rate > 0) {
+            setItemValue(index, "unit-fob-ncy", (unitFob * rate).toFixed(6));
+            setItemValue(index, "fob-ncy", (fob * rate).toFixed(2));
+          }
+        }
+        recalcCustomsValue(index);
+      };
+      itemPanel?.querySelectorAll("[data-item-detail]").forEach((node) => {
+        const index = node.dataset.itemDetail;
+        ["item-quantity", "unit-fob-fcy", "fob-fcy", "fob-ncy", "freight-fcy", "freight-ncy",
+         "insurance-fcy", "insurance-ncy", "other-costs-fcy", "other-costs-ncy"].forEach((suffix) => {
+          itemField(index, suffix)?.addEventListener("input", () => recalcItemAmounts(index));
+        });
+      });
+
+      const makeItemCellInput = (className, value, rightAligned) => {
+        const input = document.createElement("input");
+        input.className = className;
+        input.style.width = "100%";
+        if (rightAligned) input.style.textAlign = "right";
+        input.value = value || "";
+        return input;
+      };
+      const makeItemDelButton = (onRemove) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "ucr-row-action";
+        button.textContent = "Del";
+        button.addEventListener("click", onRemove);
+        return button;
+      };
+      const removeItemEmptyRow = (tbody) => tbody.querySelector(".item-empty-row")?.remove();
+      const addTaxRow = (index) => {
+        const tbody = document.getElementById("item-" + index + "-tax-rows");
+        if (!tbody) return;
+        removeItemEmptyRow(tbody);
+        const tr = document.createElement("tr");
+        const checkTd = document.createElement("td");
+        checkTd.className = "cell-center";
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        checkTd.append(check);
+        const codeTd = document.createElement("td");
+        codeTd.append(makeItemCellInput("item-tax-code", ""));
+        const nameTd = document.createElement("td");
+        nameTd.append(makeItemCellInput("item-tax-name", ""));
+        const amountTd = document.createElement("td");
+        amountTd.append(makeItemCellInput("item-tax-amount", "", true));
+        const delTd = document.createElement("td");
+        delTd.append(makeItemDelButton(() => tr.remove()));
+        tr.append(checkTd, codeTd, nameTd, amountTd, delTd);
+        tbody.append(tr);
+      };
+      const addAnnexedRow = (index) => {
+        const tbody = document.getElementById("item-" + index + "-annexed-rows");
+        if (!tbody) return;
+        removeItemEmptyRow(tbody);
+        const tr = document.createElement("tr");
+        tr.className = "annexed-manual-row";
+        const descriptionTd = document.createElement("td");
+        descriptionTd.append(makeItemCellInput("annexed-description", ""));
+        const requirementTd = document.createElement("td");
+        requirementTd.className = "cell-center";
+        requirementTd.textContent = "Y";
+        const referenceTd = document.createElement("td");
+        referenceTd.append(makeItemCellInput("annexed-reference", ""));
+        const delTd = document.createElement("td");
+        delTd.append(makeItemDelButton(() => tr.remove()));
+        tr.append(descriptionTd, requirementTd, referenceTd, delTd);
+        tbody.append(tr);
+      };
+      const collectTaxRows = (index) => [...(document.getElementById("item-" + index + "-tax-rows")?.querySelectorAll("tr") || [])]
+        .filter((tr) => !tr.classList.contains("item-empty-row"))
+        .map((tr) => ({
+          code: tr.querySelector(".item-tax-code")?.value.trim() || "",
+          name: tr.querySelector(".item-tax-name")?.value.trim() || "",
+          amount: tr.querySelector(".item-tax-amount")?.value.trim() || "",
+        }))
+        .filter((row) => row.code || row.name || row.amount);
+      const collectAnnexedRows = (index) => [...(document.getElementById("item-" + index + "-annexed-rows")?.querySelectorAll("tr.annexed-manual-row") || [])]
+        .map((tr) => ({
+          code: tr.dataset.code || "",
+          description: tr.querySelector(".annexed-description")?.value.trim() || "",
+          requirement: "Y",
+          reference: tr.querySelector(".annexed-reference")?.value.trim() || "",
+        }))
+        .filter((row) => row.description || row.reference);
+      const collectItemFields = (index) => ({
+        hs_code: itemValue(index, "hs-code"),
+        description: itemValue(index, "description"),
+        cpc: itemValue(index, "cpc"),
+        state_of_goods: itemValue(index, "state-of-goods"),
+        zone: itemValue(index, "zone"),
+        country_of_origin: itemValue(index, "country-of-origin"),
+        volume: itemValue(index, "volume"),
+        package_unit: itemValue(index, "package-unit"),
+        package_quantity: itemValue(index, "package-quantity"),
+        gross_weight: itemValue(index, "gross-weight"),
+        net_weight: itemValue(index, "net-weight"),
+        item_quantity: itemValue(index, "item-quantity"),
+        item_quantity_unit: itemValue(index, "item-quantity-unit"),
+        sup_unit_1: itemValue(index, "sup-unit-1"),
+        sup_unit_2: itemValue(index, "sup-unit-2"),
+        unit_fob_fcy: itemValue(index, "unit-fob-fcy"),
+        unit_fob_ncy: itemValue(index, "unit-fob-ncy"),
+        fob_fcy: itemValue(index, "fob-fcy"),
+        fob_ncy: itemValue(index, "fob-ncy"),
+        freight_fcy: itemValue(index, "freight-fcy"),
+        freight_ncy: itemValue(index, "freight-ncy"),
+        insurance_fcy: itemValue(index, "insurance-fcy"),
+        insurance_ncy: itemValue(index, "insurance-ncy"),
+        other_costs_fcy: itemValue(index, "other-costs-fcy"),
+        other_costs_ncy: itemValue(index, "other-costs-ncy"),
+        customs_value_fcy: itemValue(index, "customs-value-fcy"),
+        customs_value_ncy: itemValue(index, "customs-value-ncy"),
+        valuation_method: itemValue(index, "valuation-method"),
+        vehicle_indicator: itemValue(index, "vehicle-indicator"),
+      });
+      const postItemDraft = async (body) => {
+        const response = await fetch(itemSaveUrl, { method: "POST", headers: itemHeaders, body: JSON.stringify(body) });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || "The draft could not be saved.");
+        return payload;
+      };
+      const checkedItemIndices = () => [...itemPanel.querySelectorAll(".item-row-check:checked")].map((box) => Number(box.dataset.index));
+      const reloadOnSaved = async (body) => {
+        try {
+          await postItemDraft(body);
+        } catch (error) {
+          window.alert(`Save failed. ${error.message}`);
+          return;
+        }
+        location.reload();
+      };
+      document.querySelector("#item-add")?.addEventListener("click", () => reloadOnSaved({ section: "items_bulk", action: "add", index: 0 }));
+      document.querySelector("#item-duplicate")?.addEventListener("click", () => {
+        const indices = checkedItemIndices();
+        if (!indices.length) { window.alert("Select the item row to duplicate first."); return; }
+        reloadOnSaved({ section: "items_bulk", action: "duplicate", index: indices[0] });
+      });
+      document.querySelector("#item-delete")?.addEventListener("click", () => {
+        const indices = checkedItemIndices();
+        if (!indices.length) { window.alert("Select at least one item row to delete."); return; }
+        if (!window.confirm("Delete the selected item rows from this draft?")) return;
+        reloadOnSaved({ section: "items_bulk", action: "delete", indices });
+      });
+      document.querySelector("#item-valuation-update")?.addEventListener("click", () => {
+        const method = document.querySelector("#item-valuation-select")?.value || "";
+        if (!method) { window.alert("Select a valuation method first."); return; }
+        const indices = checkedItemIndices();
+        if (!indices.length) { window.alert("Select at least one item row to update."); return; }
+        reloadOnSaved({ section: "items_bulk", action: "valuation", indices, valuation_method: method });
+      });
+      document.querySelector("#item-check-all")?.addEventListener("change", (event) => {
+        itemPanel.querySelectorAll(".item-row-check").forEach((box) => { box.checked = event.currentTarget.checked; });
+      });
+
+      itemPanel?.addEventListener("click", async (event) => {
+        const button = event.target.closest("[data-item-action]");
+        if (!button) return;
+        const action = button.dataset.itemAction;
+        const index = button.dataset.index;
+        if (action === "back-to-list") { showItemView("list"); return; }
+        if (action === "tax-add") { addTaxRow(index); return; }
+        if (action === "tax-del") { button.closest("tr")?.remove(); return; }
+        if (action === "annexed-add") { addAnnexedRow(index); return; }
+        if (action === "annexed-del") { button.closest("tr")?.remove(); return; }
+        if (action === "hs-search") {
+          const box = itemField(index, "hs-results");
+          if (!box) return;
+          box.textContent = "Searching...";
+          try {
+            const response = await fetch(hsSearchUrl + "?code=" + encodeURIComponent(itemValue(index, "hs-code")));
+            const data = await response.json();
+            box.textContent = "";
+            (data.results || []).slice(0, 8).forEach((result) => {
+              const pick = document.createElement("button");
+              pick.type = "button";
+              pick.className = "ucr-row-action";
+              pick.textContent = result.code + " - " + result.description;
+              pick.addEventListener("click", () => {
+                const field = itemField(index, "hs-code");
+                if (field) field.value = result.code;
+                box.textContent = "";
+              });
+              box.append(pick);
+            });
+            if (!box.children.length) box.textContent = "No matching HS codes found.";
+          } catch (_error) {
+            box.textContent = "The HS code search failed.";
+          }
+          return;
+        }
+        if (action === "save-item") {
+          button.disabled = true;
+          try {
+            await postItemDraft({ section: "item", index: Number(index), fields: collectItemFields(index) });
+            await postItemDraft({ section: "item_taxes", index: Number(index), taxes: collectTaxRows(index) });
+            const moveOn = window.confirm("Saved as draft. Your item entries are stored.\n\nClick OK to return to the Item List.");
+            if (moveOn) showItemView("list");
+          } catch (error) {
+            window.alert(`Save failed. ${error.message}`);
+          } finally {
+            button.disabled = false;
+          }
+          return;
+        }
+        if (action === "save-annexed") {
+          button.disabled = true;
+          try {
+            await postItemDraft({ section: "item_annexed", index: Number(index), rows: collectAnnexedRows(index) });
+            const moveOn = window.confirm("Saved as draft. Your annexed document entries are stored.\n\nClick OK to return to the Item List.");
+            if (moveOn) showItemView("list");
+          } catch (error) {
+            window.alert(`Save failed. ${error.message}`);
+          } finally {
+            button.disabled = false;
+          }
+        }
+      });
+
+      // --- Summary tab ---
+      const summaryPrint = () => window.print();
+      document.querySelector("#summary-print")?.addEventListener("click", summaryPrint);
+      document.querySelector("#summary-print-bottom")?.addEventListener("click", summaryPrint);
+      const summaryBack = () => document.querySelector('.boe-tab[data-boe-tab="item"]')?.click();
+      document.querySelector("#summary-back")?.addEventListener("click", summaryBack);
+      document.querySelector("#summary-back-bottom")?.addEventListener("click", summaryBack);
+      const summarySaveDraft = async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+          await fetch("{% url 'boe-save-draft' declaration.pk %}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+            body: JSON.stringify({ section: "general", user_reference: document.querySelector("#general-user-reference")?.value || "" }),
+          });
+          window.alert("Saved as draft. Your declaration entries are stored.");
+        } catch (error) {
+          window.alert(`Save failed. ${error.message}`);
+        } finally {
+          button.disabled = false;
+        }
+      };
+      document.querySelector("#summary-save-draft")?.addEventListener("click", summarySaveDraft);
+      document.querySelector("#summary-save-draft-bottom")?.addEventListener("click", summarySaveDraft);
+      const summarySubmit = async (event) => {
+        if (!window.confirm("Submit this declaration? A BoE number will be issued and it enters the customs response stages.")) return;
+        const button = event.currentTarget;
+        button.disabled = true;
+        try {
+          const response = await fetch("{% url 'boe-submit' declaration.pk %}", {
+            method: "POST",
+            headers: { Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+          });
+          if (!response.ok) throw new Error("The declaration could not be submitted.");
+          window.alert("Declaration submitted. The customs response stages are now open.");
+          location.reload();
+        } catch (error) {
+          window.alert(`Submit failed. ${error.message}`);
+          button.disabled = false;
+        }
+      };
+      document.querySelector("#summary-submit")?.addEventListener("click", summarySubmit);
+      document.querySelector("#summary-submit-bottom")?.addEventListener("click", summarySubmit);
     })();
   </script>
   <script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script>

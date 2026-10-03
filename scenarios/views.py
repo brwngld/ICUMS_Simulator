@@ -1655,6 +1655,151 @@ def boe_idf_lookup(request):
     return JsonResponse({"valid": True, "ucr_no": ucr.ucr_no, "idf_no": idf.application_no})
 
 
+BOE_VALUATION_METHODS = (
+    "1. Transaction Value",
+    "2. Transaction Value of Identical Goods",
+    "3. Transaction Value of Similar Goods",
+    "4. Deductive Value",
+    "5. Computed Value",
+    "6. Fall-back Value",
+)
+
+# The HS code determines which MDA (Government agency) document an item needs.
+# Once an item's HS prefix calls for an MDA, that agency's permit moves from the
+# user defined annexed list (attached to the UCR but not related to the item)
+# into the item's system defined annexed list.
+HS_ANNEXED_REQUIREMENTS = (
+    # (HS prefix, MDA code, document description)
+    ("4015", "FDA", "FDA PERMIT - RUBBER / MEDICAL CONSUMABLES"),
+    ("3004", "FDA", "FDA PERMIT - PHARMACEUTICALS"),
+    ("3304", "FDA", "FDA PERMIT - COSMETICS"),
+    ("8703", "DVLA", "DVLA VEHICLE APPROVAL"),
+    ("1704", "GSA", "GSA CONFORMITY CERTIFICATE"),
+    ("2523", "GSA", "GSA CEMENT CERTIFICATION"),
+)
+
+# Item tab field caps: (whitelisted key, max stored length).
+BOE_ITEM_FIELD_LIMITS = {
+    "regime": 12, "hs_code": 24, "description": 500, "cpc": 12, "state_of_goods": 24,
+    "zone": 8, "country_of_origin": 2, "volume": 20, "package_unit": 12, "package_quantity": 20,
+    "gross_weight": 20, "net_weight": 20, "item_quantity": 20, "item_quantity_unit": 12,
+    "sup_unit_1": 20, "sup_unit_2": 20, "unit_fob_fcy": 20, "unit_fob_ncy": 20,
+    "fob_fcy": 20, "fob_ncy": 20, "freight_fcy": 20, "freight_ncy": 20,
+    "insurance_fcy": 20, "insurance_ncy": 20, "other_costs_fcy": 20, "other_costs_ncy": 20,
+    "customs_value_fcy": 20, "customs_value_ncy": 20,
+    "valuation_method": 60, "vehicle_indicator": 1,
+}
+BOE_ITEM_NUMERIC_FIELDS = ("volume", "package_quantity", "gross_weight", "net_weight", "item_quantity",
+                           "unit_fob_fcy", "unit_fob_ncy", "fob_fcy", "fob_ncy", "freight_fcy", "freight_ncy",
+                           "insurance_fcy", "insurance_ncy", "other_costs_fcy", "other_costs_ncy",
+                           "customs_value_fcy", "customs_value_ncy")
+BOE_MAX_ITEMS = 200
+
+
+def _boe_number(value):
+    """Tolerant numeric parse for BOE item fields (accepts thousands separators); None when blank/invalid."""
+    if value is None:
+        return None
+    text = str(value).strip().replace(",", "")
+    if not text:
+        return None
+    try:
+        return Decimal(text)
+    except Exception:
+        return None
+
+
+def _boe_fmt_money(value):
+    number = _boe_number(value)
+    if number is None:
+        return ""
+    return f"{number.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP):,.2f}"
+
+
+def _boe_fmt_weight(value):
+    number = _boe_number(value)
+    if number is None:
+        return ""
+    return f"{number.quantize(Decimal('0.001'), rounding=ROUND_HALF_UP):,.3f}".rstrip("0").rstrip(".")
+
+
+def _boe_item_no(item, index):
+    return str((item or {}).get("item_no") or f"{index + 1:04d}").strip() or f"{index + 1:04d}"
+
+
+def _boe_short_valuation(method):
+    """List/summary display drops the leading choice number ("1. Transaction Value" -> "Transaction Value")."""
+    text = str(method or "").strip()
+    return text.split(". ", 1)[1] if ". " in text[:3] else text
+
+
+def _boe_renumber_items(items):
+    for index, item in enumerate(items):
+        if isinstance(item, dict):
+            item["item_no"] = f"{index + 1:04d}"
+
+
+def _boe_annexed_documents(declaration):
+    """System vs user defined annexed (MDA) documents for every BOE item.
+
+    The HS code calls the shot: an item whose HS prefix matches an entry in
+    HS_ANNEXED_REQUIREMENTS gets that MDA as a system defined annexed document
+    (reference = the matching non-draft MDA application number under the UCR,
+    blank until the applicant files it). The UCR's remaining non-draft, non-MOTI
+    MDA requests stay user defined, together with the item's manual rows.
+    """
+    items = (declaration.form_data or {}).get("items") or []
+    mda_requests = list(
+        MdaConsignmentRequest.objects
+        .filter(consignment_application__ucr=declaration.ucr)
+        .exclude(mda__code="MOTI")
+        .exclude(status=MdaStatus.DRAFT)
+        .select_related("mda", "application")
+        .order_by("created_at")
+    )
+    references = {}
+    for request in mda_requests:
+        references.setdefault((request.mda.code or "").strip().upper(), []).append(request.application_no)
+    called_for = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        hs_code = str(item.get("hs_code", "") or "").strip().upper()
+        for prefix, mda_code, _description in HS_ANNEXED_REQUIREMENTS:
+            if hs_code.startswith(prefix.upper()):
+                called_for.add(mda_code.upper())
+    annexed = {}
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            annexed[index] = {"system": [], "user": []}
+            continue
+        hs_code = str(item.get("hs_code", "") or "").strip().upper()
+        system = [
+            {"code": mda_code, "description": description, "requirement": "Y",
+             "reference": ", ".join(references.get(mda_code.upper(), []))}
+            for prefix, mda_code, description in HS_ANNEXED_REQUIREMENTS
+            if hs_code.startswith(prefix.upper())
+        ]
+        user = [
+            {"code": request.mda.code, "description": request.application.name, "requirement": "Y",
+             "reference": request.application_no, "manual": False}
+            for request in mda_requests
+            if (request.mda.code or "").strip().upper() not in called_for
+        ]
+        for row in (item.get("annexed_manual") or [])[:50]:
+            if not isinstance(row, dict):
+                continue
+            user.append({
+                "code": str(row.get("code", "") or "").strip()[:24],
+                "description": str(row.get("description", "") or "").strip()[:240],
+                "requirement": str(row.get("requirement", "") or "Y").strip()[:8] or "Y",
+                "reference": str(row.get("reference", "") or "").strip()[:100],
+                "manual": True,
+            })
+        annexed[index] = {"system": system, "user": user}
+    return annexed
+
+
 @simulator_access_required
 @require_POST
 def boe_create(request):
@@ -1875,6 +2020,143 @@ def boe_declaration(request, declaration_id):
         ("Customs Value Ncy", data.get("customs_value_ncy", "")),
     ]
 
+    # --- Item tab: list rows, totals, per-item detail forms, annexed documents ---
+    def _sum_item_column(key, money=True):
+        numbers = [number for number in (_boe_number(item.get(key)) for item in items if isinstance(item, dict)) if number is not None]
+        if not numbers:
+            return ""
+        total = sum(numbers, Decimal("0"))
+        return _boe_fmt_money(total) if money else _boe_fmt_weight(total)
+
+    item_rows = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        item_rows.append({
+            "index": index,
+            "item_no": _boe_item_no(item, index),
+            "hs_code": str(item.get("hs_code", "") or ""),
+            "cpc": str(item.get("cpc", "") or declaration.cpc or ""),
+            "valuation_method": _boe_short_valuation(item.get("valuation_method")) or "Transaction Value",
+            "gross_weight": _boe_fmt_weight(item.get("gross_weight")),
+            "net_weight": _boe_fmt_weight(item.get("net_weight")),
+            "fob_fcy": _boe_fmt_money(item.get("fob_fcy")),
+            "freight_fcy": _boe_fmt_money(item.get("freight_fcy")),
+            "insurance_fcy": _boe_fmt_money(item.get("insurance_fcy")),
+            "other_costs_fcy": _boe_fmt_money(item.get("other_costs_fcy")),
+            "customs_value_fcy": _boe_fmt_money(item.get("customs_value_fcy")),
+            "customs_value_ncy": _boe_fmt_money(item.get("customs_value_ncy")),
+        })
+    item_totals = {
+        "gross_weight": _sum_item_column("gross_weight", money=False),
+        "net_weight": _sum_item_column("net_weight", money=False),
+        "fob_fcy": _sum_item_column("fob_fcy"),
+        "freight_fcy": _sum_item_column("freight_fcy"),
+        "insurance_fcy": _sum_item_column("insurance_fcy"),
+        "other_costs_fcy": _sum_item_column("other_costs_fcy"),
+        "customs_value_fcy": _sum_item_column("customs_value_fcy"),
+        "customs_value_ncy": _sum_item_column("customs_value_ncy"),
+    }
+
+    item_annexed = _boe_annexed_documents(declaration)
+    item_details = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        cpc_code = str(item.get("cpc", "") or declaration.cpc or "").strip()
+        cpc_description = ""
+        if cpc_code:
+            cpc_description = (CustomsProcedureCode.objects
+                               .filter(code=cpc_code)
+                               .values_list("description", flat=True).first() or "")
+        state_of_goods = str(item.get("state_of_goods", "") or "").strip().upper()
+        annexed = item_annexed.get(index, {"system": [], "user": []})
+        item_details.append({
+            "index": index,
+            "item_no": _boe_item_no(item, index),
+            "regime": general_values["regime"],
+            "hs_code": str(item.get("hs_code", "") or ""),
+            "description": str(item.get("description", "") or ""),
+            "cpc": cpc_code,
+            "cpc_description": cpc_description,
+            "state_is_old": state_of_goods.startswith(("02", "OLD", "USED")),
+            "zone": str(item.get("zone", "") or declaration.zone or ""),
+            "country_of_origin": str(item.get("country_of_origin", "") or item.get("origin_country", "") or ""),
+            "volume": str(item.get("volume", "") or ""),
+            "package_unit": str(item.get("package_unit", "") or "PK"),
+            "package_quantity": str(item.get("package_quantity", "") or ""),
+            "gross_weight": str(item.get("gross_weight", "") or ""),
+            "net_weight": str(item.get("net_weight", "") or ""),
+            "item_quantity": str(item.get("item_quantity", "") or item.get("quantity", "") or ""),
+            "item_quantity_unit": str(item.get("item_quantity_unit", "") or item.get("quantity_unit", "") or "KGM"),
+            "sup_unit_1": str(item.get("sup_unit_1", "") or ""),
+            "sup_unit_2": str(item.get("sup_unit_2", "") or ""),
+            "currency": str(item.get("currency", "") or data.get("currency", "") or "USD"),
+            "exchange_rate": str(item.get("exchange_rate", "") or data.get("exchange_rate", "") or ""),
+            "unit_fob_fcy": str(item.get("unit_fob_fcy", "") or ""),
+            "unit_fob_ncy": str(item.get("unit_fob_ncy", "") or ""),
+            "fob_fcy": str(item.get("fob_fcy", "") or ""),
+            "fob_ncy": str(item.get("fob_ncy", "") or ""),
+            "freight_fcy": str(item.get("freight_fcy", "") or ""),
+            "freight_ncy": str(item.get("freight_ncy", "") or ""),
+            "insurance_fcy": str(item.get("insurance_fcy", "") or ""),
+            "insurance_ncy": str(item.get("insurance_ncy", "") or ""),
+            "other_costs_fcy": str(item.get("other_costs_fcy", "") or ""),
+            "other_costs_ncy": str(item.get("other_costs_ncy", "") or ""),
+            "customs_value_fcy": str(item.get("customs_value_fcy", "") or ""),
+            "customs_value_ncy": str(item.get("customs_value_ncy", "") or ""),
+            "valuation_method": str(item.get("valuation_method", "") or BOE_VALUATION_METHODS[0]),
+            "vehicle_indicator": str(item.get("vehicle_indicator", "") or "N"),
+            "taxes": [tax for tax in (item.get("user_taxes") or []) if isinstance(tax, dict)],
+            "annexed_system": annexed["system"],
+            "annexed_user": annexed["user"],
+        })
+
+    # --- Summary tab context (shared contract with the summary panel) ---
+    summary_header = {
+        "job_no": declaration.job_no,
+        "regime": general_values["regime"],
+        "boe_no": declaration.declaration_no,
+        "submission_date": timezone.localtime(declaration.submitted_at).strftime("%d/%m/%Y") if declaration.submitted_at else "",
+        "status": declaration.status_code_display,
+        "processing_status": "",
+        "manifest_no": bl_values["manifest_no"],
+        "bl_awb_no": bl_values["bl_awb_no"],
+    }
+    user_tax_rows = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        for tax in (item.get("user_taxes") or []):
+            if not isinstance(tax, dict):
+                continue
+            raw_amount = str(tax.get("amount", "") or "")
+            user_tax_rows.append({
+                "item_no": _boe_item_no(item, index),
+                "code": str(tax.get("code", "") or ""),
+                "name": str(tax.get("name", "") or ""),
+                "amount": _boe_fmt_money(raw_amount) if _boe_number(raw_amount) is not None else raw_amount,
+            })
+    summary_items = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        summary_items.append({
+            "item_no": _boe_item_no(item, index),
+            "hs_code": str(item.get("hs_code", "") or ""),
+            "cpc": str(item.get("cpc", "") or ""),
+            "valuation_method": _boe_short_valuation(item.get("valuation_method")) or "Transaction Value",
+            "gross_weight": _boe_fmt_weight(item.get("gross_weight")),
+            "net_weight": _boe_fmt_weight(item.get("net_weight")),
+            "fob_fcy": _boe_fmt_money(item.get("fob_fcy")),
+            "freight_fcy": _boe_fmt_money(item.get("freight_fcy")),
+            "insurance_fcy": _boe_fmt_money(item.get("insurance_fcy")),
+            "other_costs_fcy": _boe_fmt_money(item.get("other_costs_fcy")),
+            "customs_value_fcy": _boe_fmt_money(item.get("customs_value_fcy")),
+            "customs_value_ncy": _boe_fmt_money(item.get("customs_value_ncy")),
+        })
+    summary_item_totals = {"item_no": "", "hs_code": "", "cpc": "", "valuation_method": "", **item_totals}
+
     return render(request, "scenarios/boe_declaration.html", {
         "declaration": declaration,
         "is_draft": is_draft,
@@ -1903,16 +2185,41 @@ def boe_declaration(request, declaration_id):
         "user_documents": user_documents,
         "income_tax_reference": data.get("income_tax_reference", "NA"),
         "items": items,
+        "item_rows": item_rows,
+        "item_totals": item_totals,
+        "item_details": item_details,
+        "item_annexed": item_annexed,
+        "valuation_methods": BOE_VALUATION_METHODS,
+        "package_units": ["PK", "PACKAGE", "PARCEL", "PACKET"],
+        "item_quantity_units": ["KGM", "LTR", "MTR", "NO", "SET"],
+        "summary_header": summary_header,
+        "user_tax_rows": user_tax_rows,
+        "summary_items": summary_items,
+        "summary_item_totals": summary_item_totals,
         "tax_rows": tax_rows,
         "tax_total": tax_summary["total"],
         "customs_value": tax_summary["customs_value"],
     })
 
 
+def _boe_target_item(data, payload):
+    """Resolve payload["index"] against form_data["items"]; returns (items, index, error_response)."""
+    items = data.get("items")
+    if not isinstance(items, list):
+        items = []
+        data["items"] = items
+    items = [item if isinstance(item, dict) else {} for item in items]
+    data["items"] = items
+    index = payload.get("index")
+    if not isinstance(index, int) or index < 0 or index >= len(items):
+        return items, None, JsonResponse({"error": "Select the item to save before saving."}, status=400)
+    return items, index, None
+
+
 @simulator_access_required
 @require_POST
 def boe_save_general_draft(request, declaration_id):
-    """Save the editable fields of a BOE draft tab (general or BL/AWB)."""
+    """Save the editable fields of a BOE draft tab (general, BL/AWB, invoice, documents, item)."""
     declaration = get_object_or_404(BoeDeclaration, pk=declaration_id, owner=request.user)
     if declaration.status != BoeDeclaration.Status.DRAFT:
         return JsonResponse({"error": "Only drafts can be saved."}, status=400)
@@ -1943,6 +2250,106 @@ def boe_save_general_draft(request, declaration_id):
     elif section == "documents":
         fields = payload.get("fields") or {}
         data["income_tax_reference"] = str(fields.get("income_tax_reference", "NA")).strip()[:120]
+    elif section == "item":
+        items, index, error = _boe_target_item(data, payload)
+        if error:
+            return error
+        item = items[index]
+        fields = payload.get("fields") or {}
+        for key, limit in BOE_ITEM_FIELD_LIMITS.items():
+            if key not in fields:
+                continue
+            if key in BOE_ITEM_NUMERIC_FIELDS:
+                number = _boe_number(fields[key])
+                item[key] = str(number) if number is not None else str(fields[key] or "").strip()[:limit]
+            else:
+                item[key] = str(fields[key] or "").strip()[:limit]
+        # Customs value is the sum of the value components; recompute when the client did not send it.
+        def _component_total(*keys):
+            total = Decimal("0")
+            for key in keys:
+                number = _boe_number(item.get(key))
+                if number is not None:
+                    total += number
+            return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if _boe_number(item.get("customs_value_fcy")) is None:
+            item["customs_value_fcy"] = str(_component_total("fob_fcy", "freight_fcy", "insurance_fcy", "other_costs_fcy"))
+        if _boe_number(item.get("customs_value_ncy")) is None:
+            item["customs_value_ncy"] = str(_component_total("fob_ncy", "freight_ncy", "insurance_ncy", "other_costs_ncy"))
+        _boe_renumber_items(items)
+    elif section == "item_taxes":
+        items, index, error = _boe_target_item(data, payload)
+        if error:
+            return error
+        raw_taxes = payload.get("taxes")
+        taxes = []
+        for row in (raw_taxes if isinstance(raw_taxes, list) else [])[:50]:
+            if not isinstance(row, dict):
+                continue
+            taxes.append({
+                "code": str(row.get("code", "") or "").strip()[:12],
+                "name": str(row.get("name", "") or "").strip()[:120],
+                "amount": str(row.get("amount", "") or "").strip()[:24],
+            })
+        items[index]["user_taxes"] = taxes
+    elif section == "item_annexed":
+        items, index, error = _boe_target_item(data, payload)
+        if error:
+            return error
+        raw_rows = payload.get("rows")
+        rows = []
+        for row in (raw_rows if isinstance(raw_rows, list) else [])[:50]:
+            if not isinstance(row, dict):
+                continue
+            cleaned = {
+                "code": str(row.get("code", "") or "").strip()[:24],
+                "description": str(row.get("description", "") or "").strip()[:240],
+                "requirement": str(row.get("requirement", "") or "Y").strip()[:8] or "Y",
+                "reference": str(row.get("reference", "") or "").strip()[:100],
+            }
+            if cleaned["description"] or cleaned["reference"]:
+                rows.append(cleaned)
+        items[index]["annexed_manual"] = rows
+    elif section == "items_bulk":
+        items = [item for item in (data.get("items") or []) if isinstance(item, dict)]
+        action = str(payload.get("action", "")).strip().lower()
+
+        def _valid_indices(raw):
+            indices = []
+            if isinstance(raw, list):
+                for value in raw:
+                    if isinstance(value, int) and 0 <= value < len(items) and value not in indices:
+                        indices.append(value)
+            return indices
+
+        if action == "add":
+            if len(items) >= BOE_MAX_ITEMS:
+                return JsonResponse({"error": f"A declaration is limited to {BOE_MAX_ITEMS} items."}, status=400)
+            items.append({"hs_code": "", "description": ""})
+        elif action == "duplicate":
+            index = payload.get("index")
+            if not isinstance(index, int) or index < 0 or index >= len(items):
+                return JsonResponse({"error": "Select the item row to duplicate."}, status=400)
+            if len(items) >= BOE_MAX_ITEMS:
+                return JsonResponse({"error": f"A declaration is limited to {BOE_MAX_ITEMS} items."}, status=400)
+            items.append(json.loads(json.dumps(items[index])))
+        elif action == "delete":
+            indices = sorted(_valid_indices(payload.get("indices")), reverse=True)
+            if not indices:
+                return JsonResponse({"error": "Select at least one item row to delete."}, status=400)
+            for index in indices:
+                items.pop(index)
+        elif action == "valuation":
+            method = str(payload.get("valuation_method", "")).strip()[:60]
+            indices = _valid_indices(payload.get("indices"))
+            if not method or not indices:
+                return JsonResponse({"error": "Select item rows and a valuation method."}, status=400)
+            for index in indices:
+                items[index]["valuation_method"] = method
+        else:
+            return JsonResponse({"error": "Unknown item action."}, status=400)
+        _boe_renumber_items(items)
+        data["items"] = items
     else:
         data["user_reference"] = str(payload.get("user_reference", "")).strip()[:200]
         taxpayer = str(payload.get("taxpayer", "importer")).strip().lower()

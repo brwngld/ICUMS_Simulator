@@ -1,0 +1,145 @@
+{# BOE Declaration — Summary tab panel content. Included inside <section class="cargo-panel boe-tab-panel" id="boe-tab-summary">. Inner content only. #}
+
+<div class="boe-section"><h2 class="boe-section-title">Summary</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Job No.</th><td>{{ summary_header.job_no|default:"—" }}</td><th>Regime</th><td>{{ summary_header.regime|default:"—" }}</td></tr>
+    <tr><th>BoE No.</th><td>{{ summary_header.boe_no|default:"—" }}</td><th>Submission Date</th><td>{{ summary_header.submission_date|default:"—" }}</td></tr>
+    <tr><th>Status</th><td>{{ summary_header.status|default:"—" }}</td><th>Processing Status</th><td>{{ summary_header.processing_status|default:"—" }}</td></tr>
+    <tr><th>Manifest No.</th><td>{{ summary_header.manifest_no|default:"—" }}</td><th>BL/AWB No.</th><td>{{ summary_header.bl_awb_no|default:"—" }}</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">User Defined Tax Summary</h2>
+  <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr>
+    <th>User Defined</th><th>Tax Code</th><th>Tax</th><th>Amount Payable</th>{% if is_draft %}<th style="width:1%;"><button class="ucr-row-action" type="button" disabled title="User defined taxes are managed on the Tax tab">Add</button></th>{% endif %}
+  </tr></thead><tbody>
+    {% for row in user_tax_rows %}<tr><td class="cell-center">{{ row.item_no }}</td><td class="cell-center">{{ row.code }}</td><td class="cell-left">{{ row.name }}</td><td class="cell-center">{{ row.amount }}</td></tr>{% empty %}<tr><td class="empty-row" colspan="{% if is_draft %}5{% else %}4{% endif %}">No Data.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% if is_draft %}<p class="required-note">*Please ensure User Defined Taxes(if required) are inserted before submission</p>{% endif %}
+</div>
+
+{% if is_draft %}
+<div class="cargo-actions">
+  <button class="secondary-button" id="summary-print" type="button">🖨 Print</button>
+  <button class="secondary-button" id="summary-back" type="button">⏮ Back</button>
+  <button class="secondary-button" id="summary-save-draft" type="button">💾 Save as Draft</button>
+  <button class="secondary-button" id="summary-submit" type="button">🔘 Submit</button>
+</div>
+{% endif %}
+
+<div class="boe-section"><h2 class="boe-section-title">General</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Job No.</th><td>{{ summary_header.job_no|default:"—" }}</td><th>Status</th><td>{{ summary_header.status|default:"—" }}</td></tr>
+    <tr><th>BoE No.</th><td>{{ summary_header.boe_no|default:"—" }}</td><th>UCR No.</th><td>{{ general_values.ucr_no|default:"—" }}</td></tr>
+    <tr><th>Regime</th><td>{{ summary_header.regime|default:"—" }}</td><th>Customs Office</th><td>{{ general_values.customs_office|default:"—" }}</td></tr>
+    <tr><th>CL. Plan</th><td>DPM, Declaration Post-Arrival</td><th>Declaration Form Type</th><td>G, General</td></tr>
+    <tr><th>User Reference No.</th><td colspan="3">{{ general_values.user_reference|default:"—" }}</td></tr>
+    <tr><th>Doc Date</th><td>{{ general_values.doc_date|default:"—" }}</td><th>Expiry Date For First Payment</th><td>{{ general_values.expiry_date|default:"—" }}</td></tr>
+    <tr><th>Dec Date</th><td>{{ general_values.dec_date|default:"—" }}</td><th>Post Entry Date</th><td>—</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Exporter</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Exporter Name</th><td>{{ general_values.exporter_name|default:"—" }}</td><th>Country of Exporter</th><td>{{ general_values.exporter_country|default:"—" }}</td></tr>
+    <tr><th>Exporter Address</th><td colspan="3">{{ general_values.exporter_address|default:"—" }}</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Importer</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Importer Code</th><td><div>{{ importer_code|default:"—" }}</div><div>{{ importer_name|default:"—" }}</div></td><th>Country of Importer</th><td>{{ general_values.importer_country|default:"—" }}</td></tr>
+    <tr><th>Importer Address</th><td colspan="3">{{ general_values.importer_address|default:"—" }}</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Consignee</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Consignee Code</th><td colspan="3"><div>{{ consignee_code|default:"—" }}</div><div>{{ consignee_name|default:"—" }}</div></td></tr>
+    <tr><th>Consignee Address</th><td colspan="3">{{ general_values.consignee_address|default:"—" }}</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Declarant Code</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Declarant TIN</th><td>{{ general_values.declarant_tin|default:"—" }}</td><th>Declarant Code</th><td>{{ general_values.declarant_code|default:"—" }}</td></tr>
+    <tr><th>Declarant Name</th><td>{{ general_values.declarant_name|default:"—" }}</td><th>Declarant Address</th><td>{{ general_values.declarant_address|default:"—" }}</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Taxpayer</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Taxpayer Code</th><td>{{ general_values.taxpayer_code|default:"—" }}</td><th>Taxpayer</th><td>{% if taxpayer == 'consignee' %}CN, Consignee{% elif taxpayer == 'declarant' %}CH, Declarant{% else %}IM, Importer{% endif %}</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">BL/AWB Details</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Manifest No.</th><td>{{ bl_values.manifest_no|default:"—" }}</td><th>BL/AWB No.</th><td>{{ bl_values.bl_awb_no|default:"—" }}</td></tr>
+    <tr><th>Transport Mode</th><td colspan="3">{{ declaration.ucr.transport_mode }}</td></tr>
+    <tr><th>Manifest No. Date</th><td>{{ bl_values.manifest_date|default:"—" }}</td><th>Entry/Exit Office</th><td>{{ general_values.customs_office|default:"—" }}</td></tr>
+    <tr><th>Customs Area</th><td>{{ bl_values.customs_area|default:"—" }}</td><th>Location of Goods</th><td>{{ bl_values.location_code|default:"—" }}{% if bl_values.location_name %}, {{ bl_values.location_name }}{% endif %}</td></tr>
+    <tr><th>Vessel Name</th><td>{{ bl_values.vessel_name|default:"—" }}</td><th>Voyage/Flight No.</th><td>{{ bl_values.voyage_no|default:"—" }}</td></tr>
+    <tr><th>Manifest Freight</th><td style="text-align:right;">{{ bl_values.manifest_freight|default:"—" }}</td><th>Nationality</th><td>{{ bl_values.nationality|default:"—" }}</td></tr>
+    <tr><th>Port of Unloading</th><td>{{ bl_values.port_of_loading|default:"—" }}</td><th>Place of Shipment</th><td>{{ bl_values.place_of_landing|default:"—" }}</td></tr>
+    <tr><th>Gross Weight(Kgs)</th><td style="text-align:right;">{{ bl_values.gross_weight|default:"—" }}</td><th>Net Weight(Kgs)</th><td style="text-align:right;">{{ bl_values.net_weight|default:"—" }}</td></tr>
+    <tr><th>Total Package (CT)</th><td style="text-align:right;">{{ bl_values.package_count|default:"—" }}</td><th>Volume (m3)</th><td style="text-align:right;">{{ bl_values.volume|default:"—" }}</td></tr>
+    <tr><th>Country of Consignment/Destination</th><td>{{ bl_values.consignment_country|default:"—" }}</td><th>Consignment Date</th><td>{{ bl_values.consignment_date|default:"—" }}</td></tr>
+    <tr><th>Container Indicator (6/F/L)</th><td>{{ bl_values.container_indicator|default:"—" }}</td><th>Risk Level</th><td>{{ bl_values.risk_level|default:"—" }}</td></tr>
+    <tr><th>Marks and Numbers</th><td colspan="3">{{ bl_values.marks_numbers|default:"—" }}</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Container / Chassis List</h2>
+  <div style="text-align:right; font-size:.78rem; color:var(--muted); margin-bottom:.3rem;">Total : {{ containers|length }}</div>
+  <table class="ucr-search-table"><thead><tr><th>No.</th><th>Packing Type</th><th>Container No. / Chassis No.</th><th>Container Size</th><th>Seal No.</th></tr></thead><tbody>
+    {% for container in containers %}<tr><td class="cell-center">{{ forloop.counter }}</td><td class="cell-left">{{ container.packing }}</td><td class="cell-center">{{ container.number }}</td><td class="cell-center">{{ container.size }}</td><td class="cell-center">{{ container.seal }}</td></tr>{% empty %}<tr><td class="empty-row" colspan="5">No data found.</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Invoice Details</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Delivery Terms</th><td>{{ invoice_values.delivery_term|default:"—" }}</td><th>Country of Delivery</th><td>{{ invoice_values.country_of_delivery|default:"—" }}</td></tr>
+    <tr><th>Delivery Place</th><td colspan="3">{{ invoice_values.delivery_place|default:"—" }}</td></tr>
+    <tr><th>Currency</th><td>{{ invoice_values.currency|default:"—" }}</td><th>Exchange Rate</th><td style="text-align:right;">{{ invoice_values.exchange_rate|default:"—" }}</td></tr>
+    <tr><th>Total FOB FCY</th><td style="text-align:right;">{{ invoice_values.fob_fcy|default:"—" }}</td><th>Total FOB NCY (GHS)</th><td style="text-align:right;">{{ invoice_values.fob_ncy|default:"—" }}</td></tr>
+    <tr><th>Total Freight FCY</th><td style="text-align:right;">{{ invoice_values.freight_fcy|default:"—" }}</td><th>Total Freight NCY (GHS)</th><td style="text-align:right;">{{ invoice_values.freight_ncy|default:"—" }}</td></tr>
+    <tr><th>Total Insurance FCY</th><td style="text-align:right;">{{ invoice_values.insurance_fcy|default:"—" }}</td><th>Total Insurance NCY (GHS)</th><td style="text-align:right;">{{ invoice_values.insurance_ncy|default:"—" }}</td></tr>
+    <tr><th>Total Other Costs FCY</th><td style="text-align:right;">{{ invoice_values.other_fcy|default:"—" }}</td><th>Total Other Costs NCY (GHS)</th><td style="text-align:right;">{{ invoice_values.other_ncy|default:"—" }}</td></tr>
+    <tr><th>Total Invoice FCY</th><td style="text-align:right;">{{ invoice_values.invoice_fcy|default:"—" }}</td><th>Total Invoice NCY (GHS)</th><td style="text-align:right;">{{ invoice_values.invoice_ncy|default:"—" }}</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Additional Info.</h2>
+  <table class="ucr-view-table boe-form-grid"><tbody>
+    <tr><th>Mode of payment</th><td colspan="3">{{ mode_of_payment_display|default:"—" }}</td></tr>
+  </tbody></table>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">System Defined Attached Documents</h2>
+  <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Document Code</th><th>Description</th><th>Requirement</th><th>Document Reference No.</th></tr></thead><tbody>
+    {% for doc in system_documents %}<tr><td class="cell-center">{{ doc.code }}</td><td class="cell-left">{{ doc.name }}</td><td class="cell-center">{{ doc.requirement }}</td><td class="cell-left">{{ doc.reference }}</td></tr>{% empty %}<tr><td class="empty-row" colspan="4">No data found.</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">User Defined Attached Documents</h2>
+  <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>No.</th><th>Document Code</th><th>Description</th><th>Requirement</th><th>Document Reference No.</th></tr></thead><tbody>
+    {% for doc in user_documents %}<tr><td class="cell-center">{{ forloop.counter }}</td><td class="cell-center">{{ doc.code }}</td><td class="cell-left">{{ doc.name }}</td><td class="cell-center">{{ doc.requirement }}</td><td class="cell-left">{{ doc.reference }}</td></tr>{% empty %}<tr><td class="empty-row" colspan="5">No data found.</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+
+<div class="boe-section"><h2 class="boe-section-title">Item List</h2>
+  <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Item No.</th><th>HS</th><th>CPC</th><th>Valuation Method</th><th>Gross Weight</th><th>Net Weight</th><th>FOB FCY</th><th>Freight FCY</th><th>Insurance FCY</th><th>Other Costs FCY</th><th>Customs Value FCY</th><th>Customs Value NCY</th></tr></thead><tbody>
+    {% for item in summary_items %}<tr><td class="cell-center">{{ item.item_no }}</td><td class="cell-center">{{ item.hs_code }}</td><td class="cell-center">{{ item.cpc }}</td><td class="cell-left">{{ item.valuation_method }}</td><td class="cell-center">{{ item.gross_weight }}</td><td class="cell-center">{{ item.net_weight }}</td><td class="cell-center">{{ item.fob_fcy }}</td><td class="cell-center">{{ item.freight_fcy }}</td><td class="cell-center">{{ item.insurance_fcy }}</td><td class="cell-center">{{ item.other_costs_fcy }}</td><td class="cell-center">{{ item.customs_value_fcy }}</td><td class="cell-center">{{ item.customs_value_ncy }}</td></tr>{% empty %}<tr><td class="empty-row" colspan="12">No data found.</td></tr>{% endfor %}
+  </tbody><tfoot><tr><th colspan="4">Total</th><th style="text-align:right;">{{ summary_item_totals.gross_weight }}</th><th style="text-align:right;">{{ summary_item_totals.net_weight }}</th><th style="text-align:right;">{{ summary_item_totals.fob_fcy }}</th><th style="text-align:right;">{{ summary_item_totals.freight_fcy }}</th><th style="text-align:right;">{{ summary_item_totals.insurance_fcy }}</th><th style="text-align:right;">{{ summary_item_totals.other_costs_fcy }}</th><th style="text-align:right;">{{ summary_item_totals.customs_value_fcy }}</th><th style="text-align:right;">{{ summary_item_totals.customs_value_ncy }}</th></tr></tfoot></table></div>
+  <div style="display:flex; justify-content:space-between; font-size:.78rem; color:var(--muted);"><span>Total : {{ summary_items|length }}</span><span>Page : 1/1 &nbsp; 10</span></div>
+</div>
+
+{% if is_draft %}
+<div class="cargo-actions">
+  <button class="secondary-button" id="summary-print-bottom" type="button">🖨 Print</button>
+  <button class="secondary-button" id="summary-back-bottom" type="button">⏮ Back</button>
+  <button class="secondary-button" id="summary-save-draft-bottom" type="button">💾 Save as Draft</button>
+  <button class="secondary-button" id="summary-submit-bottom" type="button">🔘 Submit</button>
+</div>
+{% endif %}
