@@ -81,18 +81,8 @@
   } else portalHeader.prepend(toggle);
   document.body.append(scrim);
   document.body.classList.add('navigation-enhanced');
-  const menu = document.querySelector('.portal-menu');
-  if (menu) {
-    menu.querySelectorAll('details').forEach((opened) => {
-      opened.addEventListener('toggle', () => {
-        if (!opened.open) return;
-        const parent = opened.parentElement;
-        [...parent.children].forEach((sibling) => {
-          if (sibling !== opened && sibling instanceof HTMLDetailsElement) sibling.open = false;
-        });
-      });
-    });
-  }
+  // Menu sections toggle independently: no exclusive-accordion behavior, so
+  // opening one section never collapses its siblings.
   const setOpen = (open, restoreFocus = false) => {
     document.body.classList.toggle('navigation-open', open);
     toggle.setAttribute('aria-expanded', String(open));

@@ -14,7 +14,7 @@
 const demoBL='DEMO-BL-2026', demoManifest='DEMO-MAN-001'; const bl=document.querySelector('#sr-bl'), manifest=document.querySelector('#sr-manifest'), details=document.querySelector('#service-details'), msg=document.querySelector('#service-message'), body=document.querySelector('#service-list-body');
 document.querySelector('#service-search').addEventListener('click',()=>{const ok=bl.value.trim().toUpperCase()===demoBL&&manifest.value.trim().toUpperCase()===demoManifest; details.hidden=!ok; msg.hidden=false; msg.textContent=ok?'Demo match found. Fictional BL, container, D/O, and service-request details are shown below.':'No fictional match found. Enter the demo BL and Manifest numbers shown above.'; if(ok) body.innerHTML='<tr><td>SR-SIM-0002457</td><td>DEMO-BL-2026</td><td>28/08/2026</td><td>28/08/2026</td><td>SIMU001</td><td>BOE-SIM-8821</td><td>26/08/2026</td><td>DO-SIM-0029203</td><td>CONFIRM</td></tr>';});
 document.querySelector('#service-reset').addEventListener('click',()=>{bl.value='';manifest.value='';details.hidden=true;msg.hidden=true;body.innerHTML='<tr><td class="empty-row" colspan="9">No fictional data found.</td></tr>';}); document.querySelector('#service-new').addEventListener('click',()=>{bl.focus();msg.hidden=false;msg.textContent='New service request lookup ready. Enter BL Number and Manifest No.';}); document.querySelector('#service-list').addEventListener('click',()=>{document.querySelector('#service-search').click();});
-</script><script src="{% static 'js/app-shell.js' %}?v=20260919-5" defer></script></body></html>
+</script><script src="{% static 'js/app-shell.js' %}?v=20261005-3" defer></script></body></html>
 
 
 
