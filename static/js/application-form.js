@@ -19,6 +19,7 @@
   // --- Tabs ---
   const tabs = [...document.querySelectorAll(".app-tab")];
   const tabOrder = tabs.map((tab) => tab.dataset.appTab);
+  const saveButton = document.querySelector("#app-save");
   const submitButton = document.querySelector("#app-submit");
   function showTab(name) {
     tabs.forEach((tab) => tab.setAttribute("aria-current", tab.dataset.appTab === name ? "tab" : "false"));
