@@ -65,6 +65,17 @@ Notes:
 - Back up by copying `local_data/db.sqlite3` (the backup_local_system command also works).
 - This module is temporary by design; the Phase 6 PostgreSQL gate supersedes it.
 
+Day-2 operations under systemd: the `icums` service reads `.env` itself, but your interactive shell does not. `manage.py` defaults to the dev settings, which use plain static storage — running `collectstatic` that way quietly copies un-hashed files and writes no `staticfiles.json`, and the site then 500s on every page because the manifest-storaged `{% static %}` lookups fail. Source the environment first, every time:
+
+```bash
+cd ~/ICUMS_Simulator
+set -a; source .env; set +a
+.venv/bin/python manage.py collectstatic --noinput   # or migrate / shell / createsuperuser
+sudo systemctl restart icums
+```
+
+Deploying new code always needs the same trio: `git pull`, `collectstatic` (as above) when static files changed, and `systemctl restart icums` when Python code changed — then a hard refresh in the browser, since pages and scripts may be cached.
+
 ## Tests and checks
 
 ```powershell
