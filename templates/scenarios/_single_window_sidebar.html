@@ -15,79 +15,79 @@
         <summary>Registration</summary>
         <details>
           <summary>Unique Consignment Reference</summary>
-          <a class="nested-active" href="{% url 'single-window-create-ucr' %}">Create UCR</a>
-          <a href="{% url 'single-window-search-ucr' %}">Search UCR</a>
-          <a href="{% url 'single-window-transfer-ucr' %}">Transfer UCR</a>
-          <a href="{% url 'single-window-received-ucr' %}">Received UCR</a>
+          <a {% if request.resolver_match.url_name == 'single-window-create-ucr' %}class="nested-active"{% endif %} href="{% url 'single-window-create-ucr' %}">Create UCR</a>
+          <a {% if request.resolver_match.url_name == 'single-window-search-ucr' %}class="nested-active"{% endif %} href="{% url 'single-window-search-ucr' %}">Search UCR</a>
+          <a {% if request.resolver_match.url_name == 'single-window-transfer-ucr' %}class="nested-active"{% endif %} href="{% url 'single-window-transfer-ucr' %}">Transfer UCR</a>
+          <a {% if request.resolver_match.url_name == 'single-window-received-ucr' %}class="nested-active"{% endif %} href="{% url 'single-window-received-ucr' %}">Received UCR</a>
         </details>
         <details>
           <summary>Exporter Registration</summary>
-          <a href="{% url 'single-window-create-exporter' %}">Create Exporter Registration</a>
-          <a href="{% url 'single-window-search-exporter' %}">Search Exporter Registration</a>
+          <a {% if request.resolver_match.url_name == 'single-window-create-exporter' %}class="nested-active"{% endif %} href="{% url 'single-window-create-exporter' %}">Create Exporter Registration</a>
+          <a {% if request.resolver_match.url_name == 'single-window-search-exporter' %}class="nested-active"{% endif %} href="{% url 'single-window-search-exporter' %}">Search Exporter Registration</a>
         </details>
         <details>
           <summary>Opt In/Out Request</summary>
-          <a href="{% url 'single-window-create-opt-in-out' %}">Create Opt In/Out</a>
-          <a href="{% url 'single-window-search-opt-in-out' %}">Search Opt In/Out</a>
+          <a {% if request.resolver_match.url_name == 'single-window-create-opt-in-out' %}class="nested-active"{% endif %} href="{% url 'single-window-create-opt-in-out' %}">Create Opt In/Out</a>
+          <a {% if request.resolver_match.url_name == 'single-window-search-opt-in-out' %}class="nested-active"{% endif %} href="{% url 'single-window-search-opt-in-out' %}">Search Opt In/Out</a>
         </details>
         <details>
           <summary>FCIE Registration</summary>
-          <a href="{% url 'single-window-create-fcie' %}">Create Registration</a>
-          <a href="{% url 'single-window-search-fcie' %}">Search Registration</a>
+          <a {% if request.resolver_match.url_name == 'single-window-create-fcie' %}class="nested-active"{% endif %} href="{% url 'single-window-create-fcie' %}">Create Registration</a>
+          <a {% if request.resolver_match.url_name == 'single-window-search-fcie' %}class="nested-active"{% endif %} href="{% url 'single-window-search-fcie' %}">Search Registration</a>
         </details>
       </details>
       <details>
         <summary>Application</summary>
         <details>
           <summary>Preparation Application</summary>
-          <a href="{% url 'single-window-create-preparation-application' %}">Create Application</a>
-          <a href="{% url 'single-window-search-preparation-application' %}">Search Application</a>
+          <a {% if request.resolver_match.url_name == 'single-window-create-preparation-application' %}class="nested-active"{% endif %} href="{% url 'single-window-create-preparation-application' %}">Create Application</a>
+          <a {% if request.resolver_match.url_name == 'single-window-search-preparation-application' %}class="nested-active"{% endif %} href="{% url 'single-window-search-preparation-application' %}">Search Application</a>
         </details>
         <details>
           <summary>Master Application</summary>
-          <a href="{% url 'single-window-create-master-application' %}">Create Application</a>
-          <a href="{% url 'single-window-search-master-application' %}">Search Application</a>
+          <a {% if request.resolver_match.url_name == 'single-window-create-master-application' %}class="nested-active"{% endif %} href="{% url 'single-window-create-master-application' %}">Create Application</a>
+          <a {% if request.resolver_match.url_name == 'single-window-search-master-application' %}class="nested-active"{% endif %} href="{% url 'single-window-search-master-application' %}">Search Application</a>
         </details>
         <details>
           <summary>Consignment Application</summary>
-          <a href="{% url 'single-window-create-consignment-application' %}">Create Application</a>
-          <a href="{% url 'single-window-search-consignment-application' %}">Search Application</a>
+          <a {% if request.resolver_match.url_name == 'single-window-create-consignment-application' %}class="nested-active"{% endif %} href="{% url 'single-window-create-consignment-application' %}">Create Application</a>
+          <a {% if request.resolver_match.url_name == 'single-window-search-consignment-application' %}class="nested-active"{% endif %} href="{% url 'single-window-search-consignment-application' %}">Search Application</a>
         </details>
       </details>
       <details>
         <summary>Letter of Commitment</summary>
         <details>
           <summary>Bank Pre-Registration</summary>
-          <a href="{% url 'single-window-create-bank-registration' %}">Create Bank Pre-Registration</a>
-          <a href="{% url 'single-window-search-bank-registration' %}">Search Bank Pre-Registration</a>
+          <a {% if request.resolver_match.url_name == 'single-window-create-bank-registration' %}class="nested-active"{% endif %} href="{% url 'single-window-create-bank-registration' %}">Create Bank Pre-Registration</a>
+          <a {% if request.resolver_match.url_name == 'single-window-search-bank-registration' %}class="nested-active"{% endif %} href="{% url 'single-window-search-bank-registration' %}">Search Bank Pre-Registration</a>
         </details>
         <details>
           <summary>Letter of Commitment</summary>
-          <a href="{% url 'single-window-create-letter-commitment' %}">Create Letter of Commitment</a>
-          <a href="{% url 'single-window-search-letter-commitment' %}">Search Letter of Commitment</a>
+          <a {% if request.resolver_match.url_name == 'single-window-create-letter-commitment' %}class="nested-active"{% endif %} href="{% url 'single-window-create-letter-commitment' %}">Create Letter of Commitment</a>
+          <a {% if request.resolver_match.url_name == 'single-window-search-letter-commitment' %}class="nested-active"{% endif %} href="{% url 'single-window-search-letter-commitment' %}">Search Letter of Commitment</a>
         </details>
       </details>
       <details>
         <summary>Previous Data</summary>
         <details>
           <summary>Application Data</summary>
-          <a href="{% url 'single-window-previous-data' 'application' %}">Search Application</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'application' %}class="nested-active"{% endif %} href="{% url 'single-window-previous-data' 'application' %}">Search Application</a>
         </details>
         <details>
           <summary>Exporter Registration Data</summary>
-          <a href="{% url 'single-window-previous-data' 'exporter' %}">Search Exporter Registration</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'exporter' %}class="nested-active"{% endif %} href="{% url 'single-window-previous-data' 'exporter' %}">Search Exporter Registration</a>
         </details>
         <details>
           <summary>Letter of Commitment Data</summary>
-          <a href="{% url 'single-window-previous-data' 'letter' %}">Search Letter of Commitment</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'letter' %}class="nested-active"{% endif %} href="{% url 'single-window-previous-data' 'letter' %}">Search Letter of Commitment</a>
         </details>
         <details>
           <summary>Pre Bank Registration Data</summary>
-          <a href="{% url 'single-window-previous-data' 'bank' %}">Search Pre Bank Registration</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'bank' %}class="nested-active"{% endif %} href="{% url 'single-window-previous-data' 'bank' %}">Search Pre Bank Registration</a>
         </details>
         <details>
           <summary>Opt In Data</summary>
-          <a href="{% url 'single-window-previous-data' 'opt-in' %}">Search Opt In</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'opt-in' %}class="nested-active"{% endif %} href="{% url 'single-window-previous-data' 'opt-in' %}">Search Opt In</a>
         </details>
       </details>
     </details>

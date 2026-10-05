@@ -16,7 +16,7 @@
     <main id="main-content" class="portal-main cargo-main" tabindex="-1">
       <header class="portal-header cargo-header">
         <div class="portal-heading"><p class="overline">Single Window · {{ page.section }}</p><h1>{{ page.title }}</h1></div>
-        <nav class="portal-top-nav" aria-label="Logged-in simulator navigation"><a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="#">Collection</a><a aria-current="page" href="{% url 'single-window-workspace' %}">Single Window</a><a href="#">Agent Management</a><a href="#">e-Docs</a><a href="#">Post Clearance Audit</a><a href="#">AEO</a><a href="#">More Information</a><a href="#">DW Service</a></nav>
+        {% with top_nav_active="single-window" %}{% include "scenarios/_portal_top_nav.html" %}{% endwith %}
       </header>
       <div class="cargo-breadcrumb"><a href="{% url 'single-window-workspace' %}">Single Window</a><span>›</span><span>{{ page.section }}</span><span>›</span><strong>{{ page.title }}</strong></div>
       <div class="cargo-content">

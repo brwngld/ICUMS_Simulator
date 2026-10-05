@@ -16,9 +16,7 @@
     <main id="main-content" class="portal-main cargo-main" tabindex="-1">
       <header class="portal-header cargo-header">
         <div class="portal-heading"><p class="overline">Clearance · Declaration</p><h1>{{ title }}</h1></div>
-        <nav class="portal-top-nav" aria-label="Logged-in simulator navigation">
-          <a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}" aria-current="page">Clearance</a><a href="#">Collection</a><a href="{% url 'single-window-workspace' %}">Single Window</a><a href="#">Agent Management</a><a href="#">e-Docs</a><a href="#">Post Clearance Audit</a><a href="#">AEO</a><a href="#">More Information</a>
-        </nav>
+        {% with top_nav_active="clearance" %}{% include "scenarios/_portal_top_nav.html" %}{% endwith %}
       </header>
       <div class="cargo-breadcrumb"><a href="{% url 'clearance-workspace' %}">Clearance</a><span>›</span><span>Declaration</span><span>›</span><strong>{{ title }}</strong></div>
       <div class="cargo-content">

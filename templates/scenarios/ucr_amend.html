@@ -17,7 +17,7 @@
     <main id="main-content" class="portal-main cargo-main" tabindex="-1">
       <header class="portal-header cargo-header">
         <div class="portal-heading"><p class="overline">Single Window · Registration · Unique Consignment Reference</p><h1>Amend UCR</h1></div>
-        <nav class="portal-top-nav" aria-label="Simulator navigation"><a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="{% url 'single-window-create-ucr' %}" aria-current="page">Single Window</a></nav>
+        {% with top_nav_active="single-window" %}{% include "scenarios/_portal_top_nav.html" %}{% endwith %}
       </header>
       <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Workspace</a><span>›</span><span>Registration</span><span>›</span><a href="{% url 'ucr-detail' record.pk %}">{{ record.ucr_no }}</a><span>›</span><strong>Amend</strong></div>
       <div class="cargo-content">

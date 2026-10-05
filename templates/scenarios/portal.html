@@ -17,9 +17,7 @@
     <main id="portal-main" class="portal-main" tabindex="-1">
       <header class="portal-header">
         <div class="portal-heading"><p class="overline">Practical training environment</p><h1>Cargo tracking dashboard</h1></div>
-        <nav class="portal-top-nav" aria-label="Logged-in simulator navigation">
-          <a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="#collection">Collection</a><a href="{% url 'single-window-create-ucr' %}">Single Window</a><a href="#agent-management">Agent Management</a><a href="#e-docs">e-Docs</a><a href="#post-clearance-audit">Post Clearance Audit</a><a href="#aeo">AEO</a><a href="#more-information">More Information</a><a href="#dw-service">DW Service</a>
-        </nav>
+        {% include "scenarios/_portal_top_nav.html" %}
         <div class="portal-header-actions"><button type="button" aria-label="Open notifications">3 notifications</button>{% if simulator_access %}{% if user.is_staff %}<button type="button" data-open-review-dialog>Simulator sign out</button>{% else %}<form method="post" action="{% url 'simulator-logout' %}">{% csrf_token %}<button type="submit">Simulator sign out</button></form>{% endif %}{% else %}<button type="button" data-open-simulator-login>Login</button>{% endif %}</div>
       </header>
 

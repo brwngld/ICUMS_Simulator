@@ -10,7 +10,7 @@
 <main id="main-content" class="portal-main cargo-main" tabindex="-1">
 <header class="portal-header cargo-header">
   <div class="portal-heading"><p class="overline">Cargo · Sea Import · Discharge</p><h1>Direct Delivery</h1></div>
-  <nav class="portal-top-nav" aria-label="Logged-in simulator navigation"><a href="{% url 'cargo-direct-delivery' %}" aria-current="page">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="#">Collection</a><a href="{% url 'single-window-workspace' %}">Single Window</a><a href="#">Agent Management</a><a href="#">e-Docs</a><a href="#">Post Clearance Audit</a><a href="#">AEO</a><a href="#">More Information</a><a href="#">DW Service</a></nav>
+  {% with top_nav_active="cargo" %}{% include "scenarios/_portal_top_nav.html" %}{% endwith %}
   <div class="portal-header-actions"><button type="button">3 notifications</button><a href="{% url 'simulator-portal' %}">Workspace home</a></div>
 </header>
 <div class="cargo-breadcrumb" aria-label="Breadcrumb"><a href="{% url 'simulator-portal' %}">Cargo</a><span>›</span><span>Sea Import</span><span>›</span><span>Discharge</span><span>›</span><strong>Direct Delivery</strong></div>

@@ -24,7 +24,7 @@
     <main id="main-content" class="portal-main cargo-main" tabindex="-1">
       <header class="portal-header cargo-header">
         <div class="portal-heading"><p class="overline">Clearance · Declaration · Register Declaration</p><h1>BOE Declaration {{ declaration.job_no }}</h1></div>
-        <nav class="portal-top-nav" aria-label="Simulator navigation"><a href="{% url 'cargo-direct-delivery' %}">Cargo</a><a href="{% url 'clearance-workspace' %}">Clearance</a><a href="{% url 'single-window-create-ucr' %}">Single Window</a></nav>
+        {% with top_nav_active="clearance" %}{% include "scenarios/_portal_top_nav.html" %}{% endwith %}
       </header>
       <div class="cargo-breadcrumb"><a href="{% url 'clearance-workspace' %}">Clearance</a><span>›</span><span>Declaration</span><span>›</span><strong>{{ declaration.job_no }}</strong><span>·</span><span>{{ declaration.status_code_display }}</span></div>
       <div class="cargo-content">

@@ -9,79 +9,79 @@
         <summary>Sea Import</summary>
         <details open>
           <summary>Discharge</summary>
-          <a class="nested-active" href="{% url 'cargo-direct-delivery' %}">Direct Delivery</a>
+          <a {% if request.resolver_match.url_name == 'cargo-direct-delivery' %}class="nested-active"{% endif %} href="{% url 'cargo-direct-delivery' %}">Direct Delivery</a>
         </details>
         <details>
           <summary>Service Request</summary>
-          <a href="{% url 'cargo-service-request' %}">Service Request</a>
+          <a {% if request.resolver_match.url_name == 'cargo-service-request' %}class="nested-active"{% endif %} href="{% url 'cargo-service-request' %}">Service Request</a>
         </details>
       </details>
       <details>
         <summary>Sea Export</summary>
         <details>
           <summary>Manifest</summary>
-          <a href="{% url 'cargo-reference-page' 'export-sea-manifest-boe-matching' %}">Export Sea Manifest BOE Matching</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'export-sea-manifest-boe-matching' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'export-sea-manifest-boe-matching' %}">Export Sea Manifest BOE Matching</a>
         </details>
       </details>
       <details>
         <summary>Air Import</summary>
         <details>
           <summary>Service Request</summary>
-          <a href="{% url 'cargo-reference-page' 'air-service-request' %}">Service Request</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'air-service-request' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'air-service-request' %}">Service Request</a>
         </details>
       </details>
       <details>
         <summary>Road Manifest</summary>
         <details>
           <summary>Manifest</summary>
-          <a href="{% url 'cargo-reference-page' 'road-consignment-list' %}">Road Consignment List</a>
-          <a href="{% url 'cargo-reference-page' 'road-consignment-amend-list' %}">Road Consignment Amend List</a>
-          <a href="{% url 'cargo-reference-page' 'vehicle-list' %}">Vehicle List</a>
-          <a href="{% url 'cargo-reference-page' 'vehicle-amend' %}">Vehicle Amend</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'road-consignment-list' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'road-consignment-list' %}">Road Consignment List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'road-consignment-amend-list' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'road-consignment-amend-list' %}">Road Consignment Amend List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'vehicle-list' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'vehicle-list' %}">Vehicle List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'vehicle-amend' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'vehicle-amend' %}">Vehicle Amend</a>
         </details>
       </details>
       <details>
         <summary>Transportation</summary>
         <details>
           <summary>Bonded Transportation</summary>
-          <a href="{% url 'cargo-reference-page' 'bt-declaration' %}">BT Declaration</a>
-          <a href="{% url 'cargo-reference-page' 'bt-amendment-declaration' %}">BT Amendment Declaration</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'bt-declaration' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'bt-declaration' %}">BT Declaration</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'bt-amendment-declaration' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'bt-amendment-declaration' %}">BT Amendment Declaration</a>
         </details>
-        <a href="{% url 'cargo-reference-page' 'holding-area-transfer' %}">Holding Area Transfer</a>
+        <a {% if request.resolver_match.kwargs.page_key == 'holding-area-transfer' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'holding-area-transfer' %}">Holding Area Transfer</a>
         <details>
           <summary>Non Exited BT</summary>
-          <a href="{% url 'cargo-reference-page' 'non-exited-bt-report' %}">List of non-exited BT</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'non-exited-bt-report' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'non-exited-bt-report' %}">List of non-exited BT</a>
         </details>
-        <a href="{% url 'cargo-reference-page' 'sigmat-route-amend' %}">SIGMAT Route Amend</a>
+        <a {% if request.resolver_match.kwargs.page_key == 'sigmat-route-amend' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'sigmat-route-amend' %}">SIGMAT Route Amend</a>
         <details>
           <summary>WeighBridge Report</summary>
-          <a href="{% url 'cargo-reference-page' 'weighbridge-list' %}">WeighBridge List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'weighbridge-list' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'weighbridge-list' %}">WeighBridge List</a>
         </details>
       </details>
       <details>
         <summary>Customs Area</summary>
         <details>
           <summary>Dummy BL</summary>
-          <a href="{% url 'cargo-reference-page' 'dummy-bl-list' %}">Dummy BL List</a>
-          <a href="{% url 'cargo-reference-page' 'dummy-bl-restoration-list' %}">Dummy BL Restoration List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'dummy-bl-list' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'dummy-bl-list' %}">Dummy BL List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'dummy-bl-restoration-list' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'dummy-bl-restoration-list' %}">Dummy BL Restoration List</a>
         </details>
         <details>
           <summary>Merge BL</summary>
-          <a href="{% url 'cargo-reference-page' 'merge-bl-restoration-list' %}">Merge BL Restoration List</a>
-          <a href="{% url 'cargo-reference-page' 'merge-bl-list' %}">Merge BL List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'merge-bl-restoration-list' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'merge-bl-restoration-list' %}">Merge BL Restoration List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'merge-bl-list' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'merge-bl-list' %}">Merge BL List</a>
         </details>
         <details>
           <summary>UCL</summary>
-          <a href="{% url 'cargo-reference-page' 'ucl-release' %}">UCL Release</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'ucl-release' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'ucl-release' %}">UCL Release</a>
         </details>
         <details>
           <summary>Temporary Importation</summary>
-          <a href="{% url 'cargo-reference-page' 'temporary-importation' %}">Temporary Importation</a>
-          <a href="{% url 'cargo-reference-page' 'temporary-importation-closure' %}">Temporary Importation Closure</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'temporary-importation' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'temporary-importation' %}">Temporary Importation</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'temporary-importation-closure' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'temporary-importation-closure' %}">Temporary Importation Closure</a>
         </details>
         <details>
           <summary>Release of Blocking</summary>
-          <a href="{% url 'cargo-reference-page' 'release-of-blocking' %}">Release of Blocking</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'release-of-blocking' %}class="nested-active"{% endif %} href="{% url 'cargo-reference-page' 'release-of-blocking' %}">Release of Blocking</a>
         </details>
       </details>
       <details>

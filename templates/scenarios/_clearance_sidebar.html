@@ -9,64 +9,64 @@
         <summary>Declaration</summary>
         <details open>
           <summary>Register Declaration</summary>
-          <a class="nested-active" href="{% url 'clearance-workspace' %}">Create BOE Declaration</a>
-          <a href="{% url 'search-boe-declaration' %}">Search BOE Declaration</a>
-          <a href="{% url 'create-simple-amendment' %}">Create Simple Amendment</a>
-          <a href="{% url 'search-simple-amendment' %}">Search Simple Amendment</a>
-          <a href="{% url 'create-post-entry-declaration' %}">Create Post Entry Declaration</a>
-          <a href="{% url 'search-post-entry-declaration' %}">Search Post Entry Declaration</a>
-          <a href="{% url 'clearance-reference-page' 'search-cancellation-request' %}">Search Cancellation Request</a>
-          <a href="{% url 'clearance-reference-page' 'create-release-prior-to-boe' %}">Create Release Prior to BOE</a>
-          <a href="{% url 'clearance-reference-page' 'search-release-prior-to-boe' %}">Search Release Prior to BOE</a>
-          <a href="{% url 'clearance-reference-page' 'export-booking-schedule-update' %}">Export Booking Schedule Update</a>
-          <a href="{% url 'clearance-reference-page' 'reply-to-appeal-correction-query' %}">Reply to Appeal Correction Query</a>
-          <a href="{% url 'clearance-reference-page' 'request-for-boe-suspension' %}">Request for BOE Suspension</a>
-          <a href="{% url 'clearance-reference-page' 'request-physical-inspection-by-cha' %}">Request Physical Inspection by CHA</a>
-          <a href="{% url 'clearance-reference-page' 'request-for-nbd-allow-direct-import' %}">Request for NBD Allow (Direct Import)</a>
-          <a href="{% url 'clearance-reference-page' 'request-boe-release-in-lab-analysis-incomplete' %}">Request BOE Release in Lab Analysis incomplete</a>
-          <a href="{% url 'clearance-reference-page' 'request-for-release-of-boe-blocking' %}">Request for release of BOE Blocking</a>
-          <a href="{% url 'clearance-reference-page' 'request-to-change-bl-no-before-manifest-matching' %}">Request to change BL No before Manifest Matching</a>
-          <a href="{% url 'clearance-reference-page' 'request-to-enable-bl-no-swap' %}">Request to enable BL No Swap</a>
-          <a href="{% url 'clearance-reference-page' 'request-boe-release-without-mda-approval' %}">Request BOE Release without MDA Approval</a>
-          <a href="{% url 'clearance-reference-page' 'request-to-allow-for-importer-name-matching' %}">Request to allow for Importer Name matching</a>
-          <a href="{% url 'clearance-reference-page' 'boe-annexed-document-registration' %}">BOE Annexed Document Registration</a>
-          <a href="{% url 'clearance-reference-page' 'request-ucl-check-skip-before-manifest-matching' %}">Request UCL Check Skip before Manifest Matching</a>
+          <a {% if request.resolver_match.url_name == 'clearance-workspace' %}class="nested-active"{% endif %} href="{% url 'clearance-workspace' %}">Create BOE Declaration</a>
+          <a {% if request.resolver_match.url_name == 'search-boe-declaration' %}class="nested-active"{% endif %} href="{% url 'search-boe-declaration' %}">Search BOE Declaration</a>
+          <a {% if request.resolver_match.url_name == 'create-simple-amendment' %}class="nested-active"{% endif %} href="{% url 'create-simple-amendment' %}">Create Simple Amendment</a>
+          <a {% if request.resolver_match.url_name == 'search-simple-amendment' %}class="nested-active"{% endif %} href="{% url 'search-simple-amendment' %}">Search Simple Amendment</a>
+          <a {% if request.resolver_match.url_name == 'create-post-entry-declaration' %}class="nested-active"{% endif %} href="{% url 'create-post-entry-declaration' %}">Create Post Entry Declaration</a>
+          <a {% if request.resolver_match.url_name == 'search-post-entry-declaration' %}class="nested-active"{% endif %} href="{% url 'search-post-entry-declaration' %}">Search Post Entry Declaration</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'search-cancellation-request' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'search-cancellation-request' %}">Search Cancellation Request</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'create-release-prior-to-boe' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'create-release-prior-to-boe' %}">Create Release Prior to BOE</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'search-release-prior-to-boe' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'search-release-prior-to-boe' %}">Search Release Prior to BOE</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'export-booking-schedule-update' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'export-booking-schedule-update' %}">Export Booking Schedule Update</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'reply-to-appeal-correction-query' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'reply-to-appeal-correction-query' %}">Reply to Appeal Correction Query</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-for-boe-suspension' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-for-boe-suspension' %}">Request for BOE Suspension</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-physical-inspection-by-cha' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-physical-inspection-by-cha' %}">Request Physical Inspection by CHA</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-for-nbd-allow-direct-import' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-for-nbd-allow-direct-import' %}">Request for NBD Allow (Direct Import)</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-boe-release-in-lab-analysis-incomplete' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-boe-release-in-lab-analysis-incomplete' %}">Request BOE Release in Lab Analysis incomplete</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-for-release-of-boe-blocking' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-for-release-of-boe-blocking' %}">Request for release of BOE Blocking</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-to-change-bl-no-before-manifest-matching' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-to-change-bl-no-before-manifest-matching' %}">Request to change BL No before Manifest Matching</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-to-enable-bl-no-swap' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-to-enable-bl-no-swap' %}">Request to enable BL No Swap</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-boe-release-without-mda-approval' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-boe-release-without-mda-approval' %}">Request BOE Release without MDA Approval</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-to-allow-for-importer-name-matching' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-to-allow-for-importer-name-matching' %}">Request to allow for Importer Name matching</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'boe-annexed-document-registration' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'boe-annexed-document-registration' %}">BOE Annexed Document Registration</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-ucl-check-skip-before-manifest-matching' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-ucl-check-skip-before-manifest-matching' %}">Request UCL Check Skip before Manifest Matching</a>
         </details>
         <details>
           <summary>Post Declaration</summary>
-          <a href="{% url 'clearance-reference-page' 'transit-conversion-request' %}">Transit Conversion Request</a>
-          <a href="{% url 'clearance-reference-page' 'exception-request-for-chassis-no-restriction' %}">Exception Request for Chassis No. Restriction</a>
-          <a href="{% url 'clearance-reference-page' 'request-to-use-pmd-cl-plan' %}">Request to use PMD CL Plan</a>
-          <a href="{% url 'clearance-reference-page' 'request-to-allow-post-entry-after-boe-exited' %}">Request to allow Post Entry after BOE Exited</a>
-          <a href="{% url 'clearance-reference-page' 'bill-auto-regeneration-stop-list' %}">Bill Auto regeneration Stop List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'transit-conversion-request' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'transit-conversion-request' %}">Transit Conversion Request</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'exception-request-for-chassis-no-restriction' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'exception-request-for-chassis-no-restriction' %}">Exception Request for Chassis No. Restriction</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-to-use-pmd-cl-plan' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-to-use-pmd-cl-plan' %}">Request to use PMD CL Plan</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'request-to-allow-post-entry-after-boe-exited' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'request-to-allow-post-entry-after-boe-exited' %}">Request to allow Post Entry after BOE Exited</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'bill-auto-regeneration-stop-list' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'bill-auto-regeneration-stop-list' %}">Bill Auto regeneration Stop List</a>
         </details>
         <details>
           <summary>Declaration Report</summary>
-          <a href="{% url 'clearance-reference-page' 'list-of-declaration-per-importer' %}">List of Declaration per Importer</a>
-          <a href="{% url 'clearance-reference-page' 'list-of-declaration-per-exporter' %}">List of Declaration per Exporter</a>
-          <a href="{% url 'clearance-reference-page' 'warehouse-boe-report' %}">Warehouse BOE Report</a>
-          <a href="{% url 'clearance-reference-page' 'exwarehouse-boe-report' %}">ExWarehouse BOE Report</a>
-          <a href="{% url 'clearance-reference-page' 'declaration-tax-report' %}">Declaration Tax Report</a>
-          <a href="{% url 'clearance-reference-page' 'stock-balance-ex-warehouse-report' %}">Stock Balance (Ex)Warehouse Report</a>
-          <a href="{% url 'clearance-reference-page' 'list-of-non-exited-boe' %}">List of non-exited BOE</a>
-          <a href="{% url 'clearance-reference-page' 'boe-items-report' %}">BOE Items Report</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'list-of-declaration-per-importer' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'list-of-declaration-per-importer' %}">List of Declaration per Importer</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'list-of-declaration-per-exporter' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'list-of-declaration-per-exporter' %}">List of Declaration per Exporter</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'warehouse-boe-report' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'warehouse-boe-report' %}">Warehouse BOE Report</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'exwarehouse-boe-report' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'exwarehouse-boe-report' %}">ExWarehouse BOE Report</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'declaration-tax-report' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'declaration-tax-report' %}">Declaration Tax Report</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'stock-balance-ex-warehouse-report' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'stock-balance-ex-warehouse-report' %}">Stock Balance (Ex)Warehouse Report</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'list-of-non-exited-boe' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'list-of-non-exited-boe' %}">List of non-exited BOE</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'boe-items-report' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'boe-items-report' %}">BOE Items Report</a>
         </details>
         <details>
           <summary>Additional Information</summary>
-          <a href="{% url 'clearance-reference-page' 'declaration-notice' %}">Declaration Notice</a>
-          <a href="{% url 'clearance-reference-page' 'declaration-tracking' %}">Declaration Tracking</a>
-          <a href="{% url 'clearance-reference-page' 'find-user-id-of-job-no' %}">Find User ID of Job No</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'declaration-notice' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'declaration-notice' %}">Declaration Notice</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'declaration-tracking' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'declaration-tracking' %}">Declaration Tracking</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'find-user-id-of-job-no' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'find-user-id-of-job-no' %}">Find User ID of Job No</a>
         </details>
         <details>
           <summary>Petroleum Management</summary>
-          <a href="{% url 'clearance-reference-page' 'petroleum-lifting-summary' %}">Petroleum Lifting Summary</a>
-          <a href="{% url 'clearance-reference-page' 'petroleum-unpaid-order' %}">Petroleum Unpaid Order</a>
-          <a href="{% url 'clearance-reference-page' 'petroleum-depot-transfer-list' %}">Petroleum Depot Transfer</a>
-          <a href="{% url 'clearance-reference-page' 'petroleum-inventory-list' %}">Petroleum Inventory List</a>
-          <a href="{% url 'clearance-reference-page' 'petroleum-period-extension-request' %}">Petroleum Period Extension Request</a>
-          <a href="{% url 'clearance-reference-page' 'petroleum-stock-boe-non-reflection-list' %}">Petroleum Stock BOE Non-Reflection List</a>
-          <a href="{% url 'clearance-reference-page' 'petroleum-stock-transfer-non-reflection-list' %}">Petroleum Stock Transfer Non-Reflection List</a>
-          <a href="{% url 'clearance-reference-page' 'petroleum-stock-order-non-reflection-list' %}">Petroleum Stock Order Non-Reflection List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'petroleum-lifting-summary' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'petroleum-lifting-summary' %}">Petroleum Lifting Summary</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'petroleum-unpaid-order' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'petroleum-unpaid-order' %}">Petroleum Unpaid Order</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'petroleum-depot-transfer-list' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'petroleum-depot-transfer-list' %}">Petroleum Depot Transfer</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'petroleum-inventory-list' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'petroleum-inventory-list' %}">Petroleum Inventory List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'petroleum-period-extension-request' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'petroleum-period-extension-request' %}">Petroleum Period Extension Request</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'petroleum-stock-boe-non-reflection-list' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'petroleum-stock-boe-non-reflection-list' %}">Petroleum Stock BOE Non-Reflection List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'petroleum-stock-transfer-non-reflection-list' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'petroleum-stock-transfer-non-reflection-list' %}">Petroleum Stock Transfer Non-Reflection List</a>
+          <a {% if request.resolver_match.kwargs.page_key == 'petroleum-stock-order-non-reflection-list' %}class="nested-active"{% endif %} href="{% url 'clearance-reference-page' 'petroleum-stock-order-non-reflection-list' %}">Petroleum Stock Order Non-Reflection List</a>
         </details>
       </details>
     </details>
