@@ -970,7 +970,11 @@
     const button = event.currentTarget;
     button.disabled = true;
     try {
-      const data = await post(window.appSaveUrl, collectPayload());
+      const payload = collectPayload();
+      if (window.appMdaMode) {
+        payload.approval_save = document.querySelector(".app-tab[aria-current='tab']")?.dataset.appTab === "approval";
+      }
+      const data = await post(window.appSaveUrl, payload);
       appId = data.id;
       if (!window.appSubmittedAt && !window.appMdaMode) {
         const url = new URL(location.href);
@@ -1015,7 +1019,7 @@ Click OK to continue to the next tab.`);
     });
   }
   if (window.appReadOnly) {
-    document.querySelectorAll("[data-app-field], [data-app-same], #app-item-add, #app-item-duplicate, #app-item-delete").forEach((control) => { control.disabled = true; });
+    document.querySelectorAll("[data-app-field], [data-app-same], #app-item-add, #app-item-duplicate, #app-item-delete, #app-approval-terms, #app-approval-purpose, #app-approval-remarks, #app-party-add, #app-party-reset").forEach((control) => { control.disabled = true; });
     document.querySelector("#app-save").disabled = true;
     report("This submitted application is open in view mode.");
   }

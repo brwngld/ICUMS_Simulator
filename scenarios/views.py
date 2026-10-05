@@ -1039,6 +1039,39 @@ def consignment_application_create(request):
     })
 
 
+def _flatten_mda_form_data(initial):
+    """Party fields save as nested role dicts; the form prefill expects dotted keys.
+
+    collectPayload() sends {"exporter": {name: ...}, "consignor": {same: true, ...}},
+    while _application_record_payload() and the [data-app-field] prefill both use
+    "exporter.name" / "consignor_same". Normalize the nested shape on display so a
+    saved MDA request repopulates the General tab after submission.
+    """
+    if not isinstance(initial, dict):
+        return initial
+    flattened = {}
+    for key, value in initial.items():
+        if key in ("exporter", "consignor", "importer", "consignee") and isinstance(value, dict):
+            for sub_key, sub_value in value.items():
+                flattened[f"{key}_same" if sub_key == "same" else f"{key}.{sub_key}"] = sub_value
+        else:
+            flattened[key] = value
+    return flattened
+
+
+def _missing_ucr_documents(record):
+    """Required UCR eDocuments for an MDA application; empty list when satisfied."""
+    ucr = record.consignment_application.ucr
+    document_codes = {str(doc.get("code", "")).strip() for doc in (ucr.documents or [])}
+    application_code = (record.application.code or "").upper()
+    if application_code.startswith("IDF"):
+        if not document_codes & {"003", "104"}:
+            return ["Invoice (003) or Proforma Invoice (104)"]
+        return []
+    required = {"003": "Invoice (003)", "005": "BL/Air Waybill (005)", "021": "Packing List (021)"}
+    return [label for code, label in required.items() if code not in document_codes]
+
+
 @simulator_access_required
 def mda_consignment_application(request, request_id):
     record = get_object_or_404(
@@ -1052,7 +1085,7 @@ def mda_consignment_application(request, request_id):
         raise PermissionDenied("This MDA application belongs to another learner.")
     amend_mode = request.GET.get("amend") == "1" and is_owner
     parent = record.consignment_application
-    initial = record.form_data or _application_record_payload(parent)
+    initial = _flatten_mda_form_data(record.form_data or _application_record_payload(parent))
     attachments = {attachment.row_index: attachment for attachment in parent.ucr.attachments.all()}
     documents = []
     for index, document in enumerate(parent.ucr.documents or []):
@@ -1094,6 +1127,11 @@ def mda_consignment_application_save(request, request_id):
         return JsonResponse({"error": "The request body is not valid JSON."}, status=400)
     if not isinstance(payload, dict):
         return JsonResponse({"error": "The request body must be a JSON object."}, status=400)
+    approval_save = bool(payload.pop("approval_save", False))
+    if approval_save:
+        missing = _missing_ucr_documents(record)
+        if missing:
+            return JsonResponse({"error": "Attach " + ", ".join(missing) + " to the UCR before requesting approval."}, status=400)
     record.approval_terms = bool(payload.pop("approval_terms", False))
     record.approval_purpose = str(payload.pop("approval_purpose", "")).strip()[:2000]
     record.approval_remarks = str(payload.pop("approval_remarks", "")).strip()[:5000]
@@ -1107,23 +1145,16 @@ def mda_consignment_application_save(request, request_id):
 @simulator_access_required
 @require_POST
 def mda_consignment_application_submit(request, request_id):
-    """Submit (or resubmit) the MDA application: status SU with a real submitted date."""
+    """Submit (or resubmit) the MDA application: status SU with a real submitted date.
+
+    The required-eDocument check happens on the Approval tab's save, not here.
+    """
     blocked = _review_json_guard(request)
     if blocked:
         return blocked
     record = get_object_or_404(MdaConsignmentRequest, pk=request_id, consignment_application__owner=request.user)
-    ucr = record.consignment_application.ucr
-    document_codes = {str(doc.get("code", "")).strip() for doc in (ucr.documents or [])}
     application_code = (record.application.code or "").upper()
     mda_code = (record.mda.code or "").upper()
-    if application_code.startswith("IDF"):
-        if not document_codes & {"003", "104"}:
-            return JsonResponse({"error": "Attach Invoice (003) or Proforma Invoice (104) to the UCR before submitting this IDF application."}, status=400)
-    else:
-        required = {"003": "Invoice (003)", "005": "BL/Air Waybill (005)", "021": "Packing List (021)"}
-        missing = [label for code, label in required.items() if code not in document_codes]
-        if missing:
-            return JsonResponse({"error": "Attach " + ", ".join(missing) + " to the UCR before submitting."}, status=400)
     record.status = MdaStatus.SUBMITTED
     record.submitted_at = timezone.now()
     # IDF applications and the GSA are approved automatically on submission.

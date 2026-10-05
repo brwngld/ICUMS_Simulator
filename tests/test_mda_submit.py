@@ -40,16 +40,21 @@ def _seed_mda_request(owner_username, ucr_no, idf_no, mda_code="MOTI", app_code=
 
 
 @pytest.mark.django_db
-def test_idf_submit_requires_invoice_or_proforma_on_the_ucr():
+def test_idf_approval_save_requires_invoice_or_proforma_on_the_ucr():
     owner, record = _seed_mda_request("idf-no-docs", "KGHTESTUCR9900000049", "CD202609MOTIIDF0000049")
     client = Client()
     client.force_login(owner)
-    response = client.post(reverse("mda-consignment-application-submit", args=(record.pk,)), {})
+    # The eDocument check fires when saving from the Approval tab, not at submit.
+    response = client.post(reverse("mda-consignment-application-save", args=(record.pk,)), {"approval_save": True}, content_type="application/json")
     assert response.status_code == 400
     assert b"Proforma Invoice (104)" in response.content
+    assert b"before requesting approval" in response.content
     record.refresh_from_db()
     assert record.status == MdaStatus.DRAFT
-    assert record.submitted_at is None
+
+    # A plain save (other tabs) does not trigger the document check.
+    plain = client.post(reverse("mda-consignment-application-save", args=(record.pk,)), {"reference_info": "x"}, content_type="application/json")
+    assert plain.status_code == 200
 
 
 @pytest.mark.django_db
@@ -81,7 +86,7 @@ def test_idf_submit_attaches_to_ucr_and_auto_approves():
 
 @pytest.mark.django_db
 @pytest.mark.django_db
-def test_other_mda_requires_all_three_documents_and_stays_submitted():
+def test_other_mda_approval_save_requires_all_three_documents():
     owner, record = _seed_mda_request(
         "fda-applicant", "KGHTESTUCR9900000069", "CD202609FDAIPF0000069",
         mda_code="FDA", app_code="IP",
@@ -89,7 +94,8 @@ def test_other_mda_requires_all_three_documents_and_stays_submitted():
     )
     client = Client()
     client.force_login(owner)
-    response = client.post(reverse("mda-consignment-application-submit", args=(record.pk,)), {})
+    save_url = reverse("mda-consignment-application-save", args=(record.pk,))
+    response = client.post(save_url, {"approval_save": True}, content_type="application/json")
     assert response.status_code == 400
     assert b"BL/Air Waybill (005)" in response.content
     assert b"Packing List (021)" in response.content
@@ -99,6 +105,9 @@ def test_other_mda_requires_all_three_documents_and_stays_submitted():
     UcrDeclaration.objects.filter(pk=record.consignment_application.ucr.pk).update(
         documents=[{"code": "003", "name": "Invoice"}, {"code": "005", "name": "BL"}, {"code": "021", "name": "Packing List"}],
     )
+    response = client.post(save_url, {"approval_save": True}, content_type="application/json")
+    assert response.status_code == 200
+    # Submit itself no longer re-checks the documents.
     response = client.post(reverse("mda-consignment-application-submit", args=(record.pk,)), {})
     assert response.status_code == 200  # non-IDF MDAs are not auto-approved
     assert response.json()["status"] == "SU, Submitted"
@@ -143,3 +152,34 @@ def test_mda_submit_blocked_in_review_mode():
     assert response.status_code == 403
     record.refresh_from_db()
     assert record.status == MdaStatus.DRAFT
+
+
+@pytest.mark.django_db
+def test_submitted_mda_reopens_with_prefilled_general_and_locked_approval():
+    owner, record = _seed_mda_request(
+        "idf-readonly", "KGHTESTUCR9900000079", "CD202609MOTIIDF0000079",
+        documents=[{"code": "003", "name": "Invoice", "reference": "INV-7"}],
+    )
+    client = Client()
+    client.force_login(owner)
+
+    # collectPayload() stores party fields as nested role dicts.
+    saved = client.post(reverse("mda-consignment-application-save", args=(record.pk,)), {
+        "exporter": {"name": "GLODENGATE HOLDINGS LIMITED", "physical_country": "AE", "tel": "000"},
+        "importer": {"code": "P0036108545", "same": True},
+        "vessel_name": "MAERSK HIDALGO",
+        "approval_terms": True, "approval_purpose": "Import", "approval_remarks": "ok",
+        "items": [],
+    }, content_type="application/json")
+    assert saved.status_code == 200
+    client.post(reverse("mda-consignment-application-submit", args=(record.pk,)), {})
+
+    # The reopened (read-only) page carries the flattened initial payload so the
+    # JS prefill restores the General tab, and marks the page read-only (the JS
+    # then disables the fields and the Approval controls).
+    page = client.get(reverse("mda-consignment-application", args=(record.pk,)))
+    html = page.content.decode()
+    assert '"exporter.name": "GLODENGATE HOLDINGS LIMITED"' in html
+    assert '"importer.code": "P0036108545"' in html
+    assert '"vessel_name": "MAERSK HIDALGO"' in html
+    assert "window.appReadOnly = true" in html
