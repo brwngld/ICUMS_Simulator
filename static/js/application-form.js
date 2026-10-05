@@ -28,6 +28,7 @@
   }
   function updateActionButtons(activeTab) {
     if (!window.appMdaMode) return;
+    if (window.appReadOnly) { submitButton.hidden = true; return; }
     if (saveButton) saveButton.hidden = activeTab === "confirmation";
     if (submitButton) submitButton.hidden = activeTab !== "confirmation";
   }
