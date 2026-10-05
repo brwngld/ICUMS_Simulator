@@ -94,4 +94,12 @@
     </details>
   </nav>
   <a class="return-link" data-student-dashboard href="{% url 'dashboard' %}">← Back to student dashboard</a>
+  <script>
+    (() => {
+      const active = document.querySelector(".portal-menu a.nested-active");
+      if (!active) return;
+      for (let node = active.closest("details"); node; node = node.parentElement?.closest("details")) node.open = true;
+      active.scrollIntoView({ block: "nearest" });
+    })();
+  </script>
 </aside>
