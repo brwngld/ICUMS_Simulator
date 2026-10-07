@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Consignment Document · ICUMS Simulator</title>
-  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20260923-1">
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261006-1">
   <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-2">
   <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20260919-3">
 </head>
@@ -21,7 +21,7 @@
       </header>
       <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Workspace</a><span>›</span><span>Application</span><span>›</span><span>Preparation Application</span><span>›</span><strong>Consignment Document</strong></div>
       <div class="cargo-content">
-        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Search Application</h2><span>{{ application.get_status_display|default:"Draft" }}</span></div>
+        <section class="cargo-panel"><div class="cargo-panel-title"><h2>Search Application</h2><span>{% if read_only %}<span class="view-mode-badge">View mode</span> {% endif %}{{ application.get_status_display|default:"Draft" }}</span></div>
           <div class="summary-grid">
             <label>Application No.</label><input id="app-no" value="{{ display_application_no }}" readonly>
             <label>Application Date</label><input value="{% if application %}{{ application.created_at|date:'d/m/Y H:i:s' }}{% else %}{% now 'd/m/Y H:i:s' %}{% endif %}" readonly>
@@ -208,6 +208,6 @@
   <script>window.appInitial = JSON.parse(document.querySelector("#app-initial").textContent); window.appMdaRequests = JSON.parse(document.querySelector("#app-mda-requests").textContent); window.appHsMdaRules = JSON.parse(document.querySelector("#app-hs-mda-rules").textContent); window.appApprovalParties = JSON.parse(document.querySelector("#app-approval-parties").textContent); window.appMdaMode = {{ mda_mode|yesno:"true,false" }}; window.appMdaRequestId = {% if mda_request %}{{ mda_request.pk }}{% else %}null{% endif %}; window.appReadOnly = {{ read_only|yesno:"true,false" }}; window.appSubmittedAt = "{% if application.submitted_at %}{{ application.submitted_at|date:'d/m/Y H:i:s' }}{% endif %}"; window.appStatusText = "{% if mda_request %}{{ mda_request.get_status_display }}{% elif application %}{{ application.get_status_display }}{% else %}Draft{% endif %}"; window.appCsrfToken = "{{ csrf_token }}"; window.appSaveUrl = "{% if mda_request %}{% url 'mda-consignment-application-save' mda_request.pk %}{% else %}{% url 'application-save' %}{% endif %}"; window.appSubmitUrl = "{% if mda_request %}{% url 'mda-consignment-application-submit' mda_request.pk %}{% else %}{% url 'application-submit' %}{% endif %}"; window.appHsCodeSearchUrl = "{% url 'application-hs-code-search' %}"; window.appPortCodeSearchUrl = "{% url 'application-port-code-search' %}"; window.appMdaOptionsUrl = "{% url 'application-mda-options' %}"; window.appMdaRequestCreateUrl = "{% url 'application-mda-request-create' %}";</script>
   <script src="{% static 'js/ucr-country-codes.js' %}?v=20260918-1" defer></script>
   <script src="{% static 'js/dialog-pagination.js' %}?v=20260918-1" defer></script>
-  <script src="{% static 'js/application-form.js' %}?v=20261005-2" defer></script>
+  <script src="{% static 'js/application-form.js' %}?v=20261006-1" defer></script>
   <script src="{% static 'js/app-shell.js' %}?v=20261005-3" defer></script>
 </body></html>

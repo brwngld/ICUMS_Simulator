@@ -1040,7 +1040,20 @@ Click OK to continue to the next tab.`);
     });
   }
   if (window.appReadOnly) {
-    document.querySelectorAll("[data-app-field], [data-app-same], #app-item-add, #app-item-duplicate, #app-item-delete, #app-approval-terms, #app-approval-purpose, #app-approval-remarks, #app-party-add, #app-party-reset").forEach((control) => { control.disabled = true; });
+    // Uniform view mode: text inputs and textareas are locked with readonly so
+    // they keep the same look as the editable form; selects, checkboxes and
+    // buttons stay disabled (simulator-portal.css renders both states alike).
+    const lockSelector = "[data-app-field], [data-app-same], [data-item-field], #app-item-add, #app-item-duplicate, #app-item-delete, #app-item-save, #app-item-check-all, #app-approval-terms, #app-approval-purpose, #app-approval-remarks, #app-party-add, #app-party-reset";
+    document.querySelectorAll(lockSelector).forEach((control) => {
+      const textLike = control.matches("textarea") || (control.matches("input") && !["checkbox", "radio", "file", "submit", "button"].includes(control.type));
+      if (textLike) {
+        control.disabled = false;
+        control.readOnly = true;
+      } else {
+        control.disabled = true;
+      }
+    });
+    document.querySelectorAll(".app-item-check").forEach((box) => { box.disabled = true; });
     document.querySelector("#app-save").disabled = true;
     report("This submitted application is open in view mode.");
   }

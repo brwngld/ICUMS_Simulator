@@ -1,11 +1,16 @@
 (() => {
   const rows = document.querySelector('#document-rows');
   const form = document.querySelector('#ucr-amend-form');
+  const status = document.querySelector('#ucr-amend-status');
   if (!rows || !form) return;
 
+  // Server-rendered rows carry data-existing-row and stay read-only; only new rows are collected.
+  const newRows = () => [...rows.children].filter((row) => !row.hasAttribute('data-existing-row'));
+
   function renumber() {
-    [...rows.children].forEach((row, index) => {
-      row.querySelector('[data-row-number]').textContent = index + 1;
+    const existing = rows.querySelectorAll('tr[data-existing-row]').length;
+    newRows().forEach((row, index) => {
+      row.querySelector('[data-row-number]').textContent = existing + index + 1;
       const file = row.querySelector('input[type="file"]');
       if (file) file.name = `file_${index}`;
     });
@@ -22,8 +27,24 @@
     rows.querySelector('tr:last-child input[data-document-code]')?.focus();
   });
 
-  form.addEventListener('submit', () => {
-    const documents = [...rows.children].map((row) => ({
+  rows.addEventListener('input', (event) => { event.target.classList.remove('ucr-field-invalid'); });
+
+  form.addEventListener('submit', (event) => {
+    // Every eDocument that has a document code also needs its Reference No.
+    const missingReference = newRows().find((row) => row.querySelector('[data-document-code]').value.trim() && !row.querySelector('td:nth-child(3) input').value.trim());
+    if (missingReference) {
+      event.preventDefault();
+      const field = missingReference.querySelector('td:nth-child(3) input');
+      field.classList.add('ucr-field-invalid');
+      field.focus();
+      if (status) {
+        status.hidden = false;
+        status.classList.add('ucr-status-error');
+        status.textContent = 'Each eDocument needs a Reference No.';
+      }
+      return;
+    }
+    const documents = newRows().map((row) => ({
       code: row.querySelector('[data-document-code]').value.trim(),
       name: row.querySelector('[data-document-name]').value.trim(),
       reference: row.querySelector('td:nth-child(3) input').value.trim(),

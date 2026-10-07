@@ -1,6 +1,8 @@
 (() => {
   const regime = document.querySelector('#ucr-regime');
   const content = document.querySelector('.cargo-content');
+  // Text inputs that carry readonly from the server (Temp. No., Declarant Code, lookups) never leave read-only.
+  const lockedInputs = new WeakSet([...content.querySelectorAll('input[readonly]')].filter((field) => field.type !== 'checkbox' && field.type !== 'radio' && field.type !== 'file'));
   let selectedProvider = null;
   const rules = {
     EX: ['tin', 'name'], FO: ['tin', 'name'],
@@ -32,7 +34,9 @@
   }
   function setRegimeGate() {
     content.querySelectorAll('input, textarea, select, button').forEach((field) => {
-      if (field !== regime && field.id !== 'ucr-save' && field.id !== 'ucr-submit' && field.id !== 'ucr-show-provider') field.disabled = !regime.value;
+      if (field === regime || field.id === 'ucr-save' || field.id === 'ucr-submit' || field.id === 'ucr-show-provider') return;
+      if (field.tagName === 'SELECT' || field.tagName === 'BUTTON' || field.type === 'checkbox' || field.type === 'file') field.disabled = !regime.value;
+      else if (!lockedInputs.has(field)) field.readOnly = !regime.value;
     });
   }
   regime.addEventListener('change', () => { resetForRegime(); updateRegime(); setRegimeGate(); loadAssignedProvider(); });
@@ -215,6 +219,7 @@
   document.querySelector('#main-content').addEventListener('input', (event) => {
     const entry = requiredFields.find(({field}) => field === event.target);
     if (entry && event.target.value.trim()) markRequired(entry, false);
+    if (event.target.closest('.ucr-documents') && event.target.classList.contains('ucr-field-invalid') && event.target.value.trim()) event.target.classList.remove('ucr-field-invalid');
   });
   document.querySelector('#main-content').addEventListener('change', (event) => {
     const entry = requiredFields.find(({field}) => field === event.target);
@@ -234,6 +239,7 @@
   function addDocument(data = null) {
     const row = document.createElement('tr');
     row.innerHTML = '<td data-row-number></td><td><div class="document-type-field"><input type="text" data-document-code aria-label="Document code" autocomplete="off"><button class="document-type-search" type="button" aria-label="Search document type">⌕</button><input type="text" data-document-name aria-label="Document name" readonly></div></td><td><input type="text" aria-label="Reference number"></td><td class="document-file-cell"><input type="file" aria-label="Attached file"></td><td><button class="document-delete-button document-row-delete" type="button">Del</button></td>';
+    lockedInputs.add(row.querySelector('[data-document-name]'));
     row.querySelector('.document-row-delete').addEventListener('click', () => { row.remove(); renumber(); });
     rows.append(row);
     renumber();
@@ -334,6 +340,14 @@
       return input && input.files[0] && !row.querySelector('[data-document-code]').value.trim() && !row.querySelector('td:nth-child(3) input').value.trim();
     });
     if (missingCode) throw new Error('Enter a document code or reference number for each attached file.');
+    // Every eDocument that has a document code also needs its Reference No.
+    const missingReference = allRows.find((row) => row.querySelector('[data-document-code]').value.trim() && !row.querySelector('td:nth-child(3) input').value.trim());
+    if (missingReference) {
+      const field = missingReference.querySelector('td:nth-child(3) input');
+      field.classList.add('ucr-field-invalid');
+      field.focus();
+      throw new Error('Each eDocument needs a Reference No.');
+    }
     const form = new FormData();
     form.append('payload', JSON.stringify(payload));
     allRows.filter((row) => row.querySelector('[data-document-code]').value.trim() || row.querySelector('td:nth-child(3) input').value.trim()).forEach((row, index) => {
@@ -347,7 +361,7 @@
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(data.error || 'The simulator could not complete this request.');
+      const error = new Error(data.error || (data.errors && data.errors.documents) || 'The simulator could not complete this request.');
       error.fieldErrors = data.errors || null;
       throw error;
     }

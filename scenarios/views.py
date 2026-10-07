@@ -369,7 +369,10 @@ def single_window_create_ucr(request):
             submitted = UcrDeclaration.objects.filter(pk=draft_id, owner=_effective_owner(request)).first()
             if submitted:
                 return redirect("ucr-detail", record_id=submitted.pk)
-    return render(request, "scenarios/ucr_create.html", {"initial_ucr": _ucr_record_payload(draft) if draft else None})
+    return render(request, "scenarios/ucr_create.html", {
+        "initial_ucr": _ucr_record_payload(draft) if draft else None,
+        "regime_options": UCR_REGIME_OPTIONS,
+    })
 
 
 @simulator_access_required
@@ -429,6 +432,7 @@ UCR_PARTY_RULES = {
 }
 UCR_PARTY_KIND_LABEL = {"exporter": "Exporter", "importer": "Importer"}
 UCR_REGIME_LABELS = {"EX": "Export", "IM": "Import", "TN": "Transhipment", "TR": "Transit", "FI": "Free Zones - Inbound", "FO": "Free Zones - Outbound"}
+UCR_REGIME_OPTIONS = [(code, UCR_REGIME_LABELS[code]) for code in ("EX", "IM", "TN", "TR", "FI", "FO")]
 UCR_REGIME_FAMILIES = {"IM": ("IM", "FI"), "FI": ("IM", "FI"), "EX": ("EX", "FO"), "FO": ("EX", "FO"), "TN": ("TN",), "TR": ("TR",)}
 
 
@@ -534,6 +538,9 @@ def _parse_ucr_payload(request):
                 "reference": str(entry.get("reference", "")).strip()[:100],
             })
     documents = [entry for entry in documents if entry["code"] or entry["reference"]]
+    # An eDocument row with a document code must also carry its Reference No.
+    if any(entry["code"] and not entry["reference"] for entry in documents):
+        errors["documents"] = "Each eDocument needs a Reference No."
 
     if errors:
         return None, errors
@@ -795,6 +802,21 @@ def _party_value(identity, name):
     return name or identity
 
 
+def _country_parts(code):
+    """Raw code plus display name so the shared form partial can prefill both country inputs."""
+    code = (code or "").strip().upper()
+    return {"code": code, "name": COUNTRY_DISPLAY_NAMES.get(code, "")}
+
+
+def _party_form_values(record, role):
+    """Create-form field values for a party: TIN regimes fill identity + name, name regimes only the name input."""
+    kind = UCR_PARTY_RULES.get(record.regime, ("name", "name"))[0 if role == "exporter" else 1]
+    identity, name = getattr(record, f"{role}_identity") or "", getattr(record, f"{role}_name") or ""
+    if kind == "tin":
+        return {"tin": True, "identity": identity, "name": name}
+    return {"tin": False, "identity": name or identity, "name": ""}
+
+
 def _ucr_form_context(record):
     """Shared context for the create-form-shaped View and Amend pages."""
     from .country_codes import COUNTRY_CODES
@@ -834,6 +856,13 @@ def _ucr_form_context(record):
     return {
         "record": record,
         "values": values,
+        "form": {
+            "provider_country": _country_parts(record.provider_country),
+            "exporter": _party_form_values(record, "exporter"),
+            "importer": _party_form_values(record, "importer"),
+            "origin": _country_parts(record.origin_country),
+            "destination": _country_parts(record.destination_country),
+        },
         "country_names": dict(COUNTRY_CODES),
         "regime_labels": UCR_REGIME_LABELS,
         "regime_family_choices": [(code, UCR_REGIME_LABELS.get(code, code)) for code in UCR_REGIME_FAMILIES.get(record.regime, (record.regime,))],
@@ -847,6 +876,7 @@ def _ucr_form_context(record):
 def ucr_detail(request, record_id):
     record = get_object_or_404(UcrDeclaration.objects.select_related("source_ucr"), pk=record_id, owner=_effective_owner(request))
     context = _ucr_form_context(record)
+    context["regime_options"] = UCR_REGIME_OPTIONS
     context["review_mode"] = _review_target(request) is not None
     return render(request, "scenarios/ucr_detail.html", context)
 
@@ -903,6 +933,8 @@ def ucr_amend(request, record_id):
 
     if request.method == "GET":
         context = _ucr_form_context(source)
+        # Amendments may only move the regime within its own family, so only offer those options.
+        context["regime_options"] = context["regime_family_choices"]
         context["review_mode"] = _review_target(request) is not None
         return render(request, "scenarios/ucr_amend.html", context)
 
@@ -923,6 +955,10 @@ def ucr_amend(request, record_id):
     except json.JSONDecodeError:
         pass
     new_documents = [entry for entry in new_documents if entry["code"] or entry["reference"]]
+    # Amendment eDocuments follow the same rule: a code always needs its Reference No.
+    if any(entry["code"] and not entry["reference"] for entry in new_documents):
+        messages.error(request, "Each eDocument needs a Reference No.")
+        return redirect("ucr-amend", record_id=record_id)
 
     allowed_extensions = {".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"}
     uploads = [(key, file) for key, file in request.FILES.items() if key.startswith("file_") and key[5:].isdigit()]

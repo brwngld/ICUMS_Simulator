@@ -17,6 +17,10 @@
 #main-content .summary-grid .ucr-field-invalid:focus { border-color:#c92a2a; background-color:rgba(201,42,42,.07); box-shadow:0 0 0 2px rgba(201,42,42,.2); }
 #main-content .summary-grid .ucr-label-invalid, #ucr-status.ucr-status-error { color:#bd2525; }
 #ucr-status.ucr-status-error { font-weight:700; }
+/* eDocument rows sit outside .summary-grid; the Reference No. highlight needs its own scope. */
+#main-content .ucr-documents .ucr-field-invalid,
+#main-content .ucr-documents .ucr-field-invalid:focus { border-color:#c92a2a; background-color:rgba(201,42,42,.07); box-shadow:0 0 0 2px rgba(201,42,42,.2); }
+#ucr-amend-status.ucr-status-error { color:#bd2525; font-weight:700; }
 .ucr-documents { width:100%; }
 .ucr-documents th:first-child,.ucr-documents td:first-child { width:3rem; text-align:center; }
 .ucr-documents th:last-child,.ucr-documents td:last-child { width:4.5rem; text-align:center; }

@@ -390,3 +390,23 @@ html[data-theme="dark"] .dialog-header { color: var(--ink); background: #202b47;
 html[data-theme="dark"] .dialog-close { color: #c4bfff; background: #18213a; border-color: #4b5675; }
 html[data-theme="dark"] .dialog-notice { color: #f2d889; background: #3c321c; }
 html[data-theme="dark"] .theme-toggle { color: #e4e9f8; background: #202b47; border-color: #465271; }
+
+/* --- Uniform read-only form state -------------------------------------------
+   Submitted/view-mode forms render with the SAME layout and the SAME control
+   appearance as the editable forms; only editability differs (readonly/
+   disabled attributes), plus a "view mode" badge. Never grey the controls out. */
+:where(.portal-main) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]), select, textarea):is([readonly], [disabled]) {
+  background: #fff;
+  color: var(--ink);
+  opacity: 1;
+  -webkit-text-fill-color: var(--ink);
+  cursor: default;
+}
+html[data-theme="dark"] :where(.portal-main) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]), select, textarea):is([readonly], [disabled]) {
+  background: #27324d;
+  color: #edf1ff;
+  -webkit-text-fill-color: #edf1ff;
+}
+:where(.portal-main) :is(button, input[type="submit"])[disabled] { opacity: .45; cursor: not-allowed; }
+.view-mode-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .22rem .6rem; border: 1px solid #b9c2d3; border-radius: 999px; background: #ece8ff; color: var(--primary-dark); font-size: .72rem; font-weight: 750; }
+html[data-theme="dark"] .view-mode-badge { border-color: #65708b; background: #27324d; color: #c9b8ff; }

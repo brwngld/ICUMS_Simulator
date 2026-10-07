@@ -1,0 +1,30 @@
+/* Instructor portal uniform read-only contract.
+   Mirrors the simulator portal contract in static/css/simulator-portal.css
+   (uniform [readonly]/[disabled] rules scoped to .portal-main, plus the
+   "View mode" badge) for instructor pages built on templates/base.html and
+   static/css/app.css, which use the same tokens (--text, white / #111a30).
+   This file is referenced only by templates/instructor_portal/*.html. */
+
+/* Submitted/view-mode form controls render with the SAME appearance as the
+   editable forms; only editability differs (readonly/disabled attributes).
+   Never grey the controls out. */
+:where(.portal-main) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]), select, textarea):is([readonly], [disabled]) {
+  background: white;
+  color: var(--text);
+  opacity: 1;
+  -webkit-text-fill-color: var(--text);
+  cursor: default;
+}
+html[data-theme="dark"] :where(.portal-main) :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]), select, textarea):is([readonly], [disabled]) {
+  background: #111a30;
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
+}
+/* Buttons keep their distinct dimmed disabled look so blocked actions stay visibly blocked. */
+:where(.portal-main) :is(button, input[type="submit"])[disabled] { opacity: .45; cursor: not-allowed; }
+
+/* "View mode" pill — same design as the simulator portal badge
+   (simulator-portal.css), with app.css tokens. */
+.view-mode-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .22rem .6rem; border: 1px solid #b9c2d3; border-radius: 999px; background: #ece8ff; color: #4236b6; font-size: .72rem; font-weight: 750; white-space: nowrap; }
+html[data-theme="dark"] .view-mode-badge { border-color: #65708b; background: #27324d; color: #c9b8ff; }
+.page-intro .view-mode-badge { flex-shrink: 0; align-self: center; }
