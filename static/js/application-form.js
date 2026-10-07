@@ -335,11 +335,7 @@
     mdaRows.append(row);
     return row;
   }
-  function showMdaRequest(record) {
-    let row = [...mdaRows.rows].find((candidate) =>
-      candidate.children[0]?.textContent.trim() === record.mda && !candidate.querySelector('[data-confirm="app-no"]')?.textContent.trim()
-    );
-    if (!row) row = makeMdaRow(record.mda);
+  function fillMdaRow(row, record) {
     row.querySelector('[data-confirm="application"]').textContent = record.application;
     row.querySelector('[data-confirm="process"]').textContent = record.process;
     const numberCell = row.querySelector('[data-confirm="app-no"]');
@@ -351,7 +347,28 @@
     row.querySelector('[data-confirm="submitted"]').textContent = record.created_at;
     row.querySelector('[data-confirm="status"]').textContent = record.status;
   }
-  if (mdaRows) (window.appMdaRequests || []).forEach(showMdaRequest);
+  function requiredMdaAgencies() {
+    const codes = items.map((item) => String(item.hs_code || "").trim()).filter(Boolean);
+    const found = [];
+    (window.appHsMdaRules || []).forEach((rule) => {
+      if (found.includes(rule.mda)) return;
+      if (codes.some((code) => code.startsWith(rule.prefix))) found.push(rule.mda);
+    });
+    return found;
+  }
+  function renderMdaRows() {
+    if (!mdaRows || window.appReadOnly) return;
+    const agencies = requiredMdaAgencies();
+    (window.appMdaRequests || []).forEach((record) => {
+      if (!agencies.includes(record.mda)) agencies.push(record.mda);
+    });
+    mdaRows.replaceChildren();
+    agencies.forEach((agency) => {
+      const requests = (window.appMdaRequests || []).filter((record) => record.mda === agency);
+      const row = makeMdaRow(agency);
+      if (requests.length) fillMdaRow(row, requests[requests.length - 1]);
+    });
+  }
   document.querySelector("#app-mda-create").addEventListener("click", async (event) => {
     const type = mdaType.value;
     const agency = mdaOptions.find((item) => String(item.id) === mdaAgency.value);
@@ -378,7 +395,10 @@
         consignment_type: type,
         master_no: mdaMaster.value.trim(),
       });
-      showMdaRequest(record);
+      (window.appMdaRequests || (window.appMdaRequests = [])).push(record);
+      renderMdaRows();
+      const newRow = [...mdaRows.rows].find((candidate) => candidate.children[0]?.textContent.trim() === record.mda);
+      if (newRow) mdaRows.prepend(newRow);
       mdaDialog.close();
       window.alert(`Application ${record.application_no} created successfully.`);
     } catch (error) {
@@ -567,6 +587,7 @@
   const ticked = new Set();
   function renderItems() {
     rows.replaceChildren();
+    renderMdaRows();
     const pageCount = Math.max(1, Math.ceil(items.length / 10));
     itemPage = Math.min(itemPage, pageCount - 1);
     items.slice(itemPage * 10, itemPage * 10 + 10).forEach((item, index) => {

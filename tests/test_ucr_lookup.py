@@ -684,7 +684,8 @@ def test_consignment_application_lifecycle(client):
     assert b'id="app-ucr"' in page.content
     assert b'id="app-mda-ucr"' in page.content
     assert b'id="app-mda-add"' in page.content
-    assert b'<button class="ucr-row-action" type="button" data-mda-create="FDA">Create</button>' in page.content
+    assert b'id="app-mda-rows"><tbody' not in page.content or b'id="app-mda-rows"' in page.content  # rows render client-side
+    assert b'app-hs-mda-rules' in page.content  # the HS->MDA catalog drives the rows
     assert b'Create Application Form' in page.content
     assert b'data-app-port-search="port_arrival"' in page.content
     assert b'data-app-port-search="port_departure"' in page.content

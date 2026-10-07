@@ -1029,6 +1029,7 @@ def consignment_application_create(request):
         "ucr": ucr,
         "initial": initial,
         "mda_requests": mda_requests,
+        "hs_mda_rules": [{"prefix": prefix, "mda": mda} for prefix, mda, _ in HS_ANNEXED_REQUIREMENTS],
         "approval_parties": [],
         "mda_mode": False,
         "display_application_no": application.application_no if application else "Generated after save",
@@ -2447,13 +2448,45 @@ def boe_save_general_draft(request, declaration_id):
     return JsonResponse({"saved": True, "section": section})
 
 
+def required_mda_agencies(hs_codes):
+    """Agency codes called for by the given HS codes, in catalog first-seen order."""
+    found = []
+    for prefix, mda, _ in HS_ANNEXED_REQUIREMENTS:
+        if mda in found:
+            continue
+        if any(str(code or "").strip().startswith(prefix) for code in hs_codes):
+            found.append(mda)
+    return found
+
+
 @simulator_access_required
 @require_POST
 def boe_submit(request, declaration_id):
-    """Submit a draft BOE; the declaration enters the customs response stages."""
+    """Submit a draft BOE; the declaration enters the customs response stages.
+
+    Blocked while an HS-called MDA has not been approved and attached to the UCR:
+    creation stays possible (the IDF is enough), submission is not.
+    """
     declaration = get_object_or_404(BoeDeclaration, pk=declaration_id, owner=request.user)
     if declaration.status != BoeDeclaration.Status.DRAFT:
         messages.info(request, f"Declaration {declaration.declaration_no} has already been submitted.")
+        return redirect("boe-declaration", declaration_id=declaration.pk)
+    hs_codes = [str(item.get("hs_code", "")).strip() for item in (declaration.form_data or {}).get("items") or []]
+    active_agencies = set(MdaAgency.objects.filter(is_active=True).values_list("code", flat=True))
+    pending = []
+    for agency in required_mda_agencies(hs_codes):
+        if agency not in active_agencies:
+            continue  # e.g. DVLA has no application workflow in the simulator yet
+        approved = MdaConsignmentRequest.objects.filter(
+            consignment_application__ucr=declaration.ucr, mda__code=agency, status=MdaStatus.APPROVED,
+        ).exists()
+        if not approved:
+            pending.append(agency)
+    if pending:
+        message = "Attach the approved " + " and ".join(pending) + " application(s) to the UCR before submitting this declaration."
+        if request.headers.get("Accept", "").startswith("application/json"):
+            return JsonResponse({"error": message}, status=400)
+        messages.error(request, message)
         return redirect("boe-declaration", declaration_id=declaration.pk)
     declaration.status = BoeDeclaration.Status.SUBMITTED
     declaration.submitted_at = timezone.now()

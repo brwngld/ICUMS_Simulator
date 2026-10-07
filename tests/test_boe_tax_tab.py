@@ -412,6 +412,22 @@ def test_tax_tab_renders_inside_the_declaration_page_and_computes(client):
     assert payable["01"] == "17,619.20"  # 20% import duty on 88,096.00 (seeded tariff)
     assert tax["totals"]["tax"] == "22,860.29"  # minus the unreproduced Disinfection Fee
 
+    # HS 4015190000 calls for FDA: submission is blocked until an approved FDA
+    # application is attached to the UCR.
+    blocked = client.post(reverse("boe-submit", args=(declaration.pk,)), HTTP_ACCEPT="application/json")
+    assert blocked.status_code == 400
+    assert b"approved FDA" in blocked.content
+
+    from scenarios.models import MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus
+    fda = MdaAgency.objects.get_or_create(code="FDA", defaults={"name": "Food and Drugs Authority"})[0]
+    fda_app = MdaApplication.objects.get_or_create(mda=fda, code="FDA", defaults={"name": "FDA Product Registration"})[0]
+    MdaProcess.objects.get_or_create(application=fda_app, code="REG", defaults={"name": "Product Registration"})
+    MdaConsignmentRequest.objects.create(
+        consignment_application=declaration.idf.consignment_application,
+        mda=fda, application=fda_app,
+        process=MdaProcess.objects.filter(application=fda_app).first(),
+        consignment_type="SG", application_no="CD202610FDAFR0000999", status=MdaStatus.APPROVED,
+    )
     # The Tax tab (and its compute button) disappears once submitted.
     client.post(reverse("boe-submit", args=(declaration.pk,)))
     submitted_page = client.get(page_url)
