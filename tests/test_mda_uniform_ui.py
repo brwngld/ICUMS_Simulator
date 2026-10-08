@@ -85,7 +85,7 @@ def test_submitted_mda_renders_uniform_form_with_view_mode_badge():
     assert "window.appReadOnly = true" in html
     assert 'class="view-mode-badge"' in html
     assert "View mode" in html
-    assert "application-form.js?v=20261006-1" in html
+    assert "application-form.js?v=20261010-1" in html
     for marker in SHARED_FIELD_MARKERS:
         assert marker in html
 
