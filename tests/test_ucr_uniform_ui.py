@@ -76,14 +76,17 @@ def test_submitted_ucr_renders_the_create_form_read_only(client):
     create_targets = _label_targets(create_page.content)
     detail_targets = _label_targets(content)
     assert {field_id for field_id in FORM_FIELD_IDS} <= create_targets
-    # The submitted view is the same form: identical fields, nothing left out.
-    assert create_targets == detail_targets
+    # Same form as the edited view, minus the create-only provider toggle.
+    assert create_targets - {"ucr-show-provider"} == detail_targets
 
     # Read-only state: same controls, readonly inputs, disabled select, no edit actions.
     assert b'id="ucr-goods" rows="3" readonly' in content
     assert b'id="ucr-temp" value="' in content
-    assert b"view-mode-badge" in content and b"View mode" in content
-    assert b"Submitted" in content
+    # Per the reference, the submitted view carries no status text or badge and
+    # omits the Display-Service-Provider toggle.
+    assert b"view-mode-badge" not in content
+    assert b"ucr-show-provider" not in content
+    assert b"view-mode" in content  # panel class hides the required-asterisk spans
     assert b'id="add-document"' not in content
     assert b'id="ucr-save"' not in content and b'id="ucr-submit"' not in content
     assert b'<option value="EX" selected>' in content
