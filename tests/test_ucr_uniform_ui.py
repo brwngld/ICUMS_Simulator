@@ -172,7 +172,10 @@ def test_ucr_amend_rejects_new_document_without_reference(client):
     page = client.get(reverse("ucr-amend", args=[source.pk]))
     assert page.status_code == 200
     content = page.content
-    assert _label_targets(page.content) == _label_targets(client.get(reverse("single-window-create-ucr")).content)
+    # Amend mirrors the submitted view: identical fields minus the create-only
+    # Display-Service-Provider toggle.
+    create_targets = _label_targets(client.get(reverse("single-window-create-ucr")).content)
+    assert create_targets - {"ucr-show-provider"} == _label_targets(page.content)
     assert b'id="ucr-regime" required name="regime" form="ucr-amend-form"' in content
     assert b'id="ucr-goods" rows="3" readonly' in content
     assert b'value="INV-1" readonly' in content
@@ -200,5 +203,6 @@ def test_amend_page_prefills_country_code_and_name():
 
     page = client.get(reverse("ucr-amend", args=(record.pk,)))
     html = page.content.decode()
-    assert 'id="ucr-exporter-country" maxlength="2" data-country-code value="CN"' in html
-    assert 'id="ucr-importer-country" maxlength="2" data-country-code value="GH"' in html
+    # Amend follows the submitted view: countries render as merged display values.
+    assert 'id="ucr-exporter-country" value="CN, China"' in html
+    assert 'id="ucr-importer-country" value="GH, Ghana"' in html
