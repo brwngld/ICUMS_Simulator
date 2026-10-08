@@ -91,7 +91,8 @@ def test_submitted_ucr_renders_the_create_form_read_only(client):
     assert b'id="ucr-save"' not in content and b'id="ucr-submit"' not in content
     assert b'<option value="EX" selected>' in content
     assert b">TIN <span>*</span></label>" in content  # EX regime: exporter identified by TIN
-    assert b'value="C0012345678"' in content and b'value="Fictional Exporter Ltd"' in content
+    # TIN parties render merged in view mode ("C0012345678, Fictional Exporter Ltd").
+    assert b'value="C0012345678, Fictional Exporter Ltd"' in content
     # Countries render as one merged display value in view mode ("GH, Ghana").
     assert b'value="GH, Ghana"' in content
     assert b"Fictional training goods" in content
