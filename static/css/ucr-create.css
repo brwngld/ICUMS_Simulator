@@ -116,3 +116,21 @@ html[data-theme="light"] .ucr-form-panel.view-mode :is(input:not([type="checkbox
   color: var(--ink);
   -webkit-text-fill-color: var(--ink);
 }
+
+/* The UCR search dialog's criteria labels render as plain grey cells (like the
+   Preparation Application's popup), not as the purple results-table band. */
+.code-dialog .ucr-view-table.boe-box-grid th {
+  background: #f1f3f8;
+  color: #3c4660;
+  border: 1px solid #d9deea;
+  border-bottom: 1px solid #d9deea;
+  font-weight: 650;
+  text-align: left;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+html[data-theme="dark"] .code-dialog .ucr-view-table.boe-box-grid th {
+  background: #202b47;
+  color: #c4cce0;
+  border-color: #46536f;
+}
