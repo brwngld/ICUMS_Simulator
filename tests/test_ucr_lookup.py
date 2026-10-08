@@ -910,9 +910,11 @@ def test_consignment_create_application_mirrors_preparation_create(client):
     page = client.get(reverse("single-window-create-consignment-application"))
     assert page.status_code == 200
     assert b"Consignment Application" in page.content
-    assert b"New Master Request" in page.content
-    assert b'id="preparation-ucr-search"' in page.content
-    assert b'id="ucr-reference-dialog"' in page.content
+    assert b"NEW CONSIGNMENT REQUEST" in page.content
+    assert b'id="consignment-type"' in page.content
+    assert b'id="consignment-mdas"' in page.content
+    assert b'id="consignment-copy"' in page.content
+    assert b"Copy Application" in page.content
     assert b"Create Application Form" in page.content
 
 
