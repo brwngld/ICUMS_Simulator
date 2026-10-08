@@ -859,6 +859,8 @@ def _ucr_form_context(record):
         "values": values,
         "form": {
             "provider_country": _country_parts(record.provider_country),
+            "exporter_country": _country_parts(record.exporter_country),
+            "importer_country": _country_parts(record.importer_country),
             "exporter": _party_form_values(record, "exporter"),
             "importer": _party_form_values(record, "importer"),
             "origin": _country_parts(record.origin_country),

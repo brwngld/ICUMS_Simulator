@@ -180,3 +180,25 @@ def test_ucr_amend_rejects_new_document_without_reference(client):
     assert b'id="add-document"' in content
     assert b"Only the Regime Type and eDocuments Details can be changed" in content
     assert b"view-mode-badge" not in content  # amend is an editable flow, not view mode
+
+
+@pytest.mark.django_db
+def test_amend_page_prefills_country_code_and_name():
+    from django.test import Client
+    from tests.test_mda_submit import _seed_mda_request
+
+    owner, record = _seed_mda_request(
+        "amend-country-prefill", "KGHTESTUCR9900000089", "CD202609MOTIIDF0000089",
+        documents=[{"code": "003", "name": "Invoice", "reference": "INV-8"}],
+    )
+    ucr = record.consignment_application.ucr
+    ucr.exporter_country = "CN"
+    ucr.importer_country = "GH"
+    ucr.save(update_fields=("exporter_country", "importer_country"))
+    client = Client()
+    client.force_login(owner)
+
+    page = client.get(reverse("ucr-amend", args=(record.pk,)))
+    html = page.content.decode()
+    assert 'id="ucr-exporter-country" maxlength="2" data-country-code value="CN"' in html
+    assert 'id="ucr-importer-country" maxlength="2" data-country-code value="GH"' in html
