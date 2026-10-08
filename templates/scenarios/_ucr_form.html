@@ -10,7 +10,7 @@ full-width controls via colspan=3. Functional hooks (field ids, label[for] pairs
 {% endcomment %}
 <section class="cargo-panel ucr-form-panel{% if ucr_mode != 'create' %} view-mode{% endif %}">
   <div class="ucr-form-head"><h2 class="ucr-form-title">UCR Details</h2>{% if ucr_mode == 'create' %}<span class="required-note">* required</span>{% endif %}</div>
-  <table class="ucr-view-table boe-box-grid"><tbody>
+  <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody>
     <tr>
       <th><label for="ucr-temp">{% if ucr_mode == 'create' %}Temp. No.{% else %}UCR No.{% endif %}</label></th>
       <td><input class="boe-field" id="ucr-temp" value="{% if ucr_mode == 'create' %}Generated after save{% else %}{{ values.ucr_no }}{% endif %}" readonly></td>
@@ -22,7 +22,7 @@ full-width controls via colspan=3. Functional hooks (field ids, label[for] pairs
 
   <div class="boe-section" id="ucr-provider"{% if ucr_mode != 'create' and not record.show_provider %} hidden{% endif %}>
     <h2 class="boe-section-title">Service Provider</h2>
-    <table class="ucr-view-table boe-box-grid"><tbody>
+    <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody>
       <tr>
         <th><label for="ucr-declarant">Declarant Code</label></th>
         <td><input class="boe-field" id="ucr-declarant"{% if ucr_mode != 'create' %} value="{{ values.declarant_code }}"{% endif %} readonly></td>
@@ -48,7 +48,7 @@ full-width controls via colspan=3. Functional hooks (field ids, label[for] pairs
 
   <div class="boe-section ucr-party" id="ucr-exporter">
     <div class="ucr-section-head"><h2 class="boe-section-title">Exporter</h2>{% if ucr_mode == 'create' %}<label class="ucr-same-check"><input type="checkbox" data-same-declarant> Same as Declarant</label>{% endif %}</div>
-    <table class="ucr-view-table boe-box-grid"><tbody>
+    <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody>
       <tr>
         <th><label for="ucr-exporter-identity" id="ucr-exporter-label">{% if form.exporter.tin %}TIN{% else %}Exporter Name{% endif %} <span>*</span></label></th>
         <td>{% if ucr_mode != 'create' %}<input class="boe-field" id="ucr-exporter-identity" value="{{ values.exporter_party }}" readonly>{% else %}<span class="ucr-identity"><input class="boe-field" id="ucr-exporter-identity" value="{{ form.exporter.identity }}"{% if ucr_mode != 'create' %} readonly{% endif %}><button type="button" class="ucr-party-search" data-party-search="exporter" aria-label="Search exporter TIN" hidden>&#128269;</button><input class="boe-field" id="ucr-exporter-name" aria-label="Exporter name" value="{{ form.exporter.name }}" readonly{% if not form.exporter.tin %} hidden{% endif %}></span>{% endif %}</td>
@@ -74,7 +74,7 @@ full-width controls via colspan=3. Functional hooks (field ids, label[for] pairs
 
   <div class="boe-section ucr-party" id="ucr-importer">
     <div class="ucr-section-head"><h2 class="boe-section-title">Importer</h2>{% if ucr_mode == 'create' %}<label class="ucr-same-check"><input type="checkbox" data-same-declarant> Same as Declarant</label>{% endif %}</div>
-    <table class="ucr-view-table boe-box-grid"><tbody>
+    <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody>
       <tr>
         <th><label for="ucr-importer-identity" id="ucr-importer-label">{% if form.importer.tin %}TIN{% else %}Importer Name{% endif %} <span>*</span></label></th>
         <td>{% if ucr_mode != 'create' %}<input class="boe-field" id="ucr-importer-identity" value="{{ values.importer_party }}" readonly>{% else %}<span class="ucr-identity"><input class="boe-field" id="ucr-importer-identity" value="{{ form.importer.identity }}"{% if ucr_mode != 'create' %} readonly{% endif %}><button type="button" class="ucr-party-search" data-party-search="importer" aria-label="Search importer TIN" hidden>&#128269;</button><input class="boe-field" id="ucr-importer-name" aria-label="Importer name" value="{{ form.importer.name }}" readonly{% if not form.importer.tin %} hidden{% endif %}></span>{% endif %}</td>
@@ -100,7 +100,7 @@ full-width controls via colspan=3. Functional hooks (field ids, label[for] pairs
 
   <div class="boe-section">
     <h2 class="boe-section-title">Consignment Details</h2>
-    <table class="ucr-view-table boe-box-grid"><tbody>
+    <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody>
       <tr><th><label for="ucr-goods">General Goods Description <span>*</span></label></th><td colspan="3"><textarea class="boe-field" id="ucr-goods" rows="3"{% if ucr_mode != 'create' %} readonly{% endif %}>{{ record.goods_description }}</textarea></td></tr>
       <tr>
         <th><label for="ucr-origin">Country of Origin <span>*</span></label></th>

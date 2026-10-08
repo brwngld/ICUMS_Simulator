@@ -77,3 +77,15 @@
 .ucr-form-panel .boe-box-grid { table-layout: fixed; width: 100%; }
 .ucr-form-panel .boe-box-grid th { width: 15%; }
 .ucr-form-panel .boe-box-grid td[colspan="3"] ~ th { width: 15%; }
+
+/* Submitted/amend views: values render as table text, not boxed inputs, and
+   rows auto-adjust on smaller screens. */
+.ucr-form-panel.view-mode :is(input:not([type="checkbox"]):not([type="file"]), select, textarea) {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  resize: none;
+  width: 100%;
+}
+.ucr-form-panel.view-mode .boe-box-grid :is(td, th) { overflow-wrap: anywhere; }
