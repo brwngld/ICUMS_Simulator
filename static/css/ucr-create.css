@@ -70,3 +70,10 @@
 
 /* Submitted view: the reference shows no required-asterisk markers. */
 .ucr-form-panel.view-mode .boe-box-grid label span { display: none; }
+
+/* The UCR Details grid and the section grids below it must share the same
+   column geometry: fixed layout pins the label column so "Regime Type",
+   "Country", "Tel. No." etc. line up down the page in every mode. */
+.ucr-form-panel .boe-box-grid { table-layout: fixed; width: 100%; }
+.ucr-form-panel .boe-box-grid th { width: 15%; }
+.ucr-form-panel .boe-box-grid td[colspan="3"] ~ th { width: 15%; }
