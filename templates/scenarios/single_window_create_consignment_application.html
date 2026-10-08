@@ -43,14 +43,18 @@
 </div>
 
 <dialog id="consignment-ucr-dialog" class="code-dialog" aria-labelledby="consignment-ucr-title">
-  <form class="code-dialog-card" onsubmit="return false">
-    <header><h2 id="consignment-ucr-title">Search Unique Consignment Ref.</h2><button type="button" id="consignment-ucr-close" aria-label="Close UCR search">×</button></header>
-    <div class="code-search"><label>UCR No. <input id="consignment-ucr-filter"></label></div>
-    <div class="cargo-actions"><button class="primary-button" id="consignment-ucr-submit" type="button">⌕ Search</button></div>
-    <div class="cargo-panel-title"><h2>Search Unique Consignment Reference Records</h2></div>
-    <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>UCR No.</th><th>Regime Type</th><th>Exporter</th><th>Importer</th></tr></thead><tbody id="consignment-ucr-results"><tr><td class="empty-row" colspan="4">No data found.</td></tr></tbody></table></div>
-  </form>
-</dialog>
+    <form class="code-dialog-card" onsubmit="return false">
+      <header><h2 id="consignment-ucr-title">Search Unique Consignment Ref.</h2><button type="button" id="consignment-ucr-close" aria-label="Close UCR search">×</button></header>
+      <div class="boe-section"><h2 class="boe-section-title">Search Unique Consignment Ref.</h2>
+      <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody>
+        <tr><th><label for="consignment-ucr-filter">UCR No.</label></th><td><input class="boe-field" id="consignment-ucr-filter"></td><th><label for="consignment-ucr-regime">Regime Type</label></th><td><select class="boe-field" id="consignment-ucr-regime"><option value="">-- Select One --</option><option value="EX">EX, Export</option><option value="IM">IM, Import</option><option value="TN">TN, Transhipment</option><option value="TR">TR, Transit</option><option value="FI">FI, Free Zones - Inbound</option><option value="FO">FO, Free Zones - Outbound</option></select></td></tr>
+        <tr><th><label for="consignment-ucr-exporter">Exporter Code or Name</label></th><td><input class="boe-field" id="consignment-ucr-exporter"></td><th><label for="consignment-ucr-importer">Importer Code or Name</label></th><td><input class="boe-field" id="consignment-ucr-importer"></td></tr>
+      </tbody></table></div>
+      <div class="cargo-actions"><button class="secondary-button" id="consignment-ucr-reset" type="button">🔁 Reset</button><button class="primary-button" id="consignment-ucr-submit" type="button">🔍 Search</button></div>
+      <div class="boe-section"><h2 class="boe-section-title">Unique Consignment Ref.</h2>
+      <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>UCR No.</th><th>Regime Type</th><th>Exporter</th><th>Importer</th></tr></thead><tbody id="consignment-ucr-results"><tr><td class="empty-row" colspan="4">No data found.</td></tr></tbody></table></div></div>
+    </form>
+  </dialog>
 
 <dialog id="consignment-copy-dialog" class="code-dialog" aria-labelledby="consignment-copy-title">
   <form class="code-dialog-card" onsubmit="return false">
@@ -116,7 +120,12 @@
     document.querySelector("#consignment-ucr-close").addEventListener("click", () => ucrDialog.close());
     const ucrResults = document.querySelector("#consignment-ucr-results");
     const searchUcrs = () => {
-      const query = new URLSearchParams({ ucr: document.querySelector("#consignment-ucr-filter").value.trim() });
+      const query = new URLSearchParams({
+        ucr: document.querySelector("#consignment-ucr-filter").value.trim(),
+        regime: document.querySelector("#consignment-ucr-regime").value,
+        exporter: document.querySelector("#consignment-ucr-exporter").value.trim(),
+        importer: document.querySelector("#consignment-ucr-importer").value.trim(),
+      });
       fetch(`{% url 'ucr-reference-search' %}?${query}`, { headers: { Accept: "application/json" } })
         .then((response) => response.json())
         .then((data) => {
