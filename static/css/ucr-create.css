@@ -89,3 +89,30 @@
   width: 100%;
 }
 .ucr-form-panel.view-mode .boe-box-grid :is(td, th) { overflow-wrap: anywhere; }
+
+/* --- Uniform dark theme for the UCR form -------------------------------------
+   The grid labels, editable controls, lookup buttons, and the submitted view's
+   plain-text values all share one dark palette: no white boxes, no leftover
+   textbox borders, labels readable. */
+html[data-theme="dark"] .ucr-form-panel .boe-box-grid th label,
+html[data-theme="dark"] .ucr-form-panel .ucr-same-check { color: #c9d3ea; }
+html[data-theme="dark"] .ucr-form-panel .boe-box-grid th { color: #8fa0c0; }
+
+html[data-theme="dark"] .ucr-form-panel :is(input:not([type="checkbox"]):not([type="file"]):not([type="submit"]):not([type="button"]), select, textarea),
+html[data-theme="dark"] .ucr-form-panel .ucr-party-search {
+  background: #1f2b47;
+  color: #edf1ff;
+  border-color: #46536f;
+  -webkit-text-fill-color: #edf1ff;
+}
+html[data-theme="dark"] .ucr-form-panel :is(input, textarea)::placeholder { color: #7a8497; opacity: 1; -webkit-text-fill-color: #7a8497; }
+
+/* Submitted view: pure table text — no box, no border, theme-correct ink. */
+html[data-theme="dark"] .ucr-form-panel.view-mode :is(input:not([type="checkbox"]):not([type="file"]), select, textarea),
+html[data-theme="light"] .ucr-form-panel.view-mode :is(input:not([type="checkbox"]):not([type="file"]), select, textarea) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+}
