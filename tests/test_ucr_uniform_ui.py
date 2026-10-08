@@ -76,8 +76,8 @@ def test_submitted_ucr_renders_the_create_form_read_only(client):
     create_targets = _label_targets(create_page.content)
     detail_targets = _label_targets(content)
     assert {field_id for field_id in FORM_FIELD_IDS} <= create_targets
-    # The submitted view drops the Display-Service-Provider toggle (reference layout).
-    assert create_targets - {"ucr-show-provider"} == detail_targets
+    # The submitted view is the same form: identical fields, nothing left out.
+    assert create_targets == detail_targets
 
     # Read-only state: same controls, readonly inputs, disabled select, no edit actions.
     assert b'id="ucr-goods" rows="3" readonly' in content
