@@ -4,9 +4,9 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Amend UCR · ICUMS Simulator</title>
-  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261006-1">
-  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261009-2">
-  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20261009-2">
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261010-1">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261010-1">
+  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20261010-1">
 </head>
 <body>
   <a class="portal-skip" href="#main-content">Skip to Amend UCR form</a>
@@ -30,7 +30,7 @@
   <form id="ucr-amend-form" method="post" action="{% url 'ucr-amend' record.pk %}" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="new_documents" id="amend-new-documents" value="[]"></form>
   {% include 'scenarios/_document_code_dialog.html' %}
   <script src="{% static 'js/dialog-pagination.js' %}?v=20260918-1"></script>
-  <script src="{% static 'js/ucr-document-codes.js' %}?v=20260918-2"></script>
-  <script src="{% static 'js/ucr-amend.js' %}?v=20261007-1"></script>
-  <script src="{% static 'js/app-shell.js' %}?v=20261005-3" defer></script>
+  <script src="{% static 'js/ucr-document-codes.js' %}?v=20261010-1"></script>
+  <script src="{% static 'js/ucr-amend.js' %}?v=20261010-1"></script>
+  <script src="{% static 'js/app-shell.js' %}?v=20261010-1" defer></script>
 </body></html>

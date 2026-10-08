@@ -410,3 +410,16 @@ html[data-theme="dark"] :where(.portal-main) :is(input:not([type="checkbox"]):no
 :where(.portal-main) :is(button, input[type="submit"])[disabled] { opacity: .45; cursor: not-allowed; }
 .view-mode-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .22rem .6rem; border: 1px solid #b9c2d3; border-radius: 999px; background: #ece8ff; color: var(--primary-dark); font-size: .72rem; font-weight: 750; }
 html[data-theme="dark"] .view-mode-badge { border-color: #65708b; background: #27324d; color: #c9b8ff; }
+
+/* --- Uniform dark-theme form controls across every portal page ----------------
+   Editable inputs, selects, and textareas render dark (matching the readonly
+   state and the UCR form palette); placeholders stay dimmed. The submitted
+   view-mode panels keep their pure-text values. */
+html[data-theme="dark"] .portal-main :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]), select, textarea) {
+  background: #1f2b47;
+  color: #edf1ff;
+  border-color: #46536f;
+  -webkit-text-fill-color: #edf1ff;
+}
+html[data-theme="dark"] .portal-main :is(input, textarea)::placeholder { color: #7a8497; opacity: 1; -webkit-text-fill-color: #7a8497; }
+html[data-theme="dark"] .portal-main :is(button, input[type="submit"])[disabled] { opacity: .45; }
