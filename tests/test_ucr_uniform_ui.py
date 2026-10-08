@@ -92,7 +92,8 @@ def test_submitted_ucr_renders_the_create_form_read_only(client):
     assert b'<option value="EX" selected>' in content
     assert b">TIN <span>*</span></label>" in content  # EX regime: exporter identified by TIN
     assert b'value="C0012345678"' in content and b'value="Fictional Exporter Ltd"' in content
-    assert b'value="GH"' in content and b'value="Ghana"' in content  # code + name inputs stay separate
+    # Countries render as one merged display value in view mode ("GH, Ghana").
+    assert b'value="GH, Ghana"' in content
     assert b"Fictional training goods" in content
     assert b'data-document-code value="003" readonly' in content
     assert b'value="INV-001" readonly' in content
