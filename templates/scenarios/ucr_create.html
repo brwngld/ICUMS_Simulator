@@ -6,7 +6,7 @@
   <title>Create UCR · ICUMS Simulator</title>
   <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261006-1">
   <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-2">
-  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20261007-1">
+  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20261008-1">
 </head>
 <body>
   <a class="portal-skip" href="#main-content">Skip to Create UCR form</a>
@@ -22,7 +22,7 @@
       <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Workspace</a><span>›</span><span>Registration</span><span>›</span><strong>Create UCR</strong></div>
       <div class="cargo-content">
         {% include 'scenarios/_ucr_form.html' with ucr_mode='create' %}
-        <div class="cargo-actions"><a class="secondary-button" href="{% url 'single-window-search-ucr' %}">☷ List</a><button class="primary-button" id="ucr-save" type="button">✎ Save</button><button class="primary-button" id="ucr-submit" type="button" disabled>▣ Submit</button></div>
+        <div class="cargo-actions"><a class="secondary-button" href="{% url 'single-window-search-ucr' %}">☰ List</a><button class="primary-button" id="ucr-save" type="button">🔗 Save</button><button class="primary-button" id="ucr-submit" type="button" disabled>▣ Submit</button></div>
         <p id="ucr-status" role="status" class="dialog-help" hidden></p>
       </div>
     </main>
@@ -36,7 +36,7 @@
   <script src="{% static 'js/dialog-pagination.js' %}?v=20260918-1" defer></script>
   {{ initial_ucr|json_script:"ucr-initial-draft" }}
   <script>window.ucrInitialDraft = JSON.parse(document.querySelector('#ucr-initial-draft').textContent);</script>
-  <script src="{% static 'js/ucr-create.js' %}?v=20261007-1" defer></script>
+  <script src="{% static 'js/ucr-create.js' %}?v=20261008-1" defer></script>
   <script src="{% static 'js/ucr-document-codes.js' %}?v=20260918-2" defer></script>
   <script src="{% static 'js/app-shell.js' %}?v=20261005-3" defer></script>
 </body></html>

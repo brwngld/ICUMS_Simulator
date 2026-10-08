@@ -202,7 +202,8 @@
   }
   document.querySelectorAll('[data-same-declarant]').forEach((checkbox) => checkbox.addEventListener('change', () => populateFromDeclarant(checkbox)));
 
-  const requiredFields = [...document.querySelectorAll('#main-content .summary-grid label[for]')]
+  // Required-field labels live inside the bordered boe-box-grid tables of the UCR form panel.
+  const requiredFields = [...document.querySelectorAll('#main-content .boe-box-grid label[for]')]
     .filter((label) => label.querySelector('span')?.textContent.trim() === '*')
     .map((label) => ({label, field: document.getElementById(label.htmlFor)}))
     .filter(({field}) => field);

@@ -1,5 +1,5 @@
-.ucr-identity { display:grid; grid-template-columns:minmax(0,1fr) 2.6rem minmax(0,1.3fr); gap:.35rem; min-width:0; }
-.ucr-identity input { min-width:0; }
+.ucr-identity { display:flex; align-items:center; gap:.35rem; min-width:0; width:100%; }
+.ucr-identity input { min-width:0; flex:1 1 0; width:auto; }
 .ucr-lookup-field { display:grid; grid-template-columns:minmax(4.5rem,.65fr) 2.6rem minmax(8rem,1.35fr); gap:.35rem; min-width:0; }
 .ucr-lookup-field input { min-width:0; }
 .ucr-lookup-field button { min-width:0; border:1px solid var(--line); border-radius:.4rem; color:var(--ink); background:var(--panel); cursor:pointer; }
@@ -9,13 +9,15 @@
 #ucr-country-results tr { cursor:pointer; }
 #ucr-country-results tr:hover, #ucr-country-results tr:focus { background:var(--canvas); }
 .ucr-country-footer { display:flex; justify-content:space-between; padding:.8rem 0; }
-.ucr-identity:has(.ucr-party-search[hidden]) { grid-template-columns:1fr; }
 .ucr-error-message { white-space:pre-line; padding:1rem 1.5rem; line-height:1.5; }
 .ucr-party-search { min-width:2.6rem; border:1px solid var(--line); border-radius:.4rem; color:var(--ink); background:var(--panel); }
 .ucr-party-search[hidden], #ucr-provider[hidden] { display:none !important; }
 #main-content .summary-grid .ucr-field-invalid,
-#main-content .summary-grid .ucr-field-invalid:focus { border-color:#c92a2a; background-color:rgba(201,42,42,.07); box-shadow:0 0 0 2px rgba(201,42,42,.2); }
-#main-content .summary-grid .ucr-label-invalid, #ucr-status.ucr-status-error { color:#bd2525; }
+#main-content .boe-box-grid .ucr-field-invalid,
+#main-content .summary-grid .ucr-field-invalid:focus,
+#main-content .boe-box-grid .ucr-field-invalid:focus { border-color:#c92a2a; background-color:rgba(201,42,42,.07); box-shadow:0 0 0 2px rgba(201,42,42,.2); }
+#main-content .summary-grid .ucr-label-invalid,
+#main-content .boe-box-grid .ucr-label-invalid, #ucr-status.ucr-status-error { color:#bd2525; }
 #ucr-status.ucr-status-error { font-weight:700; }
 /* eDocument rows sit outside .summary-grid; the Reference No. highlight needs its own scope. */
 #main-content .ucr-documents .ucr-field-invalid,
@@ -48,3 +50,20 @@
 .ucr-view-table th { width:10rem; font-weight:400; }
 .ucr-view-table td { min-width:0; }
 .ucr-view-table select { width:100%; }
+
+/* --- UCR form in the ICUMS reference bordered-grid layout (BOE declaration design language).
+   Scoped to .ucr-form-panel so the BOE declaration pages (which also load this stylesheet)
+   keep their exact current look. --- */
+.ucr-form-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.8rem; }
+.ucr-form-title { margin:0; font-size:1rem; color:var(--ink); }
+.ucr-form-panel > .boe-box-grid { margin-bottom:1.1rem; }
+.ucr-form-panel .ucr-section-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem; margin:1.1rem 0 .5rem; }
+.ucr-form-panel .ucr-section-head .boe-section-title { margin:0; }
+.ucr-form-panel .boe-box-grid th label { font-size:.76rem; color:#384158; font-weight:650; }
+.ucr-form-panel .boe-box-grid th span { color:#e5484d; font-weight:600; }
+.ucr-same-check { display:inline-flex; align-items:center; gap:.3rem; font-size:.76rem; font-weight:650; color:#384158; white-space:nowrap; }
+/* Country lookup compounds: short code box + lookup trigger + wide read-only name, like the reference. */
+.ucr-form-panel .boe-compound input { min-width:0; }
+.ucr-form-panel .boe-compound input.boe-code-box { flex:0 0 auto; width:5.5rem; min-width:0; }
+.ucr-form-panel .boe-compound .boe-name-box { min-width:0; }
+.ucr-form-panel .boe-lookup-btn:not(:disabled) { cursor:pointer; color:var(--ink); background:var(--panel); }
