@@ -239,3 +239,106 @@ def build_commercial_document_pdf(document):
     story.extend([Spacer(1, 5 * mm), p("This document was generated solely for ICUMS simulator training. All parties, shipment details, values and identifiers are fictitious.")])
     doc.build(story)
     return output.getvalue()
+
+
+def build_mda_application_pdf(record):
+    """Render an auto-approved MDA application (e.g. the IDF) as the document
+    that gets attached to the UCR's eDocuments list."""
+    data = record.form_data or {}
+    output = BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=18 * mm, leftMargin=18 * mm, topMargin=12 * mm, bottomMargin=14 * mm)
+    styles = getSampleStyleSheet()
+    styles.add(ParagraphStyle(name="Small", parent=styles["BodyText"], fontName="Helvetica", fontSize=8, leading=10))
+    styles.add(ParagraphStyle(name="Strip", parent=styles["BodyText"], alignment=TA_CENTER, fontName="Helvetica-Bold", fontSize=7, leading=9, textColor=colors.white, backColor=NAVY, borderPadding=4))
+    styles.add(ParagraphStyle(name="Right", parent=styles["BodyText"], alignment=TA_RIGHT, fontSize=9, leading=11))
+
+    def value(*keys, default="Not supplied"):
+        for key in keys:
+            current = data.get(key)
+            if current not in (None, ""):
+                return escape(str(current))
+        return default
+
+    title = "IMPORT DECLARATION FORM" if record.application.code.upper().startswith("IDF") else f"{record.application.code} - {record.application.name}".upper()
+    story = [
+        Paragraph("TRAINING SAMPLE - FICTITIOUS - NOT FOR COMMERCIAL USE", styles["Strip"]),
+        Spacer(1, 4 * mm),
+        Paragraph(title, styles["Title"]),
+        Paragraph(f"Application No. {record.application_no} · Status {record.get_status_display()}", styles["Right"]),
+        Spacer(1, 3 * mm),
+    ]
+
+    def labelled(label, text):
+        return [Paragraph(f"<b>{label}</b>", styles["BodyText"]), Paragraph(text or "Not supplied", styles["BodyText"])]
+
+    grid_rows = [
+        [Paragraph("<b>Field</b>", styles["BodyText"]), Paragraph("<b>Detail</b>", styles["BodyText"])],
+        labelled("UCR No.", value("ucr_no")),
+        labelled("Exporter", value("exporter.name", "exporter.code")),
+        labelled("Exporter Address", value("exporter.physical_address")),
+        labelled("Importer", value("importer.code", "importer.name")),
+        labelled("Importer Address", value("importer.physical_address")),
+        labelled("Goods Description", value("goods_description")),
+        labelled("Means of Transport", value("means_of_transport")),
+        labelled("Vessel Name", value("vessel_name")),
+        labelled("Voyage No.", value("voyage_no")),
+        labelled("Manifest No.", value("manifest_no")),
+        labelled("BL/AWB No.", value("bl_awb_no")),
+        labelled("Customs Office", value("customs_office")),
+        labelled("Currency", value("currency")),
+        labelled("Exchange Rate", value("exchange_rate")),
+        labelled("FOB FCY", value("fob_fcy")),
+        labelled("FOB NCY (GHS)", value("fob_ncy")),
+        labelled("Freight FCY", value("freight_fcy")),
+        labelled("Insurance FCY", value("insurance_fcy")),
+        labelled("Other Costs FCY", value("other_costs_fcy")),
+        labelled("Customs Value FCY", value("customs_value_fcy")),
+        labelled("Customs Value NCY (GHS)", value("customs_value_ncy")),
+        labelled("Delivery Term", value("delivery_term")),
+        labelled("Purpose of Import/Export", value("approval_purpose")),
+    ]
+    grid = Table(grid_rows, colWidths=[55 * mm, 115 * mm])
+    grid.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+        ("BACKGROUND", (0, 0), (-1, 0), PALE),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]))
+    story.append(grid)
+
+    items = [item for item in (data.get("items") or []) if isinstance(item, dict) and any(item.values())]
+    if items:
+        story.extend([Spacer(1, 5 * mm), Paragraph("<b>Items</b>", styles["BodyText"])])
+        item_rows = [[Paragraph("<b>Item No.</b>", styles["Small"]), Paragraph("<b>HS Code</b>", styles["Small"]),
+                      Paragraph("<b>Description</b>", styles["Small"]), Paragraph("<b>Quantity</b>", styles["Small"]),
+                      Paragraph("<b>FOB FCY</b>", styles["Small"])]]
+        for index, item in enumerate(items, 1):
+            item_rows.append([Paragraph(str(index), styles["Small"]), Paragraph(escape(str(item.get("hs_code", ""))), styles["Small"]),
+                              Paragraph(escape(str(item.get("description", ""))), styles["Small"]),
+                              Paragraph(escape(str(item.get("quantity", ""))), styles["Small"]),
+                              Paragraph(escape(str(item.get("fob_fcy", ""))), styles["Small"])])
+        item_grid = Table(item_rows, colWidths=[18 * mm, 30 * mm, 78 * mm, 22 * mm, 22 * mm])
+        item_grid.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.4, LINE),
+            ("BACKGROUND", (0, 0), (-1, 0), PALE),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ]))
+        story.append(item_grid)
+
+    story.extend([
+        Spacer(1, 6 * mm),
+        Paragraph(f"Generated automatically on approval · {record.application_no} · {timezone_display(record)}", styles["Small"]),
+        Paragraph("This document was generated solely for ICUMS simulator training. Every party, shipment, value, identifier, and transaction shown is fictitious.", styles["Small"]),
+    ])
+    doc.build(story)
+    return output.getvalue()
+
+
+def timezone_display(record):
+    from django.utils import timezone as tz
+
+    stamp = record.submitted_at or record.created_at
+    return tz.localtime(stamp).strftime("%d/%m/%Y %H:%M:%S") if stamp else ""

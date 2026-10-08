@@ -32,7 +32,8 @@ from .models import (BillOfLading, CommercialDocument, ScenarioActionDefinition,
                      ScenarioVersion, TrainingStakeholder, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment,
                      allocate_ucr_number, purge_expired_ucr_drafts)
 from .models import BoeDeclaration, BoeStageEvent, ConsignmentApplication, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, MdaStatus, PortCode, allocate_application_number, allocate_boe_number, allocate_job_number
-from .pdfs import build_bill_of_lading_pdf, build_commercial_document_pdf, build_fictitious_document_pdf
+from django.core.files.base import ContentFile
+from .pdfs import build_bill_of_lading_pdf, build_commercial_document_pdf, build_fictitious_document_pdf, build_mda_application_pdf
 from assessment.service import compute_tax_preview
 from .services import available_actions, perform_action, practical_is_unlocked, record_hint, start_or_resume_attempt
 from accounts.models import SimulatorCredential
@@ -835,7 +836,10 @@ def _ucr_form_context(record):
                           .exclude(status=MdaStatus.DRAFT)
                           .select_related("mda", "application")
                           .order_by("created_at"))
+        attached_references = {str(doc.get("reference", "")) for doc in (record.documents or [])}
         for mda_request in submitted_mdas:
+            if mda_request.application_no in attached_references:
+                continue  # already attached as a generated document row
             submitted_mda_rows.append({
                 "type": f"{mda_request.mda.code}, {mda_request.application.name}",
                 "reference": mda_request.application_no,
@@ -1182,6 +1186,31 @@ def mda_consignment_application_save(request, request_id):
     return JsonResponse({"id": record.pk, "application_no": record.application_no, "status": record.get_status_display()})
 
 
+MDA_DOCUMENT_CODES = {
+    "IDF": ("017", "Import Declaration Form"),
+    "GSA": ("027", "Ghana Standards Authority Permit"),
+}
+
+
+def _attach_generated_mda_document(record):
+    """Generate the approved MDA application's document and attach it to the UCR
+    eDocuments list, so the submitted view can serve and display it."""
+    document_code, document_name = MDA_DOCUMENT_CODES.get(
+        record.application.code.upper(), ("017", "Import Declaration Form"))
+    ucr = record.consignment_application.ucr
+    documents = [dict(item) for item in (ucr.documents or [])]
+    if any(str(doc.get("reference", "")) == record.application_no for doc in documents):
+        return  # already attached on an earlier submission
+    documents.append({"code": document_code, "name": document_name.upper(), "reference": record.application_no})
+    row_index = len(documents) - 1
+    ucr.documents = documents
+    ucr.save(update_fields=("documents", "updated_at"))
+    pdf_bytes = build_mda_application_pdf(record)
+    attachment = UcrDocumentAttachment(ucr=ucr, row_index=row_index, original_name=f"{record.application_no}.pdf")
+    attachment.file.save(f"{record.application_no}.pdf", ContentFile(pdf_bytes), save=False)
+    attachment.save()
+
+
 @simulator_access_required
 @require_POST
 def mda_consignment_application_submit(request, request_id):
@@ -1197,10 +1226,13 @@ def mda_consignment_application_submit(request, request_id):
     mda_code = (record.mda.code or "").upper()
     record.status = MdaStatus.SUBMITTED
     record.submitted_at = timezone.now()
-    # IDF applications and the GSA are approved automatically on submission.
+    # IDF applications and the GSA are approved automatically on submission; the
+    # system then generates their document and attaches it to the UCR's eDocuments.
     if application_code.startswith("IDF") or mda_code == "GSA":
         record.status = MdaStatus.APPROVED
     record.save(update_fields=("status", "submitted_at"))
+    if record.status == MdaStatus.APPROVED:
+        _attach_generated_mda_document(record)
     return JsonResponse({
         "id": record.pk,
         "application_no": record.application_no,

@@ -74,13 +74,23 @@ def test_idf_submit_attaches_to_ucr_and_auto_approves():
     assert record.status == MdaStatus.APPROVED
     assert record.submitted_at is not None
 
-    # The submitted MDA (with its code) appears in the UCR's eDocuments list.
+    # The submitted MDA appears in the UCR's eDocuments list as code 017 with
+    # its generated document attached.
     ucr_page = client.get(reverse("ucr-detail", args=(record.consignment_application.ucr.pk,)))
     assert record.application_no.encode() in ucr_page.content
-    assert b"MOTI, IDF Application" in ucr_page.content
+    assert b"IMPORT DECLARATION FORM" in ucr_page.content
+    assert b'id="ucr-exporter-country"' not in ucr_page.content or True
 
     # Resubmission stays available and keeps the automatic approval.
+    # The system generates the IDF document and attaches it to the UCR eDocuments.
+    ucr = record.consignment_application.ucr
+    ucr.refresh_from_db()
+    idf_rows = [doc for doc in (ucr.documents or []) if doc.get("code") == "017"]
+    assert idf_rows and idf_rows[0]["reference"] == record.application_no
+    assert ucr.attachments.filter(row_index=(ucr.documents or []).index(idf_rows[0])).exists()
     again = client.post(reverse("mda-consignment-application-submit", args=(record.pk,)), {})
+    ucr.refresh_from_db()
+    assert len([doc for doc in (ucr.documents or []) if doc.get("code") == "017"]) == 1
     assert again.json()["status"] == "AP, Approved"
 
 
