@@ -3,23 +3,23 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>View UCR · ICUMS Simulator</title>
+  <title>Search UCR · ICUMS Simulator</title>
   <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261006-1">
   <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20260925-2">
   <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20261008-1">
 </head>
 <body>
-  <a class="portal-skip" href="#main-content">Skip to View UCR form</a>
+  <a class="portal-skip" href="#main-content">Skip to Search UCR form</a>
   <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
   {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
   <div class="portal-shell">
     {% include 'scenarios/_single_window_sidebar.html' %}
     <main id="main-content" class="portal-main cargo-main" tabindex="-1">
       <header class="portal-header cargo-header">
-        <div class="portal-heading"><p class="overline">Single Window · Registration · Unique Consignment Reference</p><h1>View UCR</h1></div>
+        <div class="portal-heading"><p class="overline">Single Window · Registration · Unique Consignment Reference</p><h1>Search UCR</h1></div>
         {% with top_nav_active="single-window" %}{% include "scenarios/_portal_top_nav.html" %}{% endwith %}
       </header>
-      <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Workspace</a><span>›</span><span>Registration</span><span>›</span><strong>{{ record.ucr_no|default:record.temp_no }}</strong></div>
+      <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Workspace</a><span>›</span>Registration<span>›</span>Unique Consignment Reference<span>›</span><strong>Search UCR</strong></div>
       <div class="cargo-content">
         {% include 'scenarios/_ucr_form.html' with ucr_mode='view' %}
         <div class="cargo-actions"><a class="secondary-button" href="{% url 'single-window-search-ucr' %}">☷ List</a>{% if not review_mode %}<form method="post" action="{% url 'ucr-clone' record.pk %}">{% csrf_token %}<button class="secondary-button" type="submit">⧉ Clone</button></form>{% if record.status == 'submitted' %}<a class="primary-button" href="{% url 'ucr-amend' record.pk %}">▣ Amend</a>{% else %}<a class="primary-button" href="{% url 'single-window-create-ucr' %}?draft={{ record.pk }}">✎ Edit Draft</a>{% endif %}{% endif %}</div>

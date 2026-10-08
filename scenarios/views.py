@@ -839,6 +839,7 @@ def _ucr_form_context(record):
             submitted_mda_rows.append({
                 "type": f"{mda_request.mda.code}, {mda_request.application.name}",
                 "reference": mda_request.application_no,
+                "registered": timezone.localtime(mda_request.submitted_at or mda_request.created_at).strftime("%d/%m/%Y %H:%M"),
             })
     values = {
         "ucr_no": record.ucr_no or record.temp_no,
