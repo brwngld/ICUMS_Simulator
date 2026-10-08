@@ -1,4 +1,4 @@
-.ucr-identity { display:flex; align-items:center; gap:.35rem; min-width:0; width:100%; }
+.ucr-identity { display:flex; align-items:stretch; gap:.35rem; min-width:0; width:100%; }
 .ucr-identity input { min-width:0; flex:1 1 0; width:auto; }
 .ucr-lookup-field { display:grid; grid-template-columns:minmax(4.5rem,.65fr) 2.6rem minmax(8rem,1.35fr); gap:.35rem; min-width:0; }
 .ucr-lookup-field input { min-width:0; }
@@ -10,7 +10,7 @@
 #ucr-country-results tr:hover, #ucr-country-results tr:focus { background:var(--canvas); }
 .ucr-country-footer { display:flex; justify-content:space-between; padding:.8rem 0; }
 .ucr-error-message { white-space:pre-line; padding:1rem 1.5rem; line-height:1.5; }
-.ucr-party-search { min-width:2.6rem; border:1px solid var(--line); border-radius:.4rem; color:var(--ink); background:var(--panel); }
+.ucr-party-search { min-width:2.6rem; display:inline-flex; align-items:center; justify-content:center; align-self:stretch; border:1px solid var(--line); border-radius:.4rem; color:var(--ink); background:var(--panel); }
 .ucr-party-search[hidden], #ucr-provider[hidden] { display:none !important; }
 #main-content .summary-grid .ucr-field-invalid,
 #main-content .boe-box-grid .ucr-field-invalid,

@@ -397,10 +397,10 @@ html[data-theme="dark"] #boe-tab-item [readonly] { color: #c4cce0; background: #
 .boe-box { display: inline-block; min-width: 5rem; padding: .3rem .55rem; border: 1px solid var(--line); border-radius: .35rem; background: color-mix(in srgb, var(--panel) 82%, transparent); color: var(--ink); font-size: .82rem; overflow-wrap: anywhere; }
 td > .boe-box { width: 100%; box-sizing: border-box; }
 .boe-req { color: #e5484d; font-weight: 600; }
-.boe-compound { display: inline-flex; align-items: center; gap: .4rem; width: 100%; }
+.boe-compound { display: inline-flex; align-items: stretch; gap: .4rem; width: 100%; }
 .boe-compound .boe-code-box { flex: 0 1 auto; min-width: 4.5rem; max-width: 12rem; text-align: center; white-space: nowrap; }
 .boe-compound .boe-name-box { flex: 1 1 auto; }
-.boe-lookup-btn { flex: 0 0 auto; border: 1px solid var(--line); border-radius: .35rem; background: transparent; color: var(--muted); padding: .22rem .45rem; font-size: .78rem; cursor: default; }
+.boe-lookup-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: .35rem; background: transparent; color: var(--muted); padding: 0 .45rem; font-size: .78rem; cursor: default; }
 .boe-field { width: 100%; box-sizing: border-box; padding: .3rem .55rem; border: 1px solid var(--line); border-radius: .35rem; background: var(--panel); color: var(--ink); font: inherit; font-size: .82rem; }
 .boe-field:disabled { color: var(--muted); background: color-mix(in srgb, var(--panel) 82%, transparent); }
 .boe-money { display: flex; align-items: center; gap: .4rem; width: 100%; }
