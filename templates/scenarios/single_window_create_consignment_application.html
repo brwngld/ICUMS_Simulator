@@ -1,0 +1,225 @@
+{% load static %}
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ page_title }} · Consignment Application · ICUMS Simulator</title><link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261010-1"><link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261010-1"><link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20261010-1"></head>
+<body><a class="portal-skip" href="#main-content">Skip to Create Application form</a><div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>{% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}<div class="portal-shell">
+{% include 'scenarios/_single_window_sidebar.html' %}
+<main id="main-content" class="portal-main cargo-main" tabindex="-1"><header class="portal-header cargo-header"><div class="portal-heading"><p class="overline">Single Window · Application · {{ breadcrumb_section }}</p><h1>{{ page_title }}</h1></div>{% with top_nav_active="single-window" %}{% include "scenarios/_portal_top_nav.html" %}{% endwith %}</header><div class="cargo-breadcrumb"><a href="{% url 'single-window-workspace' %}">Single Window</a><span>›</span><span>Application</span><span>›</span><details><summary>{{ breadcrumb_section }}</summary><a href="{{ breadcrumb_create_path }}">Create Application</a><a href="{{ breadcrumb_search_path }}">Search Application</a></details><span>›</span><strong>{{ page_title }}</strong></div>
+<div class="cargo-content">
+  <section class="cargo-panel ucr-form-panel">
+    <div class="ucr-form-head"><h2 class="ucr-form-title">NEW CONSIGNMENT REQUEST</h2><span class="required-note">* required</span></div>
+    <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody>
+      <tr>
+        <th><label for="consignment-type">Type <span class="boe-req">*</span></label></th>
+        <td><select class="boe-field" id="consignment-type" required>
+          <option value="">-- Select One --</option>
+          <option value="SG">SG, Single Consignment</option>
+          <option value="SB">SB, Sub Consignment</option>
+          <option value="NB">NB, Non B/L</option>
+        </select></td>
+        <th><label for="consignment-master">Master No.</label></th>
+        <td><input class="boe-field" id="consignment-master" maxlength="30" disabled></td>
+      </tr>
+      <tr>
+        <th><label for="consignment-ucr">UCR No. <span class="boe-req">*</span></label></th>
+        <td><span class="boe-compound"><input class="boe-field" id="consignment-ucr" maxlength="20" style="flex:1 1 auto;"><button class="boe-lookup-btn" type="button" id="consignment-ucr-search" aria-label="Search UCR">&#128269;</button></span></td>
+        <th><label for="consignment-mdas">MDA <span class="boe-req">*</span></label></th>
+        <td><select class="boe-field" id="consignment-mdas" required><option value="">-- Select One --</option></select></td>
+      </tr>
+      <tr>
+        <th><label for="consignment-applications">Application <span class="boe-req">*</span></label></th>
+        <td><select class="boe-field" id="consignment-applications" required><option value="">-- Select One --</option></select></td>
+        <th><label for="consignment-processes">Process <span class="boe-req">*</span></label></th>
+        <td><select class="boe-field" id="consignment-processes" required><option value="">-- Select One --</option></select></td>
+      </tr>
+    </tbody></table>
+    <p class="dialog-help" id="consignment-status" role="status" hidden></p>
+    <div class="cargo-actions">
+      <button class="secondary-button" id="consignment-copy" type="button">⧉ Copy Application</button>
+      <button class="primary-button" id="consignment-create" type="button">Create Application Form</button>
+    </div>
+  </section>
+</div>
+</main>
+</div>
+
+<dialog id="consignment-ucr-dialog" class="code-dialog" aria-labelledby="consignment-ucr-title">
+  <form class="code-dialog-card" onsubmit="return false">
+    <header><h2 id="consignment-ucr-title">Search Unique Consignment Ref.</h2><button type="button" id="consignment-ucr-close" aria-label="Close UCR search">×</button></header>
+    <div class="code-search"><label>UCR No. <input id="consignment-ucr-filter"></label></div>
+    <div class="cargo-actions"><button class="primary-button" id="consignment-ucr-submit" type="button">⌕ Search</button></div>
+    <div class="cargo-panel-title"><h2>Search Unique Consignment Reference Records</h2></div>
+    <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>UCR No.</th><th>Regime Type</th><th>Exporter</th><th>Importer</th></tr></thead><tbody id="consignment-ucr-results"><tr><td class="empty-row" colspan="4">No data found.</td></tr></tbody></table></div>
+  </form>
+</dialog>
+
+<dialog id="consignment-copy-dialog" class="code-dialog" aria-labelledby="consignment-copy-title">
+  <form class="code-dialog-card" onsubmit="return false">
+    <header><h2 id="consignment-copy-title">Copy Application Data</h2><button type="button" id="consignment-copy-close" aria-label="Close copy application">×</button></header>
+    <div class="code-search"><label>Application No. <input id="consignment-copy-number" maxlength="25" placeholder="e.g. {{ example_number|default:'PCD202610MOTIIDF00001' }}"></label><button class="primary-button" id="consignment-copy-search" type="button">⌕ Search</button></div>
+    <div class="cargo-panel-title"><h2>Application Found</h2></div>
+    <div class="cargo-table-wrap"><table class="ucr-view-table"><tbody>
+      <tr><th>MDA</th><td id="consignment-copy-mda">—</td></tr>
+      <tr><th>Application</th><td id="consignment-copy-application">—</td></tr>
+      <tr><th>Process</th><td id="consignment-copy-process">—</td></tr>
+      <tr><th>Status</th><td id="consignment-copy-status">—</td></tr>
+      <tr><th>UCR No.</th><td id="consignment-copy-ucr">—</td></tr>
+    </tbody></table></div>
+    <p class="dialog-help">Copying replaces this request's form data with the found application's data for the MDA selected on the page.</p>
+    <div class="cargo-actions"><button class="primary-button" id="consignment-copy-apply" type="button" disabled>Copy Data</button></div>
+  </form>
+</dialog>
+
+<script>
+  (() => {
+    const status = document.querySelector("#consignment-status");
+    const report = (message, isError) => {
+      status.hidden = false;
+      status.classList.toggle("ucr-status-error", Boolean(isError));
+      status.textContent = message;
+    };
+    const clear = () => { status.hidden = true; status.textContent = ""; };
+
+    // --- MDA / Application / Process cascade ---
+    let mdaOptions = [];
+    const mdaSelect = document.querySelector("#consignment-mdas");
+    const applicationSelect = document.querySelector("#consignment-applications");
+    const processSelect = document.querySelector("#consignment-processes");
+    const resetSelect = (select, label = "-- Select One --") => select.replaceChildren(new Option(label, ""));
+    const fillApplications = () => {
+      resetSelect(applicationSelect); resetSelect(processSelect);
+      const agency = mdaOptions.find((item) => String(item.id) === mdaSelect.value);
+      (agency?.applications || []).forEach((item) => applicationSelect.add(new Option(`${item.code}, ${item.name}`, item.id)));
+    };
+    const fillProcesses = () => {
+      resetSelect(processSelect);
+      const agency = mdaOptions.find((item) => String(item.id) === mdaSelect.value);
+      const application = agency?.applications.find((item) => String(item.id) === applicationSelect.value);
+      (application?.processes || []).forEach((item) => processSelect.add(new Option(`${item.code}, ${item.name}`, item.id)));
+    };
+    mdaSelect.addEventListener("change", fillApplications);
+    applicationSelect.addEventListener("change", fillProcesses);
+    fetch("{% url 'application-mda-options' %}", { headers: { Accept: "application/json" } })
+      .then((response) => response.json())
+      .then((data) => { mdaOptions = data.results || []; mdaOptions.forEach((item) => mdaSelect.add(new Option(`${item.code}, ${item.name}`, item.id))); })
+      .catch(() => { resetSelect(mdaSelect, "-- Configuration unavailable --"); });
+
+    // --- Master No. only applies to Sub Consignment ---
+    const masterInput = document.querySelector("#consignment-master");
+    const typeSelect = document.querySelector("#consignment-type");
+    const updateMaster = () => { masterInput.disabled = typeSelect.value !== "SB"; if (masterInput.disabled) masterInput.value = ""; };
+    typeSelect.addEventListener("change", updateMaster);
+    updateMaster();
+
+    // --- UCR search dialog ---
+    const ucrDialog = document.querySelector("#consignment-ucr-dialog");
+    document.querySelector("#consignment-ucr-search").addEventListener("click", () => ucrDialog.showModal());
+    document.querySelector("#consignment-ucr-close").addEventListener("click", () => ucrDialog.close());
+    const ucrResults = document.querySelector("#consignment-ucr-results");
+    const searchUcrs = () => {
+      const query = new URLSearchParams({ ucr: document.querySelector("#consignment-ucr-filter").value.trim() });
+      fetch(`{% url 'ucr-reference-search' %}?${query}`, { headers: { Accept: "application/json" } })
+        .then((response) => response.json())
+        .then((data) => {
+          ucrResults.replaceChildren();
+          (data.results || []).forEach((row) => {
+            const tr = document.createElement("tr");
+            tr.style.cursor = "pointer";
+            [row.ucr_no, row.regime, row.exporter, row.importer].forEach((text) => {
+              const td = document.createElement("td"); td.textContent = text; tr.append(td);
+            });
+            tr.addEventListener("click", () => {
+              document.querySelector("#consignment-ucr").value = row.ucr_no;
+              ucrDialog.close();
+              clear();
+            });
+            ucrResults.append(tr);
+          });
+          if (!(data.results || []).length) {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td"); td.colSpan = 4; td.className = "empty-row"; td.textContent = "No data found.";
+            tr.append(td); ucrResults.append(tr);
+          }
+        });
+    };
+    document.querySelector("#consignment-ucr-submit").addEventListener("click", searchUcrs);
+
+    // --- Copy Application dialog ---
+    const copyDialog = document.querySelector("#consignment-copy-dialog");
+    let copiedSource = null;
+    document.querySelector("#consignment-copy").addEventListener("click", () => copyDialog.showModal());
+    document.querySelector("#consignment-copy-close").addEventListener("click", () => copyDialog.close());
+    const copySearch = document.querySelector("#consignment-copy-search");
+    const copyNumber = document.querySelector("#consignment-copy-number");
+    copySearch.addEventListener("click", () => {
+      const number = copyNumber.value.trim();
+      if (!number) { window.alert("Enter the application number to copy."); return; }
+      fetch(`{% url 'consignment-application-copy-search' %}?application_no=${encodeURIComponent(number)}`, { headers: { Accept: "application/json" } })
+        .then(async (response) => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || "The search failed.");
+          document.querySelector("#consignment-copy-mda").textContent = data.mda;
+          document.querySelector("#consignment-copy-application").textContent = data.application;
+          document.querySelector("#consignment-copy-process").textContent = data.process;
+          document.querySelector("#consignment-copy-status").textContent = data.status;
+          document.querySelector("#consignment-copy-ucr").textContent = data.ucr_no;
+          copiedSource = data.application_no;
+        })
+        .catch((error) => { copiedSource = null; window.alert(`Copy search failed. ${error.message}`); });
+    });
+
+    // --- Create / Copy submit ---
+    const requireSelections = () => {
+      if (!typeSelect.value) { report("Select the consignment Type first.", true); typeSelect.focus(); return false; }
+      if (typeSelect.value === "SB" && !masterInput.value.trim()) { report("Enter the Master No. for a Sub Consignment.", true); masterInput.focus(); return false; }
+      if (!document.querySelector("#consignment-ucr").value.trim()) { report("Search and choose an issued UCR number first.", true); return false; }
+      if (!mdaSelect.value || !applicationSelect.value || !processSelect.value) { report("Select the MDA, Application, and Process.", true); return false; }
+      return true;
+    };
+    const selectionPayload = () => ({
+      ucr_no: document.querySelector("#consignment-ucr").value.trim(),
+      consignment_type: typeSelect.value,
+      master_no: masterInput.value.trim(),
+      mda_id: mdaSelect.value,
+      application_id: applicationSelect.value,
+      process_id: processSelect.value,
+    });
+    document.querySelector("#consignment-create").addEventListener("click", () => {
+      clear();
+      if (!requireSelections()) return;
+      const button = document.querySelector("#consignment-create");
+      button.disabled = true;
+      fetch("{% url 'consignment-application-mda-create' %}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+        body: JSON.stringify(selectionPayload()),
+      })
+        .then(async (response) => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || "The application could not be created.");
+          window.alert(`Application ${data.application_no} created successfully.`);
+          location.href = data.url;
+        })
+        .catch((error) => { report(error.message, true); window.alert(`Create failed. ${error.message}`); button.disabled = false; });
+    });
+    document.querySelector("#consignment-copy-apply").addEventListener("click", () => {
+      clear();
+      if (!copiedSource) { window.alert("Search the application number to copy first."); return; }
+      if (!requireSelections()) return;
+      const button = document.querySelector("#consignment-copy-apply");
+      button.disabled = true;
+      fetch("{% url 'consignment-application-copy' %}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+        body: JSON.stringify({ ...selectionPayload(), source_no: copiedSource }),
+      })
+        .then(async (response) => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error || "The application could not be copied.");
+          window.alert(`Application ${data.application_no} created from ${copiedSource}.`);
+          location.href = data.url;
+        })
+        .catch((error) => { report(error.message, true); window.alert(`Copy failed. ${error.message}`); button.disabled = false; });
+    });
+  })();
+</script>
+</body></html>

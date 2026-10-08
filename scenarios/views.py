@@ -1009,8 +1009,27 @@ def _application_initial_from_ucr(ucr):
         "importer.postal_country": ucr.importer_country, "importer.tel": ucr.importer_phone,
         "importer.fax": ucr.importer_fax, "importer.postal_address": ucr.importer_address,
         "consignee_same": False,
+        "goods_description": ucr.goods_description,
         "means_of_transport": ucr.transport_mode, "items": [],
     }
+
+
+def _initial_to_model_fields(initial):
+    """Map the dotted prefill keys (exporter.name, importer.code, ...) to the
+    ConsignmentApplication model columns so a draft can be created from the UCR data."""
+    mapped = {}
+    for key, value in (initial or {}).items():
+        if key in ("consignor_same", "consignee_same"):
+            mapped[key] = bool(value)
+        elif "." in key:
+            role, field = key.split(".", 1)
+            if field == "name" and role in ("importer", "consignee"):
+                mapped[f"{role}_code"] = value
+            elif hasattr(ConsignmentApplication, f"{role}_{field}"):
+                mapped[f"{role}_{field}"] = value
+        elif hasattr(ConsignmentApplication, key):
+            mapped[key] = value
+    return mapped
 
 
 def _application_record_payload(record):
@@ -1641,14 +1660,151 @@ def single_window_preparation_application(request, mode):
 
 @simulator_access_required
 def single_window_create_consignment_application(request):
-    """Consignment Application entry screen; mirrors the Preparation Application create flow."""
-    return render(request, "scenarios/single_window_preparation_application.html", {
-        "mode": "create",
+    """Consignment Application entry screen: the New Consignment Request panel."""
+    return render(request, "scenarios/single_window_create_consignment_application.html", {
         "page_title": "Create Application",
         "breadcrumb_section": "Consignment Application",
         "breadcrumb_create_path": reverse("single-window-create-consignment-application"),
         "breadcrumb_search_path": reverse("single-window-search-consignment-application"),
     })
+
+
+def _consignment_application_for_ucr(request, ucr):
+    """Find the UCR's draft Consignment Document application, creating it from the UCR data when missing."""
+    application = ConsignmentApplication.objects.filter(
+        owner=_effective_owner(request), ucr=ucr, status=ConsignmentApplication.Status.DRAFT
+    ).first()
+    if application is None:
+        application = ConsignmentApplication.objects.create(
+            owner=_effective_owner(request), ucr=ucr,
+            status=ConsignmentApplication.Status.DRAFT,
+            **_initial_to_model_fields(_application_initial_from_ucr(ucr)),
+        )
+    return application
+
+
+@simulator_access_required
+@require_GET
+def consignment_application_copy_search(request):
+    """Find any of the learner's MDA applications by number so its data can be copied."""
+    number = request.GET.get("application_no", "").strip()
+    if not number:
+        return JsonResponse({"error": "Enter an application number to search."}, status=400)
+    record = (MdaConsignmentRequest.objects
+              .filter(application_no__iexact=number, consignment_application__owner=_effective_owner(request))
+              .select_related("consignment_application__ucr", "mda", "application", "process")
+              .first())
+    if record is None:
+        return JsonResponse({"error": "No MDA application found with that number."}, status=404)
+    ucr = record.consignment_application.ucr
+    return JsonResponse({
+        "application_no": record.application_no,
+        "mda": f"{record.mda.code}, {record.mda.name}",
+        "application": f"{record.application.code}, {record.application.name}",
+        "process": f"{record.process.code}, {record.process.name}",
+        "status": record.get_status_display(),
+        "ucr_no": ucr.ucr_no,
+        "consignment_type": record.consignment_type,
+        "master_no": record.master_no,
+    })
+
+
+def _resolve_mda_selection(payload):
+    """Validate the page's MDA / Application / Process selection; returns (mda, application, process, error)."""
+    mda = MdaAgency.objects.filter(pk=payload.get("mda_id"), is_active=True).first()
+    application = MdaApplication.objects.filter(pk=payload.get("application_id"), mda=mda, is_active=True).first() if mda else None
+    process = MdaProcess.objects.filter(pk=payload.get("process_id"), application=application, is_active=True).first() if application else None
+    if not (mda and application and process):
+        return None, None, None, JsonResponse({"error": "Select the MDA, Application, and Process."}, status=400)
+    return mda, application, process, None
+
+
+def _resolve_request_ucr(request, payload):
+    """The issued UCR the consignment application is built on; returns (ucr, error)."""
+    ucr_no = str(payload.get("ucr_no", "")).strip()
+    ucr = UcrDeclaration.objects.filter(
+        ucr_no__iexact=ucr_no, owner=_effective_owner(request), status=UcrDeclaration.Status.SUBMITTED
+    ).first() if ucr_no else None
+    if ucr is None:
+        return None, JsonResponse({"error": "Search and choose an issued UCR number first."}, status=400)
+    return ucr, None
+
+
+def _target_mda_request(request, payload, ucr, form_data):
+    """Create the MdaConsignmentRequest for the page selection; returns (record, error)."""
+    consignment_type = str(payload.get("consignment_type", "")).strip().upper()
+    master_no = str(payload.get("master_no", "")).strip()
+    mda, application, process, error = _resolve_mda_selection(payload)
+    if error:
+        return None, error
+    application_record = ConsignmentApplication.objects.filter(
+        owner=_effective_owner(request), ucr=ucr, status=ConsignmentApplication.Status.DRAFT
+    ).first() or ConsignmentApplication.objects.create(
+        owner=_effective_owner(request), ucr=ucr, status=ConsignmentApplication.Status.DRAFT,
+        **_initial_to_model_fields(_application_initial_from_ucr(ucr)),
+    )
+    with transaction.atomic():
+        number, sequence_month, monthly_sequence = _allocate_mda_application_number(mda.code, application.code)
+        record = MdaConsignmentRequest(
+            consignment_application=application_record, mda=mda, application=application, process=process,
+            consignment_type=consignment_type, master_no=master_no,
+            application_no=number, sequence_month=sequence_month, monthly_sequence=monthly_sequence,
+            form_data=form_data,
+        )
+        record.full_clean(exclude=("form_data",))
+        record.save()
+    return record, None
+
+
+@simulator_access_required
+@require_POST
+def consignment_application_mda_create(request):
+    """Create Application Form: build the MDA request for the selected UCR and MDA
+    with only the UCR's data."""
+    blocked = _review_json_guard(request)
+    if blocked:
+        return blocked
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "The request body is not valid JSON."}, status=400)
+    ucr, error = _resolve_request_ucr(request, payload)
+    if error:
+        return error
+    initial = json.loads(json.dumps(_application_initial_from_ucr(ucr), cls=DjangoJSONEncoder))
+    record, error = _target_mda_request(request, payload, ucr, initial)
+    if error:
+        return error
+    return JsonResponse({"url": reverse("mda-consignment-application", args=(record.pk,)), "application_no": record.application_no})
+
+
+@simulator_access_required
+@require_POST
+def consignment_application_copy(request):
+    """Copy Application: clone an existing MDA application's data onto the selected
+    MDA / Application / Process for the page's UCR."""
+    blocked = _review_json_guard(request)
+    if blocked:
+        return blocked
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "The request body is not valid JSON."}, status=400)
+    source = (MdaConsignmentRequest.objects
+              .filter(application_no__iexact=str(payload.get("source_no", "")).strip(),
+                      consignment_application__owner=_effective_owner(request))
+              .select_related("consignment_application__ucr", "mda", "application", "process")
+              .first())
+    if source is None:
+        return JsonResponse({"error": "No MDA application found with that number."}, status=400)
+    ucr, error = _resolve_request_ucr(request, payload)
+    if error:
+        return error
+    form_data = json.loads(json.dumps(source.form_data or {}, cls=DjangoJSONEncoder))
+    record, error = _target_mda_request(request, payload, ucr, form_data)
+    if error:
+        return error
+    return JsonResponse({"url": reverse("mda-consignment-application", args=(record.pk,)), "application_no": record.application_no})
 
 
 @simulator_access_required
