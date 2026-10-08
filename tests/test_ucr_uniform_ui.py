@@ -206,3 +206,29 @@ def test_amend_page_prefills_country_code_and_name():
     # Amend follows the submitted view: countries render as merged display values.
     assert 'id="ucr-exporter-country" value="CN, China"' in html
     assert 'id="ucr-importer-country" value="GH, Ghana"' in html
+
+
+@pytest.mark.django_db
+def test_ucr_reference_search_paginates(client):
+    from django.urls import reverse
+
+    owner = User.objects.create_user(username="ucr-pager", email="ucr-pager@example.test", password="x", is_staff=True)
+    client.force_login(owner)
+    for index in range(1, 13):
+        UcrDeclaration.objects.create(
+            owner=owner, regime="IM", goods_description=f"BULK CARGO {index}",
+            origin_country="CN", destination_country="GH",
+            temp_no=f"TEMPUCR9900000{index:02d}", ucr_no=f"KGHTESTUCR9900000{index:02d}",
+            status=UcrDeclaration.Status.SUBMITTED,
+        )
+
+    response = client.get(reverse("ucr-reference-search"), {"regime": "IM", "page": 1})
+    data = response.json()
+    assert data["total"] == 12
+    assert data["page"] == 1
+    assert data["page_count"] == 2
+    assert len(data["results"]) == 10
+
+    second = client.get(reverse("ucr-reference-search"), {"regime": "IM", "page": 2}).json()
+    assert second["page"] == 2
+    assert len(second["results"]) == 2

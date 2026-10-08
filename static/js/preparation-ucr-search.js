@@ -17,16 +17,26 @@
       : emptyRow;
   }
 
-  async function run() {
+  const pagerContainer = dialog.querySelector('#ucr-reference-pagination');
+  const pageIndicator = dialog.querySelector('#ucr-reference-page-indicator');
+  let currentPage = 1;
+
+  async function run(page = 1) {
     const params = new URLSearchParams();
     for (const [key, input] of [["number", numberInput], ["regime", regimeInput], ["exporter", exporterInput], ["importer", importerInput]]) {
       const value = input.value.trim();
       if (value) params.set(key, value);
     }
+    params.set("page", String(page));
     try {
       const response = await fetch(`${window.ucrReferenceSearchUrl}?${params}`, { headers: { Accept: "application/json" } });
       const data = await response.json();
-      draw(response.ok ? data.results : []);
+      draw(response.ok ? (data.results || []) : []);
+      currentPage = data.page || 1;
+      if (window.drawDialogPager) {
+        window.drawDialogPager(pagerContainer, { total: data.total || 0, page: currentPage, pageCount: data.page_count || 1, onPage: (next) => run(next) });
+      }
+      if (pageIndicator) pageIndicator.textContent = `Page : ${currentPage}/${data.page_count || 1}`;
     } catch {
       draw([]);
     }
@@ -43,8 +53,8 @@
     regimeInput.selectedIndex = 0;
     results.innerHTML = emptyRow;
   });
-  dialog.querySelector('#ucr-reference-submit').addEventListener('click', run);
-  numberInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); run(); } });
+  dialog.querySelector('#ucr-reference-submit').addEventListener('click', () => run(1));
+  numberInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); run(1); } });
   results.addEventListener('click', (event) => {
     const cell = event.target.closest('td.ucr-pick-cell');
     if (!cell) return;

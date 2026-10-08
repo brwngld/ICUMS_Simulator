@@ -744,6 +744,8 @@ def ucr_reference_search(request):
         return name or identity
 
     # Consistent with Search UCR: nothing is returned until a criterion is entered.
+    paginator = Paginator(records, 10)
+    page_obj = paginator.get_page(request.GET.get("page") or 1)
     results = [
         {
             "ucr_no": record.ucr_no or record.temp_no,
@@ -751,10 +753,15 @@ def ucr_reference_search(request):
             "exporter": party_display(record.exporter_identity, record.exporter_name),
             "importer": party_display(record.importer_identity, record.importer_name),
         }
-        for record in (records[:50] if searched else [])
+        for record in (page_obj.object_list if searched else [])
         if record.ucr_no
     ]
-    return JsonResponse({"results": results})
+    return JsonResponse({
+        "results": results,
+        "total": paginator.count if searched else 0,
+        "page": page_obj.number,
+        "page_count": paginator.num_pages,
+    })
 
 
 def _ucr_attachment_payload(record):
