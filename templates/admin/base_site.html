@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block branding %}
+  {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    /* Neutral sidebar selection and hover (matches the original grey look) */
+    #nav-sidebar a { font-size: .8125rem; color: #334155; }
+    #nav-sidebar a:hover { color: #0f172a; background: #f1f5f9; }
+    #nav-sidebar a.active { color: #0f172a; background: #e2e8f0; font-weight: 600; }
+    html.dark #nav-sidebar a { color: #cbd5e1; }
+    html.dark #nav-sidebar a:hover { color: #f8fafc; background: #1e293b; }
+    html.dark #nav-sidebar a.active { color: #f8fafc; background: #1e293b; }
+  </style>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
