@@ -234,7 +234,7 @@ def _admin_navigation():
         ]
 
 
-def _student_navigation(request):
+def _student_navigation(request, include_home=True):
     """The student/instructor navigation — an independent copy for the student
     portal. Editing this list never affects the administrator sidebar.
 
@@ -244,12 +244,14 @@ def _student_navigation(request):
     from django.urls import reverse
 
     roles = role_context(request)
-    groups = [
-        {
-            "title": "Overview",
-            "items": [{"title": "Dashboard", "icon": "dashboard", "link": reverse("dashboard")}],
-        },
-    ]
+    groups = []
+    if include_home:
+        groups.append(
+            {
+                "title": "Overview",
+                "items": [{"title": "Dashboard", "icon": "dashboard", "link": reverse("dashboard")}],
+            }
+        )
 
     learning = []
     if roles["has_active_enrolment"]:
@@ -284,9 +286,10 @@ def _student_navigation(request):
 
 
 def sidebar_navigation(request):
-    """Dispatch: superusers get the full admin navigation; instructors, staff
-    and students all get the student copy (its own permission rules hide
-    whatever a user may not see). The two lists are independent."""
+    """Dispatch: superusers get the admin navigation plus the student links;
+    instructors, staff and students get the student copy only (its own
+    permission rules hide whatever a user may not see). The two lists are
+    independent — editing one never affects the other."""
     if request.user.is_superuser:
-        return _admin_navigation()
+        return _admin_navigation() + _student_navigation(request, include_home=False)
     return _student_navigation(request)
