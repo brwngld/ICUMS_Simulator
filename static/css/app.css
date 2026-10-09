@@ -493,3 +493,15 @@ html[data-theme="dark"] .module-grid .panel:hover { border-color: var(--accent);
 .link-button:hover { color: var(--accent); }
 
 input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+
+/* --- Sidebar coherence with the admin (user card, sign-out, tip) ------------ */
+.account-summary { padding: .7rem .8rem; border: 1px solid var(--border); border-radius: .75rem; background: #f8f9fc; transition: border-color .2s ease; }
+html[data-theme="dark"] .account-summary { background: #202b47; }
+.account-summary:hover { border-color: #c7cdf7; }
+html[data-theme="dark"] .account-summary:hover { border-color: var(--accent); }
+
+.signout-form .link-button { display: flex; width: 100%; align-items: center; gap: .6rem; margin-top: .35rem; padding: .55rem .8rem; border-radius: .65rem; color: var(--muted); font-weight: 600; text-decoration: none; font-size: .81rem; transition: color .18s ease, background .18s ease; }
+.signout-form .link-button:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); text-decoration: none; }
+.signout-form .link-button .ui-icon { width: 1.05rem; height: 1.05rem; }
+
+.section-heading h2 { padding-bottom: .55rem; border-bottom: 1px solid var(--border); }
