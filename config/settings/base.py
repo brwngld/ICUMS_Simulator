@@ -126,6 +126,18 @@ UNFOLD = {
     ],
     "ENVIRONMENT": lambda request: ["Training environment", "warning"],
     "DASHBOARD_CALLBACK": "core.admin_dashboard.dashboard_callback",
+    "COLORS": {
+        "base": {
+            "50": "#f8fafc", "100": "#f1f5f9", "200": "#e2e8f0", "300": "#cbd5e1",
+            "400": "#94a3b8", "500": "#64748b", "600": "#475569", "700": "#334155",
+            "800": "#1e293b", "900": "#0f172a", "950": "#0a0f1e",
+        },
+        "primary": {
+            "50": "#eef0fd", "100": "#e0e3fb", "200": "#c7cdf7", "300": "#a8aded",
+            "400": "#8a86de", "500": "#5145cd", "600": "#4236b6", "700": "#383093",
+            "800": "#302b76", "900": "#2b2860", "950": "#1b1940",
+        },
+    },
     "ACCOUNT": {
         "navigation": [
             {"title": "Change password", "link": "/accounts/password-change/"},

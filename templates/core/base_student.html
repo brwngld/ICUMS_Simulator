@@ -12,19 +12,22 @@ the content block with their own dash-styled markup.
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261010-11">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261010-12">
   <style>
-    /* Keep the Unfold sidebar's own neutral link colours where app.css
-       element rules (a { color: ... }) would otherwise leak into it. */
+    /* Keep the Unfold chrome's own colours and metrics where app.css
+       element rules (body, headings, sidebar links) would otherwise
+       leak into it. Unfold's utilities sit in a cascade layer, so the
+       reference values are restated here from Unfold's own variables. */
+    body { color: var(--color-font-default-light); background-color: var(--color-base-50); font-size: var(--text-sm); }
+    html.dark body { color: var(--color-font-default-dark); background-color: var(--color-base-900); }
+    h1, h2, h3 { color: inherit; }
     #nav-sidebar a { color: inherit; font-weight: inherit; }
   </style>
   <style>
     .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #5145cd; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; }
-    html.dark .dash, html[data-theme="dark"] .dash { --d-border: #2b3950; --d-muted: #aab4ca; --d-card-bg: #172033; --d-accent: #9b8cff; }
     .dash-head h1 { margin: 0; font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; }
     .dash-head p { margin: .3rem 0 0; color: var(--d-muted); font-size: .8rem; }
     .dash-notice { padding: .55rem .75rem; border-radius: .6rem; background: #fffaeb; color: #795c16; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-align: center; }
-    html.dark .dash-notice, html[data-theme="dark"] .dash-notice { background: #3c321c; color: #f2d889; }
     .dash-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; }
     .dash-card { display: flex; flex-direction: column; gap: .15rem; padding: 1rem 1.1rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg); }
     .dash-card-icon .ui-icon { width: 1.35rem; height: 1.35rem; color: var(--d-accent); }
@@ -41,7 +44,6 @@ the content block with their own dash-styled markup.
     .dash-bars li { display: grid; grid-template-columns: minmax(8rem, 14rem) 1fr 3rem; align-items: center; gap: .75rem; font-size: .8rem; }
     .dash-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .dash-bar-track { display: block; height: .55rem; overflow: hidden; border-radius: 99px; background: #e2e8f0; }
-    html.dark .dash-bar-track, html[data-theme="dark"] .dash-bar-track { background: #2b3950; }
     .dash-bar-fill { display: block; height: 100%; min-width: .35rem; border-radius: 99px; background: var(--d-accent); }
     .dash-bar-value { text-align: right; font-weight: 700; }
     .dash-steps { display: flex; flex-direction: column; gap: .75rem; margin: 0; padding: 0; counter-reset: steps; list-style: none; }
@@ -58,8 +60,6 @@ the content block with their own dash-styled markup.
     .dash-pill { display: inline-block; padding: .12rem .55rem; border-radius: 99px; font-size: .68rem; font-weight: 650; }
     .dash-pill.is-ok { color: #067a5e; background: #e2f6ef; }
     .dash-pill.is-warn { color: #93530a; background: #fdf0d9; }
-    html.dark .dash-pill.is-ok, html[data-theme="dark"] .dash-pill.is-ok { color: #7fd8bd; background: #12433a; }
-    html.dark .dash-pill.is-warn, html[data-theme="dark"] .dash-pill.is-warn { color: #f2d18a; background: #3c321c; }
     .dash-empty { margin: .75rem 0; color: var(--d-muted); font-size: .8rem; }
     /* reading and workspace components */
     .dash-copy h2 { margin: 1.1rem 0 .4rem; font-size: 1rem; font-weight: 700; }
@@ -122,7 +122,6 @@ the content block with their own dash-styled markup.
     .dash-form .primary-button:hover, .dash-actions .primary-button:hover { filter: brightness(.92); }
     .dash-eyebrow { margin: 0 0 .2rem; color: var(--d-accent); font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
     .dash-eyebrow { --d-accent: #5145cd; }
-    #nav-sidebar a { font-size: .8125rem; }
   </style>
 {% endblock %}
 
