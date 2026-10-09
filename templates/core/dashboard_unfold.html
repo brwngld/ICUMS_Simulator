@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Overview · ICUMS Simulator{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/student-dashboard.css' %}?v=20261010-3">
+{% endblock %}
+
+{% block content %}
+  <div class="dash-notice">TRAINING SIMULATOR — NOT OFFICIAL ICUMS</div>
+  {% include "components/student_overview.html" %}
+{% endblock %}

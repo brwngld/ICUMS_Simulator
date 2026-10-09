@@ -132,3 +132,6 @@ html.dark .dash-pill.is-warn, html[data-theme="dark"] .dash-pill.is-warn { color
   .dash-head, .dash-card, .dash-panel, .dash-donut, .dash-legend li, .dash-bar-fill, .dash-attention li { animation: none; }
   .dash-card, .dash-panel, .dash-card-icon .ui-icon, .dash-attention li, .dash-table tbody tr { transition: none; }
 }
+
+.dash-notice { margin-bottom: 1rem; padding: .55rem .75rem; border-radius: .6rem; background: #fffaeb; color: #795c16; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-align: center; }
+html.dark .dash-notice, html[data-theme="dark"] .dash-notice { background: #3c321c; color: #f2d889; }

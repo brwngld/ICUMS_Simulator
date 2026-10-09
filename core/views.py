@@ -1,3 +1,4 @@
+from django.contrib import admin
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
@@ -32,7 +33,7 @@ def dashboard(request):
     completion_record = CompletionRecord.objects.filter(enrolment=enrolment).first() if enrolment else None
     simulator_credential = SimulatorCredential.objects.filter(user=request.user).first()
     context = {"role_names": role_names, "enrolment": enrolment, "module_summaries": summaries, "programme_progress": programme_progress, "final_assessment": final_assessment, "completion_record": completion_record, "simulator_credential": simulator_credential, "log_entries": LogEntry.objects.select_related("content_type", "user").order_by("-action_time")[:8]}
-    return render(request, "core/dashboard.html", dashboard_callback(request, context))
+    return render(request, "core/dashboard_unfold.html", admin.site.each_context(request) | dashboard_callback(request, context))
 
 
 @login_required
