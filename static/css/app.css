@@ -146,9 +146,9 @@ button, a, input, select, textarea { transition: background-color .18s, border-c
 .brand-caption { display: block; margin-top: .05rem; color: var(--muted); font-size: .67rem; font-weight: 500; letter-spacing: .02em; }
 .nav-label { margin: 2.8rem .7rem .65rem; font-size: .65rem; text-transform: uppercase; letter-spacing: .13em; font-weight: 700; color: #77829b; }
 .top-nav { display: flex; flex-direction: column; align-items: stretch; gap: .35rem; }
-.top-nav a { display: flex; align-items: center; gap: .8rem; padding: .8rem .75rem; border-radius: .65rem; color: #626e86; font-size: .81rem; font-weight: 600; text-decoration: none; }
-.top-nav a:hover { color: var(--accent); background: #f5f3ff; }
-.top-nav a[aria-current="page"] { color: var(--accent); background: #eeebff; }
+.top-nav a { display: flex; align-items: center; gap: .8rem; padding: .65rem .75rem; border-radius: .6rem; color: #626e86; font-size: .81rem; font-weight: 600; text-decoration: none; transition: background .18s ease, color .18s ease; }
+.top-nav a:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.top-nav a[aria-current="page"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
 .top-nav a[aria-current="page"]::after { content: ""; margin-left: auto; height: .4rem; width: .4rem; border-radius: 50%; background: var(--accent); }
 .sidebar-bottom { margin-top: auto; padding-top: 2.5rem; }
 .sidebar-tip { padding: 1rem; border: 1px solid var(--border); background: #f8f9fc; border-radius: .75rem; font-size: .75rem; }
@@ -325,11 +325,11 @@ tbody tr:hover { background: #faf9ff; }
 /* Persistent dark theme shared by learner and instructor-facing pages. */
 html[data-theme="dark"] {
   color-scheme: dark;
-  --page: #101426;
-  --panel: #18213a;
+  --page: #0f172a;
+  --panel: #172033;
   --text: #edf1ff;
   --muted: #aab4ca;
-  --border: #35415f;
+  --border: #2b3950;
   --accent: #9b8cff;
   --warning: #3c321c;
   --warning-text: #f2d889;
@@ -344,13 +344,13 @@ html[data-theme="dark"] .table-wrapper,
 html[data-theme="dark"] .stat-card,
 html[data-theme="dark"] table { background: var(--panel); }
 html[data-theme="dark"] .top-nav a { color: #aab4ca; }
-html[data-theme="dark"] .top-nav a:hover { color: var(--accent); background: #27244c; }
-html[data-theme="dark"] .top-nav a[aria-current="page"] { color: #d5d0ff; background: #302b5e; }
-html[data-theme="dark"] .sidebar-tip { background: #202b47; }
+html[data-theme="dark"] .top-nav a:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+html[data-theme="dark"] .top-nav a[aria-current="page"] { color: #d5d0ff; background: color-mix(in srgb, var(--accent) 16%, transparent); }
+html[data-theme="dark"] .sidebar-tip { background: #1c2739; }
 html[data-theme="dark"] .workspace-bar strong { color: #dbe1f2; }
 html[data-theme="dark"] input,
 html[data-theme="dark"] textarea,
-html[data-theme="dark"] select { color: var(--text); background: #111a30; border-color: var(--border); }
+html[data-theme="dark"] select { color: var(--text); background: #131c2e; border-color: var(--border); }
 html[data-theme="dark"] .secondary-button { color: var(--text); background: var(--panel); }
 html[data-theme="dark"] .secondary-button:hover { background: #27244c; border-color: #7468dc; }
 html[data-theme="dark"] .message { background: #16352f; border-color: #286b5b; }
@@ -496,12 +496,14 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 
 /* --- Sidebar coherence with the admin (user card, sign-out, tip) ------------ */
 .account-summary { padding: .7rem .8rem; border: 1px solid var(--border); border-radius: .75rem; background: #f8f9fc; transition: border-color .2s ease; }
-html[data-theme="dark"] .account-summary { background: #202b47; }
+html[data-theme="dark"] .account-summary { background: #1c2739; }
 .account-summary:hover { border-color: #c7cdf7; }
 html[data-theme="dark"] .account-summary:hover { border-color: var(--accent); }
 
-.signout-form .link-button { display: flex; width: 100%; align-items: center; gap: .6rem; margin-top: .35rem; padding: .55rem .8rem; border-radius: .65rem; color: var(--muted); font-weight: 600; text-decoration: none; font-size: .81rem; transition: color .18s ease, background .18s ease; }
-.signout-form .link-button:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); text-decoration: none; }
+.signout-form .link-button { display: flex; width: 100%; align-items: center; gap: .6rem; margin-top: .35rem; padding: .55rem .8rem; border-radius: .65rem; color: #b42318; font-weight: 600; text-decoration: none; font-size: .81rem; transition: color .18s ease, background .18s ease; }
+.signout-form .link-button:hover { background: color-mix(in srgb, #b42318 9%, transparent); text-decoration: none; }
+html[data-theme="dark"] .signout-form .link-button { color: #f87171; }
+html[data-theme="dark"] .signout-form .link-button:hover { background: color-mix(in srgb, #f87171 10%, transparent); }
 .signout-form .link-button .ui-icon { width: 1.05rem; height: 1.05rem; }
 
 .section-heading h2 { padding-bottom: .55rem; border-bottom: 1px solid var(--border); }
