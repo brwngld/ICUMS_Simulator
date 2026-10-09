@@ -20,6 +20,7 @@ from django.urls import include, path
 from django.views.generic import RedirectView
 
 urlpatterns = [
+    path("admin/login/", RedirectView.as_view(url="/accounts/login/", permanent=False), name="admin-login-redirect"),
     path('admin/', admin.site.urls),
     path("favicon.ico", RedirectView.as_view(url="/static/image/favicon.ico", permanent=True), name="favicon"),
     path("accounts/login/", auth_views.LoginView.as_view(redirect_authenticated_user=True), name="login"),

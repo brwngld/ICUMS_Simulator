@@ -280,16 +280,6 @@ def _student_navigation(request):
             }
         )
 
-    if request.user.is_staff:
-        groups.append(
-            {
-                "title": "Administration",
-                "items": [
-                    {"title": "Advanced administration", "icon": "settings", "link": reverse("admin:index")},
-                ],
-            }
-        )
-
     return groups
 
 
