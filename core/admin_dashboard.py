@@ -234,23 +234,63 @@ def _admin_navigation():
         ]
 
 
-def _student_navigation():
+def _student_navigation(request):
     """The student/instructor navigation — an independent copy for the student
-    portal. Editing this list never affects the administrator sidebar."""
-    return [
+    portal. Editing this list never affects the administrator sidebar.
+
+    Items and visibility mirror the original student sidebar exactly by
+    reusing the same role context the old template relied on."""
+    from accounts.context_processors import role_context
+    from django.urls import reverse
+
+    roles = role_context(request)
+    groups = [
         {
             "title": "Overview",
-            "items": [
-                {"title": "Dashboard", "icon": "dashboard", "link": reverse_lazy("dashboard")},
-            ],
+            "items": [{"title": "Dashboard", "icon": "dashboard", "link": reverse("dashboard")}],
         },
+    ]
+
+    learning = []
+    if roles["has_active_enrolment"]:
+        learning.append({"title": "Theory", "icon": "menu_book", "link": reverse("roadmap")})
+    if roles["can_access_practical"]:
+        learning.append({"title": "Practical/Theory", "icon": "layers", "link": reverse("scenario-list")})
+    if learning:
+        groups.append({"title": "Learning", "items": learning})
+
+    groups.append(
         {
             "title": "Simulator",
             "items": [
-                {"title": "Simulator sandbox", "icon": "local_shipping", "link": reverse_lazy("simulator-portal")},
+                {"title": "Simulator sandbox", "icon": "box", "link": reverse("simulator-portal")},
             ],
-        },
-    ]
+        }
+    )
+
+    if roles["can_access_instructor_portal"]:
+        groups.append(
+            {
+                "title": "Instructor tools",
+                "items": [
+                    {"title": "Instructor", "icon": "users", "link": reverse("instructor-dashboard")},
+                    {"title": "Theory builder", "icon": "edit_note", "link": reverse("course-builder") + "?path=theory"},
+                    {"title": "Practical/Theory builder", "icon": "layers", "link": reverse("course-builder") + "?path=combined"},
+                ],
+            }
+        )
+
+    if request.user.is_staff:
+        groups.append(
+            {
+                "title": "Administration",
+                "items": [
+                    {"title": "Advanced administration", "icon": "settings", "link": reverse("admin:index")},
+                ],
+            }
+        )
+
+    return groups
 
 
 def sidebar_navigation(request):
@@ -258,4 +298,4 @@ def sidebar_navigation(request):
     student copy. The two lists are independent."""
     if request.user.is_staff:
         return _admin_navigation()
-    return _student_navigation()
+    return _student_navigation(request)
