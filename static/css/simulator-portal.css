@@ -433,3 +433,26 @@ html[data-theme="dark"] .portal-main :is(input:not([type="checkbox"]):not([type=
 }
 html[data-theme="dark"] .portal-main :is(input, textarea)::placeholder { color: #7a8497; opacity: 1; -webkit-text-fill-color: #7a8497; }
 html[data-theme="dark"] .portal-main :is(button, input[type="submit"])[disabled] { opacity: .45; }
+
+/* --- Motion: entrance and hover coherence with the admin dashboard ---------- */
+@keyframes portal-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.portal-card { animation: portal-rise .5s cubic-bezier(.22, .9, .3, 1) backwards; }
+.portal-card:nth-child(1) { animation-delay: .05s; }
+.portal-card:nth-child(2) { animation-delay: .12s; }
+.portal-card:nth-child(3) { animation-delay: .19s; }
+.portal-card:nth-child(4) { animation-delay: .26s; }
+.portal-card:nth-child(5) { animation-delay: .33s; }
+.portal-card:nth-child(n + 6) { animation-delay: .4s; }
+
+.shortcut-button { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+.shortcut-button:hover { transform: translateY(-2px); box-shadow: 0 8px 18px #10142614; }
+html[data-theme="dark"] .shortcut-button:hover { box-shadow: 0 8px 18px #00000059; }
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-card { animation: none; }
+  .shortcut-button { transition: none; }
+}

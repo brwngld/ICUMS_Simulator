@@ -457,3 +457,30 @@ html[data-theme="dark"] .stat-card:hover { border-color: var(--accent); }
 html[data-theme="dark"] .module-grid .panel:hover { border-color: var(--accent); }
 
 .journey-graphic > .ui-icon { box-shadow: var(--shadow-lift); }
+
+/* --- Motion: entrance animations matching the admin dashboard --------------- */
+@keyframes app-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stats-grid .stat-card { animation: app-rise .45s cubic-bezier(.22, .9, .3, 1) backwards; }
+.stats-grid .stat-card:nth-child(1) { animation-delay: .04s; }
+.stats-grid .stat-card:nth-child(2) { animation-delay: .12s; }
+.stats-grid .stat-card:nth-child(3) { animation-delay: .2s; }
+
+.module-grid .panel { animation: app-rise .5s cubic-bezier(.22, .9, .3, 1) backwards; }
+.module-grid .panel:nth-child(1) { animation-delay: .1s; }
+.module-grid .panel:nth-child(2) { animation-delay: .17s; }
+.module-grid .panel:nth-child(3) { animation-delay: .24s; }
+.module-grid .panel:nth-child(4) { animation-delay: .31s; }
+.module-grid .panel:nth-child(5) { animation-delay: .38s; }
+.module-grid .panel:nth-child(6) { animation-delay: .45s; }
+.module-grid .panel:nth-child(n + 7) { animation-delay: .52s; }
+
+.journey-panel, .account-panel { animation: app-rise .5s cubic-bezier(.22, .9, .3, 1) .28s backwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .stats-grid .stat-card, .module-grid .panel, .journey-panel, .account-panel { animation: none; }
+  .stat-card, .module-grid .panel { transition: none; }
+}
