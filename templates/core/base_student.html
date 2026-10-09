@@ -14,6 +14,11 @@ the content block with their own dash-styled markup.
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261010-11">
   <style>
+    /* Keep the Unfold sidebar's own neutral link colours where app.css
+       element rules (a { color: ... }) would otherwise leak into it. */
+    #nav-sidebar a { color: inherit; font-weight: inherit; }
+  </style>
+  <style>
     .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #5145cd; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; }
     html.dark .dash, html[data-theme="dark"] .dash { --d-border: #2b3950; --d-muted: #aab4ca; --d-card-bg: #172033; --d-accent: #9b8cff; }
     .dash-head h1 { margin: 0; font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; }
