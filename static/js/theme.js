@@ -9,10 +9,24 @@
   const legacyKey = "icums-theme";
   const systemDark = () => window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
+  // Unfold's Alpine persistence JSON-decodes "adminTheme" on every page; a raw
+  // value throws there and leaves the page hidden behind x-cloak. This
+  // controller always writes the JSON encoding and reads both encodings.
+  const decode = (raw) => {
+    if (raw === null) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "string") return parsed;
+    } catch (error) { /* raw string written by earlier builds */ }
+    return raw;
+  };
+
   const storedTheme = () => {
-    const t = localStorage.getItem(adminKey) ?? localStorage.getItem(legacyKey);
+    const t = decode(localStorage.getItem(adminKey)) ?? decode(localStorage.getItem(legacyKey));
     return t === "dark" || t === "light" ? t : "auto";
   };
+
+  const writeAdmin = (t) => localStorage.setItem(adminKey, JSON.stringify(t));
 
   const resolveTheme = () => {
     const t = storedTheme();
@@ -39,16 +53,26 @@
       localStorage.removeItem(adminKey);
       localStorage.removeItem(legacyKey);
     } else {
-      localStorage.setItem(adminKey, t);
+      writeAdmin(t);
       localStorage.setItem(legacyKey, t);
     }
     apply();
   };
 
-  // One-time migration: legacy icums-theme preference becomes the admin preference
-  if (localStorage.getItem(adminKey) === null && localStorage.getItem(legacyKey)) {
-    const legacy = localStorage.getItem(legacyKey);
-    if (legacy === "dark" || legacy === "light") localStorage.setItem(adminKey, legacy);
+  // Heal a raw adminTheme left by earlier builds so Unfold's JSON.parse
+  // survives, and migrate the legacy icums-theme preference.
+  const rawAdmin = localStorage.getItem(adminKey);
+  if (rawAdmin !== null) {
+    let isJsonString = false;
+    try { isJsonString = typeof JSON.parse(rawAdmin) === "string"; } catch (error) {}
+    if (!isJsonString) {
+      const t = decode(rawAdmin);
+      if (t === "dark" || t === "light") writeAdmin(t);
+      else localStorage.removeItem(adminKey);
+    }
+  } else if (localStorage.getItem(legacyKey)) {
+    const legacy = decode(localStorage.getItem(legacyKey));
+    if (legacy === "dark" || legacy === "light") writeAdmin(legacy);
   }
 
   // Student/tutor dashboard theme picker

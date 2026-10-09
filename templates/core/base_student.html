@@ -12,6 +12,7 @@ the content block with their own dash-styled markup.
 
 {% block extrastyle %}
   {{ block.super }}
+  <script src="{% static 'js/theme.js' %}?v=20261010-3"></script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261010-12">
   <style>
     /* Keep the Unfold chrome's own colours and metrics where app.css
