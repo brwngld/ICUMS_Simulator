@@ -5,11 +5,11 @@
 {% block workspace_name %}Dashboard{% endblock %}
 
 {% block extrahead %}
-  <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}?v=20261010-3">
+  <link rel="stylesheet" href="{% static 'css/student-dashboard.css' %}?v=20261010-3">
 {% endblock %}
 
 {% block content %}
-{% include "components/overview_dashboard.html" %}
+{% include "components/student_overview.html" %}
 {% if enrolment %}
   <section class="welcome-banner" aria-labelledby="continue-title"><div><p class="eyebrow">{{ enrolment.programme_version.programme.name }}</p><h2 id="continue-title">Build your customs expertise,<br>one step at a time.</h2><p>Learn the essentials, put your knowledge into practice, and follow your progress along the way.</p><a class="primary-button" href="{% url 'roadmap' %}">Continue learning {% include "components/icon.html" with name="arrow" %}</a></div><div class="journey-graphic" aria-hidden="true">{% include "components/icon.html" with name="book" %}<span class="graphic-check">{% include "components/icon.html" with name="check" %}</span></div></section>
   <div class="section-heading"><div><h2>Your learning modules</h2><p>A clear path from fundamentals to practice.</p></div><a class="primary-link" href="{% url 'roadmap' %}">View roadmap →</a></div>
