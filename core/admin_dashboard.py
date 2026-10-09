@@ -5,6 +5,8 @@ admin changelists already expose. Nothing here mutates data or changes
 any admin behaviour; it purely feeds templates/admin/index.html.
 """
 
+from django.contrib import admin as admin_site
+from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 
 from accounts.models import User
@@ -287,6 +289,24 @@ def _student_navigation(request):
         )
 
     return groups
+
+
+def render_student_page(request, template, context=None):
+    """Render a student/tutor page in the shared Unfold shell.
+
+    Supplies the admin chrome context and the role-appropriate sidebar
+    navigation as presentation context only — this does not touch Django
+    Admin's has_permission authorization boundary.
+    """
+    from django.contrib.auth import get_user_model
+
+    context = dict(context or {})
+    context.update(admin_site.site.each_context(request))
+    if request.user.is_authenticated:
+        context["sidebar_navigation"] = admin_site.site.get_sidebar_list(request)
+    else:
+        context["sidebar_navigation"] = []
+    return render(request, template, context)
 
 
 def sidebar_navigation(request):

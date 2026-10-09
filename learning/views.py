@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from core.admin_dashboard import render_student_page
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 from progress.models import LessonProgress, ModuleProgress
 from assessments.models import Assessment, LessonCheck, LessonCheckResponse
@@ -32,7 +33,7 @@ def roadmap(request):
     enrolment = active_enrolment_for(request.user)
     modules = Module.objects.filter(programme_version=enrolment.programme_version, is_published=True)
     final_assessment = Assessment.objects.filter(programme_version=enrolment.programme_version, assessment_type=Assessment.Type.FINAL_THEORY, is_published=True).first()
-    return render(request, "learning/roadmap.html", {"enrolment": enrolment, "module_summaries": [module_summary(enrolment, module) for module in modules], "theory_completed": programme_theory_completed(enrolment), "final_assessment": final_assessment})
+    return render_student_page(request, "learning/roadmap.html", {"enrolment": enrolment, "module_summaries": [module_summary(enrolment, module) for module in modules], "theory_completed": programme_theory_completed(enrolment), "final_assessment": final_assessment})
 
 
 @login_required

@@ -6,6 +6,7 @@ from django.views.decorators.http import require_http_methods
 from audit.models import AuditEvent
 
 from .models import DisclaimerAcceptance
+from core.admin_dashboard import render_student_page
 from .services import current_disclaimer
 
 
@@ -29,4 +30,4 @@ def disclaimer(request):
                 ip_address=request.META.get("REMOTE_ADDR"),
             )
         return redirect("dashboard")
-    return render(request, "onboarding/disclaimer.html", {"disclaimer": active_disclaimer})
+    return render_student_page(request, "onboarding/disclaimer.html", {"disclaimer": active_disclaimer})

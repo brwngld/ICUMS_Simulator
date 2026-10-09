@@ -1,29 +1,51 @@
-{% extends "base.html" %}
+{% extends "core/base_student.html" %}
 
 {% block title %}Theory roadmap · ICUMS Simulator{% endblock %}
 
 {% block content %}
-<p class="eyebrow">{{ enrolment.programme_version.programme.name }}</p>
-<h1>Theory roadmap</h1>
-<p class="muted">Complete each required module in order. Completed material remains available for review.</p>
-<div class="roadmap-list">
-  {% for item in module_summaries %}
-    <article class="panel roadmap-item">
-      <div><p class="eyebrow">Module {{ forloop.counter }}</p><h2>{{ item.module.title }}</h2><p>{{ item.module.description }}</p></div>
+  <div class="dash">
+    <header class="dash-head">
       <div>
-        <p><strong>{{ item.percentage }}%</strong> · {{ item.completed_count }}/{{ item.lesson_count }} lessons</p>
-        {% if item.unlocked %}
-          {% if item.first_lesson %}<a class="primary-link" href="{% url 'lesson-detail' item.module.code item.first_lesson.slug %}">Start or review</a>{% endif %}
-        {% else %}<p class="muted">Locked until {{ item.module.prerequisite.title }} is passed.</p>{% endif %}
+        <p class="dash-eyebrow">{{ enrolment.programme_version.programme.name }}</p>
+        <h1>Theory roadmap</h1>
+        <p>Complete each required module in order. Completed material remains available for review.</p>
       </div>
-    </article>
-  {% empty %}<article class="panel"><p>No published theory modules are available.</p></article>{% endfor %}
-</div>
-{% if final_assessment %}
-  <section class="panel account-panel">
-    <p class="eyebrow">Final theory examination</p>
-    <h2>{{ final_assessment.title }}</h2>
-    {% if theory_completed %}<a class="primary-link" href="{% url 'assessment-take' final_assessment.pk %}">Start final theory examination</a>{% else %}<p class="muted">Complete every theory module to unlock this examination.</p>{% endif %}
-  </section>
-{% endif %}
+    </header>
+
+    <section class="dash-panel">
+      <div class="dash-panel-head">
+        <div><h2>Modules</h2><p>Complete in order — progress is saved as you go.</p></div>
+      </div>
+      <ul class="dash-module-list">
+        {% for item in module_summaries %}
+          <li class="dash-module">
+            <div class="dash-module-info">
+              <span class="dash-eyebrow">Module {{ forloop.counter }}</span>
+              <strong>{{ item.module.title }}</strong>
+              <small>{{ item.module.description }}</small>
+            </div>
+            <div class="dash-module-progress">
+              <span class="dash-bar-track"><span class="dash-bar-fill" style="width: {{ item.percentage }}%"></span></span>
+              <span class="dash-module-meta"><strong>{{ item.percentage }}%</strong> · {{ item.completed_count }}/{{ item.lesson_count }} lessons</span>
+            </div>
+            {% if item.unlocked %}
+              {% if item.first_lesson %}<a class="dash-module-link" href="{% url 'lesson-detail' item.module.code item.first_lesson.slug %}">Start or review →</a>{% endif %}
+            {% else %}<small class="dash-muted">Locked until {{ item.module.prerequisite.title }} is passed.</small>{% endif %}
+          </li>
+        {% empty %}
+          <li class="dash-empty">No published theory modules are available.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    {% if final_assessment %}
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div><h2>Final theory examination</h2><p>Unlocks when every theory module is complete.</p></div>
+        </div>
+        <p style="margin: .75rem 0 0;"><strong>{{ final_assessment.title }}</strong></p>
+        {% if theory_completed %}<a class="dash-module-link" href="{% url 'assessment-take' final_assessment.pk %}">Start final theory examination →</a>{% else %}<small class="dash-muted">Complete every theory module to unlock this examination.</small>{% endif %}
+      </section>
+    {% endif %}
+  </div>
 {% endblock %}

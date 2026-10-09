@@ -1,0 +1,68 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% comment %}
+Shared shell for student/tutor pages rendered in the Unfold interface.
+The view supplies `sidebar_navigation` (role-appropriate) via
+core.admin_dashboard.render_student_page. Pages extend this and fill
+the content block with their own dash-styled markup.
+{% endcomment %}
+
+{% block title %}ICUMS Simulator{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #5145cd; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; }
+    html.dark .dash, html[data-theme="dark"] .dash { --d-border: #2b3950; --d-muted: #aab4ca; --d-card-bg: #172033; --d-accent: #9b8cff; }
+    .dash-head h1 { margin: 0; font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; }
+    .dash-head p { margin: .3rem 0 0; color: var(--d-muted); font-size: .8rem; }
+    .dash-notice { padding: .55rem .75rem; border-radius: .6rem; background: #fffaeb; color: #795c16; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-align: center; }
+    html.dark .dash-notice, html[data-theme="dark"] .dash-notice { background: #3c321c; color: #f2d889; }
+    .dash-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; }
+    .dash-card { display: flex; flex-direction: column; gap: .15rem; padding: 1rem 1.1rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg); }
+    .dash-card-icon .ui-icon { width: 1.35rem; height: 1.35rem; color: var(--d-accent); }
+    .dash-card-label { margin-top: .35rem; color: var(--d-muted); font-size: .72rem; font-weight: 600; letter-spacing: .02em; }
+    .dash-card-value { font-size: 1.5rem; font-weight: 750; letter-spacing: -.03em; line-height: 1.2; }
+    .dash-card-sub { color: var(--d-muted); font-size: .7rem; }
+    .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1rem; }
+    .dash-panel { padding: 1.1rem 1.2rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg); }
+    .dash-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: .75rem; margin-bottom: .75rem; border-bottom: 1px solid var(--d-border); }
+    .dash-panel-head h2 { margin: 0; font-size: .95rem; font-weight: 700; }
+    .dash-panel-head p { margin: .15rem 0 0; color: var(--d-muted); font-size: .72rem; }
+    .dash-panel a { color: var(--d-accent); font-weight: 600; }
+    .dash-bars { display: flex; flex-direction: column; gap: .7rem; margin: 0; padding: 0; list-style: none; }
+    .dash-bars li { display: grid; grid-template-columns: minmax(8rem, 14rem) 1fr 3rem; align-items: center; gap: .75rem; font-size: .8rem; }
+    .dash-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dash-bar-track { display: block; height: .55rem; overflow: hidden; border-radius: 99px; background: #e2e8f0; }
+    html.dark .dash-bar-track, html[data-theme="dark"] .dash-bar-track { background: #2b3950; }
+    .dash-bar-fill { display: block; height: 100%; min-width: .35rem; border-radius: 99px; background: var(--d-accent); }
+    .dash-bar-value { text-align: right; font-weight: 700; }
+    .dash-steps { display: flex; flex-direction: column; gap: .75rem; margin: 0; padding: 0; counter-reset: steps; list-style: none; }
+    .dash-steps li { display: flex; align-items: flex-start; gap: .8rem; padding: .6rem .75rem; counter-increment: steps; }
+    .dash-steps li::before { content: counter(steps); display: grid; place-items: center; flex-shrink: 0; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--d-accent); color: #fff; font-size: .78rem; font-weight: 700; }
+    .dash-steps strong { display: block; font-size: .85rem; }
+    .dash-steps small { color: var(--d-muted); font-size: .74rem; }
+    .dash-legend { display: flex; flex-direction: column; gap: .45rem; margin: 0; padding: 0; list-style: none; font-size: .8rem; }
+    .dash-legend li { display: flex; align-items: center; gap: .5rem; }
+    .dash-dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; background: var(--d-accent); }
+    .dash-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .dash-table th { padding: .5rem .5rem .4rem; border-bottom: 1px solid var(--d-border); color: var(--d-muted); font-size: .7rem; font-weight: 650; text-align: left; }
+    .dash-table td { padding: .5rem .5rem; }
+    .dash-pill { display: inline-block; padding: .12rem .55rem; border-radius: 99px; font-size: .68rem; font-weight: 650; }
+    .dash-pill.is-ok { color: #067a5e; background: #e2f6ef; }
+    .dash-pill.is-warn { color: #93530a; background: #fdf0d9; }
+    html.dark .dash-pill.is-ok, html[data-theme="dark"] .dash-pill.is-ok { color: #7fd8bd; background: #12433a; }
+    html.dark .dash-pill.is-warn, html[data-theme="dark"] .dash-pill.is-warn { color: #f2d18a; background: #3c321c; }
+    .dash-empty { margin: .75rem 0; color: var(--d-muted); font-size: .8rem; }
+    .dash-form { display: flex; flex-direction: column; gap: .75rem; margin: 1rem 0 0; }
+    .dash-form label { display: flex; align-items: flex-start; gap: .6rem; font-size: .8rem; }
+    .dash-form input[type="checkbox"] { margin-top: .15rem; }
+    .dash-form .primary-button, .dash-actions .primary-button { align-self: flex-start; margin-top: .25rem; padding: .6rem 1.1rem; border: 0; border-radius: .6rem; background: var(--d-accent, #5145cd); color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+    .dash-form .primary-button:hover, .dash-actions .primary-button:hover { filter: brightness(.92); }
+    .dash-eyebrow { margin: 0 0 .2rem; color: var(--d-accent); font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .dash-eyebrow { --d-accent: #5145cd; }
+  </style>
+{% endblock %}
+
+{% block content %}{% endblock %}

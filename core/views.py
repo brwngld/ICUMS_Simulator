@@ -15,7 +15,7 @@ from learning.services import module_summary
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 from progress.models import ProgrammeProgress
 from accounts.models import SimulatorCredential
-from .admin_dashboard import dashboard_callback
+from .admin_dashboard import dashboard_callback, render_student_page
 
 
 @login_required
@@ -37,7 +37,7 @@ def dashboard(request):
     # sidebar content without touching Django Admin's has_permission gate —
     # admin resources remain protected by the middleware and model perms.
     context["sidebar_navigation"] = admin.site.get_sidebar_list(request)
-    return render(request, "core/dashboard_unfold.html", admin.site.each_context(request) | context)
+    return render_student_page(request, "core/dashboard_unfold.html", context)
 
 
 @login_required
@@ -62,4 +62,4 @@ def orientation(request):
                 ip_address=request.META.get("REMOTE_ADDR"),
             )
         return redirect("dashboard")
-    return render(request, "core/orientation.html", {"programme_progress": programme_progress})
+    return render_student_page(request, "core/orientation.html", {"programme_progress": programme_progress})
