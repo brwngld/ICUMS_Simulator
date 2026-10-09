@@ -1,21 +1,30 @@
-{% extends "base.html" %}
+{% extends "core/base_student.html" %}
 
 {% block title %}{{ scenario_version.scenario.title }} · ICUMS Simulator{% endblock %}
 
 {% block content %}
-<p class="eyebrow">{{ scenario_version.scenario.get_area_display }} · {{ scenario_version.get_purpose_display }} · {{ scenario_version.get_assistance_mode_display }}</p>
-<h1>{{ scenario_version.scenario.title }}</h1>
-<section class="reading-panel formatted-copy">
-  <h2>Briefing</h2>
-  {{ scenario_version.briefing|linebreaks }}
-  <h2>Learning objective</h2>
-  {{ scenario_version.learning_objective|linebreaks }}
-  <p class="reference-label"><strong>Screen structure:</strong> {{ scenario_version.get_reference_status_display }}</p>
-  {% if scenario_version.maximum_attempts %}<p><strong>Attempt limit:</strong> {{ scenario_version.maximum_attempts }}</p>{% endif %}
-  <form method="post" action="{% url 'scenario-start' scenario_version.pk %}">
-    {% csrf_token %}
-    <button class="primary-button" type="submit">{% if active_attempt %}Resume saved attempt{% else %}Start scenario{% endif %}</button>
-  </form>
-</section>
-{% endblock %}
+  <div class="dash">
+    <header class="dash-head">
+      <div>
+        <p class="dash-eyebrow">{{ scenario_version.scenario.get_area_display }} · {{ scenario_version.get_purpose_display }} · {{ scenario_version.get_assistance_mode_display }}</p>
+        <h1>{{ scenario_version.scenario.title }}</h1>
+      </div>
+    </header>
 
+    <section class="dash-panel">
+      <div class="dash-panel-head">
+        <div><h2>Briefing</h2><p>Scenario briefing and learning objective</p></div>
+      </div>
+      <div class="dash-copy">
+        {{ scenario_version.briefing|linebreaks }}
+        <h2>Learning objective</h2>
+        {{ scenario_version.learning_objective|linebreaks }}
+        <p class="dash-reference"><strong>Screen structure:</strong> {{ scenario_version.get_reference_status_display }}</p>
+        {% if scenario_version.maximum_attempts %}<p><strong>Attempt limit:</strong> {{ scenario_version.maximum_attempts }}</p>{% endif %}
+      </div>
+      <div class="dash-actions">
+        <form method="post" action="{% url 'scenario-start' scenario_version.pk %}">{% csrf_token %}<button class="dash-primary" type="submit">{% if active_attempt %}Resume saved attempt{% else %}Start scenario{% endif %}</button></form>
+      </div>
+    </section>
+  </div>
+{% endblock %}

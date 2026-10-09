@@ -1,22 +1,28 @@
-{% extends "base.html" %}
+{% extends "core/base_student.html" %}
 
 {% block title %}Practical training · ICUMS Simulator{% endblock %}
 
 {% block content %}
-<p class="eyebrow">Practical training</p>
-<h1>Customs training scenarios</h1>
-<p class="muted">All transactions are fictitious. Scenario screens may be conceptual until validated against permitted reference material.</p>
-<div class="module-grid">
-  {% for version in scenario_versions %}
-    <article class="panel module-card">
-      <div class="module-card-top"><span class="module-icon">{% include "components/icon.html" with name="box" %}</span><span class="badge badge-active">{{ version.get_assistance_mode_display }}</span></div>
-      <p class="eyebrow">{{ version.scenario.get_area_display }} · {{ version.get_purpose_display }} · {{ version.get_assistance_mode_display }}</p>
-      <h2>{{ version.scenario.title }}</h2>
-      <p>{{ version.learning_objective }}</p>
-      <p class="muted">Structure: {{ version.get_reference_status_display }}</p>
-      <a class="primary-link card-action" href="{% url 'scenario-detail' version.pk %}">View scenario {% include "components/icon.html" with name="arrow" %}</a>
-    </article>
-  {% empty %}<article class="panel"><p>No practical scenarios are published yet.</p></article>{% endfor %}
-</div>
-{% endblock %}
+  <div class="dash">
+    <header class="dash-head">
+      <div>
+        <p class="dash-eyebrow">Practical training</p>
+        <h1>Customs training scenarios</h1>
+        <p>All transactions are fictitious. Scenario screens may be conceptual until validated against permitted reference material.</p>
+      </div>
+    </header>
 
+    <div class="dash-module-grid">
+      {% for version in scenario_versions %}
+        <article class="dash-panel dash-module">
+          <div class="dash-module-top"><span class="dash-module-icon" aria-hidden="true">{% include "components/icon.html" with name="box" %}</span><span class="dash-pill is-ok">{{ version.get_assistance_mode_display }}</span></div>
+          <p class="dash-eyebrow">{{ version.scenario.get_area_display }} · {{ version.get_purpose_display }}</p>
+          <strong>{{ version.scenario.title }}</strong>
+          <small>{{ version.learning_objective }}</small>
+          <small class="dash-muted">Structure: {{ version.get_reference_status_display }}</small>
+          <a class="dash-module-link" href="{% url 'scenario-detail' version.pk %}">View scenario →</a>
+        </article>
+      {% empty %}<section class="dash-panel"><p class="dash-empty">No practical scenarios are published yet.</p></section>{% endfor %}
+    </div>
+  </div>
+{% endblock %}

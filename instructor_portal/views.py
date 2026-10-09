@@ -3,6 +3,8 @@ from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+
+from core.admin_dashboard import render_student_page
 from django.utils import timezone
 from django.utils.text import slugify
 
@@ -26,7 +28,7 @@ def _require_instructor(user):
 def dashboard(request):
     _require_instructor(request.user)
     enrolments = Enrolment.objects.select_related("student", "student__simulator_credential", "programme_version__programme").prefetch_related("lesson_progress", "theory_attempts")
-    return render(request, "instructor_portal/dashboard.html", {"enrolments": enrolments})
+    return render_student_page(request, "instructor_portal/dashboard.html", {"enrolments": enrolments})
 
 
 @login_required
@@ -40,7 +42,7 @@ def simulator_credential_issue(request, user_id):
     credential, _ = SimulatorCredential.objects.get_or_create(user=student)
     raw_password = credential.issue()
     credential.mark_revealed()
-    return render(request, "instructor_portal/credential_reveal.html", {
+    return render_student_page(request, "instructor_portal/credential_reveal.html", {
         "student": student,
         "credential": credential,
         "raw_password": raw_password,
@@ -64,7 +66,7 @@ def course_builder(request):
     learning_path = request.GET.get("path", "all")
     if learning_path not in {"all", "theory", "combined"}:
         learning_path = "all"
-    return render(request, "instructor_portal/course_builder.html", {"drafts": drafts, "form": CourseCreateForm(), "learning_path": learning_path})
+    return render_student_page(request, "instructor_portal/course_builder.html", {"drafts": drafts, "form": CourseCreateForm(), "learning_path": learning_path})
 
 
 @login_required
@@ -76,7 +78,7 @@ def course_create(request):
     form = CourseCreateForm(request.POST)
     if not form.is_valid():
         drafts = ProgrammeVersion.objects.filter(status="draft").select_related("programme").prefetch_related("modules__lessons")
-        return render(request, "instructor_portal/course_builder.html", {"drafts": drafts, "form": form}, status=400)
+        return render_student_page(request, "instructor_portal/course_builder.html", {"drafts": drafts, "form": form}, status=400)
     name = form.cleaned_data["name"]
     code = _unique_slug(Programme, "code", name)
     programme = Programme.objects.create(name=name, code=code)
@@ -137,7 +139,7 @@ def course_review(request, version_id):
         pk=version_id,
         status="draft",
     )
-    return render(request, "instructor_portal/course_review.html", {"version": version, "issues": _course_issues(version)})
+    return render_student_page(request, "instructor_portal/course_review.html", {"version": version, "issues": _course_issues(version)})
 
 
 @login_required
@@ -193,7 +195,7 @@ def module_create(request, version_id):
 def lesson_builder(request, module_id):
     _require_instructor(request.user)
     module = get_object_or_404(Module.objects.select_related("programme_version__programme"), pk=module_id, programme_version__status="draft")
-    return render(request, "instructor_portal/lesson_builder.html", {"module": module, "form": LessonCreateForm()})
+    return render_student_page(request, "instructor_portal/lesson_builder.html", {"module": module, "form": LessonCreateForm()})
 
 
 @login_required
@@ -205,7 +207,7 @@ def lesson_create(request, module_id):
         return redirect("lesson-builder", module_id=module.pk)
     form = LessonCreateForm(request.POST)
     if not form.is_valid():
-        return render(request, "instructor_portal/lesson_builder.html", {"module": module, "form": form}, status=400)
+        return render_student_page(request, "instructor_portal/lesson_builder.html", {"module": module, "form": form}, status=400)
 
     data = form.cleaned_data
     lesson = Lesson.objects.create(
@@ -252,7 +254,7 @@ def lesson_create(request, module_id):
 def practical_builder(request, module_id):
     _require_instructor(request.user)
     module = get_object_or_404(Module.objects.select_related("programme_version__programme"), pk=module_id, programme_version__status="draft")
-    return render(request, "instructor_portal/practical_builder.html", {"module": module, "form": PracticalCreateForm()})
+    return render_student_page(request, "instructor_portal/practical_builder.html", {"module": module, "form": PracticalCreateForm()})
 
 
 @login_required
@@ -264,7 +266,7 @@ def practical_create(request, module_id):
         return redirect("practical-builder", module_id=module.pk)
     form = PracticalCreateForm(request.POST)
     if not form.is_valid():
-        return render(request, "instructor_portal/practical_builder.html", {"module": module, "form": form}, status=400)
+        return render_student_page(request, "instructor_portal/practical_builder.html", {"module": module, "form": form}, status=400)
     data = form.cleaned_data
     scenario = Scenario.objects.create(code=_unique_slug(Scenario, "code", data["title"]), title=data["title"], area=data["area"])
     practical = ScenarioVersion.objects.create(
@@ -316,4 +318,4 @@ def student_detail(request, enrolment_id):
         ),
         pk=enrolment_id,
     )
-    return render(request, "instructor_portal/student_detail.html", {"enrolment": enrolment})
+    return render_student_page(request, "instructor_portal/student_detail.html", {"enrolment": enrolment})

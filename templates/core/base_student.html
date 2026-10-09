@@ -12,6 +12,7 @@ the content block with their own dash-styled markup.
 
 {% block extrastyle %}
   {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261010-11">
   <style>
     .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #5145cd; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; }
     html.dark .dash, html[data-theme="dark"] .dash { --d-border: #2b3950; --d-muted: #aab4ca; --d-card-bg: #172033; --d-accent: #9b8cff; }
