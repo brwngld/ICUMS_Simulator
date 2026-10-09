@@ -4,8 +4,9 @@ from django.contrib.auth.models import Group
 
 from audit.models import AuditEvent
 from onboarding.models import Enrolment
-from .models import SimulatorCredential, User
 from unfold.admin import ModelAdmin, TabularInline
+from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
+from .models import SimulatorCredential, User
 
 
 class EnrolmentInline(TabularInline):
@@ -18,7 +19,13 @@ class EnrolmentInline(TabularInline):
 
 
 @admin.register(User)
-class SimulatorUserAdmin(UserAdmin):
+class SimulatorUserAdmin(UserAdmin, ModelAdmin):
+    """Django's UserAdmin supplies the auth fieldsets; unfold's ModelAdmin and
+    forms supply the admin theme (field styling and the add link)."""
+
+    form = UserChangeForm
+    add_form = UserCreationForm
+    change_password_form = AdminPasswordChangeForm
     readonly_fields = ("student_id", "created_at", "updated_at")
     add_fieldsets = UserAdmin.add_fieldsets + (
         ("Personal info", {"fields": ("email", "first_name", "last_name")}),
