@@ -5,7 +5,7 @@ admin changelists already expose. Nothing here mutates data or changes
 any admin behaviour; it purely feeds templates/admin/index.html.
 """
 
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 
 from accounts.models import User
 from assessments.models import Question, TheoryAttempt
@@ -292,10 +292,21 @@ def _student_navigation(request, include_home=True):
 
 
 def sidebar_navigation(request):
-    """Dispatch: superusers get the admin navigation plus the student links;
-    instructors, staff and students get the student copy only (its own
-    permission rules hide whatever a user may not see). The two lists are
-    independent — editing one never affects the other."""
+    """Dispatch: superusers get the admin navigation plus a single
+    Student/Tutor portal group (so they can reach the student and tutor
+    areas without duplicating those navigations). Everyone else gets the
+    student navigation only. The two lists are independent."""
     if request.user.is_superuser:
-        return _admin_navigation() + _student_navigation(request, include_home=False)
+        portal = {
+            "title": "Student / Tutor portal",
+            "items": [
+                {"title": "Student home", "icon": "home", "link": reverse("dashboard")},
+                {"title": "Theory roadmap", "icon": "menu_book", "link": reverse("roadmap")},
+                {"title": "Simulator sandbox", "icon": "box", "link": reverse("simulator-portal")},
+                {"title": "Instructor dashboard", "icon": "users", "link": reverse("instructor-dashboard")},
+                {"title": "Theory builder", "icon": "edit_note", "link": reverse("course-builder") + "?path=theory"},
+                {"title": "Practical/Theory builder", "icon": "layers", "link": reverse("course-builder") + "?path=combined"},
+            ],
+        }
+        return _admin_navigation() + [portal]
     return _student_navigation(request)

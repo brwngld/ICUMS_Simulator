@@ -7,10 +7,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from audit.models import AuditEvent
-from django.contrib.admin.models import LogEntry
 from assessments.models import Assessment
 from learning.models import Module
 from learning.services import module_summary
+from accounts.context_processors import role_context
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 from progress.models import ProgrammeProgress
 from reports.models import CompletionRecord
@@ -32,8 +32,9 @@ def dashboard(request):
     programme_progress = ProgrammeProgress.objects.filter(enrolment=enrolment).first() if enrolment else None
     completion_record = CompletionRecord.objects.filter(enrolment=enrolment).first() if enrolment else None
     simulator_credential = SimulatorCredential.objects.filter(user=request.user).first()
-    context = {"role_names": role_names, "enrolment": enrolment, "module_summaries": summaries, "programme_progress": programme_progress, "final_assessment": final_assessment, "completion_record": completion_record, "simulator_credential": simulator_credential, "log_entries": LogEntry.objects.select_related("content_type", "user").order_by("-action_time")[:8]}
-    return render(request, "core/dashboard_unfold.html", admin.site.each_context(request) | dashboard_callback(request, context))
+    roles = role_context(request)
+    context = {"role_names": role_names, "enrolment": enrolment, "module_summaries": summaries, "programme_progress": programme_progress, "final_assessment": final_assessment, "completion_record": completion_record, "simulator_credential": simulator_credential, "can_access_instructor_portal": roles["can_access_instructor_portal"], "has_active_enrolment": roles["has_active_enrolment"], "can_access_practical": roles["can_access_practical"]}
+    return render(request, "core/dashboard_unfold.html", admin.site.each_context(request) | context)
 
 
 @login_required
