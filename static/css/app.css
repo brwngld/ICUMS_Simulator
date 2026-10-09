@@ -441,3 +441,19 @@ html[data-theme="dark"] .builder-progress li.complete { color: #9cdec9; border-c
 .app-layout :is(input, select, textarea, button, label, td, th),
 .guest-layout :is(input, select, textarea, button, label, td, th),
 .app-layout .top-nav a { font-size: .875rem; }
+
+/* --- Coherence layer: shared card language with the admin (unfold) ---------- */
+:root { --shadow-soft: 0 1px 2px #10142608, 0 6px 18px #1014260d; --shadow-lift: 0 12px 26px #1014261a; }
+html[data-theme="dark"] { --shadow-soft: 0 1px 2px #00000040, 0 6px 18px #00000052; --shadow-lift: 0 12px 26px #00000073; }
+
+.auth-panel, .panel, .reading-panel { box-shadow: var(--shadow-soft); }
+
+.stat-card { box-shadow: var(--shadow-soft); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.stat-card:hover { transform: translateY(-3px); border-color: #c7cdf7; box-shadow: var(--shadow-lift); }
+html[data-theme="dark"] .stat-card:hover { border-color: var(--accent); }
+
+.module-grid .panel { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.module-grid .panel:hover { transform: translateY(-3px); border-color: #c7cdf7; box-shadow: var(--shadow-lift); }
+html[data-theme="dark"] .module-grid .panel:hover { border-color: var(--accent); }
+
+.journey-graphic > .ui-icon { box-shadow: var(--shadow-lift); }
