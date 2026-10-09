@@ -7,13 +7,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from audit.models import AuditEvent
-from assessments.models import Assessment
-from learning.models import Module
-from learning.services import module_summary
-from accounts.context_processors import role_context
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 from progress.models import ProgrammeProgress
-from reports.models import CompletionRecord
 from accounts.models import SimulatorCredential
 from .admin_dashboard import dashboard_callback
 
@@ -22,18 +17,7 @@ from .admin_dashboard import dashboard_callback
 def dashboard(request):
     if needs_disclaimer_acceptance(request.user):
         return redirect("disclaimer")
-    role_names = set(request.user.groups.values_list("name", flat=True))
-    enrolment = request.user.enrolments.filter(status="active").select_related("programme_version__programme").first()
-    summaries = []
-    if enrolment:
-        modules = Module.objects.filter(programme_version=enrolment.programme_version, is_published=True)
-        summaries = [module_summary(enrolment, module) for module in modules]
-    final_assessment = Assessment.objects.filter(programme_version=enrolment.programme_version, assessment_type=Assessment.Type.FINAL_THEORY, is_published=True).first() if enrolment else None
-    programme_progress = ProgrammeProgress.objects.filter(enrolment=enrolment).first() if enrolment else None
-    completion_record = CompletionRecord.objects.filter(enrolment=enrolment).first() if enrolment else None
-    simulator_credential = SimulatorCredential.objects.filter(user=request.user).first()
-    roles = role_context(request)
-    context = {"role_names": role_names, "enrolment": enrolment, "module_summaries": summaries, "programme_progress": programme_progress, "final_assessment": final_assessment, "completion_record": completion_record, "simulator_credential": simulator_credential, "can_access_instructor_portal": roles["can_access_instructor_portal"], "has_active_enrolment": roles["has_active_enrolment"], "can_access_practical": roles["can_access_practical"]}
+    context = {"role_names": set(request.user.groups.values_list("name", flat=True)), "simulator_credential": SimulatorCredential.objects.filter(user=request.user).first()}
     return render(request, "core/dashboard_unfold.html", admin.site.each_context(request) | context)
 
 

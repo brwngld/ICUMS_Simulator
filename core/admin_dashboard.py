@@ -234,68 +234,7 @@ def _admin_navigation():
         ]
 
 
-def _student_navigation(request, include_home=True):
-    """The student/instructor navigation — an independent copy for the student
-    portal. Editing this list never affects the administrator sidebar.
-
-    Items and visibility mirror the original student sidebar exactly by
-    reusing the same role context the old template relied on."""
-    from accounts.context_processors import role_context
-    from django.urls import reverse
-
-    roles = role_context(request)
-    groups = [
-        {
-            "title": "",
-            "items": [{"title": "Dashboard", "icon": "dashboard", "link": reverse("dashboard")}],
-        },
-    ]
-
-    if roles["has_active_enrolment"]:
-        groups.append(
-            {
-                "title": "Theory",
-                "items": [{"title": "Theory", "icon": "menu_book", "link": reverse("roadmap")}],
-            }
-        )
-
-    if roles["can_access_practical"]:
-        groups.append(
-            {
-                "title": "Practical",
-                "items": [{"title": "Practical/Theory", "icon": "layers", "link": reverse("scenario-list")}],
-            }
-        )
-
-    groups.append(
-        {
-            "title": "Simulator",
-            "items": [
-                {"title": "Simulator sandbox", "icon": "box", "link": reverse("simulator-portal")},
-            ],
-        }
-    )
-
-    if roles["can_access_instructor_portal"]:
-        groups.append(
-            {
-                "title": "Instructor",
-                "items": [
-                    {"title": "Instructor", "icon": "users", "link": reverse("instructor-dashboard")},
-                    {"title": "Theory builder", "icon": "edit_note", "link": reverse("course-builder") + "?path=theory"},
-                    {"title": "Practical/Theory builder", "icon": "layers", "link": reverse("course-builder") + "?path=combined"},
-                ],
-            }
-        )
-
-    return groups
-
-
 def sidebar_navigation(request):
-    """Dispatch: superusers get the admin navigation plus a single
-    Student/Tutor portal group (so they can reach the student and tutor
-    areas without duplicating those navigations). Everyone else gets the
-    student navigation only. The two lists are independent."""
-    if request.user.is_superuser:
-        return _admin_navigation()
-    return _student_navigation(request)
+    """All authenticated users share the admin navigation. Items are
+    permission-gated, so each account only sees what it may access."""
+    return _admin_navigation()

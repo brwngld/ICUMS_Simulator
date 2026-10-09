@@ -4,125 +4,23 @@
 {% block title %}Dashboard · ICUMS Simulator{% endblock %}
 
 {% block extrastyle %}
-  {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/student-dashboard.css' %}?v=20261010-4">
+  <style>
+    .dash { display: flex; flex-direction: column; gap: 1.25rem; }
+    .dash-head h1 { margin: 0; font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; }
+    .dash-head p { margin: .3rem 0 0; color: #aab4ca; font-size: .8rem; }
+    .dash-notice { padding: .55rem .75rem; border-radius: .6rem; background: #3c321c; color: #f2d889; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-align: center; }
+  </style>
 {% endblock %}
 
 {% block content %}
   <div class="dash">
-    <div class="dash-notice">TRAINING SIMULATOR — NOT OFFICIAL ICUMS</div>
+    <div class="dash-notice" style="padding: .55rem .75rem; border-radius: .6rem; background: #3c321c; color: #f2d889; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-align: center;">TRAINING SIMULATOR — NOT OFFICIAL ICUMS</div>
 
     <header class="dash-head">
       <div>
         <h1>Welcome, {{ user.get_full_name|default:user.username }}.</h1>
-        <p>A little practice today. More confidence tomorrow.</p>
+        <p>You are signed in. Use the menu to navigate, or log out at any time.</p>
       </div>
     </header>
-
-    {% if can_access_instructor_portal %}
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div><h2>Instructor tools</h2><p>Manage learners and build course content</p></div>
-        </div>
-        <ul class="dash-attention">
-          <li><div><strong>Instructor dashboard</strong><small>Review students and their progress</small></div><a href="{% url 'instructor-dashboard' %}">Open<span aria-hidden="true"> →</span></a></li>
-          <li><div><strong>Theory builder</strong><small>Build and review theory courses</small></div><a href="{% url 'course-builder' %}?path=theory">Open<span aria-hidden="true"> →</span></a></li>
-          <li><div><strong>Practical/Theory builder</strong><small>Build and review practical courses</small></div><a href="{% url 'course-builder' %}?path=combined">Open<span aria-hidden="true"> →</span></a></li>
-        </ul>
-      </section>
-    {% endif %}
-
-    {% if enrolment %}
-      <div class="dash-cards">
-        <section class="dash-card">
-          <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="menu_book" %}</span>
-          <span class="dash-card-label">Published modules</span>
-          <strong class="dash-card-value">{{ module_summaries|length }}</strong>
-          <small class="dash-card-sub">{{ enrolment.programme_version.programme.name }}</small>
-        </section>
-        <section class="dash-card">
-          <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="layers" %}</span>
-          <span class="dash-card-label">Practical training</span>
-          <strong class="dash-card-value">{% if programme_progress.orientation_completed_at %}Unlocked{% else %}Preparing{% endif %}</strong>
-          <small class="dash-card-sub">Simulator orientation</small>
-        </section>
-        <section class="dash-card">
-          <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="award" %}</span>
-          <span class="dash-card-label">Training record</span>
-          <strong class="dash-card-value">{% if completion_record %}{{ completion_record.get_status_display }}{% else %}In progress{% endif %}</strong>
-          <small class="dash-card-sub">Competency record</small>
-        </section>
-      </div>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div><h2>Your learning modules</h2><p>A clear path from fundamentals to practice.</p></div>
-          <a href="{% url 'roadmap' %}">View roadmap →</a>
-        </div>
-        <ul class="dash-bars">
-          {% for item in module_summaries %}
-            <li>
-              <span class="dash-bar-label">{{ item.module.title }}</span>
-              <span class="dash-bar-track"><span class="dash-bar-fill" style="width: {{ item.percentage }}%"></span></span>
-              <strong class="dash-bar-value">{{ item.percentage }}%</strong>
-            </li>
-          {% empty %}
-            <li class="dash-empty">Your programme has no published modules yet.</li>
-          {% endfor %}
-        </ul>
-      </section>
-
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div><h2>Your path to confidence</h2><p>Training stages</p></div>
-        </div>
-        <ol class="dash-steps">
-          <li><strong>Learn the essentials</strong><small>Work through lessons and knowledge checks.</small></li>
-          <li><strong>Practise the workflow</strong><small>Explore fictional scenarios in the simulator.</small></li>
-          <li><strong>Demonstrate your skills</strong><small>Complete assessments and earn your training record.</small></li>
-        </ol>
-      </section>
-    {% else %}
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div><h2>No active enrolment</h2><p>Learning overview</p></div>
-        </div>
-        <p class="dash-empty">An administrator needs to enrol this account in a programme.</p>
-      </section>
-    {% endif %}
-
-    <section class="dash-panel">
-      <div class="dash-panel-head">
-        <div><h2>Account access</h2><p>Roles and simulator access</p></div>
-      </div>
-      {% if role_names %}
-        <ul class="dash-legend">
-          {% for role_name in role_names %}<li><i class="dash-dot" aria-hidden="true"></i>{{ role_name }}</li>{% endfor %}
-        </ul>
-      {% else %}
-        <p class="dash-empty">No training role has been assigned yet. Contact an administrator.</p>
-      {% endif %}
-      {% if user.is_staff %}<p class="dash-empty"><a href="{% url 'admin:index' %}">Open administration</a></p>{% endif %}
-    </section>
-
-    {% if user.student_id %}
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div><h2>Simulator access</h2><p>ICUMS user details</p></div>
-        </div>
-        <table class="dash-table">
-          <tbody>
-            <tr><th>Student ID</th><td><strong>{{ user.student_id }}</strong></td></tr>
-            {% if simulator_credential and simulator_credential.issued_at %}
-              <tr><th>Expires</th><td>{{ simulator_credential.expires_at|date:"j F Y, H:i" }}</td></tr>
-              <tr><th>Status</th><td>{% if simulator_credential.is_current %}<span class="dash-pill is-ok">Active</span>{% else %}<span class="dash-pill is-warn">Expired — request a reset</span>{% endif %}</td></tr>
-            {% else %}
-              <tr><th>Status</th><td>Waiting for an instructor or administrator to issue simulator access.</td></tr>
-            {% endif %}
-          </tbody>
-        </table>
-        <p style="margin: .75rem 0 0;"><a href="{% url 'simulator-portal' %}">Open simulator login →</a></p>
-      </section>
-    {% endif %}
   </div>
 {% endblock %}
