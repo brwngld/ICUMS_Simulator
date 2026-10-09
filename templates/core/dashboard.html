@@ -1,19 +1,17 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Dashboard · ICUMS Simulator{% endblock %}
 {% block workspace_name %}Dashboard{% endblock %}
 
+{% block extrahead %}
+  <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}?v=20261010-3">
+{% endblock %}
+
 {% block content %}
-<div class="page-intro"><div><p class="eyebrow">Your learning journey</p>
-<h1>Welcome, {{ user.get_full_name|default:user.username }}.</h1>
-<p class="muted">A little practice today. More confidence tomorrow.</p></div><a class="secondary-button" href="{% url 'simulator-portal' %}">{% include "components/icon.html" with name="box" %} Explore simulator {% include "components/icon.html" with name="arrow" %}</a></div>
+{% include "components/overview_dashboard.html" %}
 {% if enrolment %}
   <section class="welcome-banner" aria-labelledby="continue-title"><div><p class="eyebrow">{{ enrolment.programme_version.programme.name }}</p><h2 id="continue-title">Build your customs expertise,<br>one step at a time.</h2><p>Learn the essentials, put your knowledge into practice, and follow your progress along the way.</p><a class="primary-button" href="{% url 'roadmap' %}">Continue learning {% include "components/icon.html" with name="arrow" %}</a></div><div class="journey-graphic" aria-hidden="true">{% include "components/icon.html" with name="book" %}<span class="graphic-check">{% include "components/icon.html" with name="check" %}</span></div></section>
-  <div class="stats-grid" aria-label="Learning overview">
-    <article class="stat-card"><span class="stat-icon">{% include "components/icon.html" with name="book" %}</span><div><strong class="stat-value">{{ module_summaries|length }}</strong><span class="stat-label">Published modules</span></div></article>
-    <article class="stat-card"><span class="stat-icon">{% include "components/icon.html" with name="layers" %}</span><div><strong class="stat-value">{% if programme_progress.orientation_completed_at %}Unlocked{% else %}Preparing{% endif %}</strong><span class="stat-label">Practical training</span></div></article>
-    <article class="stat-card"><span class="stat-icon">{% include "components/icon.html" with name="award" %}</span><div><strong class="stat-value">{% if completion_record %}{{ completion_record.get_status_display }}{% else %}In progress{% endif %}</strong><span class="stat-label">Training record</span></div></article>
-  </div>
   <div class="section-heading"><div><h2>Your learning modules</h2><p>A clear path from fundamentals to practice.</p></div><a class="primary-link" href="{% url 'roadmap' %}">View roadmap →</a></div>
   <div class="module-grid">
     {% for item in module_summaries %}

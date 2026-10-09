@@ -6,6 +6,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from audit.models import AuditEvent
+from django.contrib.admin.models import LogEntry
 from assessments.models import Assessment
 from learning.models import Module
 from learning.services import module_summary
@@ -13,6 +14,7 @@ from onboarding.services import active_enrolment_for, needs_disclaimer_acceptanc
 from progress.models import ProgrammeProgress
 from reports.models import CompletionRecord
 from accounts.models import SimulatorCredential
+from .admin_dashboard import dashboard_callback
 
 
 @login_required
@@ -29,7 +31,8 @@ def dashboard(request):
     programme_progress = ProgrammeProgress.objects.filter(enrolment=enrolment).first() if enrolment else None
     completion_record = CompletionRecord.objects.filter(enrolment=enrolment).first() if enrolment else None
     simulator_credential = SimulatorCredential.objects.filter(user=request.user).first()
-    return render(request, "core/dashboard.html", {"role_names": role_names, "enrolment": enrolment, "module_summaries": summaries, "programme_progress": programme_progress, "final_assessment": final_assessment, "completion_record": completion_record, "simulator_credential": simulator_credential})
+    context = {"role_names": role_names, "enrolment": enrolment, "module_summaries": summaries, "programme_progress": programme_progress, "final_assessment": final_assessment, "completion_record": completion_record, "simulator_credential": simulator_credential, "log_entries": LogEntry.objects.select_related("content_type", "user").order_by("-action_time")[:8]}
+    return render(request, "core/dashboard.html", dashboard_callback(request, context))
 
 
 @login_required

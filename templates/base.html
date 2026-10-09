@@ -8,6 +8,7 @@
   {% include "components/favicons.html" %}
   <script src="{% static 'js/theme.js' %}?v=20261010-1"></script>
   <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261010-11">
+  {% block extrahead %}{% endblock %}
 </head>
 <body class="{% if user.is_authenticated %}app-layout{% else %}guest-layout{% endif %}">
   <a class="skip-link" href="#main-content">Skip to main content</a>
