@@ -1,60 +1,74 @@
-{% extends "base.html" %}
+{% extends "core/base_student.html" %}
 
 {% block title %}{{ attempt.scenario_version.scenario.title }} · Practical{% endblock %}
 
 {% block content %}
-<div class="simulator-heading">
-  <div><p class="eyebrow">{{ attempt.scenario_version.scenario.get_area_display }} · {{ attempt.scenario_version.get_purpose_display }} · {{ attempt.get_assistance_mode_display }} · Attempt {{ attempt.attempt_number }}</p><h1>{{ attempt.scenario_version.scenario.title }}</h1><p class="muted">Saved {{ attempt.last_saved_at }}</p></div>
-  <span class="status-label">{{ attempt.get_status_display }}</span>
-</div>
-<p class="reference-label"><strong>Training layout:</strong> {{ attempt.scenario_version.get_reference_status_display }}. This is not a live ICUMS transaction.</p>
+  <div class="dash">
+    <header class="dash-head">
+      <div>
+        <p class="dash-eyebrow">{{ attempt.scenario_version.scenario.get_area_display }} · {{ attempt.scenario_version.get_purpose_display }} · {{ attempt.get_assistance_mode_display }} · Attempt {{ attempt.attempt_number }}</p>
+        <h1>{{ attempt.scenario_version.scenario.title }}</h1>
+        <p>Saved {{ attempt.last_saved_at }}</p>
+      </div>
+      <span class="dash-status">{{ attempt.get_status_display }}</span>
+    </header>
+    <p class="dash-reference"><strong>Training layout:</strong> {{ attempt.scenario_version.get_reference_status_display }}. This is not a live ICUMS transaction.</p>
 
-<div class="simulator-workspace">
-  <aside class="workflow-panel">
-    <h2>Workflow</h2>
-    <ol class="workflow-list">
-      {% for state in attempt.scenario_version.states.all %}<li{% if state.pk == attempt.current_state_id %} aria-current="step"{% endif %}>{{ state.label }}</li>{% endfor %}
-    </ol>
-  </aside>
+    <div class="dash-workspace">
+      <aside class="dash-panel">
+        <div class="dash-panel-head">
+          <div><h2>Workflow</h2><p>Stages of this scenario</p></div>
+        </div>
+        <ol class="dash-workflow-list">
+          {% for state in attempt.scenario_version.states.all %}<li{% if state.pk == attempt.current_state_id %} aria-current="step"{% endif %}>{{ state.label }}</li>{% endfor %}
+        </ol>
+      </aside>
 
-  <section class="transaction-panel">
-    <p class="eyebrow">Current status</p>
-    <h2>{{ attempt.current_state.label }}</h2>
-    {% if attempt.assistance_mode == "beginner" or attempt.assistance_mode == "intermediate" %}<p>{{ attempt.current_state.guidance }}</p>{% endif %}
-    <h3>Available actions</h3>
-    <div class="action-list">
-      {% for action in available_actions %}
-        <form method="post" action="{% url 'scenario-action' attempt.pk action.pk %}">{% csrf_token %}<button class="primary-button" type="submit">{{ action.label }}</button></form>
-      {% empty %}<p>No actions are currently available.</p>{% endfor %}
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div><p class="dash-eyebrow">Current status</p><h2>{{ attempt.current_state.label }}</h2></div>
+        </div>
+        {% if attempt.assistance_mode == "beginner" or attempt.assistance_mode == "intermediate" %}<p>{{ attempt.current_state.guidance }}</p>{% endif %}
+        <h3 style="margin: 1rem 0 0; font-size: .85rem;">Available actions</h3>
+        <div class="dash-action-list">
+          {% for action in available_actions %}
+            <form method="post" action="{% url 'scenario-action' attempt.pk action.pk %}">{% csrf_token %}<button class="dash-primary" type="submit">{{ action.label }}</button></form>
+          {% empty %}<p class="dash-empty">No actions are currently available.</p>{% endfor %}
+        </div>
+        {% if attempt.status == "in_progress" and attempt.assistance_mode != "advanced" and attempt.assistance_mode != "competency" %}
+          <form method="post" action="{% url 'scenario-hint' attempt.pk %}" style="margin: .75rem 0 0;">{% csrf_token %}<button class="dash-secondary" type="submit">Request a hint</button></form>
+        {% endif %}
+        {% if attempt.status == "completed" %}<div class="dash-callout"><strong>Scenario complete.</strong> Your full action history has been retained.{% if attempt.evaluation %} <a href="{% url 'practical-evaluation' attempt.evaluation.pk %}">View competency evidence</a>.{% endif %}</div>{% endif %}
+      </section>
+
+      <aside class="dash-panel dash-docs">
+        <div class="dash-panel-head">
+          <div><h2>Fictitious documents</h2><p>Reference paperwork for this scenario</p></div>
+        </div>
+        {% for bill in attempt.scenario_version.bills_of_lading.all %}
+          {% if bill.status == "published" %}<details open><summary>{{ bill.title }}</summary><p class="dash-muted">Bill of Lading · {{ bill.reference }} · {{ bill.get_template_display }}</p><div class="dash-actions"><a class="dash-secondary" target="_blank" rel="noopener" href="{% url 'bill-of-lading-pdf' bill.pk %}">View PDF</a><a class="dash-module-link" href="{% url 'bill-of-lading-pdf' bill.pk %}?download=1">Download PDF</a></div></details>{% endif %}
+        {% endfor %}
+        {% for document in attempt.scenario_version.commercial_documents.all %}
+          {% if document.status == 'published' %}<p><strong>{{ document.get_document_type_display }}:</strong> {{ document.reference }} — <a href="{% url 'commercial-document-pdf' document.pk %}">View PDF</a> · <a href="{% url 'commercial-document-pdf' document.pk %}?download=1">Download PDF</a></p>{% endif %}
+        {% endfor %}
+        {% for document in attempt.scenario_version.documents.all %}
+          <details{% if forloop.first %} open{% endif %}>
+            <summary>{{ document.title }}</summary>
+            <p class="dash-muted">{{ document.document_type }} · {{ document.reference }}</p>
+            <dl>{% for key, value in document.learner_data.items %}<dt>{{ key }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+            <div class="dash-actions"><a class="dash-secondary" target="_blank" rel="noopener" href="{% url 'scenario-document-pdf' document.pk %}">View PDF</a><a class="dash-module-link" href="{% url 'scenario-document-pdf' document.pk %}?download=1">Download PDF</a></div>
+          </details>
+        {% empty %}<p class="dash-empty">No documents are attached.</p>{% endfor %}
+      </aside>
     </div>
-    {% if attempt.status == "in_progress" and attempt.assistance_mode != "advanced" and attempt.assistance_mode != "competency" %}
-      <form method="post" action="{% url 'scenario-hint' attempt.pk %}">{% csrf_token %}<button class="secondary-button" type="submit">Request a hint</button></form>
-    {% endif %}
-    {% if attempt.status == "completed" %}<p class="completion-callout"><strong>Scenario complete.</strong> Your full action history has been retained.{% if attempt.evaluation %} <a href="{% url 'practical-evaluation' attempt.evaluation.pk %}">View competency evidence</a>.{% endif %}</p>{% endif %}
-  </section>
 
-  <aside class="document-panel">
-    <h2>Fictitious documents</h2>
-    {% for bill in attempt.scenario_version.bills_of_lading.all %}
-      {% if bill.status == "published" %}<details open><summary>{{ bill.title }}</summary><p class="muted">Bill of Lading · {{ bill.reference }} · {{ bill.get_template_display }}</p><div class="form-actions"><a class="secondary-button" target="_blank" rel="noopener" href="{% url 'bill-of-lading-pdf' bill.pk %}">View PDF</a><a class="primary-link" href="{% url 'bill-of-lading-pdf' bill.pk %}?download=1">Download PDF</a></div></details>{% endif %}
-    {% endfor %}
-    {% for document in attempt.scenario_version.commercial_documents.all %}
-      {% if document.status == 'published' %}<p><strong>{{ document.get_document_type_display }}:</strong> {{ document.reference }} — <a href="{% url 'commercial-document-pdf' document.pk %}">View PDF</a> · <a href="{% url 'commercial-document-pdf' document.pk %}?download=1">Download PDF</a></p>{% endif %}
-    {% endfor %}
-    {% for document in attempt.scenario_version.documents.all %}
-      <details{% if forloop.first %} open{% endif %}>
-        <summary>{{ document.title }}</summary>
-        <p class="muted">{{ document.document_type }} · {{ document.reference }}</p>
-        <dl>{% for key, value in document.learner_data.items %}<dt>{{ key }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
-        <div class="form-actions"><a class="secondary-button" target="_blank" rel="noopener" href="{% url 'scenario-document-pdf' document.pk %}">View PDF</a><a class="primary-link" href="{% url 'scenario-document-pdf' document.pk %}?download=1">Download PDF</a></div>
-      </details>
-    {% empty %}<p>No documents are attached.</p>{% endfor %}
-  </aside>
-</div>
-
-<section class="panel action-history">
-  <h2>Recorded activity</h2>
-  <ol>{% for action in attempt.actions.all %}<li><strong>{{ action.action_code }}</strong> — {{ action.state_before }} → {{ action.state_after }}</li>{% empty %}<li>No actions recorded yet.</li>{% endfor %}</ol>
-</section>
+    <section class="dash-panel">
+      <div class="dash-panel-head">
+        <div><h2>Recorded activity</h2><p>Actions taken in this attempt</p></div>
+      </div>
+      <ol class="dash-history">
+        {% for action in attempt.actions.all %}<li><strong>{{ action.action_code }}</strong> — {{ action.state_before }} → {{ action.state_after }}</li>{% empty %}<li>No actions recorded yet.</li>{% endfor %}
+      </ol>
+    </section>
+  </div>
 {% endblock %}
-

@@ -10,6 +10,8 @@ from django.db.models.functions import Coalesce
 from django.db.models import Case, IntegerField, Value, When
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
+
+from core.admin_dashboard import render_student_page
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 from django.utils import timezone
@@ -2789,7 +2791,7 @@ def scenario_list(request):
         Q(module__programme_version=enrolment.programme_version) | Q(module__isnull=True)
     ).select_related("scenario", "module")
     attempts = {attempt.scenario_version_id: attempt for attempt in ScenarioAttempt.objects.filter(enrolment=enrolment, status=ScenarioAttempt.Status.IN_PROGRESS)}
-    return render(request, "scenarios/list.html", {"scenario_versions": versions, "attempts": attempts})
+    return render_student_page(request, "scenarios/list.html", {"scenario_versions": versions, "attempts": attempts})
 
 
 @login_required
@@ -2800,7 +2802,7 @@ def scenario_detail(request, version_id):
         return response
     version = get_object_or_404(ScenarioVersion.objects.select_related("scenario"), pk=version_id, status=ScenarioVersion.Status.PUBLISHED)
     active_attempt = ScenarioAttempt.objects.filter(enrolment=enrolment, scenario_version=version, status=ScenarioAttempt.Status.IN_PROGRESS).first()
-    return render(request, "scenarios/detail.html", {"scenario_version": version, "active_attempt": active_attempt})
+    return render_student_page(request, "scenarios/detail.html", {"scenario_version": version, "active_attempt": active_attempt})
 
 
 @login_required
@@ -2824,7 +2826,7 @@ def scenario_workspace(request, attempt_id):
         pk=attempt_id,
         enrolment__student=request.user,
     )
-    return render(request, "scenarios/workspace.html", {"attempt": attempt, "available_actions": available_actions(attempt)})
+    return render_student_page(request, "scenarios/workspace.html", {"attempt": attempt, "available_actions": available_actions(attempt)})
 
 
 @login_required

@@ -3,6 +3,8 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
+from core.admin_dashboard import render_student_page
+
 from learning.services import module_is_unlocked, module_lessons_completed, programme_theory_completed
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 
@@ -30,7 +32,7 @@ def assessment_take(request, assessment_id):
     if request.method == "POST":
         attempt = submit_attempt(attempt, request.POST)
         return redirect("assessment-result", attempt_id=attempt.pk)
-    return render(request, "assessments/take.html", {"assessment": assessment, "attempt": attempt})
+    return render_student_page(request, "assessments/take.html", {"assessment": assessment, "attempt": attempt})
 
 
 @login_required
@@ -40,4 +42,4 @@ def assessment_result(request, attempt_id):
         pk=attempt_id,
         enrolment__student=request.user,
     )
-    return render(request, "assessments/result.html", {"attempt": attempt})
+    return render_student_page(request, "assessments/result.html", {"attempt": attempt})

@@ -1,21 +1,28 @@
-{% extends "base.html" %}
+{% extends "core/base_student.html" %}
 
 {% block title %}{{ assessment.title }} · ICUMS Simulator{% endblock %}
 
 {% block content %}
-<p class="eyebrow">Untimed theory assessment</p>
-<h1>{{ assessment.title }}</h1>
-<p class="muted">Attempt {{ attempt.attempt_number }}. Answer every question, then submit. Time is recorded for insight but never affects your result.</p>
-<form method="post" class="assessment-form">
-  {% csrf_token %}
-  {% for item in attempt.items.all %}
-    <fieldset class="panel question-panel">
-      <legend>{{ forloop.counter }}. {{ item.question_version.prompt }}</legend>
-      {% for option in item.question_version.options.all %}
-        <label><input type="radio" name="{{ item.question_version.pk }}" value="{{ option.pk }}" required> {{ option.label }}</label>
-      {% endfor %}
-    </fieldset>
-  {% empty %}<p role="alert">This assessment has no published questions.</p>{% endfor %}
-  {% if assessment.items.exists %}<button class="primary-button" type="submit">Submit assessment</button>{% endif %}
-</form>
+  <div class="dash">
+    <header class="dash-head">
+      <div>
+        <p class="dash-eyebrow">Untimed theory assessment</p>
+        <h1>{{ assessment.title }}</h1>
+        <p>Attempt {{ attempt.attempt_number }}. Answer every question, then submit. Time is recorded for insight but never affects your result.</p>
+      </div>
+    </header>
+
+    <form method="post" class="dash">
+      {% csrf_token %}
+      {% for item in attempt.items.all %}
+        <fieldset class="dash-panel dash-question">
+          <legend>{{ forloop.counter }}. {{ item.question_version.prompt }}</legend>
+          {% for option in item.question_version.options.all %}
+            <label><input type="radio" name="{{ item.question_version.pk }}" value="{{ option.pk }}" required> {{ option.label }}</label>
+          {% endfor %}
+        </fieldset>
+      {% empty %}<p class="dash-empty" role="alert">This assessment has no published questions.</p>{% endfor %}
+      {% if assessment.items.exists %}<div class="dash-actions"><button class="dash-primary" type="submit">Submit assessment</button></div>{% endif %}
+    </form>
+  </div>
 {% endblock %}

@@ -86,4 +86,4 @@ def lesson_detail(request, module_code, lesson_slug):
         assessment = module.assessments.filter(is_published=True).first()
         return redirect("assessment-take", assessment_id=assessment.pk) if assessment else redirect("roadmap")
     checks = current_block.knowledge_checks.select_related("question_version").prefetch_related("question_version__options") if current_block else []
-    return render(request, "learning/lesson.html", {"enrolment": enrolment, "module": module, "lesson": lesson, "progress": progress, "current_block": current_block, "position": position, "step_number": position + 1, "step_count": len(blocks), "checks": checks})
+    return render_student_page(request, "learning/lesson.html", {"enrolment": enrolment, "module": module, "lesson": lesson, "progress": progress, "current_block": current_block, "position": position, "step_number": position + 1, "step_count": len(blocks), "checks": checks})
