@@ -1,63 +1,79 @@
-/* Shared ICUMS theme preference for learner, instructor, and admin surfaces. */
+/* ICUMS theme controller — single source of truth for the whole platform.
+   Unfold (admin + dashboards in the unfold chrome) persists the choice in
+   localStorage "adminTheme" and renders via the html.dark class. The classic
+   app pages render via html[data-theme]. This controller keeps both
+   conventions in sync so one switch themes every surface. */
 (() => {
-  window.ICUMSThemeReady = true;
-  const storageKey = 'icums-theme';
   const root = document.documentElement;
-  const systemTheme = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const adminKey = "adminTheme";
+  const legacyKey = "icums-theme";
+  const systemDark = () => window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
-  const stored = window.localStorage.getItem(storageKey);
-  root.dataset.theme = stored === 'dark' || stored === 'light' ? stored : systemTheme();
+  const storedTheme = () => {
+    const t = localStorage.getItem(adminKey) ?? localStorage.getItem(legacyKey);
+    return t === "dark" || t === "light" ? t : "auto";
+  };
 
-  const refreshLabels = () => {
-    const dark = root.dataset.theme === 'dark';
-    document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
-      button.setAttribute('aria-pressed', String(dark));
-      const label = button.querySelector('[data-theme-label]');
-      if (label) label.textContent = dark ? 'Light theme' : 'Dark theme';
-      button.setAttribute('title', dark ? 'Switch to light theme' : 'Switch to dark theme');
+  const resolveTheme = () => {
+    const t = storedTheme();
+    return t === "dark" || t === "light" ? t : systemDark() ? "dark" : "light";
+  };
+
+  const apply = () => {
+    const t = resolveTheme();
+    root.dataset.theme = t;
+    root.classList.toggle("dark", t === "dark");
+    root.classList.toggle("light", t === "light");
+    document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.themeChoice === t));
+    });
+    document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(t === "dark"));
+      const label = button.querySelector("[data-theme-label]");
+      if (label) label.textContent = t === "dark" ? "Light theme" : "Dark theme";
     });
   };
 
-  const toggle = (event) => {
-    const button = event.target.closest('[data-theme-toggle]');
-    if (!button) return;
-    const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
-    root.dataset.theme = next;
-    window.localStorage.setItem(storageKey, next);
-    refreshLabels();
-  };
-
-  document.addEventListener('click', toggle);
-  document.addEventListener('DOMContentLoaded', refreshLabels);
-  refreshLabels();
-
-  // Light / Dark / System picker (sidebar)
-  const syncChoices = () => {
-    const stored = window.localStorage.getItem(storageKey);
-    const current = stored === 'dark' || stored === 'light' ? stored : 'system';
-    document.querySelectorAll('[data-theme-choice]').forEach((button) => {
-      button.setAttribute('aria-pressed', String(button.dataset.themeChoice === current));
-    });
-  };
-  const applyChoice = (choice) => {
-    if (choice === 'system') {
-      window.localStorage.removeItem(storageKey);
-      root.dataset.theme = systemTheme();
+  const setTheme = (t) => {
+    if (t === "system") {
+      localStorage.removeItem(adminKey);
+      localStorage.removeItem(legacyKey);
     } else {
-      window.localStorage.setItem(storageKey, choice);
-      root.dataset.theme = choice;
+      localStorage.setItem(adminKey, t);
+      localStorage.setItem(legacyKey, t);
     }
-    refreshLabels();
-    syncChoices();
+    apply();
   };
-  document.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-theme-choice]');
-    if (button) applyChoice(button.dataset.themeChoice);
+
+  // One-time migration: legacy icums-theme preference becomes the admin preference
+  if (localStorage.getItem(adminKey) === null && localStorage.getItem(legacyKey)) {
+    const legacy = localStorage.getItem(legacyKey);
+    if (legacy === "dark" || legacy === "light") localStorage.setItem(adminKey, legacy);
+  }
+
+  // Student/tutor dashboard theme picker
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-theme-choice]");
+    if (button) setTheme(button.dataset.themeChoice);
   });
+
+  // Guest header toggle
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-theme-toggle]");
+    if (!button) return;
+    setTheme(resolveTheme() === "dark" ? "light" : "dark");
+  });
+
+  // Unfold's own switcher writes adminTheme directly — mirror it into the
+  // app convention so every surface follows the same choice.
+  document.addEventListener("click", () => window.setTimeout(apply, 0));
+
+  // Live follow when following the system preference
   if (window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
-      if (!window.localStorage.getItem(storageKey)) root.dataset.theme = event.matches ? 'dark' : 'light';
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      if (storedTheme() === "auto") apply();
     });
   }
-  syncChoices();
+
+  apply();
 })();
