@@ -484,3 +484,12 @@ html[data-theme="dark"] .module-grid .panel:hover { border-color: var(--accent);
   .stats-grid .stat-card, .module-grid .panel, .journey-panel, .account-panel { animation: none; }
   .stat-card, .module-grid .panel { transition: none; }
 }
+
+/* --- Form touches: coherent focus and button feedback ----------------------- */
+.primary-button, .secondary-button, .link-button { transition: background .18s ease, border-color .18s ease, color .18s ease, transform .12s ease; }
+.primary-button:hover { background: color-mix(in srgb, var(--accent) 86%, black); }
+.primary-button:active { transform: translateY(1px); }
+.secondary-button:hover { border-color: var(--accent); color: var(--accent); }
+.link-button:hover { color: var(--accent); }
+
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
