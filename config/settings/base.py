@@ -126,6 +126,11 @@ UNFOLD = {
     ],
     "ENVIRONMENT": lambda request: ["Training environment", "warning"],
     "DASHBOARD_CALLBACK": "core.admin_dashboard.dashboard_callback",
+    "ACCOUNT": {
+        "navigation": [
+            {"title": "Change password", "link": "/accounts/password-change/"},
+        ],
+    },
     "COLORS": {
         "base": {
             "50": "#f8fafc", "100": "#f1f5f9", "200": "#e2e8f0", "300": "#cbd5e1",

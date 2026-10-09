@@ -32,6 +32,11 @@ def dashboard(request):
     completion_record = CompletionRecord.objects.filter(enrolment=enrolment).first() if enrolment else None
     roles = role_context(request)
     context = {"role_names": set(request.user.groups.values_list("name", flat=True)), "enrolment": enrolment, "module_summaries": summaries, "programme_progress": programme_progress, "final_assessment": final_assessment, "completion_record": completion_record, "simulator_credential": SimulatorCredential.objects.filter(user=request.user).first(), "can_access_instructor_portal": roles["can_access_instructor_portal"], "has_active_enrolment": roles["has_active_enrolment"], "can_access_practical": roles["can_access_practical"]}
+    # Presentation context only: the student/tutor home renders the shared
+    # Unfold shell with its role-appropriate navigation. This supplies the
+    # sidebar content without touching Django Admin's has_permission gate —
+    # admin resources remain protected by the middleware and model perms.
+    context["sidebar_navigation"] = admin.site.get_sidebar_list(request)
     return render(request, "core/dashboard_unfold.html", admin.site.each_context(request) | context)
 
 
