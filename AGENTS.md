@@ -4,7 +4,8 @@
 
 The visual theme — colours, fonts, font sizes, spacing, dark/light
 palettes — and all user-facing writing (labels, headings, copy) are
-frozen at commit `7ae2fb1`. Per Bernard's instruction, **no change to
+frozen as of 2026-10-09 (sidebar unification). Per Bernard's
+instruction, **no change to
 the theme or to user-facing text may be made without his explicit
 approval first.** Propose the change and wait for a yes; do not edit
 stylesheets, inline styles, theme scripts, or template copy on your own
