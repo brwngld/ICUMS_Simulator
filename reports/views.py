@@ -30,7 +30,7 @@ def completion_detail(request, completion_id):
     )
     _authorize_record(request.user, completion)
     certificate = Certificate.objects.filter(completion_record=completion).first()
-    return render(request, "reports/completion.html", {"completion": completion, "certificate": certificate, "instructor_view": _is_instructor(request.user)})
+    return render_student_page(request, "reports/completion.html", {"completion": completion, "certificate": certificate, "instructor_view": _is_instructor(request.user)})
 
 
 @login_required
@@ -40,7 +40,7 @@ def certificate_detail(request, certificate_id):
         pk=certificate_id,
     )
     _authorize_record(request.user, certificate.completion_record)
-    return render(request, "reports/certificate.html", {"certificate": certificate})
+    return render_student_page(request, "reports/certificate.html", {"certificate": certificate})
 
 
 @login_required

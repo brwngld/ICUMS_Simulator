@@ -28,7 +28,7 @@ def evaluation_detail(request, evaluation_id):
         raise PermissionDenied("You cannot view this evaluation.")
     instructor_view = _is_instructor(request.user)
     feedback = evaluation.attempt.instructor_feedback.all() if instructor_view else evaluation.attempt.instructor_feedback.filter(visible_to_student=True)
-    return render(request, "evaluations/detail.html", {"evaluation": evaluation, "instructor_view": instructor_view, "feedback": feedback})
+    return render_student_page(request, "evaluations/detail.html", {"evaluation": evaluation, "instructor_view": instructor_view, "feedback": feedback})
 
 
 @login_required

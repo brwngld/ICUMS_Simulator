@@ -325,11 +325,11 @@ tbody tr:hover { background: #faf9ff; }
 /* Persistent dark theme shared by learner and instructor-facing pages. */
 html[data-theme="dark"] {
   color-scheme: dark;
-  --page: #0f172a;
-  --panel: #172033;
+  --page: #101426;
+  --panel: #18213a;
   --text: #edf1ff;
   --muted: #aab4ca;
-  --border: #2b3950;
+  --border: #35415f;
   --accent: #9b8cff;
   --warning: #3c321c;
   --warning-text: #f2d889;
