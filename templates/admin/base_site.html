@@ -5,7 +5,7 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/admin-theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/admin-theme.css' %}?v=20261010-2">
 {% endblock %}
 
 {% block extrahead %}
@@ -23,8 +23,9 @@
 {% block nav-global %}
   <nav id="nav-global" aria-label="Platform links">
     <a href="{% url 'dashboard' %}">Student view</a>
-    <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false">
-      <span class="theme-toggle-icon" aria-hidden="true">◐</span><span data-theme-label>Dark theme</span>
+    <button class="theme-switch" type="button" data-theme-toggle aria-pressed="false">
+      <span class="theme-switch-knob" aria-hidden="true">{% include "components/icon.html" with name="sun" %}{% include "components/icon.html" with name="moon" %}</span>
+      <span class="visually-hidden" data-theme-label>Dark theme</span>
     </button>
   </nav>
 {% endblock %}

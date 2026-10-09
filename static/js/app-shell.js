@@ -9,6 +9,9 @@
   const sidebar = document.querySelector('.app-layout .site-header, .portal-sidebar');
   if (!sidebar) return;
 
+  const sunIcon = '<svg class="ui-icon icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  const moonIcon = '<svg class="ui-icon icon-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>';
+
   const portalBrand = sidebar.querySelector('.portal-brand');
   if (portalBrand && portalBrand.tagName !== 'A') {
     const homeLink = document.createElement('a');
@@ -29,13 +32,14 @@
   }
 
   if (sidebar.classList.contains('portal-sidebar') && !sidebar.querySelector('[data-theme-toggle]')) {
-    const themeButton = document.createElement('button');
-    themeButton.type = 'button';
-    themeButton.className = 'theme-toggle';
-    themeButton.dataset.themeToggle = '';
-    themeButton.innerHTML = '<span class="theme-toggle-icon" aria-hidden="true">◐</span><span data-theme-label>Dark theme</span>';
+    const themeRow = document.createElement('div');
+    themeRow.className = 'theme-row';
+    themeRow.innerHTML = '<span class="theme-row-label" aria-hidden="true">Theme</span>'
+      + '<button class="theme-switch" type="button" data-theme-toggle aria-pressed="false">'
+      + '<span class="theme-switch-knob" aria-hidden="true">' + sunIcon + moonIcon + '</span>'
+      + '<span class="visually-hidden" data-theme-label>Dark theme</span></button>';
     const returnLink = sidebar.querySelector('.return-link');
-    (returnLink ? returnLink.parentElement : sidebar).append(themeButton);
+    (returnLink ? returnLink.parentElement : sidebar).append(themeRow);
   }
 
   const refreshThemeLabel = () => {

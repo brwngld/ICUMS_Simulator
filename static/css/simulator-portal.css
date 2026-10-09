@@ -332,9 +332,18 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 
 /* Practical workspaces use the same persistent theme preference as the app shell. */
-.theme-toggle { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; width: calc(100% - .2rem); min-height: 2.25rem; margin: .35rem .1rem 1rem; padding: .45rem .65rem; border: 1px solid var(--line); border-radius: .55rem; color: var(--ink); background: var(--panel); font: inherit; font-size: .72rem; cursor: pointer; }
-.theme-toggle:hover { color: var(--primary); border-color: var(--primary); }
-.theme-toggle-icon { color: var(--primary); font-size: 1rem; line-height: 1; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.theme-row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin: 1.4rem 0 .6rem; padding: .85rem .2rem 0; border-top: 1px solid var(--line); }
+.theme-row-label { font-size: .65rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+.theme-switch { position: relative; flex: 0 0 auto; width: 2.75rem; height: 1.5rem; padding: 0; border: 0; border-radius: 999px; background: #d4d9e6; cursor: pointer; transition: background .2s ease, box-shadow .2s ease; }
+.theme-switch:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary), transparent 84%); }
+.theme-switch-knob { position: absolute; top: .1875rem; left: .1875rem; display: inline-flex; align-items: center; justify-content: center; width: 1.125rem; height: 1.125rem; border-radius: 999px; background: #fff; color: #d97706; box-shadow: 0 1px 3px #102a4340; transition: transform .22s ease, color .22s ease; }
+.theme-switch-knob .ui-icon { width: .75rem; height: .75rem; }
+.theme-switch .icon-moon { display: none; }
+.theme-switch[aria-pressed="true"] { background: var(--primary); }
+.theme-switch[aria-pressed="true"] .theme-switch-knob { transform: translateX(1.25rem); color: #5b54d6; }
+.theme-switch[aria-pressed="true"] .icon-sun { display: none; }
+.theme-switch[aria-pressed="true"] .icon-moon { display: block; }
 html[data-theme="dark"] {
   color-scheme: dark;
   --ink: #edf1ff;
@@ -389,7 +398,8 @@ html[data-theme="dark"] td { border-color: var(--line); }
 html[data-theme="dark"] .dialog-header { color: var(--ink); background: #202b47; border-color: var(--line); }
 html[data-theme="dark"] .dialog-close { color: #c4bfff; background: #18213a; border-color: #4b5675; }
 html[data-theme="dark"] .dialog-notice { color: #f2d889; background: #3c321c; }
-html[data-theme="dark"] .theme-toggle { color: #e4e9f8; background: #202b47; border-color: #465271; }
+html[data-theme="dark"] .theme-switch { background: #323d5e; }
+html[data-theme="dark"] .theme-switch[aria-pressed="true"] { background: var(--primary); }
 
 /* --- Uniform read-only form state -------------------------------------------
    Submitted/view-mode forms render with the SAME layout and the SAME control

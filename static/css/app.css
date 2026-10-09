@@ -376,10 +376,20 @@ html[data-theme="dark"] tbody tr:hover { background: #202b47; }
 html[data-theme="dark"] .guest-layout { background: var(--page); }
 html[data-theme="dark"] .auth-layout { background: var(--panel); }
 
-.theme-toggle { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; width: 100%; min-height: 2.25rem; padding: .45rem .65rem; border: 1px solid var(--border); border-radius: .55rem; color: var(--text); background: var(--panel); font: inherit; font-size: .72rem; cursor: pointer; }
-.guest-theme-toggle { width: auto; }
-.theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
-.theme-toggle-icon { color: var(--accent); font-size: 1rem; line-height: 1; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.theme-row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .85rem .2rem; border-top: 1px solid var(--border); }
+.theme-row-bare { padding: 0; border-top: 0; }
+.theme-row-label { font-size: .65rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+.theme-switch { position: relative; flex: 0 0 auto; width: 2.75rem; height: 1.5rem; padding: 0; border: 0; border-radius: 999px; background: #d4d9e6; cursor: pointer; transition: background .2s ease, box-shadow .2s ease; }
+.theme-switch:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent), transparent 84%); }
+.theme-switch-knob { position: absolute; top: .1875rem; left: .1875rem; display: inline-flex; align-items: center; justify-content: center; width: 1.125rem; height: 1.125rem; border-radius: 999px; background: #fff; color: #d97706; box-shadow: 0 1px 3px #102a4340; transition: transform .22s ease, color .22s ease; }
+.theme-switch-knob .ui-icon { width: .75rem; height: .75rem; }
+.theme-switch .icon-moon { display: none; }
+.theme-switch[aria-pressed="true"] { background: var(--accent); }
+.theme-switch[aria-pressed="true"] .theme-switch-knob { transform: translateX(1.25rem); color: #5b54d6; }
+.theme-switch[aria-pressed="true"] .icon-sun { display: none; }
+.theme-switch[aria-pressed="true"] .icon-moon { display: block; }
+html[data-theme="dark"] .theme-switch { background: #323d5e; }
 
 /* Guided instructor course builder */
 .builder-layout { display: grid; grid-template-columns: minmax(18rem, .72fr) minmax(0, 1.6fr); gap: 1.5rem; align-items: start; }
