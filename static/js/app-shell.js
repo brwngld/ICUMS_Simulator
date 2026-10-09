@@ -69,6 +69,15 @@
     });
   }
 
+  const sidebarToggle = document.querySelector('[data-sidebar-toggle]');
+  if (sidebarToggle) {
+    if (window.localStorage.getItem('icums-sidebar') === 'off') document.body.classList.add('sidebar-collapsed');
+    sidebarToggle.addEventListener('click', () => {
+      const off = document.body.classList.toggle('sidebar-collapsed');
+      window.localStorage.setItem('icums-sidebar', off ? 'off' : 'on');
+    });
+  }
+
   const refreshThemeLabel = () => {
     const dark = root.dataset.theme === 'dark';
     document.querySelectorAll('[data-theme-toggle]').forEach((button) => {

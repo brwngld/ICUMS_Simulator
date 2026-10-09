@@ -167,7 +167,7 @@ button, a, input, select, textarea { transition: background-color .18s, border-c
 .breadcrumb-divider { margin: 0 .8rem; color: #ccd2df; }
 .environment-badge { display: inline-flex; align-items: center; gap: .45rem; white-space: nowrap; font-size: .68rem; }
 .environment-badge i { width: .4rem; height: .4rem; border-radius: 50%; background: #239878; }
-.page-shell { width: min(80rem, calc(100% - 4rem)); margin: 2rem auto 3rem; min-width: 0; }
+.page-shell { width: min(88rem, calc(100% - 4rem)); margin: 2rem auto 3rem; min-width: 0; }
 .panel, .reading-panel, .auth-panel { border-radius: 1rem; box-shadow: 0 2px 4px #25345103, 0 8px 24px #25345103; }
 .panel { min-width: 0; }
 .eyebrow { font-size: .67rem; letter-spacing: .11em; text-transform: uppercase; }
@@ -347,6 +347,7 @@ html[data-theme="dark"] .top-nav a { color: #aab4ca; }
 html[data-theme="dark"] .top-nav a:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
 html[data-theme="dark"] .top-nav a[aria-current="page"] { color: #d5d0ff; background: color-mix(in srgb, var(--accent) 16%, transparent); }
 html[data-theme="dark"] .sidebar-tip { background: #1c2739; }
+html[data-theme="dark"] .app-layout .site-header { background: var(--page); }
 html[data-theme="dark"] .workspace-bar strong { color: #dbe1f2; }
 html[data-theme="dark"] input,
 html[data-theme="dark"] textarea,
@@ -500,10 +501,6 @@ html[data-theme="dark"] .account-summary { background: #1c2739; }
 .account-summary:hover { border-color: #c7cdf7; }
 html[data-theme="dark"] .account-summary:hover { border-color: var(--accent); }
 
-.signout-form .link-button { display: flex; width: 100%; align-items: center; gap: .6rem; margin-top: .35rem; padding: .55rem .8rem; border-radius: .65rem; color: #b42318; font-weight: 600; text-decoration: none; font-size: .81rem; transition: color .18s ease, background .18s ease; }
-.signout-form .link-button:hover { background: color-mix(in srgb, #b42318 9%, transparent); text-decoration: none; }
-html[data-theme="dark"] .signout-form .link-button { color: #f87171; }
-html[data-theme="dark"] .signout-form .link-button:hover { background: color-mix(in srgb, #f87171 10%, transparent); }
 .signout-form .link-button .ui-icon { width: 1.05rem; height: 1.05rem; }
 
 .section-heading h2 { padding-bottom: .55rem; border-bottom: 1px solid var(--border); }
@@ -526,9 +523,29 @@ details.nav-group > summary:hover { color: var(--accent); background: color-mix(
 details.nav-group[open] > summary .nav-group-chevron { transform: rotate(90deg); }
 details.nav-group > summary + a { margin-top: .15rem; }
 
-.theme-picker { display: flex; flex-direction: column; gap: .3rem; margin-top: 1rem; padding: 0 .2rem; }
-.theme-picker .theme-row-label { font-size: .65rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #77829b; }
-.theme-picker-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; }
-.theme-picker-row button { padding: .35rem .3rem; border: 1px solid var(--border); border-radius: .5rem; background: transparent; color: var(--muted); font: inherit; font-size: .7rem; font-weight: 600; cursor: pointer; transition: background .18s ease, color .18s ease, border-color .18s ease; }
-.theme-picker-row button:hover { color: var(--accent); border-color: var(--accent); }
-.theme-picker-row button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.sidebar-menu { margin-top: 1rem; border: 1px solid var(--border); border-radius: .75rem; overflow: hidden; background: var(--panel); }
+.theme-menu { display: flex; flex-direction: column; padding: .35rem; }
+.theme-menu button { display: flex; align-items: center; gap: .6rem; padding: .5rem .6rem; border: 0; border-radius: .5rem; background: transparent; color: var(--muted); font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; text-align: left; transition: background .15s ease, color .15s ease; }
+.theme-menu button:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.theme-menu button[aria-pressed="true"] { color: var(--accent); }
+.theme-menu button .ui-icon { width: 1rem; height: 1rem; }
+.sidebar-menu-links { display: flex; flex-direction: column; padding: .35rem; border-top: 1px solid var(--border); }
+.sidebar-menu-link { display: flex; align-items: center; gap: .6rem; margin: 0; padding: .5rem .6rem; border: 0; border-radius: .5rem; color: var(--muted); font: inherit; font-size: .78rem; font-weight: 600; text-decoration: none; cursor: pointer; text-align: left; transition: background .15s ease, color .15s ease; }
+.sidebar-menu-link:hover { color: var(--text); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.sidebar-menu-link .ui-icon { width: 1rem; height: 1rem; }
+.sidebar-signout { color: #b42318; }
+html[data-theme="dark"] .sidebar-signout { color: #f87171; }
+.sidebar-signout:hover { color: #b42318; background: color-mix(in srgb, #b42318 9%, transparent); }
+html[data-theme="dark"] .sidebar-signout:hover { color: #f87171; background: color-mix(in srgb, #f87171 10%, transparent); }
+
+.sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; margin-right: .75rem; flex-shrink: 0; border: 1px solid var(--border); border-radius: .5rem; background: var(--panel); color: var(--muted); cursor: pointer; transition: color .18s ease, border-color .18s ease; }
+.sidebar-toggle:hover { color: var(--accent); border-color: var(--accent); }
+.sidebar-toggle .ui-icon { width: 1.05rem; height: 1.05rem; }
+.app-layout.sidebar-collapsed { padding-left: 0; }
+.app-layout.sidebar-collapsed .site-header { display: none; }
+
+.stacked-form .errorlist { margin: 0 0 .35rem; padding: 0; list-style: none; color: #b42318; font-size: .78rem; }
+
+/* --- Environment badge: amber pill matching the admin header ---------------- */
+.environment-badge { padding: .28rem .6rem; border-radius: 99px; color: var(--warning-text); background: var(--warning); font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+.environment-badge i { background: #d97706; }
