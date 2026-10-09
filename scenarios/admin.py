@@ -8,10 +8,11 @@ import json
 import secrets
 
 from .models import AssistanceEvent, BillOfLading, BoeDeclaration, BoeStageEvent, BillOfLadingCargoItem, ConsignmentApplication, CommercialDocument, CommercialDocumentLine, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration
+from unfold.admin import ModelAdmin, StackedInline, TabularInline
 
 
 @admin.register(GhanaHSCode)
-class GhanaHSCodeAdmin(admin.ModelAdmin):
+class GhanaHSCodeAdmin(ModelAdmin):
     list_display = ("code", "description", "heading_code", "quantity_unit", "import_duty", "import_vat")
     search_fields = ("code", "description", "heading_code")
     list_filter = ("heading_code",)
@@ -29,7 +30,7 @@ class CustomsProcedureCodeAdminForm(forms.ModelForm):
         }
 
 
-class CustomsProcedureCodeInline(admin.TabularInline):
+class CustomsProcedureCodeInline(TabularInline):
     model = CustomsProcedureCode
     form = CustomsProcedureCodeAdminForm
     extra = 1
@@ -37,7 +38,7 @@ class CustomsProcedureCodeInline(admin.TabularInline):
 
 
 @admin.register(CustomsRegime)
-class CustomsRegimeAdmin(admin.ModelAdmin):
+class CustomsRegimeAdmin(ModelAdmin):
     list_display = ("code", "name", "is_active", "cpc_count")
     search_fields = ("code", "name")
     list_filter = ("is_active",)
@@ -52,7 +53,7 @@ class CustomsRegimeAdmin(admin.ModelAdmin):
 
 
 @admin.register(CustomsProcedureCode)
-class CustomsProcedureCodeAdmin(admin.ModelAdmin):
+class CustomsProcedureCodeAdmin(ModelAdmin):
     form = CustomsProcedureCodeAdminForm
     list_display = ("code", "description", "regime", "is_active")
     search_fields = ("code", "description", "regime__code", "regime__name")
@@ -64,7 +65,7 @@ class CustomsProcedureCodeAdmin(admin.ModelAdmin):
 
 
 @admin.register(PortCode)
-class PortCodeAdmin(admin.ModelAdmin):
+class PortCodeAdmin(ModelAdmin):
     list_display = ("code", "name", "country_code", "country_name", "is_active")
     search_fields = ("code", "name", "country_code", "country_name")
     list_filter = ("is_active", "country_code")
@@ -76,14 +77,14 @@ class PortCodeAdmin(admin.ModelAdmin):
     )
 
 
-class MdaApplicationInline(admin.TabularInline):
+class MdaApplicationInline(TabularInline):
     model = MdaApplication
     extra = 1
     fields = ("code", "name", "is_active")
 
 
 @admin.register(MdaAgency)
-class MdaAgencyAdmin(admin.ModelAdmin):
+class MdaAgencyAdmin(ModelAdmin):
     list_display = ("code", "name", "is_active", "application_count")
     search_fields = ("code", "name")
     list_filter = ("is_active",)
@@ -94,14 +95,14 @@ class MdaAgencyAdmin(admin.ModelAdmin):
         return obj.applications.count()
 
 
-class MdaProcessInline(admin.TabularInline):
+class MdaProcessInline(TabularInline):
     model = MdaProcess
     extra = 1
     fields = ("code", "name", "is_active")
 
 
 @admin.register(MdaApplication)
-class MdaApplicationAdmin(admin.ModelAdmin):
+class MdaApplicationAdmin(ModelAdmin):
     list_display = ("code", "name", "mda", "is_active", "process_count")
     search_fields = ("code", "name", "mda__code", "mda__name")
     list_filter = ("is_active", "mda")
@@ -114,21 +115,21 @@ class MdaApplicationAdmin(admin.ModelAdmin):
 
 
 @admin.register(MdaProcess)
-class MdaProcessAdmin(admin.ModelAdmin):
+class MdaProcessAdmin(ModelAdmin):
     list_display = ("code", "name", "application", "is_active")
     search_fields = ("code", "name", "application__code", "application__name", "application__mda__code")
     list_filter = ("is_active", "application__mda")
     autocomplete_fields = ("application",)
 
 
-class BoeStageEventInline(admin.TabularInline):
+class BoeStageEventInline(TabularInline):
     model = BoeStageEvent
     extra = 0
     readonly_fields = ("created_at",)
 
 
 @admin.register(BoeDeclaration)
-class BoeDeclarationAdmin(admin.ModelAdmin):
+class BoeDeclarationAdmin(ModelAdmin):
     """BOE declarations with owner tracing; officers add stage events inline."""
 
     list_display = ("declaration_no", "student", "ucr", "idf_no", "regime", "status", "submitted_at")
@@ -155,7 +156,7 @@ class BoeDeclarationAdmin(admin.ModelAdmin):
 
 
 @admin.register(MdaConsignmentRequest)
-class MdaConsignmentRequestAdmin(admin.ModelAdmin):
+class MdaConsignmentRequestAdmin(ModelAdmin):
     list_display = ("application_no", "student", "mda", "application", "process", "consignment_type", "status", "created_at")
     search_fields = ("application_no", "mda__code", "application__code", "process__code", "consignment_application__ucr__ucr_no", "consignment_application__owner__student_id", "consignment_application__owner__first_name", "consignment_application__owner__last_name")
     list_filter = ("status", "consignment_type", "mda")
@@ -170,7 +171,7 @@ class MdaConsignmentRequestAdmin(admin.ModelAdmin):
 
 
 @admin.register(UcrDeclaration)
-class UcrDeclarationAdmin(admin.ModelAdmin):
+class UcrDeclarationAdmin(ModelAdmin):
     """Every learner's UCRs with their owner, so administrators can trace student work."""
 
     list_display = ("ucr_no", "temp_no", "student", "regime", "status", "created_at", "submitted_at")
@@ -184,7 +185,7 @@ class UcrDeclarationAdmin(admin.ModelAdmin):
 
 
 @admin.register(ConsignmentApplication)
-class ConsignmentApplicationAdmin(admin.ModelAdmin):
+class ConsignmentApplicationAdmin(ModelAdmin):
     """Every learner's consignment applications with their owner."""
 
     list_display = ("application_no", "student", "ucr", "status", "created_at", "submitted_at")
@@ -250,7 +251,7 @@ class TrainingServiceProviderForm(forms.ModelForm):
 
 
 @admin.register(TrainingServiceProvider)
-class TrainingServiceProviderAdmin(admin.ModelAdmin):
+class TrainingServiceProviderAdmin(ModelAdmin):
     form = TrainingServiceProviderForm
     change_form_template = "admin/scenarios/trainingserviceprovider/change_form.html"
     list_display = ("declarant_code", "code", "name", "country_code", "owner", "is_active")
@@ -343,7 +344,7 @@ class TrainingStakeholderNameFormSet(BaseInlineFormSet):
             seen.setdefault(key, set()).update(roles)
 
 
-class TrainingStakeholderNameInline(admin.TabularInline):
+class TrainingStakeholderNameInline(TabularInline):
     model = TrainingStakeholderName
     form = TrainingStakeholderNameForm
     formset = TrainingStakeholderNameFormSet
@@ -353,7 +354,7 @@ class TrainingStakeholderNameInline(admin.TabularInline):
 
 
 @admin.register(TrainingStakeholder)
-class TrainingStakeholderAdmin(admin.ModelAdmin):
+class TrainingStakeholderAdmin(ModelAdmin):
     form = TrainingStakeholderForm
     inlines = (TrainingStakeholderNameInline,)
     list_display = ("code", "name", "tin_type", "stakeholder_roles", "merged_into", "is_active")
@@ -398,7 +399,7 @@ class TrainingStakeholderAdmin(admin.ModelAdmin):
             self.message_user(request, f"{obj.code} now resolves to {target.code}. The surviving TIN's details take precedence.", messages.SUCCESS)
 
 
-class BillOfLadingCargoItemInline(admin.StackedInline):
+class BillOfLadingCargoItemInline(StackedInline):
     model = BillOfLadingCargoItem
     extra = 1
     fieldsets = (
@@ -408,7 +409,7 @@ class BillOfLadingCargoItemInline(admin.StackedInline):
 
 
 @admin.register(BillOfLading)
-class BillOfLadingAdmin(admin.ModelAdmin):
+class BillOfLadingAdmin(ModelAdmin):
     change_form_template = "admin/scenarios/billoflading/change_form.html"
     list_display = ("reference", "title", "template", "status", "scenario_version", "updated_at")
     list_filter = ("template", "status", "scenario_version")
@@ -426,7 +427,7 @@ class BillOfLadingAdmin(admin.ModelAdmin):
         js = ("admin/js/bl-editor.js", "admin/js/bl-editor-fields-v2.js")
 
 
-class CommercialDocumentLineInline(admin.StackedInline):
+class CommercialDocumentLineInline(StackedInline):
     model = CommercialDocumentLine
     extra = 1
     fieldsets = (
@@ -436,7 +437,7 @@ class CommercialDocumentLineInline(admin.StackedInline):
 
 
 @admin.register(CommercialDocument)
-class CommercialDocumentAdmin(admin.ModelAdmin):
+class CommercialDocumentAdmin(ModelAdmin):
     change_form_template = "admin/scenarios/commercialdocument/change_form.html"
     list_display = ("reference", "title", "document_type", "status", "scenario_version", "updated_at")
     list_filter = ("document_type", "status", "scenario_version")
@@ -469,14 +470,14 @@ class CommercialDocumentAdmin(admin.ModelAdmin):
 
 
 @admin.register(Scenario)
-class ScenarioAdmin(admin.ModelAdmin):
+class ScenarioAdmin(ModelAdmin):
     list_display = ("code", "title", "area")
     list_filter = ("area",)
     prepopulated_fields = {"code": ("title",)}
 
 
 @admin.register(ScenarioVersion)
-class ScenarioVersionAdmin(admin.ModelAdmin):
+class ScenarioVersionAdmin(ModelAdmin):
     list_display = ("scenario", "module", "version", "status", "purpose", "assistance_mode", "reference_status")
     list_filter = ("status", "purpose", "assistance_mode", "reference_status")
 
@@ -488,7 +489,7 @@ class ScenarioVersionAdmin(admin.ModelAdmin):
 
 
 @admin.register(ScenarioState)
-class ScenarioStateAdmin(admin.ModelAdmin):
+class ScenarioStateAdmin(ModelAdmin):
     list_display = ("label", "scenario_version", "order", "is_initial", "is_terminal")
     list_filter = ("scenario_version", "is_initial", "is_terminal")
 
@@ -500,7 +501,7 @@ class ScenarioStateAdmin(admin.ModelAdmin):
 
 
 @admin.register(ScenarioActionDefinition)
-class ScenarioActionDefinitionAdmin(admin.ModelAdmin):
+class ScenarioActionDefinitionAdmin(ModelAdmin):
     list_display = ("label", "scenario_version", "from_state", "to_state", "order")
     list_filter = ("scenario_version",)
 
@@ -512,7 +513,7 @@ class ScenarioActionDefinitionAdmin(admin.ModelAdmin):
 
 
 @admin.register(ScenarioDocument)
-class ScenarioDocumentAdmin(admin.ModelAdmin):
+class ScenarioDocumentAdmin(ModelAdmin):
     list_display = ("title", "pdf_layout", "document_type", "reference", "scenario_version", "order")
     list_filter = ("scenario_version", "pdf_layout", "document_type")
     readonly_fields = ("pdf_preview",)
@@ -538,7 +539,7 @@ class ScenarioDocumentAdmin(admin.ModelAdmin):
 
 
 @admin.register(ScenarioAttempt)
-class ScenarioAttemptAdmin(admin.ModelAdmin):
+class ScenarioAttemptAdmin(ModelAdmin):
     list_display = ("enrolment", "scenario_version", "attempt_number", "assistance_mode", "status", "current_state", "last_saved_at")
     list_filter = ("status", "assistance_mode", "scenario_version")
     readonly_fields = [field.name for field in ScenarioAttempt._meta.fields]
@@ -554,7 +555,7 @@ class ScenarioAttemptAdmin(admin.ModelAdmin):
 
 
 @admin.register(ScenarioAction)
-class ScenarioActionAdmin(admin.ModelAdmin):
+class ScenarioActionAdmin(ModelAdmin):
     list_display = ("attempt", "sequence", "action_code", "state_before", "state_after", "created_at")
     readonly_fields = [field.name for field in ScenarioAction._meta.fields]
 
@@ -569,7 +570,7 @@ class ScenarioActionAdmin(admin.ModelAdmin):
 
 
 @admin.register(AssistanceEvent)
-class AssistanceEventAdmin(admin.ModelAdmin):
+class AssistanceEventAdmin(ModelAdmin):
     list_display = ("attempt", "kind", "context_code", "created_at")
     readonly_fields = [field.name for field in AssistanceEvent._meta.fields]
 

@@ -5,9 +5,10 @@ from django.contrib.auth.models import Group
 from audit.models import AuditEvent
 from onboarding.models import Enrolment
 from .models import SimulatorCredential, User
+from unfold.admin import ModelAdmin, TabularInline
 
 
-class EnrolmentInline(admin.TabularInline):
+class EnrolmentInline(TabularInline):
     model = Enrolment
     fk_name = "student"
     fields = ("programme_version", "status", "enrolled_at", "enrolled_by")
@@ -54,7 +55,7 @@ class SimulatorUserAdmin(UserAdmin):
 
 
 @admin.register(SimulatorCredential)
-class SimulatorCredentialAdmin(admin.ModelAdmin):
+class SimulatorCredentialAdmin(ModelAdmin):
     """Credential status only: the password itself is shown once, on the instructor dashboard."""
 
     list_display = ("user", "student_id", "password_state_display", "issued_at", "expires_at", "is_current", "reset_requested_at")

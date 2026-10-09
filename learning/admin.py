@@ -2,20 +2,21 @@ from django.contrib import admin
 
 from .models import ContentBlock, Lesson, Module, Resource
 from assessments.models import LessonCheck
+from unfold.admin import ModelAdmin, StackedInline, TabularInline
 
 
-class ContentBlockInline(admin.StackedInline):
+class ContentBlockInline(StackedInline):
     model = ContentBlock
     extra = 0
 
 
-class LessonCheckInline(admin.TabularInline):
+class LessonCheckInline(TabularInline):
     model = LessonCheck
     extra = 0
 
 
 @admin.register(Lesson)
-class LessonAdmin(admin.ModelAdmin):
+class LessonAdmin(ModelAdmin):
     list_display = ("title", "module", "order", "is_published")
     list_filter = ("is_published", "module")
     prepopulated_fields = {"slug": ("title",)}
@@ -29,7 +30,7 @@ class LessonAdmin(admin.ModelAdmin):
 
 
 @admin.register(Module)
-class ModuleAdmin(admin.ModelAdmin):
+class ModuleAdmin(ModelAdmin):
     list_display = ("title", "programme_version", "order", "is_published", "prerequisite")
     list_filter = ("is_published", "programme_version")
     prepopulated_fields = {"code": ("title",)}
@@ -42,6 +43,6 @@ class ModuleAdmin(admin.ModelAdmin):
 
 
 @admin.register(Resource)
-class ResourceAdmin(admin.ModelAdmin):
+class ResourceAdmin(ModelAdmin):
     list_display = ("title", "url")
     filter_horizontal = ("lessons",)

@@ -1,10 +1,11 @@
 from django.contrib import admin
 
 from .models import AuditEvent
+from unfold.admin import ModelAdmin
 
 
 @admin.register(AuditEvent)
-class AuditEventAdmin(admin.ModelAdmin):
+class AuditEventAdmin(ModelAdmin):
     list_display = ("created_at", "action_code", "actor", "target_type", "target_id")
     list_filter = ("action_code", "created_at")
     search_fields = ("actor__username", "summary", "target_id")

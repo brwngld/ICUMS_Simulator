@@ -1,16 +1,17 @@
 from django.contrib import admin
 
 from .models import Certificate, CompletionPolicy, CompletionRecord
+from unfold.admin import ModelAdmin
 
 
 @admin.register(CompletionPolicy)
-class CompletionPolicyAdmin(admin.ModelAdmin):
+class CompletionPolicyAdmin(ModelAdmin):
     list_display = ("programme_version", "requires_instructor_approval", "certificate_template_version", "is_active")
     list_filter = ("requires_instructor_approval", "is_active")
 
 
 @admin.register(CompletionRecord)
-class CompletionRecordAdmin(admin.ModelAdmin):
+class CompletionRecordAdmin(ModelAdmin):
     list_display = ("enrolment", "status", "qualifying_evaluation", "completed_at", "approved_by")
     list_filter = ("status",)
     readonly_fields = [field.name for field in CompletionRecord._meta.fields]
@@ -26,7 +27,7 @@ class CompletionRecordAdmin(admin.ModelAdmin):
 
 
 @admin.register(Certificate)
-class CertificateAdmin(admin.ModelAdmin):
+class CertificateAdmin(ModelAdmin):
     list_display = ("certificate_number", "completion_record", "status", "issued_at")
     list_filter = ("status",)
     readonly_fields = [field.name for field in Certificate._meta.fields]

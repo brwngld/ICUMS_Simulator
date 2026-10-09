@@ -1,44 +1,139 @@
-{% extends "admin/base_site.html" %}
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}?v=20261010-1">
+{% endblock %}
 
 {% block content %}
-  <section class="admin-welcome">
-    <div>
-      <p class="admin-eyebrow">ICUMS Simulator · Administration</p>
-      <h1>Training platform control centre</h1>
-      <p>Manage learner accounts, learning content, scenario data, and instructor reviews from one calm workspace.</p>
+  <div class="dash">
+    <header class="dash-head">
+      <div>
+        <h1>Overview</h1>
+        <p>Everyone and everything in the ICUMS training workspace, at a glance. All figures are live platform data.</p>
+      </div>
+    </header>
+
+    <div class="dash-cards">
+      {% for card in dash.cards %}
+        <section class="dash-card">
+          <span class="dash-card-icon material-symbols-outlined" aria-hidden="true">{{ card.icon }}</span>
+          <span class="dash-card-label">{{ card.label }}</span>
+          <strong class="dash-card-value">{{ card.value }}</strong>
+          <small class="dash-card-sub">{{ card.sub }}</small>
+        </section>
+      {% endfor %}
     </div>
-    <div class="admin-welcome-mark" aria-hidden="true">IS</div>
-  </section>
 
-  <section class="admin-stat-grid" aria-label="Administration summary">
-    <div class="admin-stat-card"><span class="admin-stat-label">Admin areas</span><strong>{{ app_list|length }}</strong><small>Configured modules</small></div>
-    <div class="admin-stat-card"><span class="admin-stat-label">Access level</span><strong>Staff</strong><small>Protected workspace</small></div>
-    <div class="admin-stat-card"><span class="admin-stat-label">Environment</span><strong>Training</strong><small>Fictional customs data</small></div>
-  </section>
-
-  <div class="admin-app-grid">
-    {% for app in app_list %}
-      <section class="admin-app-card">
-        <div class="admin-app-heading">
-          <div class="admin-app-icon" aria-hidden="true">{{ app.name|slice:":1" }}</div>
-          <div><h2>{{ app.name }}</h2><p>Manage {{ app.name|lower }} records</p></div>
+    <div class="dash-grid">
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div><h2>People by role</h2><p>Current account assignment</p></div>
+          <strong class="dash-panel-total">{{ dash.role_total }}</strong>
         </div>
-        <ul>
-          {% for model in app.models %}
+        <div class="dash-donut-wrap">
+          {% if dash.role_segments %}
+            <svg class="dash-donut" viewBox="0 0 42 42" role="img" aria-label="Users by role">
+              <circle class="dash-donut-ring" cx="21" cy="21" r="15.916" fill="none" stroke-width="6"/>
+              {% for seg in dash.role_segments %}
+                <circle cx="21" cy="21" r="15.916" fill="none" stroke="{{ seg.colour }}" stroke-width="6"
+                        stroke-dasharray="{{ seg.pct }} 100"
+                        stroke-dashoffset="{{ seg.dash_offset }}"
+                        pathLength="100"/>
+              {% endfor %}
+            </svg>
+            <ul class="dash-legend">
+              {% for seg in dash.role_segments %}
+                <li><i style="background: {{ seg.colour }}" aria-hidden="true"></i>{{ seg.label }}<strong>{{ seg.count }}</strong></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="dash-empty">No users yet.</p>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div><h2>Platform content</h2><p>Published learning material</p></div>
+        </div>
+        <ul class="dash-bars">
+          {% for row in dash.content %}
             <li>
-              <a href="{{ model.admin_url }}">{{ model.name }}</a>
-              <span>
-                {% if model.add_url %}<a class="admin-add-link" href="{{ model.add_url }}">Add</a>{% endif %}
-                {% if model.admin_url %}<a class="admin-open-link" href="{{ model.admin_url }}">Open</a>{% endif %}
-              </span>
+              <span class="dash-bar-label">{{ row.label }}</span>
+              <span class="dash-bar-track"><span class="dash-bar-fill" style="width: {% widthratio row.count dash.content_max 100 %}%"></span></span>
+              <strong class="dash-bar-value">{{ row.count }}</strong>
             </li>
           {% empty %}
-            <li class="admin-empty">No models available.</li>
+            <li class="dash-empty">No content yet.</li>
           {% endfor %}
         </ul>
       </section>
-    {% empty %}
-      <section class="admin-app-card admin-empty-card"><h2>No administration modules available</h2><p>Your account does not currently have access to any editable records.</p></section>
-    {% endfor %}
+
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div><h2>Recently added users</h2><p>Latest accounts created</p></div>
+        </div>
+        <table class="dash-table">
+          <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
+          <tbody>
+            {% for user in dash.recent_users %}
+              <tr>
+                <td><strong>{{ user.name }}</strong><small>{{ user.username }}</small></td>
+                <td>{{ user.role }}</td>
+                <td><span class="dash-pill {% if user.is_active %}is-ok{% else %}is-warn{% endif %}">{% if user.is_active %}Active{% else %}Inactive{% endif %}</span></td>
+                <td>{{ user.joined|date:"M j, Y" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="dash-empty">No users yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
+
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div><h2>Needs attention</h2><p>Open items across accounts and enrolments</p></div>
+        </div>
+        <ul class="dash-attention">
+          {% for item in dash.attention %}
+            <li>
+              <div><strong>{{ item.count }} {{ item.label|lower }}</strong><small>{{ item.detail }}</small></div>
+              <a href="{{ item.url }}">Review<span aria-hidden="true"> →</span></a>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
+
+    <section class="dash-panel dash-activity">
+      <div class="dash-panel-head">
+        <div><h2>Recent activity</h2><p>Latest administrative actions</p></div>
+      </div>
+      {% load log %}
+      {% get_admin_log 8 as admin_log %}
+      {% if admin_log %}
+        <ul class="dash-log">
+          {% for entry in admin_log %}
+            <li>
+              <span class="dash-log-icon material-symbols-outlined" aria-hidden="true">{% if entry.action_flag == 1 %}add_circle{% elif entry.action_flag == 3 %}delete{% else %}edit{% endif %}</span>
+              <div>
+                <strong>{% if not entry.is_deletion and entry.get_admin_url %}<a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>{% else %}{{ entry.object_repr }}{% endif %}</strong>
+                <small>{{ entry.action_time|date:"M j, Y H:i" }}{% if entry.change_message %} · {{ entry.change_message }}{% endif %}</small>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="dash-empty">No recent actions.</p>
+      {% endif %}
+    </section>
   </div>
 {% endblock %}

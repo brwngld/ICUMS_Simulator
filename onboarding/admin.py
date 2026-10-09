@@ -3,22 +3,23 @@ from django.contrib.auth.models import Group
 
 from audit.models import AuditEvent
 from .models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
+from unfold.admin import ModelAdmin
 
 
 @admin.register(Programme)
-class ProgrammeAdmin(admin.ModelAdmin):
+class ProgrammeAdmin(ModelAdmin):
     list_display = ("name", "code", "is_active")
     prepopulated_fields = {"code": ("name",)}
 
 
 @admin.register(ProgrammeVersion)
-class ProgrammeVersionAdmin(admin.ModelAdmin):
+class ProgrammeVersionAdmin(ModelAdmin):
     list_display = ("programme", "version", "status", "published_at")
     list_filter = ("status",)
 
 
 @admin.register(Enrolment)
-class EnrolmentAdmin(admin.ModelAdmin):
+class EnrolmentAdmin(ModelAdmin):
     list_display = ("student", "programme_version", "status", "enrolled_at", "enrolled_by")
     list_filter = ("status", "programme_version")
     autocomplete_fields = ("student",)
@@ -44,13 +45,13 @@ class EnrolmentAdmin(admin.ModelAdmin):
 
 
 @admin.register(DisclaimerVersion)
-class DisclaimerVersionAdmin(admin.ModelAdmin):
+class DisclaimerVersionAdmin(ModelAdmin):
     list_display = ("version", "title", "is_current", "published_at")
     list_filter = ("is_current",)
 
 
 @admin.register(DisclaimerAcceptance)
-class DisclaimerAcceptanceAdmin(admin.ModelAdmin):
+class DisclaimerAcceptanceAdmin(ModelAdmin):
     list_display = ("user", "disclaimer", "accepted_at")
     readonly_fields = ("user", "disclaimer", "accepted_at")
 

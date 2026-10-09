@@ -1,21 +1,22 @@
 from django.contrib import admin
 
 from .models import CriterionResult, EvaluationRevision, InstructorFeedback, PracticalEvaluation, RemediationRecommendation, Rubric, RubricCriterion, RubricVersion
+from unfold.admin import ModelAdmin, StackedInline
 
 
 @admin.register(Rubric)
-class RubricAdmin(admin.ModelAdmin):
+class RubricAdmin(ModelAdmin):
     list_display = ("code", "title")
     prepopulated_fields = {"code": ("title",)}
 
 
-class RubricCriterionInline(admin.StackedInline):
+class RubricCriterionInline(StackedInline):
     model = RubricCriterion
     extra = 0
 
 
 @admin.register(RubricVersion)
-class RubricVersionAdmin(admin.ModelAdmin):
+class RubricVersionAdmin(ModelAdmin):
     list_display = ("rubric", "version", "scenario_version", "status", "pass_percentage", "is_demonstration")
     list_filter = ("status", "is_demonstration")
     inlines = (RubricCriterionInline,)
@@ -28,7 +29,7 @@ class RubricVersionAdmin(admin.ModelAdmin):
 
 
 @admin.register(PracticalEvaluation)
-class PracticalEvaluationAdmin(admin.ModelAdmin):
+class PracticalEvaluationAdmin(ModelAdmin):
     list_display = ("attempt", "system_percentage", "system_outcome", "elapsed_seconds", "evaluated_at")
     list_filter = ("system_outcome", "rubric_version")
     readonly_fields = [field.name for field in PracticalEvaluation._meta.fields]
@@ -43,7 +44,7 @@ class PracticalEvaluationAdmin(admin.ModelAdmin):
         return False
 
 
-class ReadOnlyEvidenceAdmin(admin.ModelAdmin):
+class ReadOnlyEvidenceAdmin(ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         return [field.name for field in self.model._meta.fields]
 
