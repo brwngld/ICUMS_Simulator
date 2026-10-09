@@ -1,32 +1,63 @@
 /* ICUMS admin dashboard (django-unfold). Scoped to the custom index only;
    all unfold chrome styling stays in the package. */
 
+@keyframes dash-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes dash-donut-in {
+  from { opacity: 0; transform: rotate(-50deg) scale(.92); }
+  to { opacity: 1; transform: rotate(0deg) scale(1); }
+}
+@keyframes dash-bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
 .dash { display: flex; flex-direction: column; gap: 1.25rem; }
 .dash-head h1 { margin: 0; font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; }
 .dash-head p { margin: .3rem 0 0; color: var(--color-base-500); font-size: .8rem; }
+.dash-head { animation: dash-rise .4s cubic-bezier(.22, .9, .3, 1) backwards; }
 
 .dash-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; }
-.dash-card { display: flex; flex-direction: column; gap: .15rem; padding: 1rem 1.1rem; border: 1px solid var(--color-base-200); border-radius: .75rem; background: var(--color-base-50); }
+.dash-card { display: flex; flex-direction: column; gap: .15rem; padding: 1rem 1.1rem; border: 1px solid var(--color-base-200); border-radius: .75rem; background: var(--color-base-50); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; animation: dash-rise .45s cubic-bezier(.22, .9, .3, 1) backwards; }
 html.dark .dash-card { background: var(--color-base-900); }
-.dash-card-icon { color: var(--color-primary-500); font-size: 1.35rem; }
+.dash-card:hover { transform: translateY(-3px); border-color: var(--color-primary-300); box-shadow: 0 12px 26px #1014261a; }
+html.dark .dash-card:hover { border-color: var(--color-primary-500); box-shadow: 0 12px 26px #00000059; }
+.dash-card-icon { color: var(--color-primary-500); font-size: 1.35rem; transition: transform .2s ease; }
+.dash-card:hover .dash-card-icon { transform: scale(1.12); }
+.dash-card:nth-child(1) { animation-delay: .04s; }
+.dash-card:nth-child(2) { animation-delay: .1s; }
+.dash-card:nth-child(3) { animation-delay: .16s; }
+.dash-card:nth-child(4) { animation-delay: .22s; }
 .dash-card-label { margin-top: .35rem; color: var(--color-base-500); font-size: .72rem; font-weight: 600; letter-spacing: .02em; }
 .dash-card-value { font-size: 1.7rem; font-weight: 750; letter-spacing: -.03em; line-height: 1.1; }
 .dash-card-sub { color: var(--color-base-500); font-size: .7rem; }
 
 .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr)); gap: 1rem; }
-.dash-panel { padding: 1.1rem 1.2rem; border: 1px solid var(--color-base-200); border-radius: .75rem; background: var(--color-base-50); }
+.dash-panel { padding: 1.1rem 1.2rem; border: 1px solid var(--color-base-200); border-radius: .75rem; background: var(--color-base-50); transition: transform .2s ease, box-shadow .2s ease; animation: dash-rise .5s cubic-bezier(.22, .9, .3, 1) backwards; }
 html.dark .dash-panel { background: var(--color-base-900); }
+.dash-panel:hover { transform: translateY(-2px); box-shadow: 0 10px 22px #10142614; }
+html.dark .dash-panel:hover { box-shadow: 0 10px 22px #0000004d; }
+.dash-grid .dash-panel:nth-child(1) { animation-delay: .18s; }
+.dash-grid .dash-panel:nth-child(2) { animation-delay: .26s; }
+.dash-grid .dash-panel:nth-child(3) { animation-delay: .34s; }
+.dash-activity { animation-delay: .42s; }
+
 .dash-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--color-base-200); }
 .dash-panel-head h2 { margin: 0; font-size: .95rem; font-weight: 700; }
 .dash-panel-head p { margin: .15rem 0 0; color: var(--color-base-500); font-size: .72rem; }
 .dash-panel-total { font-size: 1.15rem; font-weight: 750; letter-spacing: -.02em; }
 
 .dash-donut-wrap { display: flex; align-items: center; gap: 1.5rem; padding-top: 1rem; }
-.dash-donut { width: 9.5rem; height: 9.5rem; transform: rotate(0deg); }
+.dash-donut { width: 9.5rem; height: 9.5rem; transform: rotate(0deg); animation: dash-donut-in .7s cubic-bezier(.22, .9, .3, 1) .3s backwards; }
 .dash-donut-ring { stroke: var(--color-base-200); }
 html.dark .dash-donut-ring { stroke: var(--color-base-800); }
 .dash-legend { display: flex; flex-direction: column; gap: .45rem; margin: 0; padding: 0; list-style: none; font-size: .78rem; }
-.dash-legend li { display: flex; align-items: center; gap: .5rem; }
+.dash-legend li { display: flex; align-items: center; gap: .5rem; animation: dash-rise .4s ease backwards; }
+.dash-legend li:nth-child(1) { animation-delay: .45s; }
+.dash-legend li:nth-child(2) { animation-delay: .55s; }
+.dash-legend li:nth-child(3) { animation-delay: .65s; }
 .dash-legend i { display: inline-block; width: .65rem; height: .65rem; border-radius: 50%; }
 .dash-legend strong { margin-left: auto; padding-left: 1.25rem; }
 
@@ -36,13 +67,20 @@ html.dark .dash-donut-ring { stroke: var(--color-base-800); }
 html.dark .dash-bar-label { color: var(--color-base-300); }
 .dash-bar-track { display: block; height: .55rem; overflow: hidden; border-radius: 99px; background: var(--color-base-200); }
 html.dark .dash-bar-track { background: var(--color-base-800); }
-.dash-bar-fill { display: block; height: 100%; min-width: .35rem; border-radius: 99px; background: var(--color-primary-500); }
+.dash-bar-fill { display: block; height: 100%; min-width: .35rem; border-radius: 99px; background: var(--color-primary-500); transform-origin: left center; animation: dash-bar-grow .7s cubic-bezier(.22, .9, .3, 1) backwards; }
+.dash-bars li:nth-child(1) .dash-bar-fill { animation-delay: .3s; }
+.dash-bars li:nth-child(2) .dash-bar-fill { animation-delay: .4s; }
+.dash-bars li:nth-child(3) .dash-bar-fill { animation-delay: .5s; }
+.dash-bars li:nth-child(4) .dash-bar-fill { animation-delay: .6s; }
 .dash-bar-value { text-align: right; font-weight: 700; }
 
 .dash-table { width: 100%; margin-top: .25rem; border-collapse: collapse; font-size: .78rem; }
 .dash-table th { padding: .5rem .5rem .4rem; border-bottom: 1px solid var(--color-base-200); color: var(--color-base-500); font-size: .65rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; text-align: left; }
 .dash-table td { padding: .5rem .5rem; border-bottom: 1px solid var(--color-base-200); vertical-align: top; }
 .dash-table tr:last-child td { border-bottom: 0; }
+.dash-table tbody tr { transition: background .15s ease; }
+.dash-table tbody tr:hover { background: var(--color-base-100); }
+html.dark .dash-table tbody tr:hover { background: var(--color-base-800); }
 .dash-table strong { display: block; font-weight: 650; }
 .dash-table small { color: var(--color-base-500); font-size: .68rem; }
 
@@ -53,8 +91,12 @@ html.dark .dash-pill.is-ok { color: #7fd8bd; background: #12433a; }
 html.dark .dash-pill.is-warn { color: #f2d18a; background: #3c321c; }
 
 .dash-attention { display: flex; flex-direction: column; gap: .55rem; margin: 1rem 0 0; padding: 0; list-style: none; }
-.dash-attention li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .6rem .8rem; border: 1px solid var(--color-base-200); border-radius: .6rem; background: var(--color-base-100); font-size: .78rem; }
+.dash-attention li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .6rem .8rem; border: 1px solid var(--color-base-200); border-radius: .6rem; background: var(--color-base-100); font-size: .78rem; transition: transform .2s ease, border-color .2s ease; animation: dash-rise .4s ease backwards; }
 html.dark .dash-attention li { background: var(--color-base-800); }
+.dash-attention li:hover { transform: translateX(3px); border-color: var(--color-primary-300); }
+.dash-attention li:nth-child(1) { animation-delay: .4s; }
+.dash-attention li:nth-child(2) { animation-delay: .5s; }
+.dash-attention li:nth-child(3) { animation-delay: .6s; }
 .dash-attention strong { display: block; font-weight: 650; }
 .dash-attention small { color: var(--color-base-500); font-size: .68rem; }
 .dash-attention a { white-space: nowrap; font-weight: 650; }
@@ -67,3 +109,8 @@ html.dark .dash-attention li { background: var(--color-base-800); }
 .dash-log small { display: block; color: var(--color-base-500); font-size: .68rem; }
 
 .dash-empty { margin: .75rem 0; color: var(--color-base-500); font-size: .78rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-head, .dash-card, .dash-panel, .dash-donut, .dash-legend li, .dash-bar-fill, .dash-attention li { animation: none; }
+  .dash-card, .dash-panel, .dash-card-icon, .dash-attention li, .dash-table tbody tr { transition: none; }
+}
