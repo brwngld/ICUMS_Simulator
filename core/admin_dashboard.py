@@ -259,10 +259,22 @@ def _student_navigation(request, include_home=True):
             }
         )
 
-    simulator_items = [{"title": "Simulator sandbox", "icon": "box", "link": reverse("simulator-portal")}]
     if roles["can_access_practical"]:
-        simulator_items.append({"title": "Practical/Theory", "icon": "layers", "link": reverse("scenario-list")})
-    groups.append({"title": "Simulator", "items": simulator_items})
+        groups.append(
+            {
+                "title": "Practical",
+                "items": [{"title": "Practical/Theory", "icon": "layers", "link": reverse("scenario-list")}],
+            }
+        )
+
+    groups.append(
+        {
+            "title": "Simulator",
+            "items": [
+                {"title": "Simulator sandbox", "icon": "box", "link": reverse("simulator-portal")},
+            ],
+        }
+    )
 
     if roles["can_access_instructor_portal"]:
         groups.append(
