@@ -384,11 +384,12 @@ html[data-theme="dark"] .auth-layout { background: var(--panel); }
 .theme-switch:hover { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent), transparent 84%); }
 .theme-switch-knob { position: absolute; top: .1875rem; left: .1875rem; display: inline-flex; align-items: center; justify-content: center; width: 1.125rem; height: 1.125rem; border-radius: 999px; background: #fff; color: #d97706; box-shadow: 0 1px 3px #102a4340; transition: transform .22s ease, color .22s ease; }
 .theme-switch-knob .ui-icon { width: .75rem; height: .75rem; }
+.theme-switch .icon-sun, .theme-switch .icon-moon, .theme-switch-knob .icon-sun, .theme-switch-knob .icon-moon { display: inline-flex; }
 .theme-switch .icon-moon { display: none; }
 .theme-switch[aria-pressed="true"] { background: var(--accent); }
 .theme-switch[aria-pressed="true"] .theme-switch-knob { transform: translateX(1.25rem); color: #5b54d6; }
 .theme-switch[aria-pressed="true"] .icon-sun { display: none; }
-.theme-switch[aria-pressed="true"] .icon-moon { display: block; }
+.theme-switch[aria-pressed="true"] .icon-moon { display: inline-flex; }
 html[data-theme="dark"] .theme-switch { background: #323d5e; }
 
 /* Guided instructor course builder */

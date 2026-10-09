@@ -22,10 +22,6 @@
 
 {% block nav-global %}
   <nav id="nav-global" aria-label="Platform links">
-    <a href="{% url 'dashboard' %}">Student view</a>
-    <button class="theme-switch" type="button" data-theme-toggle aria-pressed="false">
-      <span class="theme-switch-knob" aria-hidden="true">{% include "components/icon.html" with name="sun" %}{% include "components/icon.html" with name="moon" %}</span>
-      <span class="visually-hidden" data-theme-label>Dark theme</span>
-    </button>
+    <a href="{% url 'admin:index' %}">Student view</a>
   </nav>
 {% endblock %}
