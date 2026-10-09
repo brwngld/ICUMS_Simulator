@@ -42,6 +42,33 @@
     (returnLink ? returnLink.parentElement : sidebar).append(themeRow);
   }
 
+  const navSearch = document.querySelector('[data-nav-search]');
+  const navRoot = document.querySelector('.top-nav');
+  if (navSearch && navRoot) {
+    navSearch.addEventListener('input', () => {
+      const q = navSearch.value.trim().toLowerCase();
+      navRoot.querySelectorAll('a').forEach((a) => {
+        a.hidden = Boolean(q) && !a.textContent.toLowerCase().includes(q);
+      });
+      const kids = [...navRoot.children];
+      kids.forEach((el) => {
+        if (el.tagName === 'DETAILS') {
+          const match = !q || [...el.querySelectorAll('a')].some((a) => !a.hidden);
+          el.hidden = Boolean(q) && !match;
+          if (q) el.open = match;
+        }
+      });
+      kids.forEach((el, index) => {
+        if (!el.classList.contains('nav-group-label')) return;
+        let visible = false;
+        for (let i = index + 1; i < kids.length && !kids[i].classList.contains('nav-group-label'); i += 1) {
+          if ((kids[i].tagName === 'A' || kids[i].tagName === 'DETAILS') && !kids[i].hidden) visible = true;
+        }
+        el.hidden = Boolean(q) && !visible;
+      });
+    });
+  }
+
   const refreshThemeLabel = () => {
     const dark = root.dataset.theme === 'dark';
     document.querySelectorAll('[data-theme-toggle]').forEach((button) => {

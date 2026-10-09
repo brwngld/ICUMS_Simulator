@@ -507,3 +507,28 @@ html[data-theme="dark"] .signout-form .link-button:hover { background: color-mix
 .signout-form .link-button .ui-icon { width: 1.05rem; height: 1.05rem; }
 
 .section-heading h2 { padding-bottom: .55rem; border-bottom: 1px solid var(--border); }
+
+/* --- Sidebar: search, collapsible groups, theme picker (admin pattern) ------ */
+.nav-search { position: relative; margin-top: .25rem; }
+.nav-search .ui-icon { position: absolute; top: 50%; left: .65rem; width: 1rem; height: 1rem; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.nav-search input { padding: .5rem .75rem .5rem 2.2rem; border-radius: .6rem; background: var(--page); font-size: .78rem; }
+.nav-search input::placeholder { color: var(--muted); }
+.nav-search input:focus { background: var(--panel); }
+
+.nav-group-label { margin: 1.1rem .7rem .35rem; font-size: .65rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #77829b; }
+.nav-group-label:first-child { margin-top: .25rem; }
+
+details.nav-group > summary { display: flex; align-items: center; gap: .8rem; padding: .55rem .75rem; border-radius: .6rem; color: var(--muted); font-size: .8rem; font-weight: 650; cursor: pointer; list-style: none; transition: background .18s ease, color .18s ease; }
+details.nav-group > summary::-webkit-details-marker { display: none; }
+details.nav-group > summary:hover { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.nav-group-chevron { display: inline-flex; margin-left: auto; transition: transform .18s ease; }
+.nav-group-chevron .ui-icon { width: .95rem; height: .95rem; }
+details.nav-group[open] > summary .nav-group-chevron { transform: rotate(90deg); }
+details.nav-group > summary + a { margin-top: .15rem; }
+
+.theme-picker { display: flex; flex-direction: column; gap: .3rem; margin-top: 1rem; padding: 0 .2rem; }
+.theme-picker .theme-row-label { font-size: .65rem; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: #77829b; }
+.theme-picker-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .3rem; }
+.theme-picker-row button { padding: .35rem .3rem; border: 1px solid var(--border); border-radius: .5rem; background: transparent; color: var(--muted); font: inherit; font-size: .7rem; font-weight: 600; cursor: pointer; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+.theme-picker-row button:hover { color: var(--accent); border-color: var(--accent); }
+.theme-picker-row button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }

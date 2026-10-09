@@ -30,4 +30,34 @@
   document.addEventListener('click', toggle);
   document.addEventListener('DOMContentLoaded', refreshLabels);
   refreshLabels();
+
+  // Light / Dark / System picker (sidebar)
+  const syncChoices = () => {
+    const stored = window.localStorage.getItem(storageKey);
+    const current = stored === 'dark' || stored === 'light' ? stored : 'system';
+    document.querySelectorAll('[data-theme-choice]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.themeChoice === current));
+    });
+  };
+  const applyChoice = (choice) => {
+    if (choice === 'system') {
+      window.localStorage.removeItem(storageKey);
+      root.dataset.theme = systemTheme();
+    } else {
+      window.localStorage.setItem(storageKey, choice);
+      root.dataset.theme = choice;
+    }
+    refreshLabels();
+    syncChoices();
+  };
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-theme-choice]');
+    if (button) applyChoice(button.dataset.themeChoice);
+  });
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (event) => {
+      if (!window.localStorage.getItem(storageKey)) root.dataset.theme = event.matches ? 'dark' : 'light';
+    });
+  }
+  syncChoices();
 })();
