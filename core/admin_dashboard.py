@@ -297,16 +297,5 @@ def sidebar_navigation(request):
     areas without duplicating those navigations). Everyone else gets the
     student navigation only. The two lists are independent."""
     if request.user.is_superuser:
-        portal = {
-            "title": "Student / Tutor portal",
-            "items": [
-                {"title": "Student home", "icon": "home", "link": reverse("dashboard")},
-                {"title": "Theory roadmap", "icon": "menu_book", "link": reverse("roadmap")},
-                {"title": "Simulator sandbox", "icon": "box", "link": reverse("simulator-portal")},
-                {"title": "Instructor dashboard", "icon": "users", "link": reverse("instructor-dashboard")},
-                {"title": "Theory builder", "icon": "edit_note", "link": reverse("course-builder") + "?path=theory"},
-                {"title": "Practical/Theory builder", "icon": "layers", "link": reverse("course-builder") + "?path=combined"},
-            ],
-        }
-        return _admin_navigation() + [portal]
+        return _admin_navigation()
     return _student_navigation(request)
