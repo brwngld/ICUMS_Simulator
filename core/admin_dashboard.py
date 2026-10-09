@@ -244,36 +244,30 @@ def _student_navigation(request, include_home=True):
     from django.urls import reverse
 
     roles = role_context(request)
-    groups = []
-    if include_home:
+    groups = [
+        {
+            "title": "",
+            "items": [{"title": "Dashboard", "icon": "dashboard", "link": reverse("dashboard")}],
+        },
+    ]
+
+    if roles["has_active_enrolment"]:
         groups.append(
             {
-                "title": "Overview",
-                "items": [{"title": "Dashboard", "icon": "dashboard", "link": reverse("dashboard")}],
+                "title": "Theory",
+                "items": [{"title": "Theory", "icon": "menu_book", "link": reverse("roadmap")}],
             }
         )
 
-    learning = []
-    if roles["has_active_enrolment"]:
-        learning.append({"title": "Theory", "icon": "menu_book", "link": reverse("roadmap")})
+    simulator_items = [{"title": "Simulator sandbox", "icon": "box", "link": reverse("simulator-portal")}]
     if roles["can_access_practical"]:
-        learning.append({"title": "Practical/Theory", "icon": "layers", "link": reverse("scenario-list")})
-    if learning:
-        groups.append({"title": "Learning", "items": learning})
-
-    groups.append(
-        {
-            "title": "Simulator",
-            "items": [
-                {"title": "Simulator sandbox", "icon": "box", "link": reverse("simulator-portal")},
-            ],
-        }
-    )
+        simulator_items.append({"title": "Practical/Theory", "icon": "layers", "link": reverse("scenario-list")})
+    groups.append({"title": "Simulator", "items": simulator_items})
 
     if roles["can_access_instructor_portal"]:
         groups.append(
             {
-                "title": "Instructor tools",
+                "title": "Instructor",
                 "items": [
                     {"title": "Instructor", "icon": "users", "link": reverse("instructor-dashboard")},
                     {"title": "Theory builder", "icon": "edit_note", "link": reverse("course-builder") + "?path=theory"},
