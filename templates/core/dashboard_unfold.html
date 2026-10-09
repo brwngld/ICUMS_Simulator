@@ -4,23 +4,150 @@
 {% block title %}Dashboard · ICUMS Simulator{% endblock %}
 
 {% block extrastyle %}
+  {{ block.super }}
   <style>
-    .dash { display: flex; flex-direction: column; gap: 1.25rem; }
+    .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #5145cd; display: flex; flex-direction: column; gap: 1.25rem; }
+    html[data-theme="dark"] .dash { --d-border: #2b3950; --d-muted: #aab4ca; --d-card-bg: #172033; --d-accent: #9b8cff; }
     .dash-head h1 { margin: 0; font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; }
-    .dash-head p { margin: .3rem 0 0; color: #aab4ca; font-size: .8rem; }
-    .dash-notice { padding: .55rem .75rem; border-radius: .6rem; background: #3c321c; color: #f2d889; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-align: center; }
+    .dash-head p { margin: .3rem 0 0; color: var(--d-muted); font-size: .8rem; }
+    .dash-notice { padding: .55rem .75rem; border-radius: .6rem; background: #fffaeb; color: #795c16; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-align: center; }
+    html[data-theme="dark"] .dash-notice { background: #3c321c; color: #f2d889; }
+    .dash-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem; }
+    .dash-card { display: flex; flex-direction: column; gap: .15rem; padding: 1rem 1.1rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg, #f8fafc); }
+    html[data-theme="dark"] .dash-card { background: #172033; }
+    .dash-card-icon .ui-icon { width: 1.35rem; height: 1.35rem; color: var(--d-accent, #5145cd); }
+    .dash-card-label { margin-top: .35rem; color: var(--d-muted); font-size: .72rem; font-weight: 600; letter-spacing: .02em; }
+    .dash-card-value { font-size: 1.5rem; font-weight: 750; letter-spacing: -.03em; line-height: 1.2; }
+    .dash-card-sub { color: var(--d-muted); font-size: .7rem; }
+    .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1rem; }
+    .dash-panel { padding: 1.1rem 1.2rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg, #f8fafc); }
+    html[data-theme="dark"] .dash-panel { background: #172033; }
+    .dash-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: .75rem; margin-bottom: .75rem; border-bottom: 1px solid var(--d-border); }
+    .dash-panel-head h2 { margin: 0; font-size: .95rem; font-weight: 700; }
+    .dash-panel-head p { margin: .15rem 0 0; color: var(--d-muted); font-size: .72rem; }
+    .dash-panel a { color: var(--d-accent, #5145cd); font-weight: 600; }
+    .dash-bars { display: flex; flex-direction: column; gap: .7rem; margin: 0; padding: 0; list-style: none; }
+    .dash-bars li { display: grid; grid-template-columns: minmax(8rem, 14rem) 1fr 3rem; align-items: center; gap: .75rem; font-size: .8rem; }
+    .dash-bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dash-bar-track { display: block; height: .55rem; overflow: hidden; border-radius: 99px; background: #e2e8f0; }
+    html[data-theme="dark"] .dash-bar-track { background: #2b3950; }
+    .dash-bar-fill { display: block; height: 100%; min-width: .35rem; border-radius: 99px; background: var(--d-accent, #5145cd); }
+    .dash-bar-value { text-align: right; font-weight: 700; }
+    .dash-steps { display: flex; flex-direction: column; gap: .75rem; margin: 0; padding: 0; counter-reset: steps; list-style: none; }
+    .dash-steps li { display: flex; align-items: flex-start; gap: .8rem; padding: .6rem .75rem; counter-increment: steps; }
+    .dash-steps li::before { content: counter(steps); display: grid; place-items: center; flex-shrink: 0; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--d-accent, #5145cd); color: #fff; font-size: .78rem; font-weight: 700; }
+    .dash-legend { display: flex; flex-direction: column; gap: .45rem; margin: 0; padding: 0; list-style: none; font-size: .8rem; }
+    .dash-legend li { display: flex; align-items: center; gap: .5rem; }
+    .dash-dot { display: inline-block; width: .6rem; height: .6rem; border-radius: 50%; background: var(--d-accent, #5145cd); }
+    .dash-table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+    .dash-table th { padding: .5rem .5rem .4rem; border-bottom: 1px solid var(--d-border); color: var(--d-muted); font-size: .7rem; font-weight: 650; letter-spacing: .05em; text-align: left; }
+    .dash-table td { padding: .5rem .5rem; }
+    .dash-pill { display: inline-block; padding: .12rem .55rem; border-radius: 99px; font-size: .68rem; font-weight: 650; }
+    .dash-pill.is-ok { color: #067a5e; background: #e2f6ef; }
+    .dash-pill.is-warn { color: #93530a; background: #fdf0d9; }
+    html[data-theme="dark"] .dash-pill.is-ok { color: #7fd8bd; background: #12433a; }
+    html[data-theme="dark"] .dash-pill.is-warn { color: #f2d18a; background: #3c321c; }
+    .dash-empty { margin: .75rem 0; color: var(--d-muted); font-size: .8rem; }
+    .dash-panel a.primary-link { color: var(--d-accent, #5145cd); }
+    .dash-panel p.dash-note { margin: 0 0 .75rem; color: var(--d-muted); font-size: .8rem; }
   </style>
 {% endblock %}
 
 {% block content %}
   <div class="dash">
-    <div class="dash-notice" style="padding: .55rem .75rem; border-radius: .6rem; background: #3c321c; color: #f2d889; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-align: center;">TRAINING SIMULATOR — NOT OFFICIAL ICUMS</div>
+    <div class="dash-notice">TRAINING SIMULATOR — NOT OFFICIAL ICUMS</div>
 
     <header class="dash-head">
       <div>
         <h1>Welcome, {{ user.get_full_name|default:user.username }}.</h1>
-        <p>You are signed in. Use the menu to navigate, or log out at any time.</p>
+        <p>Your learning workspace, at a glance.</p>
       </div>
     </header>
+
+    {% if enrolment %}
+      <div class="dash-cards">
+        <section class="dash-card">
+          <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="menu_book" %}</span>
+          <span class="dash-card-label">Published modules</span>
+          <strong class="dash-card-value">{{ module_summaries|length }}</strong>
+          <small class="dash-card-sub">{{ enrolment.programme_version.programme.name }}</small>
+        </section>
+        <section class="dash-card">
+          <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="layers" %}</span>
+          <span class="dash-card-label">Practical training</span>
+          <strong class="dash-card-value">{% if programme_progress.orientation_completed_at %}Unlocked{% else %}Preparing{% endif %}</strong>
+          <small class="dash-card-sub">Simulator orientation</small>
+        </section>
+        <section class="dash-card">
+          <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="award" %}</span>
+          <span class="dash-card-label">Training record</span>
+          <strong class="dash-card-value">{% if completion_record %}{{ completion_record.get_status_display }}{% else %}In progress{% endif %}</strong>
+          <small class="dash-card-sub">Competency record</small>
+        </section>
+      </div>
+
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div><h2>Your learning modules</h2><p>A clear path from fundamentals to practice.</p></div>
+          <a href="{% url 'roadmap' %}">View roadmap →</a>
+        </div>
+        <ul class="dash-bars">
+          {% for item in module_summaries %}
+            <li>
+              <span class="dash-bar-label">{{ item.module.title }}</span>
+              <span class="dash-bar-track"><span class="dash-bar-fill" style="width: {{ item.percentage }}%"></span></span>
+              <strong class="dash-bar-value">{{ item.percentage }}%</strong>
+            </li>
+          {% empty %}
+            <li class="dash-empty">Your programme has no published modules yet.</li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+
+    <section class="dash-panel">
+      <div class="dash-panel-head">
+        <div><h2>Your path to confidence</h2><p>Training stages</p></div>
+      </div>
+      <ol class="dash-steps">
+        <li><strong>Learn the essentials</strong><small>Work through lessons and knowledge checks.</small></li>
+        <li><strong>Practise the workflow</strong><small>Explore fictional scenarios in the simulator.</small></li>
+        <li><strong>Demonstrate your skills</strong><small>Complete assessments and earn your training record.</small></li>
+      </ol>
+    </section>
+
+    <section class="dash-panel">
+      <div class="dash-panel-head">
+        <div><h2>Account access</h2><p>Roles and simulator access</p></div>
+      </div>
+      {% if role_names %}
+        <ul class="dash-legend">
+          {% for role_name in role_names %}<li><i class="dash-dot" aria-hidden="true"></i>{{ role_name }}</li>{% endfor %}
+        </ul>
+      {% else %}
+        <p class="dash-empty">No training role has been assigned yet. Contact an administrator.</p>
+      {% endif %}
+      {% if user.is_staff %}<p class="dash-empty"><a href="{% url 'admin:index' %}">Open administration</a></p>{% endif %}
+    </section>
+
+    {% if user.student_id %}
+      <section class="dash-panel">
+        <div class="dash-panel-head">
+          <div><h2>Simulator access</h2><p>ICUMS user details</p></div>
+        </div>
+        <table class="dash-table">
+          <tbody>
+            <tr><th>Student ID</th><td><strong>{{ user.student_id }}</strong></td></tr>
+            {% if simulator_credential and simulator_credential.issued_at %}
+              <tr><th>Expires</th><td>{{ simulator_credential.expires_at|date:"j F Y, H:i" }}</td></tr>
+              <tr><th>Status</th><td>{% if simulator_credential.is_current %}<span class="dash-pill is-ok">Active</span>{% else %}<span class="dash-pill is-warn">Expired — request a reset</span>{% endif %}</td></tr>
+            {% else %}
+              <tr><th>Status</th><td>Waiting for an instructor or administrator to issue simulator access.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+        <p style="margin: .75rem 0 0;"><a href="{% url 'simulator-portal' %}">Open simulator login →</a></p>
+      </section>
+    {% endif %}
   </div>
 {% endblock %}
