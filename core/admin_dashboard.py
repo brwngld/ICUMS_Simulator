@@ -294,8 +294,9 @@ def _student_navigation(request):
 
 
 def sidebar_navigation(request):
-    """Dispatch: administrators get the admin navigation, everyone else the
-    student copy. The two lists are independent."""
-    if request.user.is_staff:
+    """Dispatch: superusers get the full admin navigation; instructors, staff
+    and students all get the student copy (its own permission rules hide
+    whatever a user may not see). The two lists are independent."""
+    if request.user.is_superuser:
         return _admin_navigation()
     return _student_navigation(request)
