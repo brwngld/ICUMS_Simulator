@@ -245,7 +245,7 @@ def _student_navigation(request):
     groups = [
         {
             "title": "",
-            "items": [{"title": "Dashboard", "icon": "dashboard", "link": reverse("dashboard")}],
+            "items": [{"title": "Dashboard", "icon": "dashboard", "icon_template": "core/nav_icons/dashboard.html", "link": reverse("dashboard")}],
         },
     ]
 
@@ -253,7 +253,7 @@ def _student_navigation(request):
         groups.append(
             {
                 "title": "Theory",
-                "items": [{"title": "Theory", "icon": "menu_book", "link": reverse("roadmap")}],
+                "items": [{"title": "Theory", "icon": "menu_book", "icon_template": "core/nav_icons/theory.html", "link": reverse("roadmap")}],
             }
         )
 
@@ -261,7 +261,7 @@ def _student_navigation(request):
         groups.append(
             {
                 "title": "Practical",
-                "items": [{"title": "Practical/Theory", "icon": "layers", "link": reverse("scenario-list")}],
+                "items": [{"title": "Practical/Theory", "icon": "layers", "icon_template": "core/nav_icons/practical.html", "link": reverse("scenario-list")}],
             }
         )
 
@@ -269,7 +269,7 @@ def _student_navigation(request):
         {
             "title": "Simulator",
             "items": [
-                {"title": "Simulator sandbox", "icon": "box", "link": reverse("simulator-portal")},
+                {"title": "Simulator sandbox", "icon": "box", "icon_template": "core/nav_icons/sandbox.html", "link": reverse("simulator-portal")},
             ],
         }
     )
@@ -279,9 +279,9 @@ def _student_navigation(request):
             {
                 "title": "Instructor",
                 "items": [
-                    {"title": "Instructor", "icon": "users", "link": reverse("instructor-dashboard")},
-                    {"title": "Theory builder", "icon": "edit_note", "link": reverse("course-builder") + "?path=theory"},
-                    {"title": "Practical/Theory builder", "icon": "layers", "link": reverse("course-builder") + "?path=combined"},
+                    {"title": "Instructor", "icon": "users", "icon_template": "core/nav_icons/instructor.html", "link": reverse("instructor-dashboard")},
+                    {"title": "Theory builder", "icon": "edit_note", "icon_template": "core/nav_icons/theory_builder.html", "link": reverse("course-builder") + "?path=theory"},
+                    {"title": "Practical/Theory builder", "icon": "layers", "icon_template": "core/nav_icons/practical_builder.html", "link": reverse("course-builder") + "?path=combined"},
                 ],
             }
         )
