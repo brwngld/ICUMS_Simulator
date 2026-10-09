@@ -9,10 +9,9 @@ class AdminSuperuserGateMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if (
-            request.path.startswith("/admin/")
-            and request.user.is_authenticated
-            and not request.user.is_superuser
-        ):
+        gated = request.path.startswith("/admin/") and not request.path.startswith(
+            "/admin/password_change/"
+        )
+        if gated and request.user.is_authenticated and not request.user.is_superuser:
             return redirect("dashboard")
         return self.get_response(request)
