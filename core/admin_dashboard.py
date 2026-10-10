@@ -239,7 +239,10 @@ def _admin_navigation():
 def _student_navigation(request):
     """The Student and Tutor/Instructor navigation — an independent copy for
     the student portal. Editing this list never affects the administrator
-    sidebar. Items appear only when the user's access allows them."""
+    sidebar. Theory and Practical are always listed so the portal reads the
+    same for every student; the pages themselves still enforce enrolment,
+    orientation and role access. Instructor tools appear only for users
+    with instructor access."""
     from accounts.context_processors import role_context
     from django.urls import reverse
 
@@ -249,32 +252,21 @@ def _student_navigation(request):
             "title": "",
             "items": [{"title": "Dashboard", "icon": "dashboard", "icon_template": "core/nav_icons/dashboard.html", "link": reverse("dashboard")}],
         },
-    ]
-
-    if roles["has_active_enrolment"]:
-        groups.append(
-            {
-                "title": "Theory",
-                "items": [{"title": "Theory", "icon": "menu_book", "icon_template": "core/nav_icons/theory.html", "link": reverse("roadmap")}],
-            }
-        )
-
-    if roles["can_access_practical"]:
-        groups.append(
-            {
-                "title": "Practical",
-                "items": [{"title": "Practical/Theory", "icon": "layers", "icon_template": "core/nav_icons/practical.html", "link": reverse("scenario-list")}],
-            }
-        )
-
-    groups.append(
+        {
+            "title": "Theory",
+            "items": [{"title": "Theory", "icon": "menu_book", "icon_template": "core/nav_icons/theory.html", "link": reverse("roadmap")}],
+        },
+        {
+            "title": "Practical",
+            "items": [{"title": "Practical/Theory", "icon": "layers", "icon_template": "core/nav_icons/practical.html", "link": reverse("scenario-list")}],
+        },
         {
             "title": "Simulator",
             "items": [
                 {"title": "Simulator sandbox", "icon": "box", "icon_template": "core/nav_icons/sandbox.html", "link": reverse("simulator-portal")},
             ],
-        }
-    )
+        },
+    ]
 
     if roles["can_access_instructor_portal"]:
         groups.append(
@@ -406,6 +398,14 @@ def render_student_page(request, template, context=None):
         context["sidebar_navigation"] = admin_site.site.get_sidebar_list(request)
     else:
         context["sidebar_navigation"] = []
+    # Unfold gates the whole header (title, sidebar toggle, environment
+    # badge) behind Django admin's has_permission, which is false for
+    # anyone who is not Django staff — leaving tutors in the Instructor
+    # group and ordinary students with an empty header bar. On portal
+    # pages the gate is purely presentational: every view here is
+    # login_required with its own role checks, so any authenticated user
+    # may see the chrome. Admin access itself is untouched.
+    context["has_permission"] = request.user.is_authenticated
     context["breadcrumbs"] = _portal_breadcrumbs(request, context)
     return render(request, template, context)
 

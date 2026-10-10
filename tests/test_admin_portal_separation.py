@@ -10,7 +10,7 @@ from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from accounts.models import User
-from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Programme, ProgrammeVersion
+from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
 
 
 @pytest.fixture
@@ -109,6 +109,47 @@ def test_tutor_never_sees_advanced_admin(client, tutor, programme):
     response = client.get(reverse("dashboard"))
     assert response.status_code == 200
     assert "Advanced Admin" not in response.content.decode()
+
+
+def test_non_staff_tutor_sees_full_header(client, tutor, programme):
+    """Regression: tutors in the Instructor group are not Django staff;
+    unfold's has_permission gate used to leave their header bar empty —
+    no title, no sidebar toggle, no environment badge."""
+    client.force_login(tutor)
+    response = client.get(reverse("dashboard"))
+    html = response.content.decode()
+    assert "sidebarToggle" in html          # hide/show control
+    assert "Welcome" in html                # header title
+    assert "Training environment" in html   # environment badge
+
+
+def test_student_sees_full_header(client, student, programme):
+    client.force_login(student)
+    response = client.get(reverse("dashboard"))
+    html = response.content.decode()
+    assert "sidebarToggle" in html
+    assert "Welcome" in html
+
+
+def test_student_sidebar_always_lists_theory_and_practical(client, student, programme):
+    """Theory and Practical are listed for every student; access itself is
+    still enforced by the pages, and instructor tools stay hidden."""
+    client.force_login(student)
+    response = client.get(reverse("dashboard"))
+    html = response.content.decode()
+    assert ">Theory<" in html
+    assert "Practical/Theory" in html
+    assert "Theory builder" not in html
+    assert "Practical/Theory builder" not in html
+    assert "Instructor<" not in html
+
+
+def test_tutor_sidebar_lists_theory_and_practical(client, tutor, programme):
+    client.force_login(tutor)
+    response = client.get(reverse("dashboard"))
+    html = response.content.decode()
+    assert ">Theory<" in html
+    assert "Practical/Theory" in html
 
 
 def test_student_cannot_reach_admin_changelist(client, student):
