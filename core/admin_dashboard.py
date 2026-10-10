@@ -383,7 +383,7 @@ def _portal_breadcrumbs(request, context):
         return []
 
 
-def render_student_page(request, template, context=None):
+def render_student_page(request, template, context=None, status=200):
     """Render a student/tutor page in the shared Unfold shell.
 
     Supplies the admin chrome context and the role-appropriate sidebar
@@ -407,7 +407,7 @@ def render_student_page(request, template, context=None):
     # may see the chrome. Admin access itself is untouched.
     context["has_permission"] = request.user.is_authenticated
     context["breadcrumbs"] = _portal_breadcrumbs(request, context)
-    return render(request, template, context)
+    return render(request, template, context, status=status)
 
 
 def sidebar_navigation(request):

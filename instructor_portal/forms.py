@@ -146,6 +146,8 @@ class LessonCheckEditForm(forms.Form):
     def __init__(self, question_version, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.question_version = question_version
+        # Option fields mirror the question's existing options, so lessons
+        # built with any number of answers (two, three, or four) edit cleanly.
         self.options = list(question_version.options.order_by("order"))
         self.fields["prompt"] = forms.CharField(
             label="Knowledge-check question", widget=forms.Textarea(attrs={"rows": 3}), initial=question_version.prompt
@@ -171,8 +173,8 @@ class LessonCheckEditForm(forms.Form):
         question_version.prompt = data["prompt"]
         question_version.explanation = data["explanation"]
         question_version.save(update_fields=("prompt", "explanation"))
-        for index, option in enumerate(self.options, start=1):
-            option.label = data[f"option_{index}"]
+        for option in self.options:
+            option.label = data[f"option_{self.options.index(option) + 1}"]
             option.is_correct = str(option.pk) == data["correct_option"]
             option.save(update_fields=("label", "is_correct"))
 
