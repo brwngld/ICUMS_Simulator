@@ -424,6 +424,7 @@ def test_tax_tab_renders_inside_the_declaration_page_and_computes(client):
     MdaProcess.objects.get_or_create(application=fda_app, code="REG", defaults={"name": "Product Registration"})
     MdaConsignmentRequest.objects.create(
         consignment_application=declaration.idf.consignment_application,
+        owner=declaration.idf.consignment_application.owner,
         mda=fda, application=fda_app,
         process=MdaProcess.objects.filter(application=fda_app).first(),
         consignment_type="SG", application_no="CD202610FDAFR0000999", status=MdaStatus.APPROVED,

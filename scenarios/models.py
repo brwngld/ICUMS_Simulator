@@ -225,6 +225,11 @@ class ScenarioState(models.Model):
     order = models.PositiveIntegerField(default=1)
     is_initial = models.BooleanField(default=False)
     is_terminal = models.BooleanField(default=False)
+    binding = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Optional simulator task for this step: {'route': <registry route name>, 'task': <label>, 'verify': {'record': 'ucr|boe|consignment|mda', 'status': <record status>}}.",
+    )
 
     class Meta:
         ordering = ("order", "label")
@@ -947,6 +952,7 @@ class MdaConsignmentRequest(models.Model):
     consignment_application = models.ForeignKey(
         ConsignmentApplication, on_delete=models.CASCADE, related_name="mda_requests"
     )
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="mda_consignment_requests")
     mda = models.ForeignKey(MdaAgency, on_delete=models.PROTECT, related_name="consignment_requests")
     application = models.ForeignKey(MdaApplication, on_delete=models.PROTECT, related_name="consignment_requests")
     process = models.ForeignKey(MdaProcess, on_delete=models.PROTECT, related_name="consignment_requests")
@@ -963,6 +969,7 @@ class MdaConsignmentRequest(models.Model):
     status = models.CharField(max_length=2, choices=MdaStatus.choices, default=MdaStatus.DRAFT)
     submitted_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ("created_at", "pk")

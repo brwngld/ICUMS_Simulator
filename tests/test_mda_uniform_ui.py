@@ -57,6 +57,7 @@ def _seed_mda_request(owner_username, ucr_no, idf_no):
     )
     record = MdaConsignmentRequest.objects.create(
         consignment_application=consignment,
+        owner=owner,
         mda=agency, application=application, process=process,
         consignment_type="SG", application_no=idf_no,
     )

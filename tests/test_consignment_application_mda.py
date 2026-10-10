@@ -40,7 +40,7 @@ def _seed_world():
         application_no="CD202610MOTIIDF0000299",
     )
     source = MdaConsignmentRequest.objects.create(
-        consignment_application=consignment, mda=moti, application=idf_application,
+        consignment_application=consignment, owner=consignment.owner, mda=moti, application=idf_application,
         process=MdaProcess.objects.filter(application=idf_application).first(),
         consignment_type="SG", application_no="CD202610MOTIIDF0000299",
         status=MdaStatus.APPROVED,

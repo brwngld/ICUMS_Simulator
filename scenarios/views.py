@@ -38,7 +38,10 @@ from django.core.files.base import ContentFile
 from .pdfs import build_bill_of_lading_pdf, build_commercial_document_pdf, build_fictitious_document_pdf, build_mda_application_pdf
 from assessment.service import compute_tax_preview
 from .services import available_actions, perform_action, practical_is_unlocked, record_hint, start_or_resume_attempt
+from .bindings import SIMULATOR_BINDING_ROUTES
+from .verification import record_step_open, verify_step
 from accounts.models import SimulatorCredential
+from django.utils.http import url_has_allowed_host_and_scheme
 
 
 def _is_simulator_author(user):
@@ -84,11 +87,32 @@ def _review_form_guard(request):
     return redirect("simulator-portal")
 
 
+def _safe_simulator_next(request):
+    """Pop and validate the post-login simulator destination.
+
+    Only same-app ``/practical/`` paths pass: no scheme, no netloc, no
+    scheme-relative ``//`` tricks (url_has_allowed_host_and_scheme with an
+    empty allowed set rejects anything carrying a host). Anything else is
+    discarded so the login flow can never become an open redirect.
+    """
+    candidate = request.session.pop("simulator_login_next", "")
+    if not isinstance(candidate, str) or not candidate:
+        return ""
+    if not candidate.startswith("/practical/") or candidate.startswith("//"):
+        return ""
+    if not url_has_allowed_host_and_scheme(candidate, allowed_hosts=None):
+        return ""
+    return candidate
+
+
 def simulator_access_required(view):
     @wraps(view)
     def wrapped(request, *args, **kwargs):
         if not _has_simulator_access(request):
             messages.warning(request, "Enter your current simulator credentials to continue.")
+            requested = request.get_full_path()
+            if requested.startswith("/practical/") and not requested.startswith("//"):
+                request.session["simulator_login_next"] = requested
             return redirect(f"{reverse('simulator-portal')}?login=1")
         return view(request, *args, **kwargs)
     return wrapped
@@ -150,6 +174,9 @@ def simulator_login(request):
     auth_login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     request.session["simulator_user_id"] = str(user.pk)
     messages.success(request, "Simulator access granted.")
+    next_path = _safe_simulator_next(request)
+    if next_path:
+        return redirect(next_path)
     return redirect("simulator-portal")
 
 
@@ -1402,6 +1429,7 @@ def application_mda_request_create(request):
             number, sequence_month, monthly_sequence = _allocate_mda_application_number(mda.code, application.code)
             record = MdaConsignmentRequest(
                 consignment_application=consignment_application,
+                owner=consignment_application.owner,
                 mda=mda,
                 application=application,
                 process=process,
@@ -1755,7 +1783,7 @@ def _target_mda_request(request, payload, ucr, form_data):
     with transaction.atomic():
         number, sequence_month, monthly_sequence = _allocate_mda_application_number(mda.code, application.code)
         record = MdaConsignmentRequest(
-            consignment_application=application_record, mda=mda, application=application, process=process,
+            consignment_application=application_record, owner=application_record.owner, mda=mda, application=application, process=process,
             consignment_type=consignment_type, master_no=master_no,
             application_no=number, sequence_month=sequence_month, monthly_sequence=monthly_sequence,
             form_data=form_data,
@@ -1822,7 +1850,7 @@ def single_window_search_consignment_application(request):
     filters = {key: request.GET.get(key, "").strip() for key in
                ("ucr", "number", "exporter", "importer", "mda", "application", "date_from", "date_to", "status")}
     records = (MdaConsignmentRequest.objects
-               .filter(consignment_application__owner=_effective_owner(request))
+               .filter(owner=_effective_owner(request))
                .select_related("consignment_application__ucr", "mda", "application", "process")
                .order_by("-created_at"))
     if filters["ucr"]:
@@ -2826,7 +2854,48 @@ def scenario_workspace(request, attempt_id):
         pk=attempt_id,
         enrolment__student=request.user,
     )
-    return render_student_page(request, "scenarios/workspace.html", {"attempt": attempt, "available_actions": available_actions(attempt)})
+    return render_student_page(request, "scenarios/workspace.html", {
+        "attempt": attempt,
+        "available_actions": available_actions(attempt),
+        "state_binding": attempt.current_state.binding if isinstance(attempt.current_state.binding, dict) and attempt.current_state.binding.get("route") in SIMULATOR_BINDING_ROUTES else None,
+    })
+
+
+@login_required
+@simulator_access_required
+@require_POST
+def scenario_open_step(request, attempt_id):
+    """Open the current step's approved simulator page in a separate tab.
+
+    The POST records the step-open moment (used to bound verification) and
+    the response redirects to a registry-validated internal route, so the
+    target can never be an arbitrary URL.
+    """
+    attempt = get_object_or_404(ScenarioAttempt.objects.select_related("current_state"), pk=attempt_id, enrolment__student=request.user)
+    binding = attempt.current_state.binding if isinstance(attempt.current_state.binding, dict) else {}
+    route = binding.get("route")
+    if attempt.status != ScenarioAttempt.Status.IN_PROGRESS or route not in SIMULATOR_BINDING_ROUTES:
+        messages.error(request, "This step has no simulator page to open.")
+        return redirect("scenario-workspace", attempt_id=attempt.pk)
+    record_step_open(attempt, attempt.current_state)
+    return redirect(reverse(route))
+
+
+@login_required
+@simulator_access_required
+@require_POST
+def scenario_check_step(request, attempt_id):
+    """Explicit "Check my work": server-side verification of the step's task."""
+    attempt = get_object_or_404(ScenarioAttempt.objects.select_related("current_state", "enrolment"), pk=attempt_id, enrolment__student=request.user)
+    if attempt.status != ScenarioAttempt.Status.IN_PROGRESS:
+        messages.error(request, "This attempt is no longer in progress.")
+        return redirect("scenario-workspace", attempt_id=attempt.pk)
+    result = verify_step(attempt, attempt.current_state)
+    if result.passed:
+        messages.success(request, result.message)
+    else:
+        messages.error(request, result.message)
+    return redirect("scenario-workspace", attempt_id=attempt.pk)
 
 
 @login_required

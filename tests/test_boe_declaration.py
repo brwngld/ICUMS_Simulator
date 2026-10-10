@@ -40,6 +40,7 @@ def _make_idf(owner, ucr_no, idf_no="CD202609MOTIIDF0000001"):
     enrolment.delete()  # only the consignment linkage is needed for this test
     return MdaConsignmentRequest.objects.create(
         consignment_application=consignment,
+        owner=consignment.owner,
         mda=moti,
         application=idf_application,
         process=MdaProcess.objects.filter(application=idf_application).first(),

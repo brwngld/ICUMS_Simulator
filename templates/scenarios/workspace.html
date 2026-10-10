@@ -29,6 +29,16 @@
           <div><p class="dash-eyebrow">Current status</p><h2>{{ attempt.current_state.label }}</h2></div>
         </div>
         {% if attempt.assistance_mode == "beginner" or attempt.assistance_mode == "intermediate" %}<p>{{ attempt.current_state.guidance }}</p>{% endif %}
+        {% if state_binding and attempt.status == "in_progress" %}
+          <div class="dash-callout">
+            <p><strong>Simulator task:</strong> {{ state_binding.task }}</p>
+            <p class="dash-muted">Open the simulator page in a separate tab, complete the task, then come back and check your work.</p>
+            <div class="dash-actions">
+              <form method="post" target="_blank" rel="noopener" action="{% url 'scenario-open-step' attempt.pk %}">{% csrf_token %}<button class="dash-secondary" type="submit">Open simulator step</button></form>
+              {% if state_binding.verify %}<form method="post" action="{% url 'scenario-check-step' attempt.pk %}">{% csrf_token %}<button class="dash-primary" type="submit">Check my work</button></form>{% endif %}
+            </div>
+          </div>
+        {% endif %}
         <h3 style="margin: 1rem 0 0; font-size: .85rem;">Available actions</h3>
         <div class="dash-action-list">
           {% for action in available_actions %}

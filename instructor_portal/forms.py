@@ -188,11 +188,77 @@ class PracticalEditForm(forms.Form):
     maximum_attempts = forms.IntegerField(required=False, min_value=1, initial=3)
 
 
+class ScenarioStateForm(forms.ModelForm):
+    binding_route = forms.ChoiceField(
+        required=False,
+        label="Simulator step target",
+        help_text="Approved simulator page this step opens in a separate tab. Leave empty for a text-only step.",
+    )
+    binding_task = forms.CharField(
+        required=False,
+        max_length=180,
+        label="Task shown to the student",
+        help_text="e.g. Submit a UCR declaration in the simulator.",
+    )
+    binding_verify = forms.ChoiceField(
+        required=False,
+        label="Verified record and status",
+        help_text="What “Check my work” looks for in the student's simulator records.",
+    )
+
+    class Meta:
+        model = ScenarioState
+        fields = ("label", "guidance")
+        widgets = {"guidance": forms.Textarea(attrs={"rows": 2})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from scenarios.bindings import binding_route_choices, verify_status_choices
+
+        self.fields["binding_route"].choices = binding_route_choices()
+        self.fields["binding_verify"].choices = verify_status_choices()
+        binding = self.instance.binding if isinstance(self.instance.binding, dict) else {}
+        if binding.get("route"):
+            self.fields["binding_route"].initial = binding["route"]
+            self.fields["binding_task"].initial = binding.get("task", "")
+            verify = binding.get("verify") or {}
+            if verify.get("record") and verify.get("status"):
+                self.fields["binding_verify"].initial = f"{verify['record']}:{verify['status']}"
+
+    def clean(self):
+        cleaned = super().clean()
+        from scenarios.bindings import validate_binding
+
+        route = cleaned.get("binding_route") or ""
+        task = (cleaned.get("binding_task") or "").strip()
+        verify_value = cleaned.get("binding_verify") or ""
+        if not route and not task and not verify_value:
+            self._binding = {}
+            return cleaned
+        binding = {"route": route, "task": task}
+        if verify_value and ":" in verify_value:
+            record, status = verify_value.split(":", 1)
+            binding["verify"] = {"record": record, "status": status}
+        try:
+            self._binding = validate_binding(binding)
+        except ValidationError as exc:
+            for error in getattr(exc, "error_list", [exc]):
+                self.add_error("binding_route", error)
+            self._binding = {}
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.binding = getattr(self, "_binding", {})
+        if commit:
+            instance.save()
+        return instance
+
+
 ScenarioStateFormSet = forms.modelformset_factory(
     ScenarioState,
-    fields=("label", "guidance"),
+    form=ScenarioStateForm,
     extra=0,
-    widgets={"guidance": forms.Textarea(attrs={"rows": 2})},
 )
 
 
