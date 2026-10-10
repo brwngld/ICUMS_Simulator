@@ -1,8 +1,11 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.models import Group
+from django.contrib.auth.views import LoginView as AuthLoginView
 from django.db import transaction
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, resolve_url
+from django.urls import reverse
 
 from .forms import StudentRegistrationForm
 from .models import allocate_student_id
@@ -25,3 +28,18 @@ def register(request):
         return redirect("dashboard")
     return render(request, "registration/register.html", {"form": form})
 
+
+
+class LoginView(AuthLoginView):
+    """Django's login view with one adjustment: after signing in,
+    administrators land on the Unfold admin dashboard while students and
+    tutors land on the learning portal. An explicit ?next= destination
+    still wins, exactly as in Django's own view."""
+
+    def get_success_url(self):
+        url = self.get_redirect_url()
+        if url:
+            return url
+        if self.request.user.is_staff:
+            return reverse("admin:index")
+        return resolve_url(settings.LOGIN_REDIRECT_URL)

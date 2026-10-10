@@ -2,7 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from django.db import transaction
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 
 from core.admin_dashboard import render_student_page
 from django.utils import timezone
@@ -95,7 +95,10 @@ def course_builder_detail(request, version_id):
         pk=version_id,
         status=ProgrammeVersion.Status.DRAFT,
     )
-    return render(
+    # Rendered through the shared shell: the raw render() call this page
+    # used before skipped the admin chrome context, leaving its header —
+    # sidebar toggle included — empty.
+    return render_student_page(
         request,
         "instructor_portal/course_builder_detail.html",
         {"version": version, "module_form": ModuleCreateForm()},

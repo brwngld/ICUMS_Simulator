@@ -8,7 +8,8 @@ import json
 import secrets
 
 from .models import AssistanceEvent, BillOfLading, BoeDeclaration, BoeStageEvent, BillOfLadingCargoItem, ConsignmentApplication, CommercialDocument, CommercialDocumentLine, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration
-from unfold.admin import ModelAdmin, StackedInline, TabularInline
+from core.admin_pagination import ModelAdmin
+from unfold.admin import StackedInline, TabularInline
 
 
 @admin.register(GhanaHSCode)

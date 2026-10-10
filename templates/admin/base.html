@@ -31,6 +31,13 @@ neutral font colours, with unfold's own hover/active backgrounds.
     html.dark #nav-sidebar a.active {
       color: var(--color-font-default-dark);
     }
+    /* The brand square's gear is white by design (unfold's text-white on
+       an indigo square); the neutral link colour above must not grey it
+       out. Light mode only — dark mode keeps its existing appearance. */
+    html:not(.dark) #nav-sidebar a.bg-primary-600,
+    html:not(.dark) #nav-sidebar a.bg-primary-600:hover {
+      color: #fff;
+    }
   </style>
 {% endblock %}
 

@@ -4,7 +4,8 @@ from django.contrib.auth.models import Group
 
 from audit.models import AuditEvent
 from onboarding.models import Enrolment
-from unfold.admin import ModelAdmin, TabularInline
+from core.admin_pagination import ModelAdmin
+from unfold.admin import TabularInline
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 from .models import SimulatorCredential, User
 

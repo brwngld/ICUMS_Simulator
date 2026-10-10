@@ -1,7 +1,8 @@
 from django.contrib import admin
 
 from .models import AnswerOption, Assessment, AssessmentItem, LessonCheckResponse, Question, QuestionVersion, TheoryAttempt, TheoryResponse
-from unfold.admin import ModelAdmin, TabularInline
+from core.admin_pagination import ModelAdmin
+from unfold.admin import TabularInline
 
 
 class AnswerOptionInline(TabularInline):

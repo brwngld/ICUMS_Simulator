@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 from .models import Assessment, TaxCode
-from unfold.admin import ModelAdmin
+from core.admin_pagination import ModelAdmin
 
 
 @admin.register(TaxCode)

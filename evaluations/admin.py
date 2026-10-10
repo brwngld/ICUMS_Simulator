@@ -1,7 +1,8 @@
 from django.contrib import admin
 
 from .models import CriterionResult, EvaluationRevision, InstructorFeedback, PracticalEvaluation, RemediationRecommendation, Rubric, RubricCriterion, RubricVersion
-from unfold.admin import ModelAdmin, StackedInline
+from core.admin_pagination import ModelAdmin
+from unfold.admin import StackedInline
 
 
 @admin.register(Rubric)

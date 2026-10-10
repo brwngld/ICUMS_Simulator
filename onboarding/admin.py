@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group
 
 from audit.models import AuditEvent
 from .models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
-from unfold.admin import ModelAdmin
+from core.admin_pagination import ModelAdmin
 
 
 @admin.register(Programme)

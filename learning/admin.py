@@ -2,7 +2,8 @@ from django.contrib import admin
 
 from .models import ContentBlock, Lesson, Module, Resource
 from assessments.models import LessonCheck
-from unfold.admin import ModelAdmin, StackedInline, TabularInline
+from core.admin_pagination import ModelAdmin
+from unfold.admin import StackedInline, TabularInline
 
 
 class ContentBlockInline(StackedInline):

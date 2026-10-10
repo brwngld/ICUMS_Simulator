@@ -291,6 +291,106 @@ def _student_navigation(request):
     return groups
 
 
+def _crumb(title, link=""):
+    """One breadcrumb entry. An empty link renders as the current page."""
+    return {"title": str(title), "link": link or ""}
+
+
+def _instructor_crumb():
+    return _crumb("Instructor", "/instructor/")
+
+
+# Portal page hierarchy, keyed by URL name and built from the view's own
+# context, so every trail reflects the real parent pages. Pages without an
+# entry (the dashboards, the roadmap, the scenario list, orientation) are
+# top-level and keep a plain title, like the admin overview.
+_BREADCRUMB_BUILDERS = {
+    "instructor-student-detail": lambda ctx: [
+        _instructor_crumb(),
+        _crumb(ctx["enrolment"].student),
+    ],
+    "course-builder": lambda ctx: [
+        _instructor_crumb(),
+        _crumb({"theory": "Theory builder", "combined": "Practical/Theory builder"}.get(ctx.get("learning_path"), "Course builder")),
+    ],
+    "course-builder-detail": lambda ctx: [
+        _instructor_crumb(),
+        _crumb("Course builder", "/instructor/courses/"),
+        _crumb(ctx["version"].programme.name),
+    ],
+    "course-review": lambda ctx: [
+        _instructor_crumb(),
+        _crumb("Course builder", "/instructor/courses/"),
+        _crumb(ctx["version"].programme.name, f"/instructor/courses/{ctx['version'].pk}/"),
+        _crumb("Review"),
+    ],
+    "lesson-builder": lambda ctx: [
+        _instructor_crumb(),
+        _crumb("Course builder", "/instructor/courses/"),
+        _crumb(ctx["module"].programme_version.programme.name, f"/instructor/courses/{ctx['module'].programme_version_id}/"),
+        _crumb("Create a lesson"),
+    ],
+    "practical-builder": lambda ctx: [
+        _instructor_crumb(),
+        _crumb("Course builder", "/instructor/courses/"),
+        _crumb(ctx["module"].programme_version.programme.name, f"/instructor/courses/{ctx['module'].programme_version_id}/"),
+        _crumb("Create a guided practical"),
+    ],
+    "simulator-credential-issue": lambda ctx: [
+        _instructor_crumb(),
+        _crumb("One-time simulator password"),
+    ],
+    "lesson-detail": lambda ctx: [
+        _crumb("Theory", "/theory/"),
+        _crumb(ctx["module"].title),
+        _crumb(ctx["lesson"].title),
+    ],
+    "assessment-take": lambda ctx: [
+        _crumb("Theory", "/theory/"),
+        _crumb(ctx["assessment"].title),
+    ],
+    "assessment-result": lambda ctx: [
+        _crumb("Theory", "/theory/"),
+        _crumb(ctx["attempt"].assessment.title),
+    ],
+    "scenario-detail": lambda ctx: [
+        _crumb("Practical/Theory", "/practical/"),
+        _crumb(ctx["scenario_version"].scenario.title),
+    ],
+    "scenario-workspace": lambda ctx: [
+        _crumb("Practical/Theory", "/practical/"),
+        _crumb(ctx["attempt"].scenario_version.scenario.title, f"/practical/{ctx['attempt'].scenario_version_id}/"),
+        _crumb("Workspace"),
+    ],
+    "practical-evaluation": lambda ctx: [
+        _crumb("Dashboard", "/"),
+        _crumb(ctx["evaluation"].attempt.scenario_version.scenario.title),
+    ],
+    "completion-detail": lambda ctx: [
+        _crumb("Dashboard", "/"),
+        _crumb("Training completion record"),
+    ],
+    "certificate-detail": lambda ctx: [
+        _crumb("Dashboard", "/"),
+        _crumb("Training completion record", f"/records/completion/{ctx['certificate'].completion_record_id}/"),
+        _crumb("Certificate"),
+    ],
+}
+
+
+def _portal_breadcrumbs(request, context):
+    url_name = getattr(getattr(request, "resolver_match", None), "url_name", "")
+    builder = _BREADCRUMB_BUILDERS.get(url_name)
+    if builder is None:
+        return []
+    try:
+        return builder(context)
+    except KeyError:
+        # A builder references context this particular render does not
+        # carry; show no trail rather than a broken one.
+        return []
+
+
 def render_student_page(request, template, context=None):
     """Render a student/tutor page in the shared Unfold shell.
 
@@ -306,13 +406,32 @@ def render_student_page(request, template, context=None):
         context["sidebar_navigation"] = admin_site.site.get_sidebar_list(request)
     else:
         context["sidebar_navigation"] = []
+    context["breadcrumbs"] = _portal_breadcrumbs(request, context)
     return render(request, template, context)
 
 
 def sidebar_navigation(request):
-    """Dispatch: administrators get the admin navigation; students and
-    tutors/instructors get the student navigation. The two lists are
+    """Dispatch by interface: pages under /admin/ get the administrator
+    navigation; portal pages get the student navigation. An administrator
+    browsing the portal keeps their own session and sees the student
+    navigation plus one extra "Advanced Admin" link back to the admin
+    dashboard. Students and tutors never see that link. The two lists are
     independent — editing one never affects the other."""
-    if request.user.is_superuser:
+    if request.path.startswith("/admin/"):
         return _admin_navigation()
-    return _student_navigation(request)
+
+    groups = _student_navigation(request)
+    if request.user.is_superuser:
+        # Portal preview for the administrator: their own session, the
+        # student/tutor navigation, and one link back to the admin
+        # dashboard. Instructors are staff but not administrators, so the
+        # link is hidden from them.
+        groups = list(groups) + [
+            {
+                "title": "Administration",
+                "items": [
+                    {"title": "Advanced Admin", "icon": "settings", "link": "/admin/"},
+                ],
+            },
+        ]
+    return groups

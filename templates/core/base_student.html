@@ -27,6 +27,12 @@ the content block with their own dash-styled markup.
     a { color: var(--color-font-default-light); }
     html.dark a { color: var(--color-font-default-dark); }
     #nav-sidebar a { color: inherit; font-weight: inherit; }
+    /* The brand square's gear stays white in light mode, as in dark mode;
+       the neutral link colour above must not grey it out. */
+    html:not(.dark) #nav-sidebar a.bg-primary-600,
+    html:not(.dark) #nav-sidebar a.bg-primary-600:hover {
+      color: #fff;
+    }
   </style>
   <style>
     .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #5145cd; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; }
