@@ -139,6 +139,11 @@
     }
   });
   scrim.addEventListener('click', () => setOpen(false, true));
+  // Selecting a navigation link also dismisses the mobile drawer; the
+  // navigation itself is untouched.
+  sidebar.querySelectorAll('a[href]').forEach((link) => link.addEventListener('click', () => {
+    if (mobile.matches && document.body.classList.contains('navigation-open')) setOpen(false);
+  }));
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && document.body.classList.contains('navigation-open')) setOpen(false, true);
     if (event.key === 'Tab' && mobile.matches && document.body.classList.contains('navigation-open')) {
