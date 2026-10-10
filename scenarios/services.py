@@ -3,6 +3,7 @@ from django.db import transaction
 from django.db.models import Max, Q
 from django.utils import timezone
 
+from onboarding.models import Enrolment
 from progress.models import ProgrammeProgress
 
 from .models import AssistanceEvent, ScenarioAction, ScenarioAttempt, ScenarioVersion
@@ -25,6 +26,11 @@ def available_actions(attempt):
 
 @transaction.atomic
 def start_or_resume_attempt(enrolment, scenario_version):
+    # Serialise a student's concurrent starts on their enrolment row so two
+    # simultaneous requests cannot both create an attempt (the attempt-number
+    # unique constraint would turn the second into a 500). Resume behaviour,
+    # attempt limits and orientation gating are unchanged.
+    Enrolment.objects.select_for_update().get(pk=enrolment.pk)
     if not practical_is_unlocked(enrolment):
         raise PermissionDenied("Complete simulator orientation before beginning practical training.")
     existing = ScenarioAttempt.objects.filter(enrolment=enrolment, scenario_version=scenario_version, status=ScenarioAttempt.Status.IN_PROGRESS).first()

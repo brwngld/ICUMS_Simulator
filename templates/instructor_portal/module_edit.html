@@ -1,0 +1,17 @@
+{% extends "core/base_student.html" %}
+
+{% block title %}Edit {{ module.title }} · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Edit module{% endblock %}
+{% block content %}
+<div class="dash">
+<header class="dash-head"><div><p class="dash-eyebrow">{{ module.programme_version.programme.name }}</p><h1>Edit module</h1><p>Changes apply to the draft course and become visible to students when it is published.</p></div></header>
+<section class="dash-panel">
+  <form method="post" class="dash-form">{% csrf_token %}
+    {{ form.title.as_field_group }}
+    {{ form.description.as_field_group }}
+    {{ form.prerequisite.as_field_group }}
+    <div class="dash-actions"><button class="dash-primary" type="submit">Save module</button><a class="dash-secondary" href="{% url 'course-builder-detail' module.programme_version_id %}">Cancel</a></div>
+  </form>
+</section>
+</div>
+{% endblock %}

@@ -11,7 +11,7 @@ from django.contrib.auth.models import Group
 from django.urls import reverse
 
 from accounts.models import User
-from assessments.models import AnswerOption, LessonCheck, Question, QuestionVersion
+from assessments.models import Assessment, AssessmentItem, AnswerOption, LessonCheck, Question, QuestionVersion
 from learning.models import ContentBlock, Lesson, Module
 from onboarding.models import Enrolment, Programme, ProgrammeVersion
 from scenarios.models import Scenario, ScenarioState, ScenarioVersion
@@ -53,6 +53,19 @@ def test_course_review_renders_submitted_lesson_as_readonly_form(client):
     AnswerOption.objects.create(question_version=question_version, label="The correct step", is_correct=True, order=1)
     AnswerOption.objects.create(question_version=question_version, label="A distractor step", is_correct=False, order=2)
     LessonCheck.objects.create(lesson=lesson, after_block=block, question_version=question_version, order=1)
+    # A complete course includes the module assessment its students need to
+    # finish the module; without it the review page legitimately disables
+    # publishing.
+    module_assessment = Assessment.objects.create(
+        programme_version=version, module=module, title="Uniform Module Assessment",
+        assessment_type=Assessment.Type.MODULE, pass_percentage=70, is_published=True,
+    )
+    AssessmentItem.objects.create(assessment=module_assessment, question_version=question_version, order=1)
+    final_exam = Assessment.objects.create(
+        programme_version=version, title="Uniform Final Examination",
+        assessment_type=Assessment.Type.FINAL_THEORY, pass_percentage=70, is_published=True,
+    )
+    AssessmentItem.objects.create(assessment=final_exam, question_version=question_version, order=1)
 
     client.force_login(instructor)
     response = client.get(reverse("course-review", args=(version.pk,)))

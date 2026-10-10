@@ -1,0 +1,22 @@
+{% extends "core/base_student.html" %}
+
+{% block title %}{{ heading }} · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Assessment question{% endblock %}
+{% block content %}
+<div class="dash">
+<header class="dash-head"><div><p class="dash-eyebrow">{{ assessment.title }}</p><h1>{{ heading }}</h1><p>The first completed answer is not automatically correct — choose the correct answer below.</p></div></header>
+<form method="post">
+<section class="dash-panel form-section">
+  {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+  {{ form.prompt.as_field_group }}
+  <div class="form-columns"><div>{{ form.points.as_field_group }}</div><div>{{ form.explanation.as_field_group }}</div></div>
+  {{ form.option_1.as_field_group }}
+  {{ form.option_2.as_field_group }}
+  {{ form.option_3.as_field_group }}
+  {{ form.option_4.as_field_group }}
+  {{ form.correct_position.as_field_group }}
+</section>
+<div class="form-actions"><a class="dash-secondary" href="{{ back_url }}">Cancel</a><button class="dash-primary" type="submit">Save question</button></div>
+</form>
+</div>
+{% endblock %}

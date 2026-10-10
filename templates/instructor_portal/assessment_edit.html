@@ -1,0 +1,39 @@
+{% extends "core/base_student.html" %}
+
+{% block title %}{{ assessment.title }} · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Assessment{% endblock %}
+{% block content %}
+<div class="dash">
+<header class="dash-head"><div><p class="dash-eyebrow">Draft course · {{ assessment.get_assessment_type_display }}</p><h1>{{ assessment.title }}</h1><p>Students pass by scoring at least {{ assessment.pass_percentage }}%.{{ assessment.module.title|yesno:" This assessment completes its module once passed,| Passing this examination unlocks simulator orientation and practical training," }}</p></div>
+<div class="form-actions"><a class="dash-secondary" href="{% url 'assessment-preview' assessment.pk %}">Preview</a><a class="dash-secondary" href="{% url 'course-builder-detail' assessment.programme_version_id %}">Back to outline</a></div></header>
+
+<section class="dash-panel form-section">
+  <h2>Settings</h2>
+  <form method="post" class="dash-form">{% csrf_token %}
+    {{ form.title.as_field_group }}
+    <div class="form-columns"><div>{{ form.pass_percentage.as_field_group }}</div><div>{{ form.maximum_attempts.as_field_group }}</div></div>
+    {{ form.randomize_questions.as_field_group }}
+    <div class="dash-actions"><button class="dash-primary" type="submit">Save settings</button></div>
+  </form>
+</section>
+
+<section class="dash-panel form-section">
+  <div class="dash-panel-head"><div><h2>Questions</h2><p>{{ questions|length }} question{{ questions|length|pluralize }} · each learner answer is scored out of the question's points</p></div>
+  <a class="dash-primary" href="{% url 'assessment-question-add' assessment.pk %}">Add a question</a></div>
+  {% for item in questions %}
+  <article class="review-lesson">
+    <div><span class="dash-pill is-info">Question {{ forloop.counter }} · {{ item.question_version.points }} point{{ item.question_version.points|pluralize }}</span></div>
+    <p><strong>{{ item.question_version.prompt }}</strong></p>
+    <p class="dash-muted">{{ item.question_version.explanation|default:"No explanation yet." }}</p>
+    <ul class="dash-lesson-list">
+      {% for option in item.question_version.options.all %}<li{% if option.is_correct %} aria-current="step"{% endif %}>{{ option.label }}{% if option.is_correct %} — correct{% endif %}</li>{% endfor %}
+    </ul>
+    <div class="dash-action-list">
+      <a class="dash-secondary" href="{% url 'assessment-question-edit' assessment.pk item.question_version.pk %}">Edit question</a>
+      <form method="post" action="{% url 'assessment-question-delete' assessment.pk item.question_version.pk %}">{% csrf_token %}<button class="dash-secondary" type="submit">Remove question</button></form>
+    </div>
+  </article>
+  {% empty %}<p class="dash-empty">No questions yet. Publishing requires at least one question.</p>{% endfor %}
+</section>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "core/base_student.html" %}
+
+{% block title %}Edit {{ lesson.title }} · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Edit lesson{% endblock %}
+{% block content %}
+<div class="dash">
+<header class="dash-head"><div><p class="dash-eyebrow">{{ lesson.module.programme_version.programme.name }} · {{ lesson.module.title }}</p><h1>Edit lesson</h1><p>Edits apply to the draft course and become visible to students when it is published.</p></div></header>
+<form method="post">{% csrf_token %}
+  <section class="dash-panel form-section"><h2>Lesson details</h2>{{ lesson_form.title.as_field_group }}{{ lesson_form.summary.as_field_group }}</section>
+  <section class="dash-panel form-section"><h2>Reading sections</h2><p class="dash-muted">Each reading section is one step of the lesson. Reordering arrives with the next authoring update.</p>
+  {% for block_form in block_formset %}<article class="review-lesson">{% for hidden in block_form.hidden_fields %}{{ hidden }}{% endfor %}{{ block_form.heading.as_field_group }}{{ block_form.body.as_field_group }}</article>{% endfor %}
+  {{ block_formset.management_form }}</section>
+  {% if check_form %}
+  <section class="dash-panel form-section"><h2>Knowledge check</h2>
+    {{ check_form.prompt.as_field_group }}
+    {{ check_form.explanation.as_field_group }}
+    {% for field in check_form.visible_fields %}{% if field.name != "prompt" and field.name != "explanation" and field.name != "correct_option" %}{{ field.as_field_group }}{% endif %}{% endfor %}
+    {{ check_form.correct_option.as_field_group }}
+  </section>
+  {% endif %}
+  <div class="form-actions"><a class="dash-secondary" href="{% url 'course-builder-detail' lesson.module.programme_version_id %}">Cancel</a><button class="dash-primary" type="submit">Save lesson</button></div>
+</form>
+</div>
+{% endblock %}

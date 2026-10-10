@@ -6,6 +6,7 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
+from onboarding.models import Enrolment
 from progress.models import ModuleProgress, ProgrammeProgress
 
 from .models import TheoryAttempt, TheoryAttemptItem, TheoryResponse
@@ -13,6 +14,11 @@ from .models import TheoryAttempt, TheoryAttemptItem, TheoryResponse
 
 @transaction.atomic
 def get_or_start_attempt(enrolment, assessment):
+    # Serialise a student's concurrent starts on their enrolment row: two
+    # simultaneous requests would otherwise both pass the in-progress check
+    # and collide on the attempt-number unique constraint (a 500 instead of
+    # a resumed attempt). Limits, resume behaviour and scoring are unchanged.
+    Enrolment.objects.select_for_update().get(pk=enrolment.pk)
     existing = assessment.attempts.filter(enrolment=enrolment, status=TheoryAttempt.Status.IN_PROGRESS).first()
     if existing:
         return existing

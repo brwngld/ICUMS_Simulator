@@ -1,0 +1,27 @@
+{% extends "core/base_student.html" %}
+
+{% block title %}Preview · {{ assessment.title }} · ICUMS Simulator{% endblock %}
+
+{% block content %}
+  <div class="dash">
+    {% if preview_mode %}<div class="dash-notice">PREVIEW — read-only {{ assessment.get_assessment_type_display|lower }} for instructors. No attempt is created and nothing is scored or saved.</div>{% endif %}
+    <header class="dash-head">
+      <div>
+        <p class="dash-eyebrow">{{ assessment.get_assessment_type_display }} · pass mark {{ assessment.pass_percentage }}%</p>
+        <h1>{{ assessment.title }}</h1>
+        <p>{{ assessment.items.count }} question{{ assessment.items.count|pluralize }}{% if assessment.maximum_attempts %} · up to {{ assessment.maximum_attempts }} attempts{% else %} · unlimited attempts{% endif %}{% if assessment.randomize_questions %} · randomised{% endif %}.</p>
+      </div>
+    </header>
+
+    {% for item in items %}
+      <section class="dash-panel dash-question">
+        <p class="dash-muted">Question {{ forloop.counter }} · {{ item.question_version.points }} point{{ item.question_version.points|pluralize }}</p>
+        <h2>{{ item.question_version.prompt }}</h2>
+        <ul class="dash-lesson-list">
+          {% for option in item.question_version.options.all %}<li{% if option.is_correct %} aria-current="step"{% endif %}>{{ option.label }}{% if option.is_correct %} — correct{% endif %}</li>{% endfor %}
+        </ul>
+        {% if item.question_version.explanation %}<p class="dash-muted">Explanation shown after answering: {{ item.question_version.explanation }}</p>{% endif %}
+      </section>
+    {% empty %}<p class="dash-empty">No questions yet. Publishing requires at least one question.</p>{% endfor %}
+  </div>
+{% endblock %}
