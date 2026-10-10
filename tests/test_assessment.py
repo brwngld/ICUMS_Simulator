@@ -116,7 +116,7 @@ def test_assessment_page_is_owner_and_staff_only(client):
     application = _make_vehicle_application(owner)
 
     client.force_login(other)
-    assert client.get(reverse("assessment-detail", args=(application.pk,))).status_code == 403
+    assert client.get(reverse("assessment-detail", args=(application.pk,))).status_code == 302  # other-learner applications redirect with a message
 
     client.force_login(staff)
     assert client.get(reverse("assessment-detail", args=(application.pk,))).status_code == 200

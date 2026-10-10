@@ -87,7 +87,7 @@ def test_assessment_is_locked_until_all_lessons_are_completed(client, theory_set
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
     client.force_login(theory_setup["user"])
     response = client.get(reverse("assessment-take", args=(theory_setup["assessment"].pk,)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # redirected back with a message, not a bare 403
     assert not TheoryAttempt.objects.exists()
 
 
@@ -99,7 +99,7 @@ def test_assessment_from_another_programme_is_forbidden(client, theory_setup):
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
     client.force_login(theory_setup["user"])
     response = client.get(reverse("assessment-take", args=(other_assessment.pk,)))
-    assert response.status_code == 403
+    assert response.status_code == 302  # other-programme assessments redirect with a message
 
 
 @pytest.mark.django_db
@@ -140,7 +140,7 @@ def test_attempt_question_set_is_frozen_and_attempt_limit_is_enforced(client, th
     attempt.refresh_from_db()
     assert attempt.maximum_score == 2
     assert attempt.percentage == 100
-    assert client.get(url).status_code == 403
+    assert client.get(url).status_code == 302  # attempt limit redirects with a message
 
 
 @pytest.mark.django_db
@@ -165,7 +165,7 @@ def test_final_theory_pass_unlocks_orientation(client, theory_setup):
 @pytest.mark.django_db
 def test_instructor_portal_rejects_student_and_allows_instructor(client, theory_setup):
     client.force_login(theory_setup["user"])
-    assert client.get(reverse("instructor-dashboard")).status_code == 403
+    assert client.get(reverse("instructor-dashboard")).status_code == 302  # students are sent back with a message
     instructor = User.objects.create_user(username="instructor", email="instructor@example.test", password="test-password")
     instructor.groups.add(Group.objects.get(name="Instructor"))
     client.force_login(instructor)

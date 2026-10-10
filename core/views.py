@@ -1,10 +1,14 @@
-from django.contrib import admin
+from urllib.parse import urlsplit
+
+from django.contrib import admin, messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from django.views import defaults as django_views
 
 from accounts.context_processors import role_context
 from assessments.models import Assessment
@@ -63,3 +67,27 @@ def orientation(request):
             )
         return redirect("dashboard")
     return render_student_page(request, "core/orientation.html", {"programme_progress": programme_progress})
+
+
+def permission_denied(request, exception=None):
+    """Handler for 403 (config/urls.py handler403).
+
+    Portal access gates raise PermissionDenied with a human-readable
+    reason ("No active programme enrolment was found.", "Complete
+    simulator orientation…"). For authenticated users on the portal,
+    answer those with a warning message and a redirect back to the page
+    they came from instead of Django's bare 403 page. The admin keeps
+    Django's own behaviour, as do anonymous users.
+    """
+    if request.user.is_authenticated and not request.path.startswith("/admin/"):
+        message = str(exception) if exception and str(exception) else "You don't have access to that page."
+        messages.warning(request, message)
+        candidate = request.META.get("HTTP_REFERER")
+        if candidate:
+            parts = urlsplit(candidate)
+            if parts.netloc and parts.netloc != request.get_host():
+                candidate = None  # never bounce off-site
+            elif parts.path == request.path:
+                candidate = None  # don't redirect straight back onto the gate
+        return redirect(candidate or reverse("dashboard"))
+    return django_views.permission_denied(request, exception)

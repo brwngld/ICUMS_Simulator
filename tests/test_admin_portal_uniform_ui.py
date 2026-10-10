@@ -160,5 +160,5 @@ def test_uniform_view_mode_pages_require_instructor_role(client):
     outsider = User.objects.create_user(username="uniform-outsider", email="outsider@example.test", password="outsider-pass")
     version = make_draft_course(module_count=0)
     client.force_login(outsider)
-    assert client.get(reverse("course-review", args=(version.pk,))).status_code == 403
-    assert client.get(reverse("instructor-student-detail", args=(version.pk,))).status_code == 403
+    assert client.get(reverse("course-review", args=(version.pk,))).status_code == 302  # students are redirected with a message
+    assert client.get(reverse("instructor-student-detail", args=(version.pk,))).status_code == 302  # students are redirected with a message

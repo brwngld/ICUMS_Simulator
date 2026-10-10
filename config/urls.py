@@ -21,6 +21,8 @@ from django.views.generic import RedirectView
 
 from accounts.views import LoginView
 
+handler403 = "core.views.permission_denied"
+
 urlpatterns = [
     path("admin/login/", RedirectView.as_view(url="/accounts/login/", permanent=False), name="admin-login-redirect"),
     path('admin/', admin.site.urls),

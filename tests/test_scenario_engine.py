@@ -110,7 +110,8 @@ def scenario_setup(db):
 def test_practical_training_requires_completed_orientation(client, scenario_setup):
     ProgrammeProgress.objects.filter(enrolment=scenario_setup["enrolment"]).update(orientation_completed_at=None)
     login_with_simulator_access(client, scenario_setup["user"])
-    assert client.get(reverse("scenario-list")).status_code == 403
+    response = client.get(reverse("scenario-list"))
+    assert response.status_code == 302  # redirected back with a message, not a bare 403
 
 
 @pytest.mark.django_db
@@ -171,7 +172,7 @@ def test_beginner_hint_is_recorded_and_competency_hint_is_forbidden(client, scen
     assert AssistanceEvent.objects.filter(attempt=attempt, kind=AssistanceEvent.Kind.HINT).exists()
     attempt.assistance_mode = ScenarioVersion.AssistanceMode.COMPETENCY
     attempt.save(update_fields=("assistance_mode",))
-    assert client.post(reverse("scenario-hint", args=(attempt.pk,))).status_code == 403
+    assert client.post(reverse("scenario-hint", args=(attempt.pk,))).status_code == 302  # redirected with a message
 
 
 @pytest.mark.django_db
@@ -329,5 +330,5 @@ def test_student_can_view_evaluation_but_cannot_override_it(client, scenario_set
     assert response.status_code == 200
     assert b"Demonstration evaluation" in response.content
     override_url = reverse("practical-evaluation-override", args=(evaluation.pk,))
-    assert client.post(override_url, {"outcome": "fail", "reason": "Student cannot revise this result."}).status_code == 403
+    assert client.post(override_url, {"outcome": "fail", "reason": "Student cannot revise this result."}).status_code == 302  # redirected with a message
     assert evaluation.revisions.count() == 0
