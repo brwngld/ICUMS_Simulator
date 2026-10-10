@@ -13,7 +13,7 @@ the content block with their own dash-styled markup.
 {% block extrastyle %}
   {{ block.super }}
   <script src="{% static 'js/theme.js' %}?v=20261010-3"></script>
-  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261010-12">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261010-13">
   <style>
     /* Keep the Unfold chrome's own colours and metrics where app.css
        element rules (body, headings, sidebar links) would otherwise
@@ -22,10 +22,19 @@ the content block with their own dash-styled markup.
     body { color: var(--color-font-default-light); background-color: var(--color-base-50); font-size: var(--text-sm); }
     html.dark body { color: var(--color-font-default-dark); background-color: var(--color-base-900); }
     h1, h2, h3 { color: inherit; }
+    /* Links outside the dash content follow the neutral chrome colours;
+       links inside .dash keep the dash accent via their own rules. */
+    a { color: var(--color-font-default-light); }
+    html.dark a { color: var(--color-font-default-dark); }
     #nav-sidebar a { color: inherit; font-weight: inherit; }
   </style>
   <style>
     .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #5145cd; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; }
+    /* Dark tokens mirror the admin overview reference (admin-dashboard.css). */
+    html.dark .dash, html[data-theme="dark"] .dash { --d-border: #2b3950; --d-muted: #aab4ca; --d-accent: #9b8cff; --d-card-bg: #172033; }
+    .dash-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; }
+    .dash-head .view-mode-badge { align-self: center; flex-shrink: 0; }
+    @media (max-width: 40rem) { .dash-head { align-items: flex-start; flex-direction: column; } }
     .dash-head h1 { margin: 0; font-size: 1.45rem; font-weight: 700; letter-spacing: -.02em; }
     .dash-head p { margin: .3rem 0 0; color: var(--d-muted); font-size: .8rem; }
     .dash-notice { padding: .55rem .75rem; border-radius: .6rem; background: #fffaeb; color: #795c16; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-align: center; }
@@ -61,6 +70,15 @@ the content block with their own dash-styled markup.
     .dash-pill { display: inline-block; padding: .12rem .55rem; border-radius: 99px; font-size: .68rem; font-weight: 650; }
     .dash-pill.is-ok { color: #067a5e; background: #e2f6ef; }
     .dash-pill.is-warn { color: #93530a; background: #fdf0d9; }
+    .dash-pill.is-info { color: var(--d-accent); background: color-mix(in srgb, var(--d-accent) 9%, #fff); }
+    html.dark .dash-pill.is-ok, html[data-theme="dark"] .dash-pill.is-ok { color: #7fd8bd; background: #12433a; }
+    html.dark .dash-pill.is-warn, html[data-theme="dark"] .dash-pill.is-warn { color: #f2d18a; background: #3c321c; }
+    html.dark .dash-pill.is-info, html[data-theme="dark"] .dash-pill.is-info { color: var(--d-accent); background: color-mix(in srgb, var(--d-accent) 16%, #172033); }
+    .dash-panel.is-warning { border-color: #e5b8b3; background: #fff7f6; }
+    .dash-panel.is-ready { border-color: #b9dfd2; background: #eff9f5; }
+    html.dark .dash-panel.is-warning, html[data-theme="dark"] .dash-panel.is-warning { border-color: #7a4b47; background: #3c2427; }
+    html.dark .dash-panel.is-ready, html[data-theme="dark"] .dash-panel.is-ready { border-color: #286b5b; background: #16352f; }
+    .dash-panel.builder-explanation { background: color-mix(in srgb, var(--d-accent), transparent 94%); }
     .dash-empty { margin: .75rem 0; color: var(--d-muted); font-size: .8rem; }
     /* reading and workspace components */
     .dash-copy h2 { margin: 1.1rem 0 .4rem; font-size: 1rem; font-weight: 700; }

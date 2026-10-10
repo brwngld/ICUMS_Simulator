@@ -410,8 +410,6 @@ html[data-theme="dark"] .theme-switch { background: #323d5e; }
 .builder-path-tabs { display: flex; gap: .75rem; margin: 0 0 1.25rem; }
 .builder-path-tabs .active { border-color: var(--accent, #1f6f5f); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #1f6f5f) 18%, transparent); }
 .authoring-paths { margin-bottom: 1.5rem; }
-.content-type { display: inline-flex; margin: 0 .55rem .25rem 0; padding: .18rem .5rem; border-radius: 99px; color: #5948ba !important; background: #eeebfc; font-size: .62rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-.practical-type { color: #19735f !important; background: #eaf6f1; }
 .builder-explanation { background: color-mix(in srgb, var(--accent), transparent 94%); }
 .builder-form { display: grid; gap: 1.2rem; max-width: 62rem; }
 .form-section { display: grid; gap: .75rem; }
@@ -425,15 +423,9 @@ html[data-theme="dark"] .theme-switch { background: #323d5e; }
 .check-row input { flex: 0 0 auto; }
 .form-actions { display: flex; justify-content: flex-end; gap: .75rem; }
 .builder-progress a { color: inherit; text-decoration: none; }
-.review-warning { margin-bottom: 1.25rem; border-color: #e5b8b3; background: #fff7f6; }
-.review-ready { margin-bottom: 1.25rem; border-color: #b9dfd2; background: #eff9f5; }
 .review-lesson { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 .publish-panel { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; margin-top: 1.25rem; }
 .publish-panel h2 { margin: 0; }
-html[data-theme="dark"] .review-warning { border-color: #7a4b47; background: #3c2427; }
-html[data-theme="dark"] .review-ready { border-color: #286b5b; background: #16352f; }
-html[data-theme="dark"] .content-type { color: #d5d0ff !important; background: #302b5e; }
-html[data-theme="dark"] .practical-type { color: #9cdec9 !important; background: #1c443e; }
 html[data-theme="dark"] .builder-progress li.complete { color: #9cdec9; border-color: #286b5b; background: #16352f; }
 @media (max-width: 60rem) { .builder-layout { grid-template-columns: 1fr; } .builder-card { position: static; } }
 @media (max-width: 40rem) { .builder-progress { grid-template-columns: 1fr 1fr; } .form-columns { grid-template-columns: 1fr; } .outline-module { grid-template-columns: 1fr; } .outline-module > ol { grid-column: auto; } .outline-module > ol li { align-items: flex-start; flex-direction: column; gap: .25rem; } .publish-panel { align-items: stretch; flex-direction: column; } }

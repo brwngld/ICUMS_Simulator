@@ -3,21 +3,45 @@
 {% block title %}Instructor dashboard · ICUMS Simulator{% endblock %}
 
 {% block content %}
-<p class="eyebrow">Instructor workspace</p>
-<div class="page-intro"><div><h1>Student progress</h1><p class="muted">Review progress and assessment evidence. Instructor feedback does not silently replace recorded attempts.</p></div></div>
-<div class="module-grid authoring-paths">
-  <article class="panel module-card"><span class="content-type">Theory</span><h2>Theory</h2><p>Create reading lessons, knowledge questions, quizzes, and module assessments.</p><a class="primary-link" href="{% url 'course-builder' %}?path=theory">Open Theory builder →</a></article>
-  <article class="panel module-card"><span class="content-type practical-type">Practical/Theory</span><h2>Practical/Theory</h2><p>Combine supporting theory with a guided, pre-programmed ICUMS simulator flow and practical assessment.</p><a class="primary-link" href="{% url 'course-builder' %}?path=combined">Open Practical/Theory builder →</a></article>
-</div>
-<div class="table-wrapper">
-  <table>
-    <thead><tr><th>Student</th><th>Programme</th><th>ICUMS user details</th><th>Training</th><th></th></tr></thead>
-    <tbody>
-      {% for enrolment in enrolments %}
-        <tr><td>{{ enrolment.student }}<br><small>{{ enrolment.student.student_id|default:"Student ID not assigned" }}</small></td><td>{{ enrolment.programme_version.programme.name }}<br><small>{{ enrolment.get_status_display }}</small></td><td>{% with credential=enrolment.student.simulator_credential %}{% if credential.issued_at %}<small>{% if credential.password_state == "revealed" %}Password hidden — shown once{% if credential.revealed_at %} {{ credential.revealed_at|date:"j M Y, H:i" }}{% endif %}. Reset to display a new one.{% else %}Password generated — awaiting its one-time display.{% endif %}<br>{% if credential.is_current %}Expires {{ credential.expires_at|date:"j M Y, H:i" }}{% else %}<strong>Expired — reset required</strong>{% endif %}{% if credential.reset_requested_at %} · <strong>Student requested reset</strong>{% endif %}</small>{% else %}<small>Not issued</small>{% endif %}<form method="post" action="{% url 'simulator-credential-issue' enrolment.student.pk %}">{% csrf_token %}<button class="secondary-button" type="submit">{% if enrolment.student.simulator_credential.issued_at %}Reset monthly password{% else %}Create simulator login{% endif %}</button></form>{% endwith %}</td><td>{{ enrolment.lesson_progress.count }} lessons<br>{{ enrolment.theory_attempts.count }} assessment attempts</td><td><a href="{% url 'instructor-student-detail' enrolment.pk %}">Review</a></td></tr>
-      {% empty %}<tr><td colspan="5">No enrolments are available.</td></tr>{% endfor %}
-    </tbody>
-  </table>
+<div class="dash">
+  <header class="dash-head">
+    <div>
+      <p class="dash-eyebrow">Instructor workspace</p>
+      <h1>Student progress</h1>
+      <p>Review progress and assessment evidence. Instructor feedback does not silently replace recorded attempts.</p>
+    </div>
+  </header>
+
+  <div class="dash-grid">
+    <section class="dash-panel">
+      <div class="dash-panel-head">
+        <div><h2>Theory</h2><p>Create reading lessons, knowledge questions, quizzes, and module assessments.</p></div>
+        <span class="dash-pill is-info">Theory</span>
+      </div>
+      <a href="{% url 'course-builder' %}?path=theory">Open Theory builder →</a>
+    </section>
+    <section class="dash-panel">
+      <div class="dash-panel-head">
+        <div><h2>Practical/Theory</h2><p>Combine supporting theory with a guided, pre-programmed ICUMS simulator flow and practical assessment.</p></div>
+        <span class="dash-pill is-ok">Practical/Theory</span>
+      </div>
+      <a href="{% url 'course-builder' %}?path=combined">Open Practical/Theory builder →</a>
+    </section>
+  </div>
+
+  <section class="dash-panel">
+    <div class="dash-panel-head">
+      <div><h2>Enrolments</h2><p>Students assigned to you</p></div>
+    </div>
+    <table class="dash-table">
+      <thead><tr><th>Student</th><th>Programme</th><th>ICUMS user details</th><th>Training</th><th></th></tr></thead>
+      <tbody>
+        {% for enrolment in enrolments %}
+          <tr><td>{{ enrolment.student }}<br><small>{{ enrolment.student.student_id|default:"Student ID not assigned" }}</small></td><td>{{ enrolment.programme_version.programme.name }}<br><small>{{ enrolment.get_status_display }}</small></td><td>{% with credential=enrolment.student.simulator_credential %}{% if credential.issued_at %}<small>{% if credential.password_state == "revealed" %}Password hidden — shown once{% if credential.revealed_at %} {{ credential.revealed_at|date:"j M Y, H:i" }}{% endif %}. Reset to display a new one.{% else %}Password generated — awaiting its one-time display.{% endif %}<br>{% if credential.is_current %}Expires {{ credential.expires_at|date:"j M Y, H:i" }}{% else %}<strong>Expired — reset required</strong>{% endif %}{% if credential.reset_requested_at %} · <strong>Student requested reset</strong>{% endif %}</small>{% else %}<small>Not issued</small>{% endif %}<form method="post" action="{% url 'simulator-credential-issue' enrolment.student.pk %}">{% csrf_token %}<button class="dash-secondary" type="submit">{% if enrolment.student.simulator_credential.issued_at %}Reset monthly password{% else %}Create simulator login{% endif %}</button></form>{% endwith %}</td><td>{{ enrolment.lesson_progress.count }} lessons<br>{{ enrolment.theory_attempts.count }} assessment attempts</td><td><a href="{% url 'instructor-student-detail' enrolment.pk %}">Review</a></td></tr>
+        {% empty %}<tr><td colspan="5">No enrolments are available.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </section>
 </div>
 <script>document.querySelectorAll('[data-copy-target]').forEach(button=>button.addEventListener('click',async()=>{const text=document.getElementById(button.dataset.copyTarget).textContent;await navigator.clipboard.writeText(text);button.textContent='Copied';}));</script>
 {% endblock %}
