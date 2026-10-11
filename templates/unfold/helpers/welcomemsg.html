@@ -15,24 +15,27 @@
         {% include "unfold/helpers/header_back_button.html" %}
     {% endif %}
 
-    <h1 class="overflow-hidden leading-5 text-important flex items-center whitespace-nowrap xl:text-base">
-        {% comment %}
-        Portal views may supply `breadcrumbs` — a list of {title, link}
-        dicts where the last entry is the current page (link empty). They
-        render through unfold's own header_title markup, so the trail
-        matches the admin pages exactly. Without breadcrumbs the standard
-        header title logic applies.
-        {% endcomment %}
-        {% if breadcrumbs %}
-            {% include "unfold/helpers/header_title.html" with parts=breadcrumbs %}
-        {% else %}
+{% comment %}
+Project override: on portal/simulator pages rendered through
+render_student_page the chrome title is empty while the page itself
+carries the real primary heading; an empty top-level heading here
+would double the page's headings. Those pages set hide_chrome_h1, so
+the chrome title renders as a paragraph; admin pages keep the vendor
+heading element.
+{% endcomment %}
+    {% if hide_chrome_h1 %}
+        <p class="overflow-hidden leading-5 text-important flex items-center whitespace-nowrap xl:text-base m-0">
             {% header_title %}
-        {% endif %}
+        </p>
+    {% else %}
+        <h1 class="overflow-hidden leading-5 text-important flex items-center whitespace-nowrap xl:text-base">
+            {% header_title %}
 
-        {% if cl and cl.full_result_count != cl.result_count and cl.paginator|class_name != "InfinitePaginator" %}
-            <span class="font-medium ml-2 text-subtle text-xs">
-                {% blocktranslate count counter=cl.result_count %}{{ counter }} result{% plural %}{{ counter }} results{% endblocktranslate %} (<a href="?{% if cl.is_popup %}_popup=1{% endif %}">{% if cl.show_full_result_count %}{% blocktranslate with full_result_count=cl.full_result_count %}{{ full_result_count }} total{% endblocktranslate %}{% else %}{% translate "Show all" %}{% endif %}</a>)
-            </span>
-        {% endif %}
-    </h1>
+            {% if cl and cl.full_result_count != cl.result_count and cl.paginator|class_name != "InfinitePaginator" %}
+                <span class="font-medium ml-2 text-subtle text-xs">
+                    {% blocktranslate count counter=cl.result_count %}{{ counter }} result{% plural %}{{ counter }} results{% endblocktranslate %} (<a href="?{% if cl.is_popup %}_popup=1{% endif %}">{% if cl.show_full_result_count %}{% blocktranslate with full_result_count=cl.full_result_count %}{{ full_result_count }} total{% endblocktranslate %}{% else %}{% translate "Show all" %}{% endif %}</a>)
+                </span>
+            {% endif %}
+        </h1>
+    {% endif %}
 </div>

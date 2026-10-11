@@ -1,0 +1,61 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% comment %}
+Shared Unfold shell for the simulator (playground) pages — the same chrome
+as the admin, tutor and student portals: the Unfold sidebar (navigation
+supplied by core.admin_dashboard.sidebar_navigation, which dispatches the
+simulator area menus for /practical/ playground paths), header, theme and
+user chip. Pages extend this and keep their own content markup, styled by
+the simulator stylesheets loaded below; the legacy simulator shell
+(purple gradient header, fixed sidebar, top-nav) is gone.
+{% endcomment %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <script src="{% static 'js/theme.js' %}?v=20261010-3"></script>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}?v=20261010-13">
+  <link rel="stylesheet" href="{% static 'css/dash.css' %}?v=20261010-1">
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261010-7">
+  {% block page_css %}{% endblock %}
+  <style>
+    /* Keep the Unfold chrome's own colours and metrics where app.css and
+       simulator-portal.css element rules would otherwise leak into it
+       (same guards as the student shell). */
+    body { color: var(--color-font-default-light); background-color: var(--color-base-50); font-size: var(--text-sm); }
+    html.dark body { color: var(--color-font-default-dark); background-color: var(--color-base-900); }
+    h1, h2, h3 { color: inherit; }
+    a { color: var(--color-font-default-light); }
+    html.dark a { color: var(--color-font-default-dark); }
+    #nav-sidebar a { color: inherit; font-weight: inherit; }
+    html:not(.dark) #nav-sidebar a.bg-primary-600,
+    html:not(.dark) #nav-sidebar a.bg-primary-600:hover { color: #fff; }
+    /* Simulator pages render inside the chrome's content column. */
+    .sim-page { display: flex; flex-direction: column; gap: 1rem; max-width: 100rem; margin: 0 auto; width: 100%; }
+    .sim-page .portal-header, .sim-page .portal-top-nav { display: none; }
+  </style>
+  {% block simulator_style %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+  <a class="sim-skip-link" href="#main-content">Skip to main content</a>
+  <nav class="sim-top-nav" aria-label="Logged-in simulator navigation">
+    <a href="{% url 'cargo-direct-delivery' %}"{% if '/practical/cargo' in request.path %} aria-current="page"{% endif %}>Cargo</a>
+    <a href="{% url 'clearance-workspace' %}"{% if '/practical/clearance' in request.path %} aria-current="page"{% endif %}>Clearance</a>
+    <a href="#">Collection</a>
+    <a href="{% url 'single-window-create-ucr' %}"{% if '/practical/single-window' in request.path %} aria-current="page"{% endif %}>Single Window</a>
+    <a href="#">Agent Management</a>
+    <a href="#">e-Docs</a>
+    <a href="#">Post Clearance Audit</a>
+    <a href="#">AEO</a>
+    <a href="#">More Information</a>
+    <a href="#">DW Service</a>
+  </nav>
+  <div class="dash sim-page">
+    <p class="dash-notice">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</p>
+    {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+    <main id="main-content" class="portal-main" tabindex="-1">
+      {% block simulator_content %}{% endblock %}
+    </main>
+  </div>
+{% endblock %}

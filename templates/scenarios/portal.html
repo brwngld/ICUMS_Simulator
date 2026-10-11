@@ -1,25 +1,11 @@
+{% extends "core/base_simulator.html" %}
 {% load static %}
-<!doctype html>
-<html lang="en">
-<head>
-  {% include "components/favicons.html" %}
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Practical Workspace · ICUMS Simulator</title>
-  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261010-3">
-</head>
-<body data-portal-home>
-  <a class="portal-skip" href="#portal-main">Skip to workspace</a>
-  <div class="portal-warning" role="note">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
-  {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
-  <div class="portal-shell">
-    {% include "scenarios/_cargo_sidebar.html" %}
-
-    <main id="portal-main" class="portal-main" tabindex="-1">
-      <header class="portal-header">
-        <div class="portal-heading"><p class="overline">Practical training environment</p><h1>Cargo tracking dashboard</h1></div>
-        {% include "scenarios/_portal_top_nav.html" %}
-        <div class="portal-header-actions"><button type="button" aria-label="Open notifications">3 notifications</button>{% if simulator_access %}{% if user.is_staff %}<button type="button" data-open-review-dialog>Simulator sign out</button>{% else %}<form method="post" action="{% url 'simulator-logout' %}">{% csrf_token %}<button type="submit">Simulator sign out</button></form>{% endif %}{% else %}<button type="button" data-open-simulator-login>Login</button>{% endif %}</div>
+{% block title %}Practical Workspace · ICUMS Simulator{% endblock %}
+{% block simulator_content %}
+<div>
+<header class="dash-head">
+        <div><p class="dash-eyebrow">Practical training environment</p><h1>Cargo tracking dashboard</h1></div>
+        <div class="dash-actions">{% if simulator_access %}{% if user.is_staff %}<button class="dash-secondary" type="button" data-open-review-dialog>Simulator sign out</button>{% else %}<form method="post" action="{% url 'simulator-logout' %}">{% csrf_token %}<button class="dash-secondary" type="submit">Simulator sign out</button></form>{% endif %}{% else %}<button class="dash-primary" type="button" data-open-simulator-login>Login</button>{% endif %}</div>
       </header>
 
       <section class="tracking-search" aria-labelledby="tracking-title">
@@ -71,8 +57,8 @@
         </section>
       </div>
       <footer class="portal-footer"><span>ICUMS Simulator practical workspace</span><span>No official transactions · No external system connection</span></footer>
-    </main>
-  </div>
+</div>
+</div>
   <dialog class="simulator-login-dialog" id="simulator-login-dialog" aria-labelledby="simulator-login-title">
     <div class="simulator-login-heading"><div><h2 id="simulator-login-title">Login</h2><p>ICUMS training simulator access</p></div><button type="button" data-close-simulator-login aria-label="Close login">×</button></div>
     <form method="post" action="{% url 'simulator-login' %}" class="simulator-login-form">{% csrf_token %}<label for="simulator-student-id">Student ID</label><input id="simulator-student-id" name="student_id" value="{{ student_id_hint }}" placeholder="BERN00001/26" autocomplete="username" required><label for="simulator-password">Monthly password</label><input id="simulator-password" name="password" type="password" autocomplete="current-password" required><button type="submit">Continue</button></form>
@@ -81,8 +67,8 @@
   <dialog class="simulator-login-dialog" id="simulator-review-dialog" aria-labelledby="simulator-review-title">
     <div class="simulator-login-heading"><div><h2 id="simulator-review-title">Review student work</h2><p>Staff only · view only</p></div><button type="button" data-close-review-dialog aria-label="Close student review">×</button></div>
     {% if review_target %}<p class="frontend-note">You are reviewing <strong>{{ review_target.get_full_name|default:review_target.username }}</strong> (<strong>{{ review_target.student_id|default:"no student ID" }}</strong>). You can browse everything the student sees; saving, submitting, and deleting are disabled.</p>
-    <form method="post" action="{% url 'simulator-review-exit' %}">{% csrf_token %}<button type="submit">⎋ Exit student review</button></form>{% endif %}
-    <form method="post" action="{% url 'simulator-review-login' %}" class="simulator-login-form">{% csrf_token %}<label for="review-student">{% if review_target %}Switch to another student{% else %}Student ID or name{% endif %}</label><input id="review-student" name="student" placeholder="e.g. BERN00001/26" autocomplete="off" required><button type="submit">☰ Open student records</button></form>
+    <form method="post" action="{% url 'simulator-review-exit' %}">{% csrf_token %}<button type="submit">Exit student review</button></form>{% endif %}
+    <form method="post" action="{% url 'simulator-review-login' %}" class="simulator-login-form">{% csrf_token %}<label for="review-student">{% if review_target %}Switch to another student{% else %}Student ID or name{% endif %}</label><input id="review-student" name="student" placeholder="e.g. BERN00001/26" autocomplete="off" required><button type="submit">Open student records</button></form>
     <div class="simulator-login-help"><strong>View only · no password needed</strong><p>You will browse the student's UCRs, consignment applications, and MDA applications exactly as they see them — read-only. A banner in the sidebar reminds you whose work you are viewing; use Exit review to return to your own workspace.</p></div>
   </dialog>
   <dialog class="cargo-dialog" id="cargo-search-dialog" aria-labelledby="cargo-dialog-title">
@@ -134,9 +120,4 @@
       configureDialog({ dialogId: "boe-search-dialog", formId: "boe-search-form", statusId: "boe-search-status", openSelector: "[data-open-boe-search]", closeSelector: "[data-close-boe-search]", message: "Frontend prototype only. BOE status results will be connected after the declaration workflow and data rules are supplied." });
     })();
   </script>
-<script src="{% static 'js/app-shell.js' %}?v=20261010-3" defer></script></body>
-</html>
-
-
-
-
+{% endblock %}

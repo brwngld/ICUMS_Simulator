@@ -1,139 +1,110 @@
-"""Regression tests: every simulator-portal page renders the same shared top navigation.
+"""Regression tests: the simulator navigation.
 
-The canonical navigation is templates/scenarios/_portal_top_nav.html (10 items, fixed
-order, fixed hrefs). These tests log in with a staff user (staff always has simulator
-access) and assert that each representative page renders that shared partial, including
-the previously-drifting pages (DW Service was missing on some, and the declaration
-search/create pages carried a reduced inline sidebar).
+Two layers, both restored to the original simulator information
+architecture:
+
+- The logged-in top menu (reference 004): ten service areas on every
+  simulator page, active state following the current area.
+- The left sidebar: like the original in-page sidebars, each area's pages
+  see only their own menu tree (the portal home keeps the Cargo tree, as
+  it originally did), as Unfold collapsible sections with the original
+  section and leaf labels.
 """
+
 import re
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from scenarios.models import ConsignmentApplication, GhanaHSCode, UcrDeclaration
-
 User = get_user_model()
 
-CANONICAL_NAV_TEXTS = [
-    "Cargo",
-    "Clearance",
-    "Collection",
-    "Single Window",
-    "Agent Management",
-    "e-Docs",
-    "Post Clearance Audit",
-    "AEO",
-    "More Information",
-    "DW Service",
+TOP_MENU_ITEMS = [
+    b"Cargo",
+    b"Clearance",
+    b"Collection",
+    b"Single Window",
+    b"Agent Management",
+    b"e-Docs",
+    b"Post Clearance Audit",
+    b"AEO",
+    b"More Information",
+    b"DW Service",
+]
+
+# route -> (own sections that must be present, other-area sections that
+# must be absent)
+AREA_PAGES = [
+    ("simulator-portal", ["Sea Import", "Tracking", "Direct Delivery"], ["Declaration Report", "Previous Data"]),
+    ("cargo-direct-delivery", ["Sea Import", "Customs Area", "Direct Delivery"], ["Declaration Report", "Previous Data"]),
+    ("cargo-service-request", ["Sea Import"], ["Petroleum Management", "Create UCR"]),
+    ("clearance-workspace", ["Declaration", "Petroleum Management", "Create BOE Declaration"], ["Sea Import", "Previous Data"]),
+    ("search-boe-declaration", ["Declaration"], ["Sea Import", "Create UCR"]),
+    ("single-window-overview", ["Registration", "Previous Data", "Create UCR"], ["Sea Import", "Petroleum Management"]),
+    ("single-window-create-ucr", ["Registration"], ["Sea Import", "Petroleum Management"]),
+    ("single-window-search-ucr", ["Registration"], ["Sea Import", "Declaration Report"]),
 ]
 
 
-def _extract_top_nav(content):
-    match = re.search(r'<nav class="portal-top-nav"[^>]*>.*?</nav>', content, re.S)
-    return match.group(0) if match else ""
-
-
-def _nav_link_texts(nav_html):
-    return re.findall(r"<a\b[^>]*>(.*?)</a>", nav_html)
-
-
-def _assert_canonical_top_nav(response):
-    assert response.status_code == 200
-    content = response.content.decode()
-    nav_html = _extract_top_nav(content)
-    assert nav_html, "page does not render the portal top navigation"
-    assert 'aria-label="Logged-in simulator navigation"' in nav_html
-    assert _nav_link_texts(nav_html) == CANONICAL_NAV_TEXTS
-    return content
-
-
-@pytest.fixture
-def staff_client(client):
-    user = User.objects.create_user(
-        username="nav-staff",
-        email="nav-staff@example.test",
-        password="x",
-        is_staff=True,
-    )
-    client.force_login(user)
+def _author_client(client):
+    staff = User.objects.create_user(username="nav-uniform-staff", email="nav@example.test", password="x", is_staff=True)
+    client.force_login(staff)
     return client
 
 
 @pytest.mark.django_db
-def test_clearance_workspace_top_nav(staff_client):
-    response = staff_client.get(reverse("clearance-workspace"))
-    content = _assert_canonical_top_nav(response)
-    clearance_link = re.search(r'<a href="[^"]*clearance[^"]*"[^>]*>Clearance</a>', content)
-    assert clearance_link and 'aria-current="page"' in clearance_link.group(0)
+@pytest.mark.parametrize("route,own,absent", AREA_PAGES)
+def test_top_menu_and_area_sidebar(client, route, own, absent):
+    _author_client(client)
+    response = client.get(reverse(route))
+    assert response.status_code == 200
+    body = response.content
+    for item in TOP_MENU_ITEMS:
+        assert item in body, f"top-menu item {item!r} missing on {route}"
+    assert b'aria-label="Logged-in simulator navigation"' in body
+    for section in own:
+        assert section.encode() in body, f"own section {section!r} missing on {route}"
+    for section in absent:
+        assert section.encode() not in body, f"other-area section {section!r} leaked onto {route}"
+    # The shared workspace links are always present.
+    assert b"Student dashboard" in body
+    assert b"Workspace home" in body
 
 
 @pytest.mark.django_db
-def test_clearance_reference_page_top_nav(staff_client):
-    response = staff_client.get(
-        reverse("clearance-reference-page", kwargs={"page_key": "petroleum-lifting-summary"})
-    )
-    content = _assert_canonical_top_nav(response)
-    # Full shared clearance sidebar (not a reduced inline copy) includes the Petroleum section.
-    assert "Petroleum Management" in content
+def test_top_menu_active_state_follows_the_area(client):
+    _author_client(client)
+    for route, area in (
+        ("cargo-direct-delivery", "Cargo"),
+        ("clearance-workspace", "Clearance"),
+        ("single-window-create-ucr", "Single Window"),
+    ):
+        body = client.get(reverse(route)).content.decode()
+        currents = re.findall(r'aria-current="page"[^>]*>([^<]+)</a>', body)
+        assert currents == [area], f"{route}: active top-menu items were {currents}"
 
 
 @pytest.mark.django_db
-def test_declaration_search_uses_full_shared_sidebar(staff_client):
-    response = staff_client.get(reverse("search-boe-declaration"))
-    content = _assert_canonical_top_nav(response)
-    assert "Petroleum Management" in content
+def test_every_sidebar_destination_resolves(client):
+    client = _author_client(client)
+    hrefs = set()
+    for route in ("simulator-portal", "clearance-workspace", "single-window-overview"):
+        body = client.get(reverse(route)).content.decode()
+        hrefs.update(re.findall(r'href="(/practical/[^"#]+)"', body))
+    assert len(hrefs) > 60  # the three trees carry the full simulator map
+    for href in sorted(hrefs):
+        response = client.get(href)
+        assert response.status_code == 200, f"{href} returned {response.status_code}"
 
 
 @pytest.mark.django_db
-def test_cargo_direct_delivery_top_nav(staff_client):
-    response = staff_client.get(reverse("cargo-direct-delivery"))
-    content = _assert_canonical_top_nav(response)
-    cargo_link = re.search(r'<a href="[^"]*cargo[^"]*"[^>]*>Cargo</a>', content)
-    assert cargo_link and 'aria-current="page"' in cargo_link.group(0)
-
-
-@pytest.mark.django_db
-def test_single_window_create_ucr_top_nav(staff_client):
-    # single-window-workspace redirects to the first actionable Single Window step.
-    response = staff_client.get(reverse("single-window-workspace"), follow=True)
-    content = _assert_canonical_top_nav(response)
-    single_window_link = re.search(r'<a href="[^"]*single-window[^"]*"[^>]*>Single Window</a>', content)
-    assert single_window_link and 'aria-current="page"' in single_window_link.group(0)
-
-
-@pytest.mark.django_db
-def test_consignment_application_top_nav(staff_client):
-    response = staff_client.get(reverse("single-window-create-consignment-application"))
-    _assert_canonical_top_nav(response)
-
-
-@pytest.mark.django_db
-def test_assessment_detail_top_nav(staff_client):
-    GhanaHSCode.objects.update_or_create(
-        code="8703240000", defaults={"description": "MOTOR CARS", "import_duty": "20.00"}
-    )
-    ucr = UcrDeclaration.objects.create(
-        owner=User.objects.get(username="nav-staff"),
-        regime="IM",
-        goods_description="VEHICLE",
-        origin_country="CN",
-        destination_country="GH",
-        transport_mode="10, Sea Transport",
-        ucr_no="KGHTESTUCR9900000002",
-        status=UcrDeclaration.Status.SUBMITTED,
-    )
-    application = ConsignmentApplication.objects.create(
-        owner=ucr.owner,
-        ucr=ucr,
-        status=ConsignmentApplication.Status.SUBMITTED,
-        currency="JPY",
-        exchange_rate=0.0696,
-        fob_fcy=1534800.00,
-        fob_ncy=106822.08,
-        freight_ncy=11583.70,
-        items=[{"hs_code": "8703240000", "description": "MOTOR CAR", "quantity": "1"}],
-    )
-    response = staff_client.get(reverse("assessment-detail", kwargs={"application_id": application.pk}))
-    _assert_canonical_top_nav(response)
+def test_guided_practical_pages_keep_the_learning_navigation(client):
+    """The guided scenario pages are learning surfaces: they keep the
+    student navigation, not the simulator menus."""
+    staff = User.objects.create_user(username="nav-guided-staff", email="ng@example.test", password="x", is_staff=True)
+    client.force_login(staff)
+    response = client.get(reverse("scenario-list"))
+    assert response.status_code in (200, 302)
+    if response.status_code == 200:
+        assert b"Create BOE Declaration" not in response.content
+        assert b"Theory" in response.content

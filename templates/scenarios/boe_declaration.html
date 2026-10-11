@@ -1,13 +1,7 @@
+{% extends "core/base_simulator.html" %}
 {% load static %}
-<!doctype html>
-<html lang="en">
-<head>
-  {% include "components/favicons.html" %}
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BOE Declaration · {{ declaration.declaration_no }} · ICUMS Simulator</title>
-  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261010-3">
-  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261010-1">
-  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20261010-1">
+{% block title %}BOE Declaration · {{ declaration.declaration_no }} · ICUMS Simulator{% endblock %}
+{% block simulator_style %}
   <style>
     .boe-tabs { display: flex; flex-wrap: wrap; gap: .4rem; padding: .6rem 0; }
     .boe-tab { padding: .45rem .8rem; border: 1px solid var(--line); border-radius: .4rem; background: var(--panel); color: var(--ink); font: inherit; font-size: .8rem; cursor: pointer; }
@@ -15,18 +9,14 @@
     .boe-tab-panel[hidden] { display: none; }
     .bill-empty { padding: 1rem 0; color: var(--muted); font-size: .82rem; }
   </style>
-</head>
-<body>
-  <a class="portal-skip" href="#main-content">Skip to BOE Declaration form</a>
-  <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
-  {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
-  <div class="portal-shell">
-    {% include 'scenarios/_clearance_sidebar.html' %}
-    <main id="main-content" class="portal-main cargo-main" tabindex="-1">
-      <header class="portal-header cargo-header">
-        <div class="portal-heading"><p class="overline">Clearance · Declaration · Register Declaration</p><h1>BOE Declaration {{ declaration.job_no }}</h1></div>
-        {% with top_nav_active="clearance" %}{% include "scenarios/_portal_top_nav.html" %}{% endwith %}
-      </header>
+{% endblock %}
+{% block page_css %}
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261010-3">
+  <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20261010-3">
+{% endblock %}
+{% block simulator_content %}
+<div class="cargo-main">
+<header class="dash-head"><div><p class="dash-eyebrow">Clearance · Declaration · Register Declaration</p><h1>BOE Declaration {{ declaration.job_no }}</h1></div></header>
       <div class="cargo-breadcrumb"><a href="{% url 'clearance-workspace' %}">Clearance</a><span>›</span><span>Declaration</span><span>›</span><strong>{{ declaration.job_no }}</strong><span>·</span><span>{{ declaration.status_code_display }}</span></div>
       <div class="cargo-content">
         <nav class="boe-tabs" aria-label="Declaration sections">
@@ -47,7 +37,7 @@
             <table class="ucr-view-table boe-box-grid"><tbody>
               <tr><th>Job No.</th><td><span class="boe-box">{{ general_values.job_no }}</span></td><th>Status</th><td><span class="boe-box">{{ declaration.status_code_display }}</span></td></tr>
               <tr><th>BoE No.</th><td><span class="boe-box">{{ general_values.boe_no|default:"—" }}</span></td><th>UCR No. <span class="boe-req">*</span></th><td><span class="boe-box">{{ general_values.ucr_no }}</span></td></tr>
-              <tr><th>Regime <span class="boe-req">*</span></th><td><span class="boe-compound boe-compound-pair" data-raw="{{ general_values.regime }}" data-sep=" — "><span class="boe-box boe-code-box"></span><span class="boe-box boe-name-box"></span></span></td><th>Customs Office <span class="boe-req">*</span></th><td><span class="boe-compound" data-raw="{{ general_values.customs_office }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Office lookup is not part of this training step">&#128269;</button><span class="boe-box boe-name-box"></span></span></td></tr>
+              <tr><th>Regime <span class="boe-req">*</span></th><td><span class="boe-compound boe-compound-pair" data-raw="{{ general_values.regime }}" data-sep=" — "><span class="boe-box boe-code-box"></span><span class="boe-box boe-name-box"></span></span></td><th>Customs Office <span class="boe-req">*</span></th><td><span class="boe-compound" data-raw="{{ general_values.customs_office }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Office lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><span class="boe-box boe-name-box"></span></span></td></tr>
               <tr><th>CL. Plan <span class="boe-req">*</span></th><td><span class="boe-compound boe-compound-pair" data-raw="DPM — DPM, Declaration Post-Arrival" data-sep=" — "><span class="boe-box boe-code-box"></span><span class="boe-box boe-name-box"></span></span></td><th>Declaration Form Type <span class="boe-req">*</span></th><td><select class="boe-field" disabled aria-label="Declaration form type"><option>G, General</option></select></td></tr>
               {% if is_draft %}<tr><th><label for="general-user-reference">User Reference No.</label></th><td colspan="3"><input id="general-user-reference" class="boe-field boe-wide-field" value="{{ general_values.user_reference }}" maxlength="200"></td></tr>
               {% else %}<tr><th>User Reference No.</th><td colspan="3"><span class="boe-box">{{ general_values.user_reference|default:"—" }}</span></td></tr>{% endif %}
@@ -57,13 +47,13 @@
           </div>
           <div class="boe-section"><h2 class="boe-section-title">Exporter</h2>
             <table class="ucr-view-table boe-box-grid"><tbody>
-              <tr><th><label for="general-exporter-name">Exporter Name <span class="boe-req">*</span></label></th><td><input id="general-exporter-name" class="boe-field boe-wide-field" value="{{ general_values.exporter_name }}" readonly></td><th>Country of Exporter <span class="boe-req">*</span></th><td><span class="boe-compound" data-raw="{{ general_values.exporter_country }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">&#128269;</button><span class="boe-box boe-name-box"></span></span></td></tr>
+              <tr><th><label for="general-exporter-name">Exporter Name <span class="boe-req">*</span></label></th><td><input id="general-exporter-name" class="boe-field boe-wide-field" value="{{ general_values.exporter_name }}" readonly></td><th>Country of Exporter <span class="boe-req">*</span></th><td><span class="boe-compound" data-raw="{{ general_values.exporter_country }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><span class="boe-box boe-name-box"></span></span></td></tr>
               <tr><th>Exporter Address <span class="boe-req">*</span></th><td colspan="3"><span class="boe-box boe-box-area">{{ general_values.exporter_address|default:"—" }}</span></td></tr>
             </tbody></table>
           </div>
           <div class="boe-section"><h2 class="boe-section-title">Importer</h2>
             <table class="ucr-view-table boe-box-grid"><tbody>
-              <tr><th>Importer Code <span class="boe-req">*</span></th><td><span class="boe-compound boe-compound-pair"><span class="boe-box boe-code-box">{{ importer_code }}</span><span class="boe-box boe-name-box">{{ importer_name }}</span></span></td><th>Country of Importer <span class="boe-req">*</span></th><td><span class="boe-compound" data-raw="{{ general_values.importer_country }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">&#128269;</button><span class="boe-box boe-name-box"></span></span></td></tr>
+              <tr><th>Importer Code <span class="boe-req">*</span></th><td><span class="boe-compound boe-compound-pair"><span class="boe-box boe-code-box">{{ importer_code }}</span><span class="boe-box boe-name-box">{{ importer_name }}</span></span></td><th>Country of Importer <span class="boe-req">*</span></th><td><span class="boe-compound" data-raw="{{ general_values.importer_country }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><span class="boe-box boe-name-box"></span></span></td></tr>
               <tr><th>Importer Address <span class="boe-req">*</span></th><td colspan="3"><span class="boe-box boe-box-area">{{ general_values.importer_address|default:"—" }}</span></td></tr>
             </tbody></table>
           </div>
@@ -120,15 +110,15 @@
             <table class="ucr-view-table boe-form-grid"><tbody>
               <tr><th>Manifest No.</th><td><input id="bl-manifest-no" value="{{ bl_values.manifest_no }}" style="width:100%;"></td><th>BL/AWB No. *</th><td><span class="boe-money"><input id="bl-bl-awb-no" value="{{ bl_values.bl_awb_no }}" style="flex:1 1 0; min-width:0;"><button class="ucr-row-action" type="button" disabled title="Select from the attached documents" style="flex:0 0 auto; white-space:nowrap;">Click to select</button></span></td></tr>
               <tr><th>Transport Mode *</th><td colspan="3">{{ declaration.ucr.transport_mode }}</td></tr>
-              <tr><th>Manifest No. Date</th><td><input id="bl-manifest-date" type="date" value="{{ bl_values.manifest_date }}" style="width:100%;"></td><th>Entry/Exit Office *</th><td><span class="boe-compound boe-compound-split"><input id="bl-office-code" class="boe-code-box" aria-label="Entry/Exit office code" list="port-options"><button class="boe-lookup-btn" type="button" disabled title="Office lookup is not part of this training step">&#128269;</button><input id="bl-office" value="{{ general_values.customs_office }}" aria-label="Entry/Exit office name"></span></td></tr>
-              <tr><th>Customs Area</th><td><input id="bl-customs-area" value="{{ bl_values.customs_area }}" style="width:100%;"></td><th>Location of Goods *</th><td><span class="boe-compound"><input id="bl-location-code" value="{{ bl_values.location_code }}" placeholder="Code" aria-label="Location code"><button class="boe-lookup-btn" type="button" disabled title="Location lookup is not part of this training step">&#128269;</button><input id="bl-location-name" value="{{ bl_values.location_name }}" placeholder="Name" aria-label="Location name"></span></td></tr>
+              <tr><th>Manifest No. Date</th><td><input id="bl-manifest-date" type="date" value="{{ bl_values.manifest_date }}" style="width:100%;"></td><th>Entry/Exit Office *</th><td><span class="boe-compound boe-compound-split"><input id="bl-office-code" class="boe-code-box" aria-label="Entry/Exit office code" list="port-options"><button class="boe-lookup-btn" type="button" disabled title="Office lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><input id="bl-office" value="{{ general_values.customs_office }}" aria-label="Entry/Exit office name"></span></td></tr>
+              <tr><th>Customs Area</th><td><input id="bl-customs-area" value="{{ bl_values.customs_area }}" style="width:100%;"></td><th>Location of Goods *</th><td><span class="boe-compound"><input id="bl-location-code" value="{{ bl_values.location_code }}" placeholder="Code" aria-label="Location code"><button class="boe-lookup-btn" type="button" disabled title="Location lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><input id="bl-location-name" value="{{ bl_values.location_name }}" placeholder="Name" aria-label="Location name"></span></td></tr>
               <tr><th>Vessel Name</th><td><input id="bl-vessel-name" value="{{ bl_values.vessel_name }}" style="width:100%;"></td><th>Voyage/Flight No.</th><td><input id="bl-voyage-no" value="{{ bl_values.voyage_no }}" style="width:100%;"></td></tr>
-              <tr><th>Manifest Freight</th><td><input id="bl-manifest-freight" value="{{ bl_values.manifest_freight }}" style="width:100%;"></td><th>Nationality</th><td><span class="boe-compound boe-compound-split"><input id="bl-nationality-code" class="boe-code-box" aria-label="Nationality code" list="country-options"><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">&#128269;</button><input id="bl-nationality" value="{{ bl_values.nationality }}" aria-label="Nationality name"></span></td></tr>
-              <tr><th>Port of Loading</th><td><span class="boe-compound boe-compound-split"><input id="bl-port-of-loading-code" class="boe-code-box" aria-label="Port of loading code" list="port-options"><button class="boe-lookup-btn" type="button" disabled title="Port lookup is not part of this training step">&#128269;</button><input id="bl-port-of-loading" value="{{ bl_values.port_of_loading }}" aria-label="Port of loading name"></span></td><th>Place of Landing</th><td><span class="boe-compound boe-compound-split"><input id="bl-place-of-landing-code" class="boe-code-box" aria-label="Place of landing code"><button class="boe-lookup-btn" type="button" disabled title="Place lookup is not part of this training step">&#128269;</button><input id="bl-place-of-landing" value="{{ bl_values.place_of_landing }}" aria-label="Place of landing name"></span></td></tr>
+              <tr><th>Manifest Freight</th><td><input id="bl-manifest-freight" value="{{ bl_values.manifest_freight }}" style="width:100%;"></td><th>Nationality</th><td><span class="boe-compound boe-compound-split"><input id="bl-nationality-code" class="boe-code-box" aria-label="Nationality code" list="country-options"><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><input id="bl-nationality" value="{{ bl_values.nationality }}" aria-label="Nationality name"></span></td></tr>
+              <tr><th>Port of Loading</th><td><span class="boe-compound boe-compound-split"><input id="bl-port-of-loading-code" class="boe-code-box" aria-label="Port of loading code" list="port-options"><button class="boe-lookup-btn" type="button" disabled title="Port lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><input id="bl-port-of-loading" value="{{ bl_values.port_of_loading }}" aria-label="Port of loading name"></span></td><th>Place of Landing</th><td><span class="boe-compound boe-compound-split"><input id="bl-place-of-landing-code" class="boe-code-box" aria-label="Place of landing code"><button class="boe-lookup-btn" type="button" disabled title="Place lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><input id="bl-place-of-landing" value="{{ bl_values.place_of_landing }}" aria-label="Place of landing name"></span></td></tr>
               <tr><th>Estimated Time of Departure</th><td colspan="3"><input id="bl-etd" type="date" value="{{ bl_values.etd }}" style="width:100%;"></td></tr>
               <tr><th>Gross Weight(Kgs) *</th><td><input id="bl-gross-weight" class="boe-num-input" value="{{ bl_values.gross_weight }}"></td><th>Net Weight(Kgs)</th><td><input id="bl-net-weight" class="boe-num-input" value="{{ bl_values.net_weight }}"></td></tr>
               <tr><th>Total Package *</th><td><span class="boe-compound"><input id="bl-package-unit" list="package-options" value="{{ bl_values.package_unit }}" aria-label="Package unit"><input id="bl-package-count" class="boe-num-input" value="{{ bl_values.package_count }}" aria-label="Package count"></span></td><th>Volume (m3)</th><td><input id="bl-volume" class="boe-num-input" value="{{ bl_values.volume }}"></td></tr>
-              <tr><th>Country of Consignment *</th><td><span class="boe-compound boe-compound-split"><input id="bl-consignment-country-code" class="boe-code-box" aria-label="Country of consignment code" list="country-options"><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">&#128269;</button><input id="bl-consignment-country" value="{{ bl_values.consignment_country }}" aria-label="Country of consignment name"></span></td><th>Consignment Date</th><td><input id="bl-consignment-date" type="date" value="{{ bl_values.consignment_date }}" style="width:100%;"></td></tr>
+              <tr><th>Country of Consignment *</th><td><span class="boe-compound boe-compound-split"><input id="bl-consignment-country-code" class="boe-code-box" aria-label="Country of consignment code" list="country-options"><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><input id="bl-consignment-country" value="{{ bl_values.consignment_country }}" aria-label="Country of consignment name"></span></td><th>Consignment Date</th><td><input id="bl-consignment-date" type="date" value="{{ bl_values.consignment_date }}" style="width:100%;"></td></tr>
               <tr><th>Container Indicator (G/F/L) *</th><td><select id="bl-container-indicator" style="width:100%;"><option value="G, G Indicator" {% if bl_values.container_indicator == 'G, G Indicator' %}selected{% endif %}>G, G Indicator</option><option value="F, F Indicator" {% if bl_values.container_indicator == 'F, F Indicator' %}selected{% endif %}>F, F Indicator</option><option value="L, L Indicator" {% if bl_values.container_indicator == 'L, L Indicator' %}selected{% endif %}>L, L Indicator</option></select></td><th>Risk Level</th><td><input id="bl-risk-level" value="{{ bl_values.risk_level }}" style="width:100%;"></td></tr>
               <tr><th>Marks and Numbers *</th><td colspan="3"><textarea id="bl-marks-numbers" rows="4" style="width:100%;">{{ bl_values.marks_numbers }}</textarea></td></tr>
             </tbody></table></div>
@@ -160,12 +150,12 @@
                 <th><label for="inv-delivery-term">Delivery Terms <span class="boe-req">*</span></label></th>
                 <td><select id="inv-delivery-term" class="boe-field" data-current="{{ invoice_values.delivery_term }}" {% if not is_draft %}disabled{% endif %}>{% for code, label in delivery_term_options %}<option value="{{ code }}" {% if invoice_values.delivery_term == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></td>
                 <th><label for="inv-country-of-delivery">Country of Delivery <span class="boe-req">*</span></label></th>
-                <td><span class="boe-compound boe-compound-split"><input id="inv-country-of-delivery-code" class="boe-code-box" aria-label="Country of delivery code" {% if not is_draft %}readonly{% endif %}><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">&#128269;</button><input id="inv-country-of-delivery" value="{{ invoice_values.country_of_delivery }}" aria-label="Country of delivery name" {% if not is_draft %}readonly{% endif %}></span></td>
+                <td><span class="boe-compound boe-compound-split"><input id="inv-country-of-delivery-code" class="boe-code-box" aria-label="Country of delivery code" {% if not is_draft %}readonly{% endif %}><button class="boe-lookup-btn" type="button" disabled title="Country lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><input id="inv-country-of-delivery" value="{{ invoice_values.country_of_delivery }}" aria-label="Country of delivery name" {% if not is_draft %}readonly{% endif %}></span></td>
               </tr>
               <tr><th><label for="inv-delivery-place">Delivery Place <span class="boe-req">*</span></label></th><td colspan="3"><input id="inv-delivery-place" class="boe-field boe-wide-field" value="{{ invoice_values.delivery_place }}" {% if not is_draft %}readonly{% endif %}></td></tr>
               <tr>
                 <th>Currency <span class="boe-req">*</span></th>
-                <td><span class="boe-compound boe-currency-split" data-raw="{{ invoice_values.currency }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Currency lookup is not part of this training step">&#128269;</button><span class="boe-box boe-name-box"></span></span></td>
+                <td><span class="boe-compound boe-currency-split" data-raw="{{ invoice_values.currency }}" data-sep=", "><span class="boe-box boe-code-box"></span><button class="boe-lookup-btn" type="button" disabled title="Currency lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button><span class="boe-box boe-name-box"></span></span></td>
                 <th>Exchange Rate</th><td><input class="boe-field boe-num-field" value="{{ invoice_values.exchange_rate }}" readonly></td>
               </tr>
               <tr>
@@ -217,7 +207,7 @@
             <div class="cargo-table-wrap"><table class="ucr-search-table"><thead><tr><th>Document Code</th><th>Description</th><th>Requirement</th><th>Document Reference No.</th></tr></thead><tbody>
               {% for doc in system_documents %}
               <tr><td class="cell-center">{{ doc.code }}</td><td class="cell-left">{{ doc.name }}</td><td class="cell-center">{{ doc.requirement }}</td>
-                <td class="cell-left">{% if is_draft %}<span class="doc-ref-field"><input class="doc-system-ref" {% if doc.manual %}id="doc-income-tax"{% else %}id="doc-system-ref-{{ forloop.counter }}"{% endif %} data-code="{{ doc.code }}" value="{{ doc.reference }}"><button class="boe-lookup-btn" type="button" disabled title="Document lookup is not part of this training step">&#128269;</button></span>{% else %}{{ doc.reference|default:"—" }}{% endif %}</td></tr>
+                <td class="cell-left">{% if is_draft %}<span class="doc-ref-field"><input class="doc-system-ref" {% if doc.manual %}id="doc-income-tax"{% else %}id="doc-system-ref-{{ forloop.counter }}"{% endif %} data-code="{{ doc.code }}" value="{{ doc.reference }}"><button class="boe-lookup-btn" type="button" disabled title="Document lookup is not part of this training step">{% include "components/icon.html" with name="search" %}</button></span>{% else %}{{ doc.reference|default:"—" }}{% endif %}</td></tr>
               {% empty %}<tr><td colspan="4" class="empty-row">No data found.</td></tr>
               {% endfor %}
             </tbody></table></div>
@@ -412,8 +402,8 @@
         </div>
         {% endif %}
       </div>
-    </main>
-  </div>
+</div>
+</div>
   {{ containers|json_script:"containers-data" }}
   {{ importer_code|json_script:"importer-code-data" }}{{ consignee_code|json_script:"consignee-code-data" }}{{ general_values.declarant_tin|json_script:"declarant-code-data" }}
   <script>
@@ -1096,5 +1086,4 @@
       document.querySelector("#summary-submit-bottom")?.addEventListener("click", summarySubmit);
     })();
   </script>
-  <script src="{% static 'js/app-shell.js' %}?v=20261010-3" defer></script>
-</body></html>
+{% endblock %}

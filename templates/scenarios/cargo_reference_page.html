@@ -1,24 +1,12 @@
+{% extends "core/base_simulator.html" %}
 {% load static %}
-<!doctype html>
-<html lang="en">
-<head>
-  {% include "components/favicons.html" %}
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{{ title }} · ICUMS Simulator</title>
-  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261010-3">
-  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261010-1">
-</head>
-<body>
-  <a class="portal-skip" href="#main-content">Skip to {{ title }}</a>
-  <div class="portal-warning">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
-  <div class="portal-shell">
-    {% include "scenarios/_cargo_sidebar.html" %}
-    <main id="main-content" class="portal-main cargo-main" tabindex="-1">
-      <header class="portal-header cargo-header">
-        <div class="portal-heading"><p class="overline">{{ section }}</p><h1>{{ title }}</h1></div>
-        {% with top_nav_active="cargo" %}{% include "scenarios/_portal_top_nav.html" %}{% endwith %}
-      </header>
+{% block title %}{{ title }} · ICUMS Simulator{% endblock %}
+{% block page_css %}
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261010-3">
+{% endblock %}
+{% block simulator_content %}
+<div class="cargo-main">
+<header class="dash-head"><div><p class="dash-eyebrow">{{ section }}</p><h1>{{ title }}</h1></div></header>
       <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Cargo</a><span>›</span><span>{{ section }}</span><span>›</span><strong>{{ title }}</strong></div>
       <div class="cargo-content">
         <p class="frontend-note">Frontend-only Cargo reference screen. Records are fictional and empty until the workflow is supplied.</p>
@@ -33,8 +21,6 @@
           <div class="table-footer"><span>Total: 0</span><span>Page: 1 / 1 · 10 per page</span></div>
         </section>
       </div>
-    </main>
-  </div>
-  <script src="{% static 'js/app-shell.js' %}?v=20261010-3" defer></script>
-</body>
-</html>
+</div>
+</div>
+{% endblock %}

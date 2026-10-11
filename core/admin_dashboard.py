@@ -394,6 +394,10 @@ def render_student_page(request, template, context=None, status=200):
 
     context = dict(context or {})
     context.update(admin_site.site.each_context(request))
+    # The chrome title stays empty on these pages (the page carries the
+    # primary heading); the welcomemsg override renders it without an <h1>
+    # so pages keep exactly one primary heading.
+    context["hide_chrome_h1"] = True
     if request.user.is_authenticated:
         context["sidebar_navigation"] = admin_site.site.get_sidebar_list(request)
     else:
@@ -410,22 +414,211 @@ def render_student_page(request, template, context=None, status=200):
     return render(request, template, context, status=status)
 
 
+def _simulator_navigation(request):
+    """The simulator playground navigation as Unfold sidebar groups,
+    restored per area: like the original in-page sidebars, each area's
+    pages see only their own menu tree (the portal home keeps the Cargo
+    tree, as it originally did). The former three-level trees
+    (area > section > leaf) map to Unfold's two levels as collapsible
+    sections with the original section and leaf labels, verbatim."""
+    from django.urls import reverse
+
+    def cargo_ref(key):
+        return reverse("cargo-reference-page", args=[key])
+
+    def clearance_ref(key):
+        return reverse("clearance-reference-page", args=[key])
+
+    def previous(key):
+        return reverse("single-window-previous-data", args=[key])
+
+    def leaf(title, link, icon="chevron_right"):
+        return {"title": title, "icon": icon, "link": link}
+
+    def section(title, items):
+        return {"title": title, "collapsible": True, "items": items}
+
+    cargo = [
+        section("Sea Import", [
+            leaf("Direct Delivery", reverse("cargo-direct-delivery"), "local_shipping"),
+            leaf("Service Request", reverse("cargo-service-request"), "local_shipping"),
+        ]),
+        section("Sea Export", [
+            leaf("Export Sea Manifest BOE Matching", cargo_ref("export-sea-manifest-boe-matching")),
+        ]),
+        section("Air Import", [
+            leaf("Service Request", cargo_ref("air-service-request"), "flight"),
+        ]),
+        section("Road Manifest", [
+            leaf("Road Consignment List", cargo_ref("road-consignment-list")),
+            leaf("Road Consignment Amend List", cargo_ref("road-consignment-amend-list")),
+            leaf("Vehicle List", cargo_ref("vehicle-list")),
+            leaf("Vehicle Amend", cargo_ref("vehicle-amend")),
+        ]),
+        section("Transportation", [
+            leaf("BT Declaration", cargo_ref("bt-declaration")),
+            leaf("BT Amendment Declaration", cargo_ref("bt-amendment-declaration")),
+            leaf("Holding Area Transfer", cargo_ref("holding-area-transfer"), "swap_horiz"),
+            leaf("List of non-exited BT", cargo_ref("non-exited-bt-report")),
+            leaf("SIGMAT Route Amend", cargo_ref("sigmat-route-amend")),
+            leaf("WeighBridge List", cargo_ref("weighbridge-list"), "monitor"),
+        ]),
+        section("Customs Area", [
+            leaf("Dummy BL List", cargo_ref("dummy-bl-list")),
+            leaf("Dummy BL Restoration List", cargo_ref("dummy-bl-restoration-list"), "restore"),
+            leaf("Merge BL List", cargo_ref("merge-bl-list"), "call_merge"),
+            leaf("Merge BL Restoration List", cargo_ref("merge-bl-restoration-list"), "restore"),
+            leaf("UCL Release", cargo_ref("ucl-release"), "lock_open"),
+            leaf("Temporary Importation", cargo_ref("temporary-importation"), "schedule"),
+            leaf("Temporary Importation Closure", cargo_ref("temporary-importation-closure"), "task_alt"),
+            leaf("Release of Blocking", cargo_ref("release-of-blocking"), "lock_open"),
+        ]),
+        section("Tracking", [
+            leaf("Cargo Tracking", reverse("simulator-portal"), "search"),
+        ]),
+    ]
+    clearance = [
+        section("Declaration", [
+            leaf("Create BOE Declaration", reverse("clearance-workspace"), "add"),
+            leaf("Search BOE Declaration", reverse("search-boe-declaration"), "search"),
+            leaf("Create Simple Amendment", reverse("create-simple-amendment"), "add"),
+            leaf("Search Simple Amendment", reverse("search-simple-amendment"), "search"),
+            leaf("Create Post Entry Declaration", reverse("create-post-entry-declaration"), "add"),
+            leaf("Search Post Entry Declaration", reverse("search-post-entry-declaration"), "search"),
+            leaf("Search Cancellation Request", clearance_ref("search-cancellation-request"), "search"),
+            leaf("Create Release Prior to BOE", clearance_ref("create-release-prior-to-boe"), "add"),
+            leaf("Search Release Prior to BOE", clearance_ref("search-release-prior-to-boe"), "search"),
+            leaf("Export Booking Schedule Update", clearance_ref("export-booking-schedule-update")),
+            leaf("Reply to Appeal Correction Query", clearance_ref("reply-to-appeal-correction-query"), "reply"),
+            leaf("Request for BOE Suspension", clearance_ref("request-for-boe-suspension"), "pending"),
+            leaf("Request Physical Inspection by CHA", clearance_ref("request-physical-inspection-by-cha"), "search"),
+            leaf("Request for NBD Allow (Direct Import)", clearance_ref("request-for-nbd-allow-direct-import"), "pending"),
+            leaf("Request BOE Release in Lab Analysis incomplete", clearance_ref("request-boe-release-in-lab-analysis-incomplete"), "pending"),
+            leaf("Request for release of BOE Blocking", clearance_ref("request-for-release-of-boe-blocking"), "lock_open"),
+            leaf("Request to change BL No before Manifest Matching", clearance_ref("request-to-change-bl-no-before-manifest-matching")),
+            leaf("Request to enable BL No Swap", clearance_ref("request-to-enable-bl-no-swap"), "swap_horiz"),
+            leaf("Request BOE Release without MDA Approval", clearance_ref("request-boe-release-without-mda-approval"), "pending"),
+            leaf("Request to allow for Importer Name matching", clearance_ref("request-to-allow-for-importer-name-matching"), "pending"),
+            leaf("BOE Annexed Document Registration", clearance_ref("boe-annexed-document-registration")),
+            leaf("Request UCL Check Skip before Manifest Matching", clearance_ref("request-ucl-check-skip-before-manifest-matching"), "pending"),
+            leaf("Transit Conversion Request", clearance_ref("transit-conversion-request"), "swap_horiz"),
+            leaf("Exception Request for Chassis No. Restriction", clearance_ref("exception-request-for-chassis-no-restriction"), "pending"),
+            leaf("Request to use PMD CL Plan", clearance_ref("request-to-use-pmd-cl-plan"), "pending"),
+            leaf("Request to allow Post Entry after BOE Exited", clearance_ref("request-to-allow-post-entry-after-boe-exited"), "pending"),
+            leaf("Bill Auto regeneration Stop List", clearance_ref("bill-auto-regeneration-stop-list"), "block"),
+        ]),
+        section("Declaration Report", [
+            leaf("List of Declaration per Importer", clearance_ref("list-of-declaration-per-importer")),
+            leaf("List of Declaration per Exporter", clearance_ref("list-of-declaration-per-exporter")),
+            leaf("Warehouse BOE Report", clearance_ref("warehouse-boe-report")),
+            leaf("ExWarehouse BOE Report", clearance_ref("exwarehouse-boe-report")),
+            leaf("Declaration Tax Report", clearance_ref("declaration-tax-report")),
+            leaf("Stock Balance (Ex)Warehouse Report", clearance_ref("stock-balance-ex-warehouse-report")),
+            leaf("List of non-exited BOE", clearance_ref("list-of-non-exited-boe")),
+            leaf("BOE Items Report", clearance_ref("boe-items-report")),
+        ]),
+        section("Additional Information", [
+            leaf("Declaration Notice", clearance_ref("declaration-notice"), "info"),
+            leaf("Declaration Tracking", clearance_ref("declaration-tracking"), "search"),
+            leaf("Find User ID of Job No", clearance_ref("find-user-id-of-job-no"), "search"),
+        ]),
+        section("Petroleum Management", [
+            leaf("Petroleum Lifting Summary", clearance_ref("petroleum-lifting-summary")),
+            leaf("Petroleum Unpaid Order", clearance_ref("petroleum-unpaid-order")),
+            leaf("Petroleum Depot Transfer", clearance_ref("petroleum-depot-transfer-list"), "swap_horiz"),
+            leaf("Petroleum Inventory List", clearance_ref("petroleum-inventory-list")),
+            leaf("Petroleum Period Extension Request", clearance_ref("petroleum-period-extension-request"), "schedule"),
+            leaf("Petroleum Stock BOE Non-Reflection List", clearance_ref("petroleum-stock-boe-non-reflection-list")),
+            leaf("Petroleum Stock Transfer Non-Reflection List", clearance_ref("petroleum-stock-transfer-non-reflection-list")),
+            leaf("Petroleum Stock Order Non-Reflection List", clearance_ref("petroleum-stock-order-non-reflection-list")),
+        ]),
+    ]
+    single_window = [
+        section("Registration", [
+            leaf("Create UCR", reverse("single-window-create-ucr"), "add"),
+            leaf("Search UCR", reverse("single-window-search-ucr"), "search"),
+            leaf("Transfer UCR", reverse("single-window-transfer-ucr"), "swap_horiz"),
+            leaf("Received UCR", reverse("single-window-received-ucr"), "inbox"),
+            leaf("Create Exporter Registration", reverse("single-window-create-exporter"), "how_to_reg"),
+            leaf("Search Exporter Registration", reverse("single-window-search-exporter"), "search"),
+            leaf("Create Opt In/Out", reverse("single-window-create-opt-in-out"), "add"),
+            leaf("Search Opt In/Out", reverse("single-window-search-opt-in-out"), "search"),
+            leaf("Create FCIE Registration", reverse("single-window-create-fcie"), "how_to_reg"),
+            leaf("Search FCIE Registration", reverse("single-window-search-fcie"), "search"),
+        ]),
+        section("Application", [
+            leaf("Create Application", reverse("single-window-create-preparation-application"), "add"),
+            leaf("Search Application", reverse("single-window-search-preparation-application"), "search"),
+            leaf("Create Master Application", reverse("single-window-create-master-application"), "add"),
+            leaf("Search Master Application", reverse("single-window-search-master-application"), "search"),
+            leaf("Create Consignment Application", reverse("single-window-create-consignment-application"), "add"),
+            leaf("Search Consignment Application", reverse("single-window-search-consignment-application"), "search"),
+        ]),
+        section("Letter of Commitment", [
+            leaf("Create Bank Pre-Registration", reverse("single-window-create-bank-registration"), "add"),
+            leaf("Search Bank Pre-Registration", reverse("single-window-search-bank-registration"), "search"),
+            leaf("Create Letter of Commitment", reverse("single-window-create-letter-commitment"), "add"),
+            leaf("Search Letter of Commitment", reverse("single-window-search-letter-commitment"), "search"),
+        ]),
+        section("Previous Data", [
+            leaf("Search Application", previous("application"), "history"),
+            leaf("Search Exporter Registration", previous("exporter"), "history"),
+            leaf("Search Letter of Commitment", previous("letter"), "history"),
+            leaf("Search Pre Bank Registration", previous("bank"), "history"),
+            leaf("Search Opt In", previous("opt-in"), "history"),
+        ]),
+    ]
+
+    path = request.path
+    if path.startswith("/practical/clearance"):
+        area_sections = clearance
+    elif path.startswith("/practical/single-window"):
+        area_sections = single_window
+    else:
+        # Cargo pages, the portal home and the access endpoints: the
+        # original portal carried the Cargo sidebar.
+        area_sections = cargo
+
+    return [
+        {
+            "title": "",
+            "items": [
+                {"title": "Student dashboard", "icon": "dashboard", "icon_template": "core/nav_icons/dashboard.html", "link": reverse("dashboard")},
+                {"title": "Workspace home", "icon": "grid", "icon_template": "core/nav_icons/sandbox.html", "link": reverse("simulator-portal")},
+            ],
+        },
+        *area_sections,
+    ]
+
+
+SIMULATOR_PATH_PREFIXES = (
+    "/practical/portal",
+    "/practical/cargo",
+    "/practical/clearance",
+    "/practical/single-window",
+    "/practical/access",
+)
+
+
 def sidebar_navigation(request):
     """Dispatch by interface: pages under /admin/ get the administrator
-    navigation; portal pages get the student navigation. An administrator
-    browsing the portal keeps their own session and sees the student
-    navigation plus one extra "Advanced Admin" link back to the admin
-    dashboard. Students and tutors never see that link. The two lists are
-    independent — editing one never affects the other."""
+    navigation; simulator playground pages get the three area menus;
+    other portal pages get the student navigation. An administrator
+    browsing keeps their own session and sees one extra "Advanced Admin"
+    link back to the admin dashboard. The lists are independent — editing
+    one never affects the others."""
     if request.path.startswith("/admin/"):
         return _admin_navigation()
 
-    groups = _student_navigation(request)
+    if request.path.startswith(SIMULATOR_PATH_PREFIXES):
+        groups = _simulator_navigation(request)
+    else:
+        groups = _student_navigation(request)
     if request.user.is_superuser:
         # Portal preview for the administrator: their own session, the
-        # student/tutor navigation, and one link back to the admin
-        # dashboard. Instructors are staff but not administrators, so the
-        # link is hidden from them.
+        # page's navigation, and one link back to the admin dashboard.
+        # Instructors are staff but not administrators, so the link is
+        # hidden from them.
         groups = list(groups) + [
             {
                 "title": "Administration",

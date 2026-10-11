@@ -15,14 +15,14 @@
 #main-content .summary-grid .ucr-field-invalid,
 #main-content .boe-box-grid .ucr-field-invalid,
 #main-content .summary-grid .ucr-field-invalid:focus,
-#main-content .boe-box-grid .ucr-field-invalid:focus { border-color:#c92a2a; background-color:rgba(201,42,42,.07); box-shadow:0 0 0 2px rgba(201,42,42,.2); }
+#main-content .boe-box-grid .ucr-field-invalid:focus { border-color:#dc2626; background-color:rgba(201,42,42,.07); box-shadow:0 0 0 2px rgba(201,42,42,.2); }
 #main-content .summary-grid .ucr-label-invalid,
-#main-content .boe-box-grid .ucr-label-invalid, #ucr-status.ucr-status-error { color:#bd2525; }
+#main-content .boe-box-grid .ucr-label-invalid, #ucr-status.ucr-status-error { color:#b91c1c; }
 #ucr-status.ucr-status-error { font-weight:700; }
 /* eDocument rows sit outside .summary-grid; the Reference No. highlight needs its own scope. */
 #main-content .ucr-documents .ucr-field-invalid,
-#main-content .ucr-documents .ucr-field-invalid:focus { border-color:#c92a2a; background-color:rgba(201,42,42,.07); box-shadow:0 0 0 2px rgba(201,42,42,.2); }
-#ucr-amend-status.ucr-status-error { color:#bd2525; font-weight:700; }
+#main-content .ucr-documents .ucr-field-invalid:focus { border-color:#dc2626; background-color:rgba(201,42,42,.07); box-shadow:0 0 0 2px rgba(201,42,42,.2); }
+#ucr-amend-status.ucr-status-error { color:#b91c1c; font-weight:700; }
 .ucr-documents { width:100%; }
 .ucr-documents th:first-child,.ucr-documents td:first-child { width:3rem; text-align:center; }
 .ucr-documents th:last-child,.ucr-documents td:last-child { width:4.5rem; text-align:center; }
@@ -59,9 +59,9 @@
 .ucr-form-panel > .boe-box-grid { margin-bottom:1.1rem; }
 .ucr-form-panel .ucr-section-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem; margin:1.1rem 0 .5rem; }
 .ucr-form-panel .ucr-section-head .boe-section-title { margin:0; }
-.ucr-form-panel .boe-box-grid th label { font-size:.76rem; color:#384158; font-weight:650; }
-.ucr-form-panel .boe-box-grid th span { color:#e5484d; font-weight:600; }
-.ucr-same-check { display:inline-flex; align-items:center; gap:.3rem; font-size:.76rem; font-weight:650; color:#384158; white-space:nowrap; }
+.ucr-form-panel .boe-box-grid th label { font-size:.76rem; color:#475569; font-weight:650; }
+.ucr-form-panel .boe-box-grid th span { color:#dc2626; font-weight:600; }
+.ucr-same-check { display:inline-flex; align-items:center; gap:.3rem; font-size:.76rem; font-weight:650; color:#475569; white-space:nowrap; }
 /* Country lookup compounds: short code box + lookup trigger + wide read-only name, like the reference. */
 .ucr-form-panel .boe-compound input { min-width:0; }
 .ucr-form-panel .boe-compound input.boe-code-box { flex:0 0 auto; width:5.5rem; min-width:0; }
@@ -95,17 +95,17 @@
    plain-text values all share one dark palette: no white boxes, no leftover
    textbox borders, labels readable. */
 html[data-theme="dark"] .ucr-form-panel .boe-box-grid th label,
-html[data-theme="dark"] .ucr-form-panel .ucr-same-check { color: #c9d3ea; }
-html[data-theme="dark"] .ucr-form-panel .boe-box-grid th { color: #8fa0c0; }
+html[data-theme="dark"] .ucr-form-panel .ucr-same-check { color: #cbd5e1; }
+html[data-theme="dark"] .ucr-form-panel .boe-box-grid th { color: #94a3b8; }
 
 html[data-theme="dark"] .ucr-form-panel :is(input:not([type="checkbox"]):not([type="file"]):not([type="submit"]):not([type="button"]), select, textarea),
 html[data-theme="dark"] .ucr-form-panel .ucr-party-search {
-  background: #1f2b47;
-  color: #edf1ff;
-  border-color: #46536f;
-  -webkit-text-fill-color: #edf1ff;
+  background: #262254;
+  color: #eef0fd;
+  border-color: #475569;
+  -webkit-text-fill-color: #eef0fd;
 }
-html[data-theme="dark"] .ucr-form-panel :is(input, textarea)::placeholder { color: #7a8497; opacity: 1; -webkit-text-fill-color: #7a8497; }
+html[data-theme="dark"] .ucr-form-panel :is(input, textarea)::placeholder { color: #64748b; opacity: 1; -webkit-text-fill-color: #64748b; }
 
 /* Submitted view: pure table text — no box, no border, theme-correct ink. */
 html[data-theme="dark"] .ucr-form-panel.view-mode :is(input:not([type="checkbox"]):not([type="file"]), select, textarea),
@@ -120,17 +120,17 @@ html[data-theme="light"] .ucr-form-panel.view-mode :is(input:not([type="checkbox
 /* The UCR search dialog's criteria labels render as plain grey cells (like the
    Preparation Application's popup), not as the purple results-table band. */
 .code-dialog .ucr-view-table.boe-box-grid th {
-  background: #f1f3f8;
-  color: #3c4660;
-  border: 1px solid #d9deea;
-  border-bottom: 1px solid #d9deea;
+  background: #eef0fd;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
   font-weight: 650;
   text-align: left;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
 html[data-theme="dark"] .code-dialog .ucr-view-table.boe-box-grid th {
-  background: #202b47;
-  color: #c4cce0;
-  border-color: #46536f;
+  background: #172033;
+  color: #cbd5e1;
+  border-color: #475569;
 }

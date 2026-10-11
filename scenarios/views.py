@@ -120,7 +120,7 @@ def simulator_access_required(view):
 
 def simulator_portal(request):
     student_id_hint = request.user.student_id if request.user.is_authenticated else ""
-    return render(request, "scenarios/portal.html", {"simulator_access": _has_simulator_access(request), "student_id_hint": student_id_hint})
+    return render_student_page(request, "scenarios/portal.html", {"simulator_access": _has_simulator_access(request), "student_id_hint": student_id_hint})
 
 
 @require_POST
@@ -220,13 +220,13 @@ def simulator_reset_request(request):
 @simulator_access_required
 def cargo_direct_delivery(request):
     """Frontend-only Sea Import > Discharge > Direct Delivery screen."""
-    return render(request, "scenarios/cargo_direct_delivery.html")
+    return render_student_page(request, "scenarios/cargo_direct_delivery.html")
 
 
 @simulator_access_required
 def cargo_service_request(request):
     """Frontend-only Cargo > Sea Import > Service Request flow."""
-    return render(request, "scenarios/cargo_service_request.html")
+    return render_student_page(request, "scenarios/cargo_service_request.html")
 
 
 CARGO_REFERENCE_PAGES = {
@@ -272,14 +272,14 @@ def cargo_reference_page(request, page_key):
     if page is None:
         raise PermissionDenied("Unknown Cargo reference page.")
     title, section, fields, columns = page
-    return render(request, "scenarios/cargo_reference_page.html", {"title": title, "section": section, "fields": fields, "columns": columns})
+    return render_student_page(request, "scenarios/cargo_reference_page.html", {"title": title, "section": section, "fields": fields, "columns": columns})
 
 
 @simulator_access_required
 def clearance_workspace(request):
     """Clearance entry point: the Create BOE Declaration selector."""
     regimes = list(CustomsRegime.objects.filter(is_active=True).values_list("code", "name"))
-    return render(request, "scenarios/clearance_workspace.html", {"boe_regimes": regimes})
+    return render_student_page(request, "scenarios/clearance_workspace.html", {"boe_regimes": regimes})
 
 
 @simulator_access_required
@@ -309,7 +309,7 @@ def clearance_cpc_search(request):
 @simulator_access_required
 def clearance_reference_page(request, page_key):
     title = page_key.replace("-", " ").title()
-    return render(request, "scenarios/clearance_reference_page.html", {"title": title})
+    return render_student_page(request, "scenarios/clearance_reference_page.html", {"title": title})
 
 
 @simulator_access_required
@@ -363,7 +363,7 @@ def declaration_search(request, search_kind):
                 (BoeDeclaration.Status.ACCEPTED, "AC - Accepted"),
             ],
         })
-    return render(request, "scenarios/declaration_search.html", context)
+    return render_student_page(request, "scenarios/declaration_search.html", context)
 
 
 @simulator_access_required
@@ -372,7 +372,7 @@ def declaration_create(request, create_kind):
         "simple-amendment": "Simple Amendment Request",
         "post-entry": "Post Entry Declaration Request",
     }
-    return render(request, "scenarios/declaration_create.html", {"page_title": titles[create_kind], "create_kind": create_kind})
+    return render_student_page(request, "scenarios/declaration_create.html", {"page_title": titles[create_kind], "create_kind": create_kind})
 
 
 @simulator_access_required
@@ -384,7 +384,7 @@ def single_window_workspace(request):
 @simulator_access_required
 def single_window_overview(request):
     """Full navigation map used by pre-programmed lessons."""
-    return render(request, "scenarios/single_window_workspace.html")
+    return render_student_page(request, "scenarios/single_window_workspace.html")
 
 
 @simulator_access_required
@@ -399,7 +399,7 @@ def single_window_create_ucr(request):
             submitted = UcrDeclaration.objects.filter(pk=draft_id, owner=_effective_owner(request)).first()
             if submitted:
                 return redirect("ucr-detail", record_id=submitted.pk)
-    return render(request, "scenarios/ucr_create.html", {
+    return render_student_page(request, "scenarios/ucr_create.html", {
         "initial_ucr": _ucr_record_payload(draft) if draft else None,
         "regime_options": UCR_REGIME_OPTIONS,
     })
@@ -749,7 +749,7 @@ def _ucr_search_queryset(request):
 def single_window_search_ucr(request):
     records, searched = _ucr_search_queryset(request)
     # Nothing is listed until the learner enters at least one search criterion.
-    return render(request, "scenarios/single_window_search_ucr.html", {
+    return render_student_page(request, "scenarios/single_window_search_ucr.html", {
         "records": records[:200] if searched else UcrDeclaration.objects.none(),
         "searched": searched,
         "filters": request.GET,
@@ -921,7 +921,7 @@ def ucr_detail(request, record_id):
     context = _ucr_form_context(record)
     context["regime_options"] = UCR_REGIME_OPTIONS
     context["review_mode"] = _review_target(request) is not None
-    return render(request, "scenarios/ucr_detail.html", context)
+    return render_student_page(request, "scenarios/ucr_detail.html", context)
 
 
 @simulator_access_required
@@ -979,7 +979,7 @@ def ucr_amend(request, record_id):
         # Amendments may only move the regime within its own family, so only offer those options.
         context["regime_options"] = context["regime_family_choices"]
         context["review_mode"] = _review_target(request) is not None
-        return render(request, "scenarios/ucr_amend.html", context)
+        return render_student_page(request, "scenarios/ucr_amend.html", context)
 
     regime = request.POST.get("regime", "").strip().upper()
     family = UCR_REGIME_FAMILIES.get(source.regime, (source.regime,))
@@ -1122,7 +1122,7 @@ def consignment_application_create(request):
         "status": record.get_status_display(),
         "url": reverse("mda-consignment-application", args=(record.pk,)),
     } for record in application.mda_requests.select_related("mda", "application", "process") ] if application else []
-    return render(request, "scenarios/consignment_application.html", {
+    return render_student_page(request, "scenarios/consignment_application.html", {
         "application": application,
         "ucr": ucr,
         "initial": initial,
@@ -1196,7 +1196,7 @@ def mda_consignment_application(request, request_id):
             "file_name": attachment.original_name if attachment else "",
             "file_url": reverse("ucr-attachment", args=(attachment.pk,)) if attachment else "",
         })
-    return render(request, "scenarios/consignment_application.html", {
+    return render_student_page(request, "scenarios/consignment_application.html", {
         "application": parent,
         "ucr": parent.ucr,
         "initial": initial,
@@ -1641,7 +1641,7 @@ def application_submit_declaration(request):
 
 @simulator_access_required
 def single_window_exporter_registration(request, mode):
-    return render(request, "scenarios/single_window_exporter_registration.html", {
+    return render_student_page(request, "scenarios/single_window_exporter_registration.html", {
         "mode": mode,
         "page_title": "Create Exporter Registration" if mode == "create" else "Search Exporter Registration",
     })
@@ -1649,17 +1649,17 @@ def single_window_exporter_registration(request, mode):
 
 @simulator_access_required
 def single_window_create_opt_in_out(request):
-    return render(request, "scenarios/single_window_create_opt_in_out.html")
+    return render_student_page(request, "scenarios/single_window_create_opt_in_out.html")
 
 
 @simulator_access_required
 def single_window_search_opt_in_out(request):
-    return render(request, "scenarios/single_window_search_opt_in_out.html")
+    return render_student_page(request, "scenarios/single_window_search_opt_in_out.html")
 
 
 @simulator_access_required
 def single_window_opt_in_out_detail(request):
-    return render(request, "scenarios/single_window_opt_in_out_detail.html")
+    return render_student_page(request, "scenarios/single_window_opt_in_out_detail.html")
 
 
 @simulator_access_required
@@ -1682,7 +1682,7 @@ def single_window_preparation_application(request, mode):
             records = records.filter(created_at__date__gte=filters["date_from"])
         if filters["date_to"]:
             records = records.filter(created_at__date__lte=filters["date_to"])
-    return render(request, "scenarios/single_window_preparation_application.html", {
+    return render_student_page(request, "scenarios/single_window_preparation_application.html", {
         "mode": mode,
         "page_title": "Create Application" if mode == "create" else "Search Application",
         "filters": filters,
@@ -1698,7 +1698,7 @@ def single_window_preparation_application(request, mode):
 @simulator_access_required
 def single_window_create_consignment_application(request):
     """Consignment Application entry screen: the New Consignment Request panel."""
-    return render(request, "scenarios/single_window_create_consignment_application.html", {
+    return render_student_page(request, "scenarios/single_window_create_consignment_application.html", {
         "page_title": "Create Application",
         "breadcrumb_section": "Consignment Application",
         "breadcrumb_create_path": reverse("single-window-create-consignment-application"),
@@ -1877,7 +1877,7 @@ def single_window_search_consignment_application(request):
         records = records.filter(created_at__date__gte=filters["date_from"])
     if filters["date_to"]:
         records = records.filter(created_at__date__lte=filters["date_to"])
-    return render(request, "scenarios/single_window_search_consignment_application.html", {
+    return render_student_page(request, "scenarios/single_window_search_consignment_application.html", {
         "filters": filters,
         "records": records,
         "review_mode": _review_target(request) is not None,
@@ -1929,7 +1929,7 @@ def application_delete(request):
 
 @simulator_access_required
 def single_window_create_master_application(request):
-    return render(request, "scenarios/single_window_create_master_application.html")
+    return render_student_page(request, "scenarios/single_window_create_master_application.html")
 
 
 @simulator_access_required
@@ -2499,7 +2499,7 @@ def boe_declaration(request, declaration_id):
         })
     summary_item_totals = {"item_no": "", "hs_code": "", "cpc": "", "valuation_method": "", **item_totals}
 
-    return render(request, "scenarios/boe_declaration.html", {
+    return render_student_page(request, "scenarios/boe_declaration.html", {
         "declaration": declaration,
         "is_draft": is_draft,
         "general_values": general_values,
@@ -2797,7 +2797,7 @@ def single_window_reference_page(request, page_key):
     page = SINGLE_WINDOW_REFERENCE_PAGES.get(page_key)
     if page is None:
         raise PermissionDenied("Unknown Single Window reference page.")
-    return render(request, "scenarios/single_window_reference_page.html", {"page": page, "page_key": page_key})
+    return render_student_page(request, "scenarios/single_window_reference_page.html", {"page": page, "page_key": page_key})
 
 
 def _enrolment_with_access(request):
