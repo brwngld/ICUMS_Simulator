@@ -35,7 +35,10 @@ class LandmarkParser(HTMLParser):
 def assert_page_landmarks(response):
     parser = LandmarkParser()
     parser.feed(response.content.decode())
-    assert parser.lang == "en"
+    # Unfold's skeleton renders lang from LANGUAGE_CODE ("en-gb"); the
+    # standalone pages hardcode "en". The contract is a declared English
+    # language tag, not one exact spelling.
+    assert parser.lang and parser.lang.startswith("en")
     assert parser.has_main
     assert parser.h1_count == 1
     assert parser.has_skip_link
@@ -52,8 +55,10 @@ def test_login_page_has_accessible_landmarks(client):
     response = client.get(reverse("login"))
     assert response.status_code == 200
     assert_page_landmarks(response)
-    assert b'<label for="id_username">' in response.content
-    assert b'<label for="id_password">' in response.content
+    # The login page renders through Unfold's field helper, whose labels
+    # carry styling attributes; the contract is the for/id pairing itself.
+    assert b'<label for="id_username"' in response.content
+    assert b'<label for="id_password"' in response.content
 
 
 @pytest.mark.django_db
@@ -73,9 +78,11 @@ def test_frontend_simulator_portal_uses_main_account_but_not_practical_gate(clie
     assert b'id="boe-search-dialog"' in response.content
     assert b"BOE status search" in response.content
     assert b"Importer/Exporter Code" in response.content
-    assert b'Back to student dashboard' in response.content
+    assert b'Student dashboard' in response.content
     assert reverse("dashboard").encode() in response.content
-    for item in (b"Cargo", b"Clearance", b"Collection", b"Single Window", b"Agent Management", b"e-Docs", b"Post Clearance Audit", b"AEO", b"More Information", b"DW Service"):
+    # The canonical navigation is now the Unfold sidebar: the three area
+    # groups plus the way back to the learning portal.
+    for item in (b"Cargo", b"Clearance", b"Single Window", b"Workspace home"):
         assert item in response.content
 
 
@@ -96,7 +103,7 @@ def test_cargo_direct_delivery_frontend_preview(client):
     assert_page_landmarks(response)
     for item in (b"Direct Delivery", b"Manifest No.", b"BOE Summary Information", b"Container / Chassis List", b"No fictional data found."):
         assert item in response.content
-    assert b'Back to student dashboard' in response.content
+    assert b'Student dashboard' in response.content
     assert reverse("dashboard").encode() in response.content
     assert b"cargo/service-request" in response.content
 

@@ -1,25 +1,133 @@
-{% extends "base.html" %}
+{% load i18n static unfold %}
+{% comment %}
+Standalone Unfold-based login document, matching the admin/portal design
+system (same fonts, styles.css, palette variables, field and button
+components as /admin/login/). It owns its document shell so it can meet
+the platform accessibility contract (lang, one main landmark, one primary
+heading, keyboard skip link) and never loads the legacy app shell, whose
+header, branding and marketing copy do not belong here.
+{% endcomment %}
+<!DOCTYPE html>
+<html lang="en" {% if theme %}class="{{ theme }}"{% endif %} x-data="theme({% if theme %}'{{ theme }}'{% endif %})" x-bind="themeBindings">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in · ICUMS Simulator</title>
+  {% include "components/favicons.html" %}
+  <script src="{% static 'js/theme.js' %}?v=20261010-3"></script>
+  <link href="{% static "unfold/fonts/inter/styles.css" %}" rel="stylesheet">
+  <link href="{% static "unfold/fonts/material-symbols/styles.css" %}" rel="stylesheet">
+  <link href="{% static 'unfold/css/styles.css' %}" rel="stylesheet">
+  <script src="{% static 'unfold/js/alpine/alpine.anchor.js' %}" defer></script>
+  <script src="{% static 'unfold/js/alpine/alpine.persist.js' %}" defer></script>
+  <script src="{% static 'unfold/js/alpine/alpine.sort.js' %}" defer></script>
+  <script src="{% static 'unfold/js/alpine/alpine.focus.js' %}" defer></script>
+  <script src="{% static 'unfold/js/alpine/alpine.js' %}" defer></script>
+  <script src="{% static 'unfold/js/app.js' %}"></script>
+  {% if colors %}
+  <style id="unfold-theme-colors">
+    :root {
+      {% if border_radius %}--border-radius: {{ border_radius }};{% endif %}
+      {% for name, weights in colors.items %}
+        {% for weight, value in weights.items %}--color-{{ name }}-{{ weight }}: {{ value }};{% endfor %}
+      {% endfor %}
+    }
+  </style>
+  {% endif %}
+  <style>
+    .login-skip-link { position: absolute; left: 1rem; top: -4rem; z-index: 100; padding: .7rem 1.1rem; border-radius: .5rem; background: #fff; color: var(--color-base-900, #0f172a); font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, .18); }
+    html.dark .login-skip-link { background: var(--color-base-800, #1e293b); color: var(--color-font-default-dark, #cbd5e1); }
+    .login-skip-link:focus { top: 1rem; }
+    .login-error { border: 1px solid var(--color-red-500, #ef4444); background: var(--color-red-50, #fef2f2); color: var(--color-red-700, #b91c1c); border-radius: .5rem; padding: .75rem 1rem; margin-bottom: 1.5rem; }
+  </style>
+</head>
+<body class="antialiased bg-base-50 font-sans text-font-default-light text-sm dark:bg-base-900 dark:text-font-default-dark">
+  <a class="login-skip-link" href="#main-content">Skip to main content</a>
+  <div id="page" class="bg-base-50 flex min-h-screen dark:bg-base-900">
 
-{% block title %}Sign in · ICUMS Simulator{% endblock %}
+    <aside class="hidden lg:flex w-[24rem] xl:w-[26rem] shrink-0 flex-col justify-between border-e border-base-200 bg-white dark:bg-base-900 dark:border-base-800 px-10 py-12" aria-label="ICUMS Simulator Training administration">
+      <div class="flex items-center gap-3">
+        <span class="bg-primary-600 flex h-[38px] w-[38px] items-center justify-center rounded-default shrink-0 text-white text-xs" aria-hidden="true">
+          <span class="material-symbols-outlined md-18">settings</span>
+        </span>
+        <div class="flex flex-col grow justify-center min-w-0">
+          <div class="text-important tracking-tight text-sm">ICUMS Simulator</div>
+          <div class="font-normal text-subtle text-xs truncate">Training administration</div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-4" aria-label="How the training works">
+        <div class="flex items-center gap-3">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-default border border-base-200 bg-base-50 dark:border-base-700 dark:bg-base-800/60" aria-hidden="true">
+            <span class="material-symbols-outlined text-primary-600 dark:text-primary-500">school</span>
+          </span>
+          <div class="flex flex-col">
+            <span class="font-semibold text-important">Learn</span>
+            <span class="text-subtle text-xs">Customs-clearance theory in guided lessons.</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-default border border-base-200 bg-base-50 dark:border-base-700 dark:bg-base-800/60" aria-hidden="true">
+            <span class="material-symbols-outlined text-primary-600 dark:text-primary-500">keyboard</span>
+          </span>
+          <div class="flex flex-col">
+            <span class="font-semibold text-important">Practise</span>
+            <span class="text-subtle text-xs">Hands-on workflows in the training simulator.</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-default border border-base-200 bg-base-50 dark:border-base-700 dark:bg-base-800/60" aria-hidden="true">
+            <span class="material-symbols-outlined text-primary-600 dark:text-primary-500">trending_up</span>
+          </span>
+          <div class="flex flex-col">
+            <span class="font-semibold text-important">Progress</span>
+            <span class="text-subtle text-xs">Tracked from first lesson to certificate.</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-4">
+        <p class="text-subtle leading-relaxed">A dedicated space for learning customs clearance with fictional data.</p>
+        <p class="text-xs font-bold tracking-[.03em] uppercase rounded-default border border-base-200 dark:border-base-800 bg-base-50 dark:bg-base-800/60 text-center py-2.5 px-3">Training simulator — not official ICUMS</p>
+      </div>
+    </aside>
 
-{% block content %}
-<div class="auth-layout">
-<section class="auth-story" aria-label="About your learning workspace"><p class="eyebrow">Learn. Practise. Progress.</p><h2>Your next chapter<br>starts here.</h2><p>Build confidence in customs clearance with guided lessons and hands-on training scenarios.</p><div class="journey-graphic" aria-hidden="true">{% include "components/icon.html" with name="box" %}<span class="graphic-check">{% include "components/icon.html" with name="check" %}</span></div><div class="auth-story-footer">TRAINING SIMULATOR — NOT OFFICIAL ICUMS<br>A dedicated space for learning with fictional data.</div></section>
-<section class="auth-panel" aria-labelledby="login-title">
-  <p class="eyebrow">Training access</p>
-  <h1 id="login-title">Sign in</h1>
-  <p class="muted">Use your simulator account. No activity here is submitted to official ICUMS.</p>
-  {% if form.errors %}<p class="error" role="alert">Your username or password was not accepted.</p>{% endif %}
-  <form method="post" class="stacked-form">
-    {% csrf_token %}
-    <label for="{{ form.username.id_for_label }}">Username</label>
-    {{ form.username }}
-    <label for="{{ form.password.id_for_label }}">Password</label>
-    {{ form.password }}
-    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
-    <button class="primary-button" type="submit">Sign in</button>
-  </form>
-  <p class="auth-footnote">New student? <a href="{% url 'register' %}">Register for a learning account</a>. Simulator access is issued separately by your instructor.</p>
-</section>
-</div>
-{% endblock %}
+    <main id="main-content" tabindex="-1" class="flex grow items-center justify-center px-4 py-12 relative">
+      <div class="w-full sm:w-96">
+        <div class="flex lg:hidden items-center gap-3 border-b border-base-200 dark:border-base-800 mb-8 pb-6">
+          <span class="bg-primary-600 flex h-[38px] w-[38px] items-center justify-center rounded-default shrink-0 text-white text-xs" aria-hidden="true">
+            <span class="material-symbols-outlined md-18">settings</span>
+          </span>
+          <div class="flex flex-col grow justify-center min-w-0">
+            <div class="text-important tracking-tight text-sm">ICUMS Simulator</div>
+            <div class="font-normal text-subtle text-xs truncate">Training administration</div>
+          </div>
+        </div>
+
+        <div class="border-b border-base-200 mb-8 pb-6 dark:border-base-800">
+          <h1 class="font-semibold text-xl tracking-tight text-font-important-light dark:text-font-important-dark">Sign in</h1>
+          <p class="text-subtle mt-1.5">Use your simulator account. No activity here is submitted to official ICUMS.</p>
+        </div>
+
+        {% include "unfold/helpers/messages.html" %}
+
+        {% if form.errors %}
+        <div class="login-error" role="alert">Your username or password was not accepted.</div>
+        {% endif %}
+
+        <form method="post">
+          {% csrf_token %}
+          {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+          {% include "unfold/helpers/field.html" with field=form.username %}
+          {% include "unfold/helpers/field.html" with field=form.password %}
+          <div class="flex flex-col gap-3 mt-6">
+            {% component "unfold/components/button.html" with submit=1 variant="primary" class="w-full" %}Sign in{% endcomponent %}
+          </div>
+        </form>
+
+        <p class="border-t border-base-200 dark:border-base-800 mt-8 pt-5 text-xs text-subtle">New student? <a href="{% url 'register' %}" class="text-primary-600 dark:text-primary-500 font-medium">Register for a learning account</a>. Simulator access is issued separately by your instructor.</p>
+      </div>
+
+      {% include "unfold/helpers/unauthenticated_header.html" %}
+    </main>
+  </div>
+</body>
+</html>

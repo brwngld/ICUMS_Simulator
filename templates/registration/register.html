@@ -1,12 +1,142 @@
-{% extends "base.html" %}
-{% block title %}Student registration · ICUMS Simulator{% endblock %}
-{% block content %}
-<div class="auth-layout">
-  <section class="auth-story"><p class="eyebrow">Student registration</p><h2>Create your<br>learning account.</h2><p>Your permanent Student ID is generated automatically after registration.</p><div class="auth-story-footer">Your simulator login is issued separately by an instructor or administrator.</div></section>
-  <section class="auth-panel" aria-labelledby="registration-title"><p class="eyebrow">New learner</p><h1 id="registration-title">Register</h1><p class="muted">Enter your own learning-account details. Do not enter shipment or customs data here.</p>
-    {% if form.errors %}<div class="error" role="alert">Please correct the fields shown below.</div>{% endif %}
-    <form method="post" class="stacked-form">{% csrf_token %}{{ form.as_p }}<button class="primary-button" type="submit">Create student account</button></form>
-    <p class="auth-footnote">Already registered? <a href="{% url 'login' %}">Sign in</a>.</p>
-  </section>
-</div>
-{% endblock %}
+{% load i18n static unfold %}
+{% comment %}
+Standalone Unfold-based registration document, built to match the login
+page: same fonts, styles.css, palette variables, field and button
+components, left branding panel and accessibility contract (lang, one
+main landmark, one primary heading, keyboard skip link). The Terms and
+Conditions sit in a disclosure above the required consent checkbox.
+{% endcomment %}
+<!DOCTYPE html>
+<html lang="en" {% if theme %}class="{{ theme }}"{% endif %} x-data="theme({% if theme %}'{{ theme }}'{% endif %})" x-bind="themeBindings">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student registration · ICUMS Simulator</title>
+  {% include "components/favicons.html" %}
+  <script src="{% static 'js/theme.js' %}?v=20261010-3"></script>
+  <link href="{% static "unfold/fonts/inter/styles.css" %}" rel="stylesheet">
+  <link href="{% static "unfold/fonts/material-symbols/styles.css" %}" rel="stylesheet">
+  <link href="{% static 'unfold/css/styles.css' %}" rel="stylesheet">
+  <script src="{% static 'unfold/js/alpine/alpine.anchor.js' %}" defer></script>
+  <script src="{% static 'unfold/js/alpine/alpine.persist.js' %}" defer></script>
+  <script src="{% static 'unfold/js/alpine/alpine.sort.js' %}" defer></script>
+  <script src="{% static 'unfold/js/alpine/alpine.focus.js' %}" defer></script>
+  <script src="{% static 'unfold/js/alpine/alpine.js' %}" defer></script>
+  <script src="{% static 'unfold/js/app.js' %}"></script>
+  {% if colors %}
+  <style id="unfold-theme-colors">
+    :root {
+      {% if border_radius %}--border-radius: {{ border_radius }};{% endif %}
+      {% for name, weights in colors.items %}
+        {% for weight, value in weights.items %}--color-{{ name }}-{{ weight }}: {{ value }};{% endfor %}
+      {% endfor %}
+    }
+  </style>
+  {% endif %}
+  <style>
+    .register-skip-link { position: absolute; left: 1rem; top: -4rem; z-index: 100; padding: .7rem 1.1rem; border-radius: .5rem; background: #fff; color: var(--color-base-900, #0f172a); font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, .18); }
+    html.dark .register-skip-link { background: var(--color-base-800, #1e293b); color: var(--color-font-default-dark, #cbd5e1); }
+    .register-skip-link:focus { top: 1rem; }
+    .register-error { border: 1px solid var(--color-red-500, #ef4444); background: var(--color-red-50, #fef2f2); color: var(--color-red-700, #b91c1c); border-radius: .5rem; padding: .75rem 1rem; margin-bottom: 1.5rem; }
+  </style>
+</head>
+<body class="antialiased bg-base-50 font-sans text-font-default-light text-sm dark:bg-base-900 dark:text-font-default-dark">
+  <a class="register-skip-link" href="#main-content">Skip to main content</a>
+  <div id="page" class="bg-base-50 flex min-h-screen dark:bg-base-900">
+
+    <aside class="hidden lg:flex w-[24rem] xl:w-[26rem] shrink-0 flex-col justify-between border-e border-base-200 bg-white dark:bg-base-900 dark:border-base-800 px-10 py-12" aria-label="ICUMS Simulator Training administration">
+      <div class="flex items-center gap-3">
+        <span class="bg-primary-600 flex h-[38px] w-[38px] items-center justify-center rounded-default shrink-0 text-white text-xs" aria-hidden="true">
+          <span class="material-symbols-outlined md-18">settings</span>
+        </span>
+        <div class="flex flex-col grow justify-center min-w-0">
+          <div class="text-important tracking-tight text-sm">ICUMS Simulator</div>
+          <div class="font-normal text-subtle text-xs truncate">Training administration</div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-4" aria-label="How the training works">
+        <div class="flex items-center gap-3">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-default border border-base-200 bg-base-50 dark:border-base-700 dark:bg-base-800/60" aria-hidden="true">
+            <span class="material-symbols-outlined text-primary-600 dark:text-primary-500">school</span>
+          </span>
+          <div class="flex flex-col">
+            <span class="font-semibold text-important">Learn</span>
+            <span class="text-subtle text-xs">Customs-clearance theory in guided lessons.</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-default border border-base-200 bg-base-50 dark:border-base-700 dark:bg-base-800/60" aria-hidden="true">
+            <span class="material-symbols-outlined text-primary-600 dark:text-primary-500">keyboard</span>
+          </span>
+          <div class="flex flex-col">
+            <span class="font-semibold text-important">Practise</span>
+            <span class="text-subtle text-xs">Hands-on workflows in the training simulator.</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-default border border-base-200 bg-base-50 dark:border-base-700 dark:bg-base-800/60" aria-hidden="true">
+            <span class="material-symbols-outlined text-primary-600 dark:text-primary-500">trending_up</span>
+          </span>
+          <div class="flex flex-col">
+            <span class="font-semibold text-important">Progress</span>
+            <span class="text-subtle text-xs">Tracked from first lesson to certificate.</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-4">
+        <p class="text-subtle leading-relaxed">A dedicated space for learning customs clearance with fictional data.</p>
+        <p class="text-xs font-bold tracking-[.03em] uppercase rounded-default border border-base-200 dark:border-base-800 bg-base-50 dark:bg-base-800/60 text-center py-2.5 px-3">Training simulator — not official ICUMS</p>
+      </div>
+    </aside>
+
+    <main id="main-content" tabindex="-1" class="flex grow items-center justify-center px-4 py-12 relative">
+      <div class="w-full sm:w-96">
+        <div class="flex lg:hidden items-center gap-3 border-b border-base-200 dark:border-base-800 mb-8 pb-6">
+          <span class="bg-primary-600 flex h-[38px] w-[38px] items-center justify-center rounded-default shrink-0 text-white text-xs" aria-hidden="true">
+            <span class="material-symbols-outlined md-18">settings</span>
+          </span>
+          <div class="flex flex-col grow justify-center min-w-0">
+            <div class="text-important tracking-tight text-sm">ICUMS Simulator</div>
+            <div class="font-normal text-subtle text-xs truncate">Training administration</div>
+          </div>
+        </div>
+
+        <div class="border-b border-base-200 mb-8 pb-6 dark:border-base-800">
+          <h1 class="font-semibold text-xl tracking-tight text-font-important-light dark:text-font-important-dark">Register</h1>
+          <p class="text-subtle mt-1.5">Your permanent Student ID is generated automatically after registration. Simulator access is issued separately by an instructor.</p>
+        </div>
+
+        {% if form.errors %}
+        <div class="register-error" role="alert">Please correct the fields shown below.</div>
+        {% endif %}
+
+        <details class="border border-base-200 dark:border-base-800 rounded-default mb-6">
+          <summary class="cursor-pointer font-semibold text-important px-4 py-3 select-none">Terms and Conditions</summary>
+          <div class="px-4 pb-4 text-subtle leading-relaxed flex flex-col gap-2">
+            <p>This is a training simulator, not the official ICUMS platform. Nothing you do here is submitted to, or accepted by, any government agency.</p>
+            <p>All cargo, traders, tariffs and documents in the simulator are fictional. Enter no real personal or commercial data beyond your own learning-account details.</p>
+            <p>The simulator login used for practical training is issued separately by an instructor or administrator and expires monthly.</p>
+            <p>Your learning activity and simulator work are recorded for training, progress and audit purposes.</p>
+            <p>Keep your password private. Accounts are for your own learning use only.</p>
+          </div>
+        </details>
+
+        <form method="post">
+          {% csrf_token %}
+          {% include "unfold/helpers/field.html" with field=form.first_name %}
+          {% include "unfold/helpers/field.html" with field=form.last_name %}
+          {% include "unfold/helpers/field.html" with field=form.email %}
+          {% include "unfold/helpers/field.html" with field=form.password1 %}
+          {% include "unfold/helpers/field.html" with field=form.password2 %}
+          {% include "unfold/helpers/field.html" with field=form.terms_accepted %}
+          <div class="flex flex-col gap-3 mt-6">
+            {% component "unfold/components/button.html" with submit=1 variant="primary" class="w-full" %}Create student account{% endcomponent %}
+          </div>
+        </form>
+
+        <p class="border-t border-base-200 dark:border-base-800 mt-8 pt-5 text-xs text-subtle">Already registered? <a href="{% url 'login' %}" class="text-primary-600 dark:text-primary-500 font-medium">Sign in</a>.</p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
