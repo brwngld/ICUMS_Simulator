@@ -18,6 +18,9 @@ a proper overlay drawer (desktop >= 1280px is untouched):
   and returns focus to the opener when the drawer closes.
 - Escape closes the drawer; navigation links close it too.
 - The drawer width is capped at 85vw so narrow screens never overflow.
+- #nav-sidebar scrolls its own content: without overflow-y-auto the wrapped
+  menu on narrow screens clipped the account chip (theme, View site, Log
+  out) at the bottom with no way to reach it.
 {% endcomment %}
 
 <div class="relative z-60" x-bind:class="{'select-none': resizing}" x-on:mousemove.window="if (resizing) { sidebarWidth = Math.min(max, Math.max(min, $event.clientX)); localStorage.setItem('sidebarWidth', sidebarWidth); }" x-on:mouseup.window="resizing = false" x-data="{ min: 220, max: 360, resizing: false, drawer: false }" x-init="if (typeof sidebarOpen !== 'boolean') { sidebarOpen = sidebarOpen() === true }" x-effect="drawer = sidebarOpen === true && window.innerWidth < 1280" x-on:resize.window="drawer = sidebarOpen === true && window.innerWidth < 1280" x-on:keydown.escape.window="if (drawer) { sidebarOpen = false }">
@@ -32,7 +35,7 @@ a proper overlay drawer (desktop >= 1280px is untouched):
     <div class="fixed xl:relative {% element_classes 'navigation_wrapper' %}" x-show="sidebarOpen" x-bind:style="`width: min(${sidebarWidth}px, 85vw)`" x-trap.inert.noscroll="drawer">
         <div class="nav-drawer-backdrop" x-show="drawer" x-cloak x-on:click="sidebarOpen = false" aria-hidden="true"></div>
         <div class="bg-base-50 relative z-30 dark:bg-base-900">
-            <div id="nav-sidebar" class="bg-base-50 border-e border-base-200 bottom-0 fixed max-h-screen top-0  dark:border-base-800 dark:bg-base-900 {% element_classes 'navigation' %}" x-bind:style="`width: min(${sidebarWidth}px, 85vw)`" x-on:click="if (drawer && $event.target.closest('a')) { sidebarOpen = false }">
+            <div id="nav-sidebar" class="bg-base-50 border-e border-base-200 bottom-0 fixed max-h-screen overflow-y-auto overscroll-contain top-0  dark:border-base-800 dark:bg-base-900 {% element_classes 'navigation' %}" x-bind:style="`width: min(${sidebarWidth}px, 85vw)`" x-on:click="if (drawer && $event.target.closest('a')) { sidebarOpen = false }">
                 {% if templates.navigation %}
                     {% include templates.navigation %}
                 {% else %}
