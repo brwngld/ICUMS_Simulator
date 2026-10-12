@@ -17,7 +17,7 @@ def _make_draft_boe(client, ucr_no, username="item-tab-user"):
     idf = _make_idf(user, ucr_no)
     created = client.post(reverse("boe-create"), {
         "reuse": "IDF", "idf_number": idf.application_no,
-        "regime": "IM", "cpc": "40001", "zone": "GEN",
+        "regime": "40", "cpc": "40A00", "zone": "GEN",
     }, content_type="application/json").json()
     declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
     return user, declaration
@@ -116,7 +116,7 @@ def test_item_section_save_persists_fields_and_numbers(client):
         "fields": {
             "hs_code": "8703240000",
             "description": "MOTOR CAR 2.0 PETROL",
-            "cpc": "40001",
+            "cpc": "40A00",
             "state_of_goods": "01, NEW",
             "zone": "GEN",
             "country_of_origin": "JP",
@@ -140,7 +140,7 @@ def test_item_section_save_persists_fields_and_numbers(client):
     declaration.refresh_from_db()
     item = declaration.form_data["items"][0]
     assert item["item_no"] == "0001"  # zero-padded item number assigned on first save
-    assert item["cpc"] == "40001"
+    assert item["cpc"] == "40A00"
     assert item["zone"] == "GEN"
     assert item["valuation_method"] == "1. Transaction Value"
     assert item["gross_weight"] == "1500.500"  # thousands separators stripped by the numeric tolerance
@@ -152,7 +152,7 @@ def test_item_section_save_persists_fields_and_numbers(client):
     # The rendered draft shows the saved values in the item detail form.
     page = client.get(_page_url(declaration))
     assert b'id="item-0-cpc"' in page.content
-    assert b'value="40001"' in page.content
+    assert b'value="40A00"' in page.content
     assert b'value="0001"' in page.content
     assert b"MOTOR CAR 2.0 PETROL" in page.content
 

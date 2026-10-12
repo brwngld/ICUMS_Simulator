@@ -50,14 +50,15 @@
     <div class="code-pagination" id="boe-zone-pagination"></div>
   </div></dialog>
   {{ boe_regimes|json_script:"boe-regimes" }}
+    {{ boe_zones|json_script:"boe-zones" }}
   <script>
     window.boeRegimes = JSON.parse(document.querySelector("#boe-regimes").textContent);
     window.boeCpcSearchUrl = "{% url 'clearance-cpc-search' %}";
     window.boeIdfLookupUrl = "{% url 'boe-idf-lookup' %}";
     window.boeCreateUrl = "{% url 'boe-create' %}";
     window.boeCsrf = "{{ csrf_token }}";
-    window.boeZones = [["ECO", "ECOWAS Imports"], ["GEN", "General Imports"], ["XPT", "Exports"], ["AFR", "AFRICAN UNION IMP. LEVY"], ["TVI", "Temporary Vehicle Imports"], ["ACT", "Africa Continental Free Trade (AfCFTA)"], ["EPA", "GH-EU Economic Partnership Agreement (EPA)"], ["UPA", "GH-UK Trade Partnership Agreement"]];
+    window.boeZones = JSON.parse(document.querySelector("#boe-zones").textContent);
   </script>
   <script src="{% static 'js/dialog-pagination.js' %}?v=20260918-1" defer></script>
-  <script src="{% static 'js/clearance-boe-create.js' %}?v=20260925-4" defer></script>
+  <script src="{% static 'js/clearance-boe-create.js' %}?v=20261012-2" defer></script>
 {% endblock %}

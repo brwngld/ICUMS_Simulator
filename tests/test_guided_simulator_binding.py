@@ -6,6 +6,7 @@ ownership, pre-existing-record exclusion), the safe simulator ?next
 redirect, and MDA request ownership.
 """
 
+from datetime import timedelta
 import pytest
 from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
@@ -206,8 +207,13 @@ def test_check_fails_while_record_is_only_a_draft(client, guided):
 @pytest.mark.django_db
 def test_check_excludes_records_that_predate_the_task(client, guided):
     login_with_simulator_access(client, guided.user)
-    # Record submitted BEFORE the student opens the step...
+    # Record submitted BEFORE the student opens the step... (backdated so the
+    # comparison can never tie with the step-open timestamp on a fast machine)
     _submitted_ucr(guided.user, "TEMPUCR2699000003")
+    backdated = timezone.now() - timedelta(minutes=5)
+    UcrDeclaration.objects.filter(temp_no="TEMPUCR2699000003").update(
+        created_at=backdated, updated_at=backdated, submitted_at=backdated,
+    )
     client.post(reverse("scenario-open-step", args=[guided.attempt.pk]))
     response = client.post(reverse("scenario-check-step", args=[guided.attempt.pk]), follow=True)
     messages = [str(m) for m in response.context["messages"]]

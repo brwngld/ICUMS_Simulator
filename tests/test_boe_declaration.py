@@ -75,7 +75,7 @@ def test_boe_create_enforces_single_ucr_use(client):
 
     created = client.post(reverse("boe-create"), {
         "reuse": "IDF", "idf_number": idf.application_no,
-        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+        "regime": "40", "cpc": "40A00", "zone": "ECO",
     }, content_type="application/json")
     assert created.status_code == 200
     job_no = created.json()["job_no"]
@@ -89,7 +89,7 @@ def test_boe_create_enforces_single_ucr_use(client):
     # The same UCR can never be declared twice.
     again = client.post(reverse("boe-create"), {
         "reuse": "IDF", "idf_number": idf.application_no,
-        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+        "regime": "40", "cpc": "40A00", "zone": "ECO",
     }, content_type="application/json")
     assert again.status_code == 400
     assert "already been used" in again.json()["error"]
@@ -98,7 +98,7 @@ def test_boe_create_enforces_single_ucr_use(client):
     idf_two = _make_idf(staff, "KGHTESTUCR9900000029", idf_no="CD202609MOTIIDF0000029")
     second = client.post(reverse("boe-create"), {
         "reuse": "IDF", "idf_number": idf_two.application_no,
-        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+        "regime": "40", "cpc": "40A00", "zone": "ECO",
     }, content_type="application/json")
     assert second.status_code == 200
     second_declaration = BoeDeclaration.objects.get(job_no=second.json()["job_no"])
@@ -112,7 +112,7 @@ def test_boe_tabs_follow_the_declaration_status(client):
     idf = _make_idf(staff, "KGHTESTUCR9900000029")
     created = client.post(reverse("boe-create"), {
         "reuse": "IDF", "idf_number": idf.application_no,
-        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+        "regime": "40", "cpc": "40A00", "zone": "ECO",
     }, content_type="application/json").json()
     declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
     page_url = reverse("boe-declaration", args=(declaration.pk,))
@@ -159,7 +159,7 @@ def test_search_boe_lists_drafts_and_submitted(client):
     idf = _make_idf(staff, "KGHTESTUCR9900000039")
     created = client.post(reverse("boe-create"), {
         "reuse": "IDF", "idf_number": idf.application_no,
-        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+        "regime": "40", "cpc": "40A00", "zone": "ECO",
     }, content_type="application/json").json()
     declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
     search_url = reverse("search-boe-declaration")
@@ -245,7 +245,7 @@ def test_bl_awb_tab_edits_and_saves(client):
     idf = _make_idf(staff, "KGHTESTUCR9900000059")
     created = client.post(reverse("boe-create"), {
         "reuse": "IDF", "idf_number": idf.application_no,
-        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+        "regime": "40", "cpc": "40A00", "zone": "ECO",
     }, content_type="application/json").json()
     declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
     page_url = reverse("boe-declaration", args=(declaration.pk,))
@@ -296,7 +296,7 @@ def test_invoice_and_documents_draft_sections_persist_new_fields(client):
     idf = _make_idf(staff, "KGHTESTUCR9900000109")
     created = client.post(reverse("boe-create"), {
         "reuse": "IDF", "idf_number": idf.application_no,
-        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+        "regime": "40", "cpc": "40A00", "zone": "ECO",
     }, content_type="application/json").json()
     declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
     page_url = reverse("boe-declaration", args=(declaration.pk,))
@@ -324,3 +324,55 @@ def test_invoice_and_documents_draft_sections_persist_new_fields(client):
     rendered = client.get(page_url)
     assert b"Supplier Certificate" in rendered.content
     assert b"SUP-001" in rendered.content
+
+
+@pytest.mark.django_db
+def test_boe_create_requires_cpc_and_zone(client):
+    """An IDF-backed declaration cannot be created with a blank or invalid
+    CPC code or zone."""
+    staff = User.objects.create_user(username="boe-required", email="boe-required@example.test", password="x", is_staff=True)
+    client.force_login(staff)
+    idf = _make_idf(staff, "KGHTESTUCR9900000099")
+
+    blank_cpc = client.post(reverse("boe-create"), {
+        "reuse": "IDF", "idf_number": idf.application_no,
+        "regime": "40", "cpc": "", "zone": "ECO",
+    }, content_type="application/json")
+    assert blank_cpc.status_code == 400
+    assert "CPC" in blank_cpc.json()["error"]
+    assert not BoeDeclaration.objects.exists()
+
+    blank_zone = client.post(reverse("boe-create"), {
+        "reuse": "IDF", "idf_number": idf.application_no,
+        "regime": "40", "cpc": "40A00", "zone": "",
+    }, content_type="application/json")
+    assert blank_zone.status_code == 400
+    assert "zone" in blank_zone.json()["error"].lower()
+    assert not BoeDeclaration.objects.exists()
+
+    wrong_cpc = client.post(reverse("boe-create"), {
+        "reuse": "IDF", "idf_number": idf.application_no,
+        "regime": "40", "cpc": "9999999", "zone": "ECO",
+    }, content_type="application/json")
+    assert wrong_cpc.status_code == 400
+    assert "not valid for the selected regime" in wrong_cpc.json()["error"]
+
+    wrong_zone = client.post(reverse("boe-create"), {
+        "reuse": "IDF", "idf_number": idf.application_no,
+        "regime": "40", "cpc": "40A00", "zone": "ZZZ",
+    }, content_type="application/json")
+    assert wrong_zone.status_code == 400
+    assert "zone is not valid" in wrong_zone.json()["error"]
+
+    unknown_regime = client.post(reverse("boe-create"), {
+        "reuse": "IDF", "idf_number": idf.application_no,
+        "regime": "IM", "cpc": "40A00", "zone": "ECO",
+    }, content_type="application/json")
+    assert unknown_regime.status_code == 400
+    assert "regime" in unknown_regime.json()["error"].lower()
+
+    created = client.post(reverse("boe-create"), {
+        "reuse": "IDF", "idf_number": idf.application_no,
+        "regime": "40", "cpc": "40A00", "zone": "ECO",
+    }, content_type="application/json")
+    assert created.status_code == 200

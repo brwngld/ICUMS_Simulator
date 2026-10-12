@@ -30,6 +30,7 @@ from onboarding.services import active_enrolment_for, needs_disclaimer_acceptanc
 from .country_codes import COUNTRY_CODES, COUNTRY_CODE_SET
 
 COUNTRY_DISPLAY_NAMES = dict(COUNTRY_CODES)
+from .models import CUSTOMS_ZONES
 from .models import CustomsOfficeCode as CustomsOfficeCodeModel
 from .models import (BillOfLading, CommercialDocument, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument,
                      ScenarioVersion, TrainingStakeholder, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment,
@@ -280,7 +281,7 @@ def cargo_reference_page(request, page_key):
 def clearance_workspace(request):
     """Clearance entry point: the Create BOE Declaration selector."""
     regimes = list(CustomsRegime.objects.filter(is_active=True).values_list("code", "name"))
-    return render_student_page(request, "scenarios/clearance_workspace.html", {"boe_regimes": regimes})
+    return render_student_page(request, "scenarios/clearance_workspace.html", {"boe_regimes": regimes, "boe_zones": CUSTOMS_ZONES})
 
 
 @simulator_access_required
@@ -2177,6 +2178,19 @@ def boe_create(request):
            .first())
     if idf is None:
         return JsonResponse({"error": "The IDF number is not valid. Check it and try again."}, status=400)
+    regime = str(payload.get("regime", "")).strip().upper()[:2]
+    cpc = str(payload.get("cpc", "")).strip().upper()[:12]
+    zone = str(payload.get("zone", "")).strip().upper()[:3]
+    if not CustomsRegime.objects.filter(code=regime, is_active=True).exists():
+        return JsonResponse({"error": "Select a valid regime before creating the declaration."}, status=400)
+    if not cpc:
+        return JsonResponse({"error": "Select the CPC code before creating the declaration."}, status=400)
+    if not CustomsProcedureCode.objects.filter(code=cpc, is_active=True, regime__code=regime, regime__is_active=True).exists():
+        return JsonResponse({"error": "The CPC code is not valid for the selected regime. Check it and try again."}, status=400)
+    if not zone:
+        return JsonResponse({"error": "Select the zone before creating the declaration."}, status=400)
+    if zone not in dict(CUSTOMS_ZONES):
+        return JsonResponse({"error": "The zone is not valid. Check it and try again."}, status=400)
     ucr = idf.consignment_application.ucr
     if BoeDeclaration.objects.filter(ucr=ucr).exists():
         return JsonResponse({"error": "This UCR has already been used in a BOE declaration."}, status=400)
@@ -2184,9 +2198,9 @@ def boe_create(request):
         owner=request.user,
         idf=idf,
         ucr=ucr,
-        regime=str(payload.get("regime", "")).strip().upper()[:2],
-        cpc=str(payload.get("cpc", "")).strip().upper()[:12],
-        zone=str(payload.get("zone", "")).strip().upper()[:3],
+        regime=regime,
+        cpc=cpc,
+        zone=zone,
         form_data=json.loads(json.dumps(_application_record_payload(idf.consignment_application), cls=DjangoJSONEncoder)),
         job_no=allocate_job_number(),
     )

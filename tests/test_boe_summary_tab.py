@@ -309,7 +309,7 @@ def test_summary_tab_renders_inside_the_declaration_page(client):
     idf = _make_idf(staff, "KGHTESTUCR9900000089")
     created = client.post(reverse("boe-create"), {
         "reuse": "IDF", "idf_number": idf.application_no,
-        "regime": "IM", "cpc": "4000000", "zone": "ECO",
+        "regime": "40", "cpc": "40A00", "zone": "ECO",
     }, content_type="application/json").json()
     declaration = BoeDeclaration.objects.get(job_no=created["job_no"])
     page_url = reverse("boe-declaration", args=(declaration.pk,))

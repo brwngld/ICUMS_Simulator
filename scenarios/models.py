@@ -729,6 +729,19 @@ class PortCode(models.Model):
         return f"{self.code} - {self.name}"
 
 
+# Customs zones used by the BOE declaration (ECOWAS/AfCFTA/EPA etc.).
+CUSTOMS_ZONES = [
+    ("ECO", "ECOWAS Imports"),
+    ("GEN", "General Imports"),
+    ("XPT", "Exports"),
+    ("AFR", "AFRICAN UNION IMP. LEVY"),
+    ("TVI", "Temporary Vehicle Imports"),
+    ("ACT", "Africa Continental Free Trade (AfCFTA)"),
+    ("EPA", "GH-EU Economic Partnership Agreement (EPA)"),
+    ("UPA", "GH-UK Trade Partnership Agreement"),
+]
+
+
 class CustomsOfficeCode(models.Model):
     """Admin-maintained customs office (CEPS station) used by the customs-office lookup."""
 

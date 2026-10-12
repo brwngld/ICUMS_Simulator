@@ -112,6 +112,16 @@
       reuse: document.querySelector('input[name="reuse-document"]:checked')?.value || "NONE",
       idf_number: idfNumber.value.trim(),
     };
+    if (!payload.cpc) {
+      createStatus.hidden = false;
+      createStatus.textContent = "Select the CPC code before creating the declaration.";
+      return;
+    }
+    if (!payload.zone) {
+      createStatus.hidden = false;
+      createStatus.textContent = "Select the zone before creating the declaration.";
+      return;
+    }
     createStatus.hidden = false;
     createStatus.textContent = "Creating declaration form…";
     try {
@@ -227,6 +237,10 @@
     zoneName.value = name;
     zoneDialog.close();
   }
+  zoneCode.addEventListener("change", () => {
+    zoneCode.value = zoneCode.value.trim().toUpperCase();
+    zoneName.value = zoneByCode.get(zoneCode.value) || "";
+  });
 
   function renderZones() {
     const codeFilter = document.querySelector("#boe-zone-filter-code").value.trim().toUpperCase();
