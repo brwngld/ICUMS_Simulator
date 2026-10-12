@@ -11,6 +11,17 @@
     const value = initial[field.dataset.appField];
     if (value !== undefined && value !== null) field.value = value;
   });
+  // Port/customs lookups store "CODE Name"; split it across the code input
+  // and the resolved-name display (older drafts stored "CODE, Name").
+  document.querySelectorAll("[data-app-port-name-for]").forEach((nameField) => {
+    const codeField = document.querySelector(`[data-app-field="${nameField.dataset.portNameFor}"]`);
+    if (!codeField || !codeField.value.trim()) return;
+    const [code, ...rest] = codeField.value.trim().split(/[\s,]+/);
+    if (rest.length) {
+      codeField.value = code;
+      nameField.value = rest.join(" ");
+    }
+  });
   ["consignor", "consignee"].forEach((role) => {
     const box = document.querySelector(`[data-app-same="${role}"]`);
     if (box && initial[`${role}_same`] !== undefined) box.checked = Boolean(initial[`${role}_same`]);
@@ -165,8 +176,10 @@
   }
   function applySelectedPort() {
     if (!activePortField || !selectedPort) return;
-    activePortField.value = `${selectedPort.code} ${selectedPort.name}`;
+    activePortField.value = selectedPort.code;
     activePortField.dispatchEvent(new Event("change", { bubbles: true }));
+    const nameField = document.querySelector(`[data-app-port-name-for="${activePortField.dataset.appField}"]`);
+    if (nameField) nameField.value = selectedPort.name;
     selectedPort = null;
     portDialog.close();
   }
@@ -974,6 +987,12 @@
     const flat = {};
     document.querySelectorAll('[data-app-field]:not([data-app-field^="exporter."]):not([data-app-field^="consignor."]):not([data-app-field^="importer."]):not([data-app-field^="consignee."])').forEach((field) => {
       flat[field.dataset.appField] = field.value;
+    });
+    // Port/customs values persist as "CODE Name" while the form shows them split.
+    ["port_arrival", "port_departure", "customs_office"].forEach((key) => {
+      const codeInput = document.querySelector(`[data-app-field="${key}"]`);
+      const nameInput = document.querySelector(`[data-app-port-name-for="${key}"]`);
+      if (codeInput && nameInput) flat[key] = [codeInput.value.trim(), nameInput.value.trim()].filter(Boolean).join(" ");
     });
     const payload = {
       app_id: appId,

@@ -42,8 +42,6 @@
 #ucr-party-results tr:hover { background:var(--canvas); }
 /* Read-only country rows (View/Amend) have no search button; drop its column. */
 .ucr-lookup-field:not(:has(button)) { grid-template-columns: minmax(4.5rem,.65fr) minmax(8rem,1.35fr); }
-/* Port/customs lookups: search icon first, then the single value field. */
-.app-port-field { grid-template-columns: 2.6rem minmax(9rem, 1fr); }
 #ucr-party-results tr:hover td:nth-child(4) { text-decoration: underline; }
 
 /* Read-only View UCR sections: bordered label/value grid like the reference. */
