@@ -61,6 +61,11 @@
 .code-search button { min-height: 2.55rem; padding: .55rem .9rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font-weight: 750; }
 .code-search { grid-template-columns: 1fr 1fr 1fr auto; }
 .code-dialog-help { margin: .65rem 0 0; color: #475569; font-size: .78rem; }
+/* Port Code Help: labels sit next to their inputs on one row, as in ICUMS. */
+#app-port-dialog .code-search { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; }
+#app-port-dialog .code-search label { display: inline-flex; align-items: center; gap: .45rem; }
+#app-port-dialog .code-search input { width: clamp(6rem, 13vw, 9.5rem); }
+#app-port-dialog .code-search button { margin-left: auto; }
 #app-port-results tr { cursor: pointer; }
 #app-port-results tr.port-row-selected { background: color-mix(in srgb, var(--primary) 10%, #fff); box-shadow: inset 0 0 0 1px var(--primary); }
 .code-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .8rem; }
