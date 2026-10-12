@@ -954,11 +954,12 @@ def ucr_clone(request, record_id):
     source = get_object_or_404(UcrDeclaration, pk=record_id, owner=request.user)
     draft = UcrDeclaration(owner=request.user)
     _copy_ucr_fields(draft, source)
-    _copy_ucr_attachments(draft, source)
     draft.temp_no = allocate_ucr_number(UcrDeclaration.TEMP_PREFIX)
     draft.source_ucr = source
     draft.derivation = "clone"
     draft.save()
+    # Attachments can only be written once the draft has a primary key.
+    _copy_ucr_attachments(draft, source)
     messages.success(request, f"Cloned as draft {draft.temp_no}. Finish and submit it whenever you are ready.")
     return redirect(f"{reverse('single-window-create-ucr')}?draft={draft.pk}")
 
