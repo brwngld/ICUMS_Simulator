@@ -59,6 +59,12 @@
 .code-search label { display: grid; gap: .3rem; color: #475569; font-size: .78rem; font-weight: 700; }
 .code-search input { width: 100%; }
 .code-search button { min-height: 2.55rem; padding: .55rem .9rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font-weight: 750; }
+.code-search { grid-template-columns: 1fr 1fr 1fr auto; }
+.code-dialog-help { margin: .65rem 0 0; color: #475569; font-size: .78rem; }
+#app-port-results tr { cursor: pointer; }
+#app-port-results tr.port-row-selected { background: color-mix(in srgb, var(--primary) 10%, #fff); box-shadow: inset 0 0 0 1px var(--primary); }
+.code-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .8rem; }
+#app-port-select { min-height: 2.55rem; padding: .55rem 1.4rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font-weight: 750; cursor: pointer; }
 #document-code-list tr { cursor: pointer; }
 #document-code-list tr:hover { background: #eef0fd; }
 .dialog-help { color: var(--muted); font-size: .76rem; }

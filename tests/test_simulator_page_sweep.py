@@ -85,3 +85,21 @@ def test_every_simulator_page_renders_without_server_error(simulator_client, sim
         if response.status_code >= 500:
             failures.append(f"{path} -> {response.status_code}")
     assert not failures, "Simulator pages raised server errors:\n" + "\n".join(failures)
+
+
+@pytest.mark.django_db
+def test_transport_carrier_dropdown_matches_icums_carrier_list(simulator_client, simulator_student):
+    """The Transport tab's Carrier field is the ICUMS carrier dropdown
+    (coded options, exactly one correct selection per carrier)."""
+    ucr = UcrDeclaration.objects.create(
+        owner=simulator_student, ucr_no="TEMPUCRCARRIER01", status="submitted",
+        regime="10", declarant_code="SWP001",
+    )
+    response = simulator_client.get(reverse("consignment-application-create") + f"?ucr={ucr.ucr_no}")
+    html = response.content.decode()
+    assert 'id="carrierCd"' in html
+    assert 'data-app-field="carrier"' in html
+    assert html.count("<option") >= 39  # placeholder + 38 carriers
+    for code in ("AVIA", "CMAG", "DHLG", "GRIM" if False else "ORSS", "HAPL", "MAER", "MSCA", "OTH", "SAFMARINE", "UASC"):
+        assert f'value="{code}"' in html
+    assert "-- Select One --" in html

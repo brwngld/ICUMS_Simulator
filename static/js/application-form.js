@@ -156,11 +156,24 @@
   const portDialog = document.querySelector("#app-port-dialog");
   const portResults = document.querySelector("#app-port-results");
   let activePortField = null;
+  let selectedPort = null;
   let portPage = 1;
   function appendPortCell(row, value) {
     const cell = document.createElement("td");
     cell.textContent = value || "";
     row.append(cell);
+  }
+  function applySelectedPort() {
+    if (!activePortField || !selectedPort) return;
+    activePortField.value = `${selectedPort.code}, ${selectedPort.name}`;
+    activePortField.dispatchEvent(new Event("change", { bubbles: true }));
+    selectedPort = null;
+    portDialog.close();
+  }
+  function highlightPortRow(row, port) {
+    selectedPort = port;
+    document.querySelectorAll("#app-port-results tr").forEach((item) => item.classList.remove("port-row-selected"));
+    row.classList.add("port-row-selected");
   }
   async function renderPorts() {
     const query = new URLSearchParams({
@@ -193,17 +206,19 @@
       data.results.forEach((port, index) => {
         const row = document.createElement("tr");
         row.tabIndex = 0;
+        row.dataset.portCode = port.code;
         appendPortCell(row, String((data.page - 1) * 10 + index + 1));
         appendPortCell(row, port.code);
         appendPortCell(row, port.name);
-        appendPortCell(row, port.country_code);
-        appendPortCell(row, port.country_name);
-        row.addEventListener("click", () => {
-          activePortField.value = `${port.code}, ${port.name}`;
-          activePortField.dispatchEvent(new Event("change", { bubbles: true }));
-          portDialog.close();
+        appendPortCell(row, port.country_name || port.country_code);
+        row.addEventListener("click", () => highlightPortRow(row, port));
+        row.addEventListener("dblclick", () => {
+          highlightPortRow(row, port);
+          applySelectedPort();
         });
-        row.addEventListener("keydown", (event) => { if (event.key === "Enter") row.click(); });
+        row.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") { event.preventDefault(); applySelectedPort(); }
+        });
         portResults.append(row);
       });
       window.drawDialogPager(document.querySelector("#app-port-pagination"), {
@@ -224,11 +239,13 @@
   }
   document.querySelectorAll("[data-app-port-search]").forEach((button) => button.addEventListener("click", () => {
     activePortField = document.querySelector(`[data-app-field="${button.dataset.appPortSearch}"]`);
+    selectedPort = null;
     portPage = 1;
     renderPorts();
     portDialog.showModal();
   }));
   document.querySelector("#app-port-close").addEventListener("click", () => portDialog.close());
+  document.querySelector("#app-port-select").addEventListener("click", applySelectedPort);
   document.querySelector("#app-port-filter-submit").addEventListener("click", () => { portPage = 1; renderPorts(); });
   ["#app-port-filter-code", "#app-port-filter-name", "#app-port-filter-country"].forEach((selector) => {
     document.querySelector(selector).addEventListener("keydown", (event) => {
