@@ -32,6 +32,21 @@ the simulator stylesheets loaded below; the legacy simulator shell
     /* Simulator pages render inside the chrome's content column. */
     .sim-page { display: flex; flex-direction: column; gap: 1rem; max-width: 100rem; margin: 0 auto; width: 100%; }
     .sim-page .portal-header, .sim-page .portal-top-nav { display: none; }
+    .sim-skip-link { position: absolute; left: 1rem; top: -4rem; z-index: 100; padding: .7rem 1.1rem; border-radius: .5rem; background: #fff; color: var(--color-base-900, #0f172a); font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, .18); }
+    html.dark .sim-skip-link { background: var(--color-base-800, #1e293b); color: var(--color-font-default-dark, #cbd5e1); }
+    .sim-skip-link:focus { top: 1rem; }
+    /* Logged-in simulator top menu (reference 004): a single-line menu
+       bar — items share the row evenly and never wrap into sentences;
+       narrow screens scroll the row instead. */
+    .sim-top-nav { display: flex; flex-wrap: nowrap; align-items: stretch; justify-content: space-between; gap: .15rem; max-width: 100rem; margin: 0 auto; width: 100%; padding: .3rem; background: #fff; border: 1px solid #e2e8f0; border-radius: .75rem; overflow-x: auto; scrollbar-width: thin; }
+    html.dark .sim-top-nav { background: #172033; border-color: #2b3950; }
+    .sim-top-nav a { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: .42rem .5rem; border-radius: .5rem; font-size: .76rem; font-weight: 650; color: #475569; text-decoration: none; white-space: nowrap; }
+    html.dark .sim-top-nav a { color: #aab4ca; }
+    .sim-top-nav a:hover { color: #4236b6; background: #eef0fd; }
+    html.dark .sim-top-nav a:hover { color: #bdb3ff; background: #1b1940; }
+    .sim-top-nav a[aria-current="page"] { color: #4236b6; background: #eef0fd; box-shadow: inset 0 -2px 0 #4236b6; }
+    html.dark .sim-top-nav a[aria-current="page"] { color: #bdb3ff; background: #262254; box-shadow: inset 0 -2px 0 #8a86de; }
+    @media (max-width: 60rem) { .sim-top-nav { justify-content: flex-start; } .sim-top-nav a { flex: 0 0 auto; padding: .42rem .8rem; } }
   </style>
   {% block simulator_style %}{% endblock %}
 {% endblock %}
