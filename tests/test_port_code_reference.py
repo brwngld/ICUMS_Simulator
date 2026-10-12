@@ -107,6 +107,8 @@ def test_transport_lookup_fields_follow_the_icums_layout(simulator_client, simul
     html = response.content.decode()
     import re
 
-    for field in ("port_arrival", "port_departure", "customs_office"):
+    for field in ("port_arrival", "port_departure"):
         pattern = rf'<input data-app-field="{field}"[^>]*><button type="button" data-app-port-search="{field}"[^>]*>.*?</button><input data-app-port-name-for="{field}"[^>]*readonly'
         assert re.search(pattern, html, re.S), f"{field} is not code | icon | name"
+    pattern = r'<input data-app-field="customs_office"[^>]*><button type="button" data-app-customs-search="customs_office"[^>]*>.*?</button><input data-app-port-name-for="customs_office"[^>]*readonly'
+    assert re.search(pattern, html, re.S), "customs_office is not code | icon | name"

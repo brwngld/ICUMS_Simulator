@@ -30,6 +30,7 @@ from onboarding.services import active_enrolment_for, needs_disclaimer_acceptanc
 from .country_codes import COUNTRY_CODES, COUNTRY_CODE_SET
 
 COUNTRY_DISPLAY_NAMES = dict(COUNTRY_CODES)
+from .models import CustomsOfficeCode as CustomsOfficeCodeModel
 from .models import (BillOfLading, CommercialDocument, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument,
                      ScenarioVersion, TrainingStakeholder, TrainingServiceProvider, UcrDeclaration, UcrDocumentAttachment,
                      allocate_ucr_number, purge_expired_ucr_drafts)
@@ -1343,6 +1344,23 @@ def application_hs_code_search(request):
 
 @simulator_access_required
 @require_GET
+def application_customs_office_search(request):
+    """Search active admin-managed customs offices using partial matching."""
+    code = request.GET.get("code", "").strip().upper()[:12]
+    name = request.GET.get("name", "").strip()[:180]
+    records = CustomsOfficeCodeModel.objects.filter(is_active=True)
+    if code:
+        records = records.filter(code__icontains=code)
+    if name:
+        records = records.filter(name__icontains=name)
+    page = Paginator(records, 10).get_page(request.GET.get("page", 1))
+    results = [
+        {"code": record.code, "name": record.name}
+        for record in page.object_list
+    ]
+    return JsonResponse({"results": results, "total": page.paginator.count, "page": page.number, "page_count": page.paginator.num_pages})
+
+
 def application_port_code_search(request):
     """Search active admin-managed port codes using partial matching."""
     code = request.GET.get("code", "").strip().upper()[:12]

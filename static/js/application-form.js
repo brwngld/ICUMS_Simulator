@@ -259,6 +259,100 @@
   }));
   document.querySelector("#app-port-close").addEventListener("click", () => portDialog.close());
   document.querySelector("#app-port-select").addEventListener("click", applySelectedPort);
+
+  // --- Customs Office Help dialog (same interaction as the port dialog) ---
+  const customsDialog = document.querySelector("#app-customs-dialog");
+  const customsResults = document.querySelector("#app-customs-results");
+  let customsPage = 1;
+  let activeCustomsField = null;
+  let selectedCustomsOffice = null;
+  function applySelectedCustomsOffice() {
+    if (!activeCustomsField || !selectedCustomsOffice) return;
+    activeCustomsField.value = selectedCustomsOffice.code;
+    activeCustomsField.dispatchEvent(new Event("change", { bubbles: true }));
+    const nameField = document.querySelector(`[data-app-port-name-for="${activeCustomsField.dataset.appField}"]`);
+    if (nameField) nameField.value = selectedCustomsOffice.name;
+    selectedCustomsOffice = null;
+    customsDialog.close();
+  }
+  async function renderCustomsOffices() {
+    const query = new URLSearchParams({
+      code: document.querySelector("#app-customs-filter-code").value.trim(),
+      name: document.querySelector("#app-customs-filter-name").value.trim(),
+      page: String(customsPage),
+    });
+    customsResults.replaceChildren();
+    const loadingRow = document.createElement("tr");
+    const loadingCell = document.createElement("td");
+    loadingCell.colSpan = 3;
+    loadingCell.textContent = "Loading…";
+    loadingRow.append(loadingCell);
+    customsResults.append(loadingRow);
+    try {
+      const response = await fetch(`${window.appCustomsOfficeSearchUrl}?${query}`, { headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error("Customs office search failed");
+      const data = await response.json();
+      customsPage = data.page;
+      customsResults.replaceChildren();
+      if (!data.results.length) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 3;
+        cell.textContent = "No data found.";
+        row.append(cell);
+        customsResults.append(row);
+      }
+      data.results.forEach((office, index) => {
+        const row = document.createElement("tr");
+        row.tabIndex = 0;
+        appendPortCell(row, String((data.page - 1) * 10 + index + 1));
+        appendPortCell(row, office.code);
+        appendPortCell(row, office.name);
+        row.addEventListener("click", () => {
+          selectedCustomsOffice = office;
+          document.querySelectorAll("#app-customs-results tr").forEach((item) => item.classList.remove("port-row-selected"));
+          row.classList.add("port-row-selected");
+        });
+        row.addEventListener("dblclick", () => {
+          selectedCustomsOffice = office;
+          applySelectedCustomsOffice();
+        });
+        row.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") { event.preventDefault(); applySelectedCustomsOffice(); }
+        });
+        customsResults.append(row);
+      });
+      window.drawDialogPager(document.querySelector("#app-customs-pagination"), {
+        total: data.total,
+        page: data.page,
+        pageCount: data.page_count,
+        onPage: (page) => { customsPage = page; renderCustomsOffices(); },
+      });
+    } catch (_error) {
+      customsResults.replaceChildren();
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 3;
+      cell.textContent = "The customs office list could not be loaded. Please try again.";
+      row.append(cell);
+      customsResults.append(row);
+    }
+  }
+  document.querySelectorAll("[data-app-customs-search]").forEach((button) => button.addEventListener("click", () => {
+    activeCustomsField = document.querySelector(`[data-app-field="${button.dataset.appCustomsSearch}"]`);
+    selectedCustomsOffice = null;
+    customsPage = 1;
+    renderCustomsOffices();
+    customsDialog.showModal();
+  }));
+  document.querySelector("#app-customs-close").addEventListener("click", () => customsDialog.close());
+  document.querySelector("#app-customs-select").addEventListener("click", applySelectedCustomsOffice);
+  document.querySelector("#app-customs-filter-submit").addEventListener("click", () => { customsPage = 1; renderCustomsOffices(); });
+  ["#app-customs-filter-code", "#app-customs-filter-name"].forEach((selector) => {
+    document.querySelector(selector).addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); customsPage = 1; renderCustomsOffices(); }
+    });
+  });
   document.querySelector("#app-port-filter-submit").addEventListener("click", () => { portPage = 1; renderPorts(); });
   ["#app-port-filter-code", "#app-port-filter-name", "#app-port-filter-country"].forEach((selector) => {
     document.querySelector(selector).addEventListener("keydown", (event) => {

@@ -59,13 +59,12 @@
 .code-search label { display: grid; gap: .3rem; color: #475569; font-size: .78rem; font-weight: 700; }
 .code-search input { width: 100%; }
 .code-search button { min-height: 2.55rem; padding: .55rem .9rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font-weight: 750; }
-.code-search { grid-template-columns: 1fr 1fr 1fr auto; }
 .code-dialog-help { margin: .65rem 0 0; color: #475569; font-size: .78rem; }
-/* Port Code Help: labels sit next to their inputs on one row, as in ICUMS. */
-#app-port-dialog .code-search { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; }
-#app-port-dialog .code-search label { display: inline-flex; align-items: center; gap: .45rem; }
-#app-port-dialog .code-search input { width: clamp(6rem, 13vw, 9.5rem); }
-#app-port-dialog .code-search button { margin-left: auto; }
+/* ICUMS help dialogs: filter labels sit next to their inputs on one row. */
+.code-search { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; padding: 1rem 0; }
+.code-search label { display: inline-flex; align-items: center; gap: .45rem; color: #475569; font-size: .78rem; font-weight: 700; }
+.code-search input, .code-search select { width: clamp(6rem, 13vw, 9.5rem); min-width: 0; }
+.code-search button { margin-left: auto; }
 #app-port-results tr { cursor: pointer; }
 #app-port-results tr.port-row-selected { background: color-mix(in srgb, var(--primary) 10%, #fff); box-shadow: inset 0 0 0 1px var(--primary); }
 .code-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .8rem; }
@@ -295,12 +294,13 @@ html[data-theme="dark"] #app-tab-general [readonly] { color: #aab4ca; background
 .app-item-editor-grid > .full-field { grid-column: 2 / -1; }
 #app-item-editor[hidden], #app-item-list[hidden] { display: none; }
 .app-hs-dialog { width: min(96rem, 98vw); }
-.app-hs-filters { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: .45rem .7rem; align-items: center; padding: 1rem 0; }
-.app-hs-filters > label { display: contents; }
-.app-hs-filters label, .app-hs-filters legend { font-size: .78rem; font-weight: 700; }
-.app-hs-filters fieldset { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .8rem; margin: 0; padding: .55rem .7rem; border: 1px solid var(--line); }
+.app-hs-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; padding: 1rem 0; }
+.app-hs-filters label { font-size: .78rem; font-weight: 700; display: inline-flex; align-items: center; gap: .45rem; }
+.app-hs-filters input { width: clamp(6rem, 12vw, 9.5rem); min-width: 0; }
+.app-hs-filters legend { font-size: .78rem; font-weight: 700; }
+.app-hs-filters fieldset { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .9rem; margin: 0; padding: .45rem .7rem; border: 1px solid var(--line); }
 .app-hs-filters fieldset label { font-weight: 500; }
-.app-hs-filters > button { grid-column: 2; justify-self: end; min-height: 2.2rem; padding: .4rem .75rem; }
+.app-hs-filters > button { margin-left: auto; min-height: 2.2rem; padding: .4rem .75rem; }
 .app-hs-dialog .cargo-table-wrap { max-height: 54vh; overflow: auto; border: 1px solid var(--line); border-radius: .45rem; }
 .app-hs-table { border-collapse: separate; border-spacing: 0; }
 .app-hs-table thead th { position: sticky; top: 0; z-index: 1; padding: .55rem .6rem; text-align: center; vertical-align: middle; line-height: 1.3; white-space: normal; }

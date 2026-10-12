@@ -7,7 +7,7 @@ from django.forms.models import BaseInlineFormSet
 import json
 import secrets
 
-from .models import AssistanceEvent, BillOfLading, BoeDeclaration, BoeStageEvent, BillOfLadingCargoItem, ConsignmentApplication, CommercialDocument, CommercialDocumentLine, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration
+from .models import AssistanceEvent, BillOfLading, BoeDeclaration, BoeStageEvent, BillOfLadingCargoItem, ConsignmentApplication, CommercialDocument, CommercialDocumentLine, CustomsOfficeCode, CustomsProcedureCode, CustomsRegime, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode, Scenario, ScenarioAction, ScenarioActionDefinition, ScenarioAttempt, ScenarioDocument, ScenarioState, ScenarioVersion, TrainingStakeholder, TrainingStakeholderName, TrainingServiceProvider, UcrDeclaration
 from core.admin_pagination import ModelAdmin
 from unfold.admin import StackedInline, TabularInline
 
@@ -74,6 +74,18 @@ class PortCodeAdmin(ModelAdmin):
     fieldsets = (
         ("Port details", {"fields": (("code", "name"),)}),
         ("Country", {"fields": (("country_code", "country_name"),)}),
+        ("Availability", {"fields": ("is_active",)}),
+    )
+
+
+@admin.register(CustomsOfficeCode)
+class CustomsOfficeCodeAdmin(ModelAdmin):
+    list_display = ("code", "name", "is_active")
+    search_fields = ("code", "name")
+    list_filter = ("is_active",)
+    ordering = ("code",)
+    fieldsets = (
+        ("Office details", {"fields": (("code", "name"),)}),
         ("Availability", {"fields": ("is_active",)}),
     )
 

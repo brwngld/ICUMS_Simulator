@@ -47,6 +47,7 @@ urlpatterns = [
     path("single-window/application/consignment-document/create/", views.consignment_application_create, name="consignment-application-create"),
     path("single-window/application/consignment-document/hs-codes/", views.application_hs_code_search, name="application-hs-code-search"),
     path("single-window/application/consignment-document/ports/", views.application_port_code_search, name="application-port-code-search"),
+        path("single-window/application/consignment-document/customs-offices/", views.application_customs_office_search, name="application-customs-office-search"),
     # Cascading MDA → application → process choices used by the Confirmation popup.
     path("single-window/application/consignment-document/mda-options/", views.application_mda_options, name="application-mda-options"),
     path("single-window/application/consignment-document/mda-requests/", views.application_mda_request_create, name="application-mda-request-create"),

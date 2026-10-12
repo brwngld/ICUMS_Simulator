@@ -1,0 +1,64 @@
+"""Seed the 77 Ghana customs offices (CEPS stations) from the ICUMS
+Customs Office reference list supplied by the product owner."""
+
+from django.db import migrations
+
+CUSTOMS_OFFICES = [
+    ("AFO1", "CEPS AFLAO"), ("AGA1", "AGOTIME AFEGAME CUSTOMS BORDER POST"), ("AKA1", "AKANU"),
+    ("AKO1", "AKIN ODA CUSTOMS POST"), ("BAT1", "BATUME JUNCTION CUSTOMS POST"),
+    ("BBP1", "BREBRE (YARO CAMP) BORDER POST"), ("BDB9", "BOST DEPOT - BUIPE"),
+    ("BLC1", "BOLE CHACHE CUSTOMS BORDER POST"), ("BLG1", "GRA (CUSTOMS) BOLGATANGA COLLECTION"),
+    ("BLG9", "BOLGATANGA BOST"), ("BOL1", "BOLE CUSTOMS BORDER POST"),
+    ("BPG1", "BUNKPURUGU CUSTOMS BORDER POST"), ("CUHQ", "GRA - CUSTOMS HEADQUARTERS"),
+    ("DAD1", "DADIESO CUSTOMS POST"), ("DAM1", "DAMBAI COLLECTION"), ("DBL1", "DABALA JUNCTION"),
+    ("DMG1", "GRA CUSTOMS DAMONGO COLLECTION"), ("ELU1", "CEPS ELUBO"), ("GKM1", "GONOKROM"),
+    ("HAF1", "HALF ASSINI CUSTOMS POST"), ("HAM1", "HAMILE"), ("HAV1", "AVE-HAVI CUSTOMS POST"),
+    ("HOC1", "GRA (CUSTOMS) HO COLLECTION"), ("HON1", "HONUTA CUSTOMS BORDER POST"),
+    ("ICUM", "ICUMS - GCMS STOCK MIGRATION"), ("JMT1", "CEPS JAMES TOWN"),
+    ("JWP1", "JEHWI WHARF CUSTOMS POST"), ("KBK1", "KOFI-BADUKROM BORDER POST"),
+    ("KFD1", "GRA CUSTOMS, KOFORIDUA"), ("KGG1", "KULUNGUGU"), ("KIA1", "CEPS KIA"),
+    ("KLB1", "KALBA CUSTOMS BORDER POST"), ("KMS1", "CEPS KUMASI"), ("KMS9", "KUMASI BOST"),
+    ("KPG1", "KPOGLO"), ("KSP1", "KWAME SEIKROM CUSTOMS BORDER POST"),
+    ("LAD1", "LAKPLEVI DAFOR CUSTOMS BORDER POST"), ("LAW1", "LAWRA CUSTOMS BORDER POST"),
+    ("MEN1", "MENUSO CUSTOMS BORDER POST"), ("MMW9", "MAMI WATER BOST"),
+    ("MON1", "MOGNORI CUSTOMS BORDER POST"), ("MSG1", "MISSIGA CUSTOMS BORDER POST"),
+    ("NAM1", "NAMOO CUSTOMS BORDER POST"), ("NBP1", "NKYENSENKOKOR CUSTOMS BORDER POST"),
+    ("NKK1", "NKRANKWANTA CUSTOMS BORDER POST"), ("NYI1", "NYIVE CUSTOMS BORDER POST"),
+    ("OCT1", "OFFSHORE CAPE THREE POINT"), ("OKK1", "OSEIKOJOKROM"), ("OMA1", "OMANPE CUSTOMS POST"),
+    ("PGA1", "PAGA"), ("PJB1", "JUBILEE OIL FIELD"), ("PUL1", "PULIMAKOM CUSTOMS BORDER POST"),
+    ("QTL9", "QUANTUM TERMINAL LIMITED"), ("SAM1", "SAMPA CUSTOMS BORDER POST"),
+    ("SEG1", "SEGBE JUNCTION"), ("SEW1", "SEWUM CUSTOMS POST"), ("SHI1", "SHIA CUSTOMS BORDER POST"),
+    ("SUN1", "SUNYANI CUSTOMS POST"), ("TAT1", "TATALE CUSTOMS BORDER POST"),
+    ("TEN1", "TWENEBOA ENYENRA NTOMME"), ("TIN1", "TINJASE CUSTOMS BORDER POST"),
+    ("TKD1", "CEPS TAKORADI"), ("TKD9", "TAKORADI BOST"), ("TMA1", "CEPS TEMA"),
+    ("TML1", "CEPS TAMALE"), ("TML9", "TAMALE BOST"), ("TOR9", "TEMA OIL REFINERY"),
+    ("TUM1", "TUMU CUSTOMS OFFICE"), ("WAC1", "GRA CUSTOMS WA COLLECTION"),
+    ("WLI1", "WLI AGORVIEFE CUSTOMS BORDER POST"), ("WON1", "WONJUGA CUSTOMS BORDER POST"),
+    ("YAK1", "YAAKROM CUSTOMS POST"), ("YBP1", "PILLAR 34 CUSTOMS BORDER POST"),
+    ("YEN1", "YENDI CUSTOMS BORDER POST"), ("YKS1", "YAKAASE CUSTOMS POST"),
+    ("ZEB1", "ZEBILLA CUSTOMS BORDER POST"), ("ZUR1", "ZUARUNGU CUSTOMS POST"),
+]
+
+
+def seed(apps, schema_editor):
+    CustomsOfficeCode = apps.get_model("scenarios", "CustomsOfficeCode")
+    CustomsOfficeCode.objects.bulk_create(
+        [CustomsOfficeCode(code=code, name=name, is_active=True) for code, name in CUSTOMS_OFFICES],
+        ignore_conflicts=True,
+    )
+
+
+def unseed(apps, schema_editor):
+    CustomsOfficeCode = apps.get_model("scenarios", "CustomsOfficeCode")
+    CustomsOfficeCode.objects.filter(code__in=[code for code, _name in CUSTOMS_OFFICES]).delete()
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("scenarios", "0050_customsofficecode"),
+    ]
+
+    operations = [
+        migrations.RunPython(seed, unseed),
+    ]

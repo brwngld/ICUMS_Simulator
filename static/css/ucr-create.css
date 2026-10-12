@@ -3,9 +3,9 @@
 .ucr-lookup-field { display:grid; grid-template-columns:minmax(4.5rem,.65fr) 2.6rem minmax(8rem,1.35fr); gap:.35rem; min-width:0; }
 .ucr-lookup-field input { min-width:0; }
 .ucr-lookup-field button { min-width:0; border:1px solid var(--line); border-radius:.4rem; color:var(--ink); background:var(--panel); cursor:pointer; }
-.ucr-country-filters { display:flex; flex-wrap:wrap; align-items:end; gap:.7rem; padding:1rem 0; }
-.ucr-country-filters label { display:grid; gap:.25rem; flex:1; min-width:9rem; }
-.ucr-country-filters input { width:100%; }
+.ucr-country-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; padding: 1rem 0; }
+.ucr-country-filters label { display: inline-flex; align-items: center; gap: .45rem; color: #475569; font-size: .78rem; font-weight: 700; }
+.ucr-country-filters input { width: clamp(6rem, 13vw, 9.5rem); min-width: 0; }
 #ucr-country-results tr { cursor:pointer; }
 #ucr-country-results tr:hover, #ucr-country-results tr:focus { background:var(--canvas); }
 .ucr-country-footer { display:flex; justify-content:space-between; padding:.8rem 0; }

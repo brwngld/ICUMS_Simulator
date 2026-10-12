@@ -729,6 +729,39 @@ class PortCode(models.Model):
         return f"{self.code} - {self.name}"
 
 
+class CustomsOfficeCode(models.Model):
+    """Admin-maintained customs office (CEPS station) used by the customs-office lookup."""
+
+    code = models.CharField(max_length=12, unique=True, db_index=True)
+    name = models.CharField(max_length=180, db_index=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("code",)
+        verbose_name = "Customs office"
+        verbose_name_plural = "Customs offices"
+
+    def clean(self):
+        self.code = self.code.strip().upper()
+        self.name = self.name.strip()
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+
 class MdaAgency(models.Model):
     """Regulatory agency available from the Confirmation application launcher."""
 
