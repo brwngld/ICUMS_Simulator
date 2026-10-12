@@ -179,9 +179,6 @@ th { color: var(--muted); white-space: normal; overflow-wrap: anywhere; word-bre
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
 }
-.portal-main input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):hover,
-.portal-main select:hover,
-.portal-main textarea:hover { border-color: #94a3b8; }
 .portal-main input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):focus,
 .portal-main select:focus,
 .portal-main textarea:focus {

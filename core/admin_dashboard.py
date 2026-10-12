@@ -370,6 +370,44 @@ _BREADCRUMB_BUILDERS = {
 }
 
 
+# Simulator page heads: the title and breadcrumb trail each playground
+# page shows in the chrome header. Extracted from the pages' former
+# in-content heads; labels are the originals, verbatim.
+_SIMULATOR_PAGE_HEADS = {key.removeprefix("templates/"): value for key, value in {
+    "templates/scenarios/cargo_direct_delivery.html": {"title": 'Direct Delivery', "crumbs": [('Cargo', 'simulator-portal'), ('Sea Import', None), ('Discharge', None), ('Direct Delivery', None)]},
+    "templates/scenarios/cargo_service_request.html": {"title": 'Service Request', "crumbs": [('Cargo', 'simulator-portal'), ('Sea Import', None), ('Service Request', None)]},
+    "templates/scenarios/clearance_workspace.html": {"title": 'Create BOE Declaration', "crumbs": [('Clearance', 'clearance-workspace'), ('Declaration', None), ('Register Declaration', None), ('Create BOE Declaration', None)]},
+    "templates/scenarios/consignment_application.html": {"title": 'Search Application', "crumbs": [('Workspace', 'simulator-portal'), ('Application', None), ('Preparation Application', None), ('Consignment Document', None)]},
+    "templates/scenarios/single_window_create_master_application.html": {"title": 'Create Application', "crumbs": [('Single Window', 'single-window-workspace'), ('Application', None), ('Create Application', 'single-window-create-master-application'), ('Search Application', 'single-window-search-master-application'), ('Create Application', None)]},
+    "templates/scenarios/single_window_create_opt_in_out.html": {"title": 'Create Opt In/Out', "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Opt In/Out Request', None), ('Create Opt In/Out', None)]},
+    "templates/scenarios/single_window_create_ucr.html": {"title": 'Create UCR', "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Unique Consignment Reference', None), ('Create UCR', None)]},
+    "templates/scenarios/single_window_search_consignment_application.html": {"title": 'Search Application', "crumbs": [('Single Window', 'single-window-workspace'), ('Application', None), ('Create Application', 'single-window-create-consignment-application'), ('Search Application', 'single-window-search-consignment-application'), ('Search Application', None)]},
+    "templates/scenarios/single_window_search_opt_in_out.html": {"title": 'Search Opt In/Out', "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Search Opt In/Out', None)]},
+    "templates/scenarios/single_window_search_ucr.html": {"title": 'Search UCR', "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Unique Consignment Reference', None), ('Search UCR', None)]},
+    "templates/scenarios/single_window_workspace.html": {"title": 'Unique Consignment Reference', "crumbs": [('Single Window', 'simulator-portal'), ('Registration', None), ('Unique Consignment Reference', None)]},
+    "templates/scenarios/ucr_create.html": {"title": 'Create UCR', "crumbs": [('Workspace', 'simulator-portal'), ('Registration', None), ('Create UCR', None)]},
+    "templates/scenarios/ucr_detail.html": {"title": 'Create UCR', "crumbs": [('Workspace', 'simulator-portal'), ('Create UCR', None)]},
+    "templates/assessment/detail.html": {"title": 'Duty Assessment', "crumbs": [('Workspace', 'simulator-portal'), ('Clearance', None), ('Duty Assessment', None)]},
+}.items()}
+
+
+def _simulator_page_head(template, context):
+    """Resolve a template's head entry into renderable crumbs."""
+    from django.urls import reverse
+
+    head = _SIMULATOR_PAGE_HEADS.get(template)
+    if not head:
+        return None
+    crumbs = []
+    for label, url_name in head["crumbs"]:
+        try:
+            href = reverse(url_name) if url_name else ""
+        except Exception:
+            href = ""
+        crumbs.append({"title": label, "link": href})
+    return {"title": head["title"], "crumbs": crumbs}
+
+
 def _portal_breadcrumbs(request, context):
     url_name = getattr(getattr(request, "resolver_match", None), "url_name", "")
     builder = _BREADCRUMB_BUILDERS.get(url_name)
@@ -411,6 +449,8 @@ def render_student_page(request, template, context=None, status=200):
     # may see the chrome. Admin access itself is untouched.
     context["has_permission"] = request.user.is_authenticated
     context["breadcrumbs"] = _portal_breadcrumbs(request, context)
+    if request.path.startswith(SIMULATOR_PATH_PREFIXES):
+        context["simulator_page"] = _simulator_page_head(template, context)
     return render(request, template, context, status=status)
 
 

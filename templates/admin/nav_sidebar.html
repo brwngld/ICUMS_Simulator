@@ -25,6 +25,8 @@ a proper overlay drawer (desktop >= 1280px is untouched):
 
 <div class="relative z-60" x-bind:class="{'select-none': resizing}" x-on:mousemove.window="if (resizing) { sidebarWidth = Math.min(max, Math.max(min, $event.clientX)); localStorage.setItem('sidebarWidth', sidebarWidth); }" x-on:mouseup.window="resizing = false" x-data="{ min: 220, max: 360, resizing: false, drawer: false }" x-init="if (typeof sidebarOpen !== 'boolean') { sidebarOpen = sidebarOpen() === true }" x-effect="drawer = sidebarOpen === true && window.innerWidth < 1280" x-on:resize.window="drawer = sidebarOpen === true && window.innerWidth < 1280" x-on:keydown.escape.window="if (drawer) { sidebarOpen = false }">
     <style>
+        #nav-sidebar { scrollbar-width: none; }
+        #nav-sidebar::-webkit-scrollbar { display: none; }
         .nav-drawer-backdrop { position: fixed; inset: 0; z-index: 10; background: color-mix(in srgb, var(--color-base-950, #0a0f1e) 55%, transparent); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
         .nav-drawer-close { display: inline-grid; place-items: center; flex: none; width: 2.25rem; height: 2.25rem; padding: 0; border: 1px solid var(--color-base-300, #cbd5e1); border-radius: .5rem; background: var(--color-base-100, #f1f5f9); color: var(--color-font-default-light, #475569); cursor: pointer; }
         .nav-drawer-close:hover { border-color: var(--color-base-400, #94a3b8); color: var(--color-font-default-dark, #cbd5e1); }

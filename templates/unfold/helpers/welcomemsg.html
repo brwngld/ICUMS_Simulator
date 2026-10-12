@@ -21,9 +21,18 @@ render_student_page the chrome title is empty while the page itself
 carries the real primary heading; an empty top-level heading here
 would double the page's headings. Those pages set hide_chrome_h1, so
 the chrome title renders as a paragraph; admin pages keep the vendor
-heading element.
+heading element. Simulator pages supply simulator_page (title +
+breadcrumb trail), which renders here as the header title block —
+the page's single primary heading.
 {% endcomment %}
-    {% if hide_chrome_h1 %}
+    {% if simulator_page %}
+        <div class="flex flex-col grow justify-center min-w-0">
+            <nav class="flex items-center flex-wrap gap-1 text-subtle text-xs leading-4 font-medium" aria-label="Breadcrumb">
+                {% for crumb in simulator_page.crumbs %}{% if not forloop.first %}<span aria-hidden="true">›</span>{% endif %}{% if crumb.link and not forloop.last %}<a href="{{ crumb.link }}" class="hover:text-primary-600 dark:hover:text-primary-500">{{ crumb.title }}</a>{% else %}<span>{{ crumb.title }}</span>{% endif %}{% endfor %}
+            </nav>
+            <h1 class="overflow-hidden leading-5 text-important flex items-center whitespace-nowrap xl:text-base m-0">{{ simulator_page.title }}</h1>
+        </div>
+    {% elif hide_chrome_h1 %}
         <p class="overflow-hidden leading-5 text-important flex items-center whitespace-nowrap xl:text-base m-0">
             {% header_title %}
         </p>

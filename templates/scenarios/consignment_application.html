@@ -7,8 +7,8 @@
 {% endblock %}
 {% block simulator_content %}
 <div class="cargo-main">
-<header class="dash-head"><div><p class="dash-eyebrow">Single Window · Application · Preparation Application</p><h1>Search Application</h1></div></header>
-      <div class="cargo-breadcrumb"><a href="{% url 'simulator-portal' %}">Workspace</a><span>›</span><span>Application</span><span>›</span><span>Preparation Application</span><span>›</span><strong>Consignment Document</strong></div>
+
+      
       <div class="cargo-content">
         <section class="cargo-panel"><div class="cargo-panel-title"><h2>Search Application</h2><span>{% if read_only %}<span class="view-mode-badge">View mode</span> {% endif %}{{ application.get_status_display|default:"Draft" }}</span></div>
           <div class="summary-grid">
