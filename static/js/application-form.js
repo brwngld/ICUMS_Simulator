@@ -165,7 +165,7 @@
   }
   function applySelectedPort() {
     if (!activePortField || !selectedPort) return;
-    activePortField.value = `${selectedPort.code}, ${selectedPort.name}`;
+    activePortField.value = `${selectedPort.code} ${selectedPort.name}`;
     activePortField.dispatchEvent(new Event("change", { bubbles: true }));
     selectedPort = null;
     portDialog.close();

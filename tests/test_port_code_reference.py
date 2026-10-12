@@ -92,3 +92,23 @@ def test_port_dialog_follows_the_icums_design(simulator_client, simulator_studen
     assert 'id="app-port-filter-name"' in html
     assert 'id="app-port-filter-country"' in html
     assert "<th>No.</th><th>Code</th><th>Name</th><th>Country</th>" in html
+
+
+@pytest.mark.django_db
+def test_transport_lookup_fields_follow_the_icums_layout(simulator_client, simulator_student):
+    """Search icon first, then the value field, for Port of Arrival, Port of
+    Departure, and Customs Office (which is also a port-code lookup)."""
+    ucr = UcrDeclaration.objects.create(
+        owner=simulator_student, ucr_no="TEMPUCRPORTLAY1", status="submitted",
+        regime="10", declarant_code="PLY001",
+    )
+    response = simulator_client.get(reverse("consignment-application-create") + f"?ucr={ucr.ucr_no}")
+    html = response.content.decode()
+    for field in ("port_arrival", "port_departure", "customs_office"):
+        assert f'data-app-port-search="{field}"' in html
+    # icon-first: the search button precedes its input inside the lookup wrapper
+    import re
+
+    for field in ("port_arrival", "customs_office"):
+        pattern = rf'<button type="button" data-app-port-search="{field}"[^>]*>.*?</button><input data-app-field="{field}"'
+        assert re.search(pattern, html, re.S), f"{field} is not icon-first"
