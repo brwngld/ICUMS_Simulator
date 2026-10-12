@@ -72,7 +72,7 @@ def test_customs_office_dialog_follows_the_icums_design(simulator_client, simula
     response = simulator_client.get(reverse("consignment-application-create") + f"?ucr={ucr.ucr_no}")
     html = response.content.decode()
     assert "Customs Office Help" in html
-    assert "double-click a row" in html
+    assert "Click a row to select the customs office" in html
     assert 'id="app-customs-select"' in html
     assert "<th>No.</th><th>Code</th><th>Code Name</th>" in html
     # the customs office field opens the customs dialog, not the port dialog
@@ -90,9 +90,9 @@ def test_search_dialogs_use_inline_labels_and_in_row_search(simulator_client, si
     )
     html = simulator_client.get(reverse("consignment-application-create") + f"?ucr={ucr.ucr_no}").content.decode()
     for phrase in (
-        "Select a country code and click",
-        "Select a currency code and click",
-        "Select an HS code and click",
+        "Click a row to select the country code",
+        "Click a row to select the currency code",
+        "Click a row to select the HS code",
     ):
         assert phrase in html
 

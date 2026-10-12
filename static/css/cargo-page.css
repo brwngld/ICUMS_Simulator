@@ -55,16 +55,16 @@
 .code-dialog-card header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
 .code-dialog-card header h2 { margin: 0 0 .7rem; font-size: 1.05rem; }
 .code-dialog-card header button { border: 0; background: transparent; font-size: 1.5rem; cursor: pointer; }
-.code-search { display: grid; grid-template-columns: 1fr 1fr auto; gap: .7rem; align-items: end; padding: 1rem 0; }
-.code-search label { display: grid; gap: .3rem; color: #475569; font-size: .78rem; font-weight: 700; }
-.code-search input { width: 100%; }
-.code-search button { min-height: 2.55rem; padding: .55rem .9rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font-weight: 750; }
 .code-dialog-help { margin: .65rem 0 0; color: #475569; font-size: .78rem; }
 /* ICUMS help dialogs: filter labels sit next to their inputs on one row. */
-.code-search { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; padding: 1rem 0; }
-.code-search label { display: inline-flex; align-items: center; gap: .45rem; color: #475569; font-size: .78rem; font-weight: 700; }
-.code-search input, .code-search select { width: clamp(6rem, 13vw, 9.5rem); min-width: 0; }
-.code-search button { margin-left: auto; }
+/* ICUMS help dialogs: one filter row, labels beside their inputs,
+   fields unmistakably visible. */
+.code-search { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem 1rem; padding: 1rem 0; }
+.code-search label { display: inline-flex; align-items: center; gap: .5rem; color: #475569; font-size: .78rem; font-weight: 700; white-space: nowrap; }
+.code-search input, .code-search select { width: clamp(7rem, 14vw, 10rem); min-width: 7rem; min-height: 2.4rem; padding: .45rem .6rem; color: var(--ink); border: 1px solid #94a3b8; border-radius: .4rem; background: #fff; font: inherit; font-weight: 500; }
+.code-search input:focus, .code-search select:focus { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
+.code-search button { min-height: 2.55rem; padding: .55rem .9rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font-weight: 750; cursor: pointer; }
+.code-search > button { margin-left: auto; }
 #app-port-results tr { cursor: pointer; }
 #app-port-results tr.port-row-selected { background: color-mix(in srgb, var(--primary) 10%, #fff); box-shadow: inset 0 0 0 1px var(--primary); }
 .code-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .8rem; }

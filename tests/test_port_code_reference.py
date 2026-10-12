@@ -86,7 +86,7 @@ def test_port_dialog_follows_the_icums_design(simulator_client, simulator_studen
     response = simulator_client.get(reverse("consignment-application-create") + f"?ucr={ucr.ucr_no}")
     html = response.content.decode()
     assert "Port Code Help" in html
-    assert "double-click a row" in html
+    assert "Click a row to select the port code" in html
     assert 'id="app-port-select"' in html
     assert 'id="app-port-filter-code"' in html
     assert 'id="app-port-filter-name"' in html

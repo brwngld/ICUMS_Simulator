@@ -224,8 +224,7 @@
         appendPortCell(row, port.code);
         appendPortCell(row, port.name);
         appendPortCell(row, port.country_name || port.country_code);
-        row.addEventListener("click", () => highlightPortRow(row, port));
-        row.addEventListener("dblclick", () => {
+        row.addEventListener("click", () => {
           highlightPortRow(row, port);
           applySelectedPort();
         });
@@ -259,6 +258,29 @@
   }));
   document.querySelector("#app-port-close").addEventListener("click", () => portDialog.close());
   document.querySelector("#app-port-select").addEventListener("click", applySelectedPort);
+
+  // --- Typing a code resolves on TAB/blur (like the country fields) ---
+  async function resolveLookupName(url, code) {
+    const response = await fetch(`${url}?code=${encodeURIComponent(code)}`, { headers: { Accept: "application/json" } });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.results.find((row) => row.code === code) || null;
+  }
+  function bindCodeResolver(codeFieldSelector, nameFieldSelector, url) {
+    const codeField = document.querySelector(codeFieldSelector);
+    const nameField = document.querySelector(nameFieldSelector);
+    if (!codeField || !nameField) return;
+    codeField.addEventListener("change", async () => {
+      codeField.value = codeField.value.trim().toUpperCase();
+      if (!codeField.value) { nameField.value = ""; return; }
+      const match = await resolveLookupName(url, codeField.value);
+      nameField.value = match ? match.name : "";
+      if (!match) nameField.placeholder = "Not found — use the search";
+    });
+  }
+  bindCodeResolver('[data-app-field="port_arrival"]', '[data-app-port-name-for="port_arrival"]', window.appPortCodeSearchUrl);
+  bindCodeResolver('[data-app-field="port_departure"]', '[data-app-port-name-for="port_departure"]', window.appPortCodeSearchUrl);
+  bindCodeResolver('[data-app-field="customs_office"]', '[data-app-port-name-for="customs_office"]', window.appCustomsOfficeSearchUrl);
 
   // --- Customs Office Help dialog (same interaction as the port dialog) ---
   const customsDialog = document.querySelector("#app-customs-dialog");
@@ -312,9 +334,6 @@
           selectedCustomsOffice = office;
           document.querySelectorAll("#app-customs-results tr").forEach((item) => item.classList.remove("port-row-selected"));
           row.classList.add("port-row-selected");
-        });
-        row.addEventListener("dblclick", () => {
-          selectedCustomsOffice = office;
           applySelectedCustomsOffice();
         });
         row.addEventListener("keydown", (event) => {
