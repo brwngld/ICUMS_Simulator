@@ -114,4 +114,81 @@
     .move-controls { display: inline; }
     .dash-eyebrow { margin: 0 0 .2rem; color: var(--d-accent); font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
     .dash-eyebrow { --d-accent: #5145cd; }
-  
+
+
+/* ---- Unfold form and builder components (instructor authoring surfaces) ----
+   Field treatment matches the admin: bordered slate inputs with indigo
+   focus rings; builder chrome (steps, tabs, progress, outline, actions)
+   on the shared palette. These rules supersede the legacy app.css
+   builder rules by loading later with matching selectors. */
+.dash :is(input, select, textarea):not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="submit"]):not([type="button"]) {
+  min-height: 2.55rem; padding: .55rem .7rem; color: #0f172a; border: 1px solid #cbd5e1;
+  border-radius: .5rem; background-color: #fff; font-size: .85rem; width: 100%;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, .035);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.dash textarea { min-height: 5.4rem; resize: vertical; line-height: 1.5; }
+.dash select {
+  appearance: none; padding-right: 2.1rem;
+  background-image: linear-gradient(45deg, transparent 50%, #64748b 50%), linear-gradient(135deg, #64748b 50%, transparent 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+  background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
+.dash :is(input, select, textarea):focus-visible { outline: none; border-color: #4236b6; box-shadow: 0 0 0 3px #4236b626; }
+.dash input::placeholder, .dash textarea::placeholder { color: #94a3b8; opacity: 1; }
+.dash input[type="checkbox"], .dash input[type="radio"] { width: 1rem; height: 1rem; min-height: 0; accent-color: #4236b6; }
+.dash label { font-size: .8rem; font-weight: 650; color: #1e293b; }
+.dash .helptext { color: #64748b; font-size: .74rem; font-weight: 400; }
+.dash errorlist, .dash ul.errorlist { margin: .2rem 0 0; padding: 0; list-style: none; color: #dc2626; font-size: .76rem; font-weight: 600; }
+html.dark .dash :is(input, select, textarea):not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="submit"]):not([type="button"]),
+html[data-theme="dark"] .dash :is(input, select, textarea):not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="submit"]):not([type="button"]) {
+  color: #e6ebf5; border-color: #2b3950; background-color: #172033; box-shadow: none;
+}
+html[data-theme="dark"] .dash :is(input, select, textarea):focus-visible { border-color: #8a86de; box-shadow: 0 0 0 3px #8a86de33; }
+html[data-theme="dark"] .dash label { color: #cbd5e1; }
+html[data-theme="dark"] .dash .helptext { color: #aab4ca; }
+/* Segmented path tabs */
+.builder-path-tabs { display: inline-flex; gap: .25rem; padding: .25rem; border: 1px solid #e2e8f0; border-radius: .6rem; background: #fff; }
+html[data-theme="dark"] .builder-path-tabs { border-color: #2b3950; background: #172033; }
+.builder-path-tabs a { padding: .45rem 1rem; border-radius: .45rem; font-size: .8rem; font-weight: 650; color: #475569; text-decoration: none; border: 0; background: transparent; }
+.builder-path-tabs a.active { color: #4236b6; background: #eef0fd; box-shadow: inset 0 -2px 0 #4236b6; }
+html[data-theme="dark"] .builder-path-tabs a { color: #aab4ca; }
+html[data-theme="dark"] .builder-path-tabs a.active { color: #bdb3ff; background: #262254; box-shadow: inset 0 -2px 0 #8a86de; }
+/* Numbered step badges: solid indigo circles (dash-steps idiom) */
+.step-number { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; flex-shrink: 0; border: 0; border-radius: 50%; color: #fff; background: #4236b6; font-size: .78rem; font-weight: 700; }
+html[data-theme="dark"] .step-number { background: #8a86de; }
+/* Course progress tracker */
+.builder-progress { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; margin: 0; padding: 0; list-style: none; font-size: .78rem; color: #64748b; }
+.builder-progress li { display: flex; align-items: center; gap: .45rem; }
+.builder-progress li::before { content: ""; width: .55rem; height: .55rem; border-radius: 50%; background: #cbd5e1; }
+.builder-progress li.complete { color: #059669; font-weight: 650; }
+.builder-progress li.complete::before { background: #059669; }
+.builder-progress a { color: #4236b6; font-weight: 650; }
+html[data-theme="dark"] .builder-progress { color: #aab4ca; }
+html[data-theme="dark"] .builder-progress li::before { background: #2b3950; }
+html[data-theme="dark"] .builder-progress li.complete { color: #7fd8bd; }
+html[data-theme="dark"] .builder-progress li.complete::before { background: #7fd8bd; }
+html[data-theme="dark"] .builder-progress a { color: #bdb3ff; }
+/* Submit row: border-top action bar, primary right */
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .6rem; padding-top: .9rem; border-top: 1px solid #e2e8f0; }
+.dash-head .form-actions { border-top: 0; padding-top: 0; }
+html[data-theme="dark"] .form-actions { border-top-color: #2b3950; }
+/* Form layout grids */
+.form-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: .9rem 1.1rem; }
+.check-row { display: flex; align-items: center; gap: .5rem; font-size: .82rem; }
+.check-row label { font-weight: 600; }
+/* Builder cards + outline */
+.builder-card { position: relative; }
+.builder-card .step-number { position: absolute; top: 1.1rem; right: 1.1rem; }
+.builder-card h2, .form-section h2 { margin: .75rem 0 .35rem; font-size: .95rem; }
+.module-card, .outline-module { transition: border-color .15s ease, box-shadow .15s ease; }
+.module-card:hover { border-color: #c7cdf7; box-shadow: 0 2px 4px rgba(15, 23, 42, .05), 0 8px 20px rgba(15, 23, 42, .07); }
+html[data-theme="dark"] .module-card:hover { border-color: #3d3a7a; }
+.outline-actions { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
+.outline-actions .move-controls { display: inline-flex; gap: .3rem; margin: 0; }
+.move-controls button { min-height: 2rem !important; padding: .25rem .55rem !important; }
+.section-heading h2 { margin: 0 0 .2rem; }
+/* Review lesson rows + publish panel */
+.review-lesson { padding: 1rem 1.1rem; border: 1px solid #e2e8f0; border-radius: .75rem; background: #f8fafc; }
+html[data-theme="dark"] .review-lesson { border-color: #2b3950; background: #172033; }
+.publish-panel { display: flex; flex-wrap: wrap; align-items: center; gap: .9rem; }
