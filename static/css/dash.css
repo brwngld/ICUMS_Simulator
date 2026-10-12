@@ -1,7 +1,7 @@
 /* Shared dash components (panels, heads, cards, pills, steps…) used by
    the student/tutor shell and the simulator shell. Extracted verbatim
    from base_student.html so both surfaces render identically. */
-    .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #5145cd; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; }
+    .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #4236b6; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; }
     /* Dark tokens mirror the admin overview reference (admin-dashboard.css). */
     html.dark .dash, html[data-theme="dark"] .dash { --d-border: #2b3950; --d-muted: #aab4ca; --d-accent: #9b8cff; --d-card-bg: #172033; }
     .dash-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; }
@@ -46,9 +46,9 @@
     html.dark .dash-pill.is-ok, html[data-theme="dark"] .dash-pill.is-ok { color: #7fd8bd; background: #12433a; }
     html.dark .dash-pill.is-warn, html[data-theme="dark"] .dash-pill.is-warn { color: #f2d18a; background: #3c321c; }
     html.dark .dash-pill.is-info, html[data-theme="dark"] .dash-pill.is-info { color: var(--d-accent); background: color-mix(in srgb, var(--d-accent) 16%, #172033); }
-    .dash-panel.is-warning { border-color: #e5b8b3; background: #fff7f6; }
-    .dash-panel.is-ready { border-color: #b9dfd2; background: #eff9f5; }
-    html.dark .dash-panel.is-warning, html[data-theme="dark"] .dash-panel.is-warning { border-color: #7a4b47; background: #3c2427; }
+    .dash-panel.is-warning { border-color: #ffb5ad; background: #fef2f2; }
+    .dash-panel.is-ready { border-color: #cbd5e1; background: #f8fafc; }
+    html.dark .dash-panel.is-warning, html[data-theme="dark"] .dash-panel.is-warning { border-color: #795c16; background: #3c321c; }
     html.dark .dash-panel.is-ready, html[data-theme="dark"] .dash-panel.is-ready { border-color: #286b5b; background: #16352f; }
     .dash-panel.builder-explanation { background: color-mix(in srgb, var(--d-accent), transparent 94%); }
     .dash-empty { margin: .75rem 0; color: var(--d-muted); font-size: .8rem; }
@@ -57,7 +57,7 @@
     .dash-copy p { margin: 0 0 .7rem; line-height: 1.6; font-size: .85rem; }
     .dash-actions { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
     .dash-actions a { color: var(--d-muted); font-size: .8rem; }
-    .dash-primary { padding: .55rem 1.1rem; border: 0; border-radius: .6rem; background: var(--d-accent, #5145cd); color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+    .dash-primary { padding: .55rem 1.1rem; border: 0; border-radius: .6rem; background: var(--d-accent, #4236b6); color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
     .dash-primary:hover { filter: brightness(.92); }
     .dash-secondary { padding: .5rem 1rem; border: 1px solid var(--d-border); border-radius: .6rem; background: transparent; color: inherit; font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; }
     .dash-secondary:hover { border-color: var(--d-accent); color: var(--d-accent); }
@@ -109,11 +109,11 @@
     .dash-form { display: flex; flex-direction: column; gap: .75rem; margin: 1rem 0 0; }
     .dash-form label { display: flex; align-items: flex-start; gap: .6rem; font-size: .8rem; }
     .dash-form input[type="checkbox"] { margin-top: .15rem; }
-    .dash-form .primary-button, .dash-actions .primary-button { align-self: flex-start; margin-top: .25rem; padding: .6rem 1.1rem; border: 0; border-radius: .6rem; background: var(--d-accent, #5145cd); color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+    .dash-form .primary-button, .dash-actions .primary-button { align-self: flex-start; margin-top: .25rem; padding: .6rem 1.1rem; border: 0; border-radius: .6rem; background: var(--d-accent, #4236b6); color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
     .dash-form .primary-button:hover, .dash-actions .primary-button:hover { filter: brightness(.92); }
     .move-controls { display: inline; }
     .dash-eyebrow { margin: 0 0 .2rem; color: var(--d-accent); font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-    .dash-eyebrow { --d-accent: #5145cd; }
+    .dash-eyebrow { --d-accent: #4236b6; }
 
 
 /* ---- Unfold form and builder components (instructor authoring surfaces) ----
@@ -137,7 +137,7 @@
 .dash :is(input, select, textarea):focus-visible { outline: none; border-color: #4236b6; box-shadow: 0 0 0 3px #4236b626; }
 .dash input::placeholder, .dash textarea::placeholder { color: #94a3b8; opacity: 1; }
 .dash input[type="checkbox"], .dash input[type="radio"] { width: 1rem; height: 1rem; min-height: 0; accent-color: #4236b6; }
-.dash label { font-size: .8rem; font-weight: 650; color: #1e293b; }
+.dash label { font-size: .8rem; font-weight: 650; color: #172033; }
 .dash .helptext { color: #64748b; font-size: .74rem; font-weight: 400; }
 .dash errorlist, .dash ul.errorlist { margin: .2rem 0 0; padding: 0; list-style: none; color: #dc2626; font-size: .76rem; font-weight: 600; }
 html.dark .dash :is(input, select, textarea):not([type="radio"]):not([type="checkbox"]):not([type="file"]):not([type="submit"]):not([type="button"]),
