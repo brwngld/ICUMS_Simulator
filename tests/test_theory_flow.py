@@ -46,10 +46,23 @@ def test_current_disclaimer_blocks_dashboard_until_accepted(client, theory_setup
 def test_lesson_completion_is_saved_and_opens_assessment(client, theory_setup):
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
     client.force_login(theory_setup["user"])
-    response = client.post(reverse("lesson-detail", args=(theory_setup["module"].code, theory_setup["lesson"].slug)))
+    lesson_url = reverse("lesson-detail", args=(theory_setup["module"].code, theory_setup["lesson"].slug))
+    response = client.post(lesson_url)
+    for _ in range(4):
+        response = client.post(response.url, {"action": "continue"})
     assert response.status_code == 302
     assert response.url == reverse("assessment-take", args=(theory_setup["assessment"].pk,))
     assert LessonProgress.objects.filter(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"], completed_at__isnull=False).exists()
+
+
+@pytest.mark.django_db
+def test_every_lesson_has_all_five_section_routes(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    client.force_login(theory_setup["user"])
+    for section in ("objectives", "concepts", "example", "note", "practice"):
+        response = client.get(reverse("lesson-section", args=(theory_setup["module"].code, theory_setup["lesson"].slug, section)))
+        assert response.status_code == 200
+        assert response.context["current_section"]["slug"] == section
 
 
 @pytest.mark.django_db

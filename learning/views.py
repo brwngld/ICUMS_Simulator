@@ -71,18 +71,13 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
     concept_block = next((b for b in blocks if b.kind == "text"), None)
     example_block = next((b for b in blocks if b.kind == "example"), None)
     notice_block = next((b for b in blocks if b.kind == "notice"), None)
-    if objectives:
-        sections.append({"slug": "objectives", "title": "Objectives", "stage": "Orient"})
-    if concept_block:
-        sections.append({"slug": "concepts", "title": concept_block.heading or "Key concepts", "stage": "Learn"})
-    if example_block:
-        sections.append({"slug": "example", "title": example_block.heading or "Worked example", "stage": "Apply"})
-    if notice_block:
-        sections.append({"slug": "note", "title": notice_block.heading or "Important note", "stage": "Remember"})
-    if check:
-        sections.append({"slug": "practice", "title": "Practice", "stage": "Practise"})
-    if not sections:
-        sections.append({"slug": "concepts", "title": "Lesson", "stage": "Learn"})
+    sections = [
+        {"slug": "objectives", "title": "Objectives", "stage": "Orient"},
+        {"slug": "concepts", "title": concept_block.heading if concept_block else "Key concepts", "stage": "Learn"},
+        {"slug": "example", "title": example_block.heading if example_block else "Worked example", "stage": "Apply"},
+        {"slug": "note", "title": notice_block.heading if notice_block else "Important note", "stage": "Remember"},
+        {"slug": "practice", "title": "Practice", "stage": "Practise"},
+    ]
 
     def section_url(slug):
         return reverse("lesson-section", args=(module.code, lesson.slug, slug))
