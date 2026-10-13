@@ -13,7 +13,7 @@ from progress.models import LessonProgress, ModuleProgress
 from assessments.models import Assessment, LessonCheck, LessonCheckResponse
 
 from .models import Lesson, Module
-from .services import module_is_unlocked, module_summary, programme_theory_completed
+from .services import module_is_unlocked, module_lessons_completed, module_summary, programme_theory_completed
 
 
 def _guard_onboarding(request):
@@ -73,9 +73,9 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
     notice_block = next((b for b in blocks if b.kind == "notice"), None)
     sections = [
         {"slug": "objectives", "title": "Objectives", "stage": "Orient"},
-        {"slug": "concepts", "title": concept_block.heading if concept_block else "Key concepts", "stage": "Learn"},
-        {"slug": "example", "title": example_block.heading if example_block else "Worked example", "stage": "Apply"},
-        {"slug": "note", "title": notice_block.heading if notice_block else "Important note", "stage": "Remember"},
+        {"slug": "concepts", "title": "Key concepts", "stage": "Learn"},
+        {"slug": "example", "title": "Worked example", "stage": "Apply"},
+        {"slug": "note", "title": "Important note", "stage": "Remember"},
         {"slug": "practice", "title": "Practice", "stage": "Practise"},
     ]
 
@@ -124,6 +124,7 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
         item["state"] = "done" if index < current_index or progress.completed_at else ("current" if index == current_index else "todo")
     word_count = sum(len(block.body.split()) for block in blocks)
     module_assessment = module.assessments.filter(is_published=True).first()
+    module_lessons_complete = module_lessons_completed(enrolment, module)
     return render_student_page(
         request,
         "learning/lesson.html",
@@ -145,6 +146,7 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
             "key_terms": key_terms,
             "lessons_in_module": list(module.lessons.filter(is_published=True).order_by("order", "title")),
             "module_assessment": module_assessment,
+            "module_lessons_complete": module_lessons_complete,
             "reading_minutes": max(1, round(word_count / 200)),
         },
     )

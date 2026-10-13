@@ -4,11 +4,13 @@
 html.dark .lrn, html[data-theme="dark"] .lrn { --d-border: #2b3950; --d-muted: #aab4ca; --d-accent: #9b8cff; --d-card-bg: #172033; }
 .lrn-head h1 { margin: .2rem 0 .3rem; font-size: 1.7rem; font-weight: 750; letter-spacing: -.02em; }
 .lrn-eyebrow { margin: 0; color: var(--d-muted); font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.lrn-course { margin: .35rem 0 0; color: var(--d-muted); font-size: .9rem; font-weight: 650; }
 .lrn-sub { margin: 0 0 .4rem; color: var(--d-muted); max-width: 64ch; }
 .lrn-meta { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0; color: var(--d-muted); font-size: .78rem; }
 .lrn-grid { display: grid; grid-template-columns: 190px minmax(0, 1fr) 240px; gap: 1.5rem; align-items: start; }
 .lrn-card { padding: .9rem 1rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg); }
 .lrn-card h4 { margin: 0 0 .55rem; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--d-muted); }
+.lrn-assess-title { margin: 0; color: inherit; font-size: .82rem; font-weight: 650; line-height: 1.4; }
 .lrn-nav { position: sticky; top: 1rem; }
 .lrn-nav a { display: block; padding: .32rem .5rem; border-radius: .5rem; color: var(--d-muted); font-size: .8rem; text-decoration: none; }
 .lrn-nav a.on { background: color-mix(in srgb, var(--d-accent) 10%, transparent); color: var(--d-accent); font-weight: 650; }
@@ -17,6 +19,7 @@ html.dark .lrn, html[data-theme="dark"] .lrn { --d-border: #2b3950; --d-muted: #
 .lrn-article section:last-of-type { margin-bottom: 0; }
 .lrn-article h2 { margin: 0 0 .7rem; font-size: 1.25rem; letter-spacing: -.01em; }
 .lrn-article h2 small { display: block; margin-bottom: .2rem; color: var(--d-accent); font-size: .68rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.lrn-content-heading { margin: 1rem 0 .65rem; color: var(--d-muted); font-size: .95rem; font-weight: 700; }
 .lrn-copy { font-size: 1rem; line-height: 1.75; max-width: 66ch; }
 .lrn-copy p { margin: 0 0 .85rem; }
 .lrn-copy p:last-child { margin-bottom: 0; }

@@ -5,7 +5,7 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261013-1">
+  <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261013-2">
 {% endblock %}
 
 {% block content %}
@@ -14,7 +14,8 @@
 
     <div class="lrn-head">
       <div>
-        <p class="lrn-eyebrow"><a href="{% url 'roadmap' %}">{{ module.title }}</a> · {{ lesson.title }}</p>
+        <p class="lrn-eyebrow"><a href="{% url 'roadmap' %}">Theory roadmap</a> <span aria-hidden="true">·</span> {{ module.title }}</p>
+        <p class="lrn-course">{{ lesson.title }}</p>
         <h1>{{ current_section.title }}</h1>
         <p class="lrn-sub">{{ current_section.stage }} · Section {{ current_index|add:1 }} of {{ sections|length }}{% if not preview_mode %} · ~{{ reading_minutes }} min lesson{% endif %}</p>
       </div>
@@ -37,20 +38,25 @@
           </a>
           {% endfor %}
         </div>
-        {% if module_assessment %}
-        {% url 'lesson-section' module.code lesson.slug current_section.slug as lesson_return_url %}
-        <div class="lrn-card">
-          <h4>Theory assessment</h4>
-          <a class="lrn-assess-link" href="{% url 'assessment-take' module_assessment.pk %}?return_to={{ lesson_return_url|urlencode }}">{{ module_assessment.title }} →</a>
-          <p class="lrn-hint">Available after all lessons in this module are complete.</p>
-        </div>
-        {% endif %}
         <div class="lrn-card">
           <h4>Module lessons</h4>
           <ol class="lrn-lessons">
             {% for item in lessons_in_module %}<li{% if item.pk == lesson.pk %} class="on"{% endif %}>{{ item.title }}</li>{% endfor %}
           </ol>
         </div>
+        {% if module_assessment %}
+        {% url 'lesson-section' module.code lesson.slug current_section.slug as lesson_return_url %}
+        <div class="lrn-card">
+          <h4>Theory assessment</h4>
+          {% if module_lessons_complete %}
+          <a class="lrn-assess-link" href="{% url 'assessment-take' module_assessment.pk %}?return_to={{ lesson_return_url|urlencode }}">{{ module_assessment.title }} →</a>
+          <p class="lrn-hint">All module lessons are complete. You can take or retake this assessment.</p>
+          {% else %}
+          <p class="lrn-assess-title">{{ module_assessment.title }}</p>
+          <p class="lrn-hint">Complete every lesson in this module to unlock the assessment.</p>
+          {% endif %}
+        </div>
+        {% endif %}
         {% if key_terms %}
         <div class="lrn-card">
           <h4>Key terms</h4>
@@ -86,19 +92,22 @@
 
         {% elif current_section.slug == "concepts" %}
         <section class="lrn-enter">
-          <h2><small>{{ current_section.stage }}</small>{{ concept_block.heading|default:"Key concepts" }}</h2>
+          <h2><small>{{ current_section.stage }}</small>Key concepts</h2>
+          {% if concept_block.heading %}<h3 class="lrn-content-heading">{{ concept_block.heading }}</h3>{% endif %}
           {% if concept_block %}<div class="lrn-copy">{{ concept_block.body|linebreaks }}</div>{% else %}<p class="lrn-empty">Key concepts for this lesson have not been published yet.</p>{% endif %}
         </section>
 
         {% elif current_section.slug == "example" %}
         <section class="lrn-enter">
-          <h2><small>{{ current_section.stage }}</small>{{ example_block.heading|default:"Worked example" }}</h2>
+          <h2><small>{{ current_section.stage }}</small>Worked example</h2>
+          {% if example_block.heading %}<h3 class="lrn-content-heading">{{ example_block.heading }}</h3>{% endif %}
           {% if example_block %}<div class="lrn-copy lrn-scenario">{{ example_block.body|linebreaks }}</div>{% else %}<p class="lrn-empty">A worked example for this lesson has not been published yet.</p>{% endif %}
         </section>
 
         {% elif current_section.slug == "note" %}
         <section class="lrn-enter">
-          <h2><small>{{ current_section.stage }}</small>{{ notice_block.heading|default:"Important note" }}</h2>
+          <h2><small>{{ current_section.stage }}</small>Important note</h2>
+          {% if notice_block.heading %}<h3 class="lrn-content-heading">{{ notice_block.heading }}</h3>{% endif %}
           {% if notice_block %}<div class="lrn-key">{{ notice_block.body|linebreaks }}</div>{% else %}<p class="lrn-empty">There are no additional notes for this lesson yet.</p>{% endif %}
         </section>
 
@@ -143,9 +152,6 @@
             </form>
           </div>
         </div>
-        {% if module_assessment and not next_section %}
-        <p class="lrn-hint lrn-assess-link">Finished practising? Take the <a href="{% url 'assessment-take' module_assessment.pk %}?return_to={{ lesson_return_url|urlencode }}">{{ module_assessment.title }}</a> — you can retake it until you pass.</p>
-        {% endif %}
       </article>
     </div>
   </div>
