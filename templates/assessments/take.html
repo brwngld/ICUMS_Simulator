@@ -5,22 +5,28 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/quiz.css' %}?v=20261013-1">
+  <link rel="stylesheet" href="{% static 'css/quiz.css' %}?v=20261013-2">
 {% endblock %}
 
 {% block content %}
   <div class="quiz">
-    <header class="quiz-head">
+    <header class="quiz-head quiz-hero">
       <div>
-        <p class="quiz-eyebrow">Untimed theory assessment · Attempt {{ attempt.attempt_number }}</p>
+        <p class="quiz-eyebrow">Module assessment · Attempt {{ attempt.attempt_number }}</p>
         <h1>{{ assessment.title }}</h1>
-        <p>{{ assessment.items.count }} question{{ assessment.items.count|pluralize }} · pass mark {{ assessment.pass_percentage }}% · no time limit{% if assessment.maximum_attempts %} · up to {{ assessment.maximum_attempts }} attempts{% else %} · unlimited attempts{% endif %}. Time is recorded for insight and never affects your result.</p>
+        <p>{{ assessment_description }}</p>
+        <div class="quiz-facts" aria-label="Assessment information">
+          <span><strong>{{ assessment.items.count }}</strong> question{{ assessment.items.count|pluralize }}</span>
+          <span><strong>{{ assessment.pass_percentage }}%</strong> pass mark</span>
+          <span><strong>None</strong> time limit</span>
+          {% if attempts_limited %}<span><strong>{{ remaining_attempts }}</strong> attempt{{ remaining_attempts|pluralize }} remaining</span>{% else %}<span><strong>Unlimited</strong> attempts</span>{% endif %}
+        </div>
       </div>
       <a class="quiz-back" href="{{ return_to }}">← Back to lessons</a>
     </header>
 
     {% if attempt.items.all %}
-    <div class="quiz-progress" role="progressbar" aria-valuemin="1" aria-valuemax="{{ attempt.items.count }}" aria-valuenow="1" aria-label="Questions answered">
+    <div class="quiz-progress" role="progressbar" aria-valuemin="1" aria-valuemax="{{ attempt.items.count }}" aria-valuenow="1" aria-label="Assessment progress">
       <div class="quiz-progress-track"><div class="quiz-progress-fill" id="quiz-progress-fill"></div></div>
       <span class="quiz-counter" id="quiz-counter" aria-live="polite">Question 1 of {{ attempt.items.count }}</span>
     </div>
@@ -56,7 +62,7 @@
         <button type="button" class="quiz-button is-ghost" id="quiz-review-btn" hidden>Review answers</button>
         <button type="submit" class="quiz-button" id="quiz-submit" hidden disabled>Submit assessment</button>
       </div>
-      <p class="quiz-hint" id="quiz-hint" role="status"></p>
+      <p class="quiz-hint" id="quiz-hint" role="status">Take your time. You can review your answers before submitting.</p>
       <input type="hidden" name="return_to" value="{{ return_to }}">
     </form>
     {% else %}

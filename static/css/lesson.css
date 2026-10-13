@@ -6,6 +6,9 @@ html.dark .lrn, html[data-theme="dark"] .lrn { --d-border: #2b3950; --d-muted: #
 .lrn-eyebrow { margin: 0; color: var(--d-muted); font-size: .72rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
 .lrn-course { margin: .35rem 0 0; color: var(--d-muted); font-size: .9rem; font-weight: 650; }
 .lrn-sub { margin: 0 0 .4rem; color: var(--d-muted); max-width: 64ch; }
+.lrn-introduction { margin: 0 0 1.5rem; padding: 1rem 1.1rem; border-left: 3px solid var(--d-accent); border-radius: 0 .7rem .7rem 0; background: color-mix(in srgb, var(--d-accent) 7%, transparent); }
+.lrn-introduction p { max-width: 68ch; margin: .3rem 0 0; color: var(--d-muted); line-height: 1.65; }
+.lrn-section-label { color: var(--d-accent); font-size: .68rem; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
 .lrn-meta { display: flex; gap: 1rem; flex-wrap: wrap; margin: 0; color: var(--d-muted); font-size: .78rem; }
 .lrn-grid { display: grid; grid-template-columns: 190px minmax(0, 1fr) 240px; gap: 1.5rem; align-items: start; }
 .lrn-card { padding: .9rem 1rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg); }

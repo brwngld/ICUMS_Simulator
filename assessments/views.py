@@ -42,6 +42,15 @@ def assessment_take(request, assessment_id):
         raise PermissionDenied("Complete all theory modules before starting the final theory examination.")
     attempt = get_or_start_attempt(enrolment, assessment)
     return_to = _safe_return_to(request)
+    remaining_attempts = (
+        max(assessment.maximum_attempts - attempt.attempt_number, 0)
+        if assessment.maximum_attempts is not None else None
+    )
+    assessment_description = (
+        assessment.module.description
+        if assessment.module and assessment.module.description
+        else "Use this assessment to demonstrate your understanding of the module content."
+    )
     if request.method == "POST":
         if request.POST.get("action") == "save_progress":
             save_attempt_answers(attempt, request.POST)
@@ -55,7 +64,19 @@ def assessment_take(request, assessment_id):
     }
     for item in attempt.items.all():
         item.saved_option_id = saved_answers.get(item.question_version_id)
-    return render_student_page(request, "assessments/take.html", {"assessment": assessment, "attempt": attempt, "return_to": return_to, "saved_answers": saved_answers})
+    return render_student_page(
+        request,
+        "assessments/take.html",
+        {
+            "assessment": assessment,
+            "attempt": attempt,
+            "return_to": return_to,
+            "saved_answers": saved_answers,
+            "remaining_attempts": remaining_attempts,
+            "attempts_limited": assessment.maximum_attempts is not None,
+            "assessment_description": assessment_description,
+        },
+    )
 
 
 @login_required
@@ -68,6 +89,10 @@ def assessment_result(request, attempt_id):
     assessment = attempt.assessment
     passed = attempt.outcome == TheoryAttempt.Outcome.PASS
     retake_allowed = assessment.maximum_attempts is None or attempt.attempt_number < assessment.maximum_attempts
+    remaining_attempts = (
+        max(assessment.maximum_attempts - attempt.attempt_number, 0)
+        if assessment.maximum_attempts is not None else None
+    )
     return_to = _safe_return_to(request)
 
     # Where "continue" goes after a pass: the next unfinished lesson, the
@@ -109,6 +134,8 @@ def assessment_result(request, attempt_id):
             "continue_url": continue_url,
             "continue_label": continue_label,
             "return_to": return_to,
+            "remaining_attempts": remaining_attempts,
+            "attempts_limited": assessment.maximum_attempts is not None,
             "review": review,
         },
     )

@@ -17,7 +17,7 @@
         <p class="lrn-eyebrow"><a href="{% url 'roadmap' %}">Theory roadmap</a> <span aria-hidden="true">·</span> {{ module.title }}</p>
         <p class="lrn-course">{{ lesson.title }}</p>
         <h1>{{ current_section.title }}</h1>
-        <p class="lrn-sub">{{ current_section.stage }} · Section {{ current_index|add:1 }} of {{ sections|length }}{% if not preview_mode %} · ~{{ reading_minutes }} min lesson{% endif %}</p>
+        <p class="lrn-sub">{{ current_section.stage }} · Lesson {{ lesson_position }} of {{ lessons_in_module|length }} · Section {{ current_index|add:1 }} of {{ sections|length }}{% if not preview_mode %} · ~{{ reading_minutes }} min lesson{% endif %}</p>
       </div>
       {% if progress.completed_at %}<span class="lrn-badge">Lesson completed</span>{% endif %}
     </div>
@@ -78,6 +78,10 @@
       <article class="lrn-article" data-lrn-pane>
         {% if current_section.slug == "objectives" %}
         <section class="lrn-enter">
+          <div class="lrn-introduction">
+            <span class="lrn-section-label">Lesson overview</span>
+            <p>{% if lesson.summary %}{{ lesson.summary }}{% else %}This lesson introduces the key ideas, practical context and decisions you will need to understand this part of the programme.{% endif %}</p>
+          </div>
           <h2><small>{{ current_section.stage }}</small>By the end of this lesson you can</h2>
           <div class="lrn-objective-grid">
             {% for objective in objectives %}

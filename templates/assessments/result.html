@@ -5,15 +5,16 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/quiz.css' %}?v=20261013-1">
+  <link rel="stylesheet" href="{% static 'css/quiz.css' %}?v=20261013-2">
 {% endblock %}
 
 {% block content %}
   <div class="quiz">
-    <header class="quiz-head">
+    <header class="quiz-head quiz-hero">
       <div>
-        <p class="quiz-eyebrow">Attempt {{ attempt.attempt_number }} of {{ attempt.assessment.maximum_attempts|default:"unlimited" }} · Result</p>
+        <p class="quiz-eyebrow">Module assessment · Attempt {{ attempt.attempt_number }}</p>
         <h1>{{ attempt.assessment.title }}</h1>
+        <p>{% if passed %}Your result confirms that you have demonstrated understanding of this module.{% else %}Review the feedback below, revisit the lesson material, and try again when you are ready.{% endif %}</p>
       </div>
       <a class="quiz-back" href="{{ return_to }}">← Back to lessons</a>
     </header>
@@ -21,7 +22,8 @@
     <section class="quiz-result {% if passed %}is-pass{% endif %}" role="status">
       <h2>{% if passed %}Passed — assessment complete{% else %}Not passed yet{% endif %}</h2>
       <div class="quiz-result-score">{{ attempt.percentage }}%</div>
-      <p>{{ attempt.score }} of {{ attempt.maximum_score }} points · pass mark {{ pass_mark }}% · elapsed time recorded for information only</p>
+      <p>{{ attempt.score }} of {{ attempt.maximum_score }} points · pass mark {{ pass_mark }}% · no time limit</p>
+      {% if attempts_limited %}<p>{{ remaining_attempts }} attempt{{ remaining_attempts|pluralize }} remaining.</p>{% endif %}
       {% if not passed %}
       <p>You need {{ pass_mark }}% or more to pass. Review the questions below, revisit the lesson sections, and retake the assessment when you are ready.</p>
       {% endif %}

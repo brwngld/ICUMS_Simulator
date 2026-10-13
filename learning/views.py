@@ -125,6 +125,8 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
     word_count = sum(len(block.body.split()) for block in blocks)
     module_assessment = module.assessments.filter(is_published=True).first()
     module_lessons_complete = module_lessons_completed(enrolment, module)
+    lessons_in_module = list(module.lessons.filter(is_published=True).order_by("order", "title"))
+    lesson_position = next((index + 1 for index, item in enumerate(lessons_in_module) if item.pk == lesson.pk), 1)
     return render_student_page(
         request,
         "learning/lesson.html",
@@ -144,7 +146,8 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
             "check": check,
             "objectives": objectives,
             "key_terms": key_terms,
-            "lessons_in_module": list(module.lessons.filter(is_published=True).order_by("order", "title")),
+            "lessons_in_module": lessons_in_module,
+            "lesson_position": lesson_position,
             "module_assessment": module_assessment,
             "module_lessons_complete": module_lessons_complete,
             "reading_minutes": max(1, round(word_count / 200)),
