@@ -38,9 +38,10 @@
           {% endfor %}
         </div>
         {% if module_assessment %}
+        {% url 'lesson-section' module.code lesson.slug current_section.slug as lesson_return_url %}
         <div class="lrn-card">
           <h4>Theory assessment</h4>
-          <a class="lrn-assess-link" href="{% url 'assessment-take' module_assessment.pk %}">{{ module_assessment.title }} →</a>
+          <a class="lrn-assess-link" href="{% url 'assessment-take' module_assessment.pk %}?return_to={{ lesson_return_url|urlencode }}">{{ module_assessment.title }} →</a>
           <p class="lrn-hint">Available after all lessons in this module are complete.</p>
         </div>
         {% endif %}
@@ -143,7 +144,7 @@
           </div>
         </div>
         {% if module_assessment and not next_section %}
-        <p class="lrn-hint lrn-assess-link">Finished practising? Take the <a href="{% url 'assessment-take' module_assessment.pk %}">{{ module_assessment.title }}</a> — you can retake it until you pass.</p>
+        <p class="lrn-hint lrn-assess-link">Finished practising? Take the <a href="{% url 'assessment-take' module_assessment.pk %}?return_to={{ lesson_return_url|urlencode }}">{{ module_assessment.title }}</a> — you can retake it until you pass.</p>
         {% endif %}
       </article>
     </div>

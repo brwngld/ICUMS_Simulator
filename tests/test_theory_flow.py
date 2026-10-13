@@ -66,6 +66,30 @@ def test_every_lesson_has_all_five_section_routes(client, theory_setup):
 
 
 @pytest.mark.django_db
+def test_assessment_answers_resume_after_refresh_and_return_to_lesson(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"], completed_at=theory_setup["disclaimer"].published_at)
+    client.force_login(theory_setup["user"])
+    lesson_url = reverse("lesson-section", args=(theory_setup["module"].code, theory_setup["lesson"].slug, "practice"))
+    assessment_url = reverse("assessment-take", args=(theory_setup["assessment"].pk,))
+    response = client.get(f"{assessment_url}?return_to={lesson_url}")
+    attempt = TheoryAttempt.objects.get()
+    save = client.post(
+        assessment_url,
+        {
+            "action": "save_progress",
+            "return_to": lesson_url,
+            str(theory_setup["question"].pk): str(theory_setup["wrong"].pk),
+        },
+    )
+    assert save.status_code == 204
+    resumed = client.get(f"{assessment_url}?return_to={lesson_url}")
+    assert resumed.context["return_to"] == lesson_url
+    assert resumed.context["saved_answers"][theory_setup["question"].pk] == theory_setup["wrong"].pk
+    assert resumed.context["attempt"].pk == attempt.pk
+
+
+@pytest.mark.django_db
 def test_failed_attempt_keeps_remediation_and_does_not_complete_module(client, theory_setup):
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
     LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"], completed_at=theory_setup["disclaimer"].published_at)

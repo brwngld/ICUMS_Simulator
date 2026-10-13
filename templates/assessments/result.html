@@ -15,7 +15,7 @@
         <p class="quiz-eyebrow">Attempt {{ attempt.attempt_number }} of {{ attempt.assessment.maximum_attempts|default:"unlimited" }} · Result</p>
         <h1>{{ attempt.assessment.title }}</h1>
       </div>
-      <a class="quiz-back" href="{% url 'roadmap' %}">← Back to lessons</a>
+      <a class="quiz-back" href="{{ return_to }}">← Back to lessons</a>
     </header>
 
     <section class="quiz-result {% if passed %}is-pass{% endif %}" role="status">
@@ -30,11 +30,11 @@
         <a class="quiz-button" href="{{ continue_url }}">{{ continue_label }} →</a>
         {% else %}
           {% if retake_allowed %}
-          <a class="quiz-button" href="{% url 'assessment-take' attempt.assessment.pk %}">Retake assessment</a>
+          <a class="quiz-button" href="{% url 'assessment-take' attempt.assessment.pk %}?return_to={{ return_to|urlencode }}">Retake assessment</a>
           {% else %}
           <span class="quiz-button" aria-disabled="true">No attempts remaining — ask your instructor</span>
           {% endif %}
-        <a class="quiz-button is-ghost" href="{% url 'roadmap' %}">Return to lessons</a>
+        <a class="quiz-button is-ghost" href="{{ return_to }}">Return to lessons</a>
         {% endif %}
       </div>
     </section>

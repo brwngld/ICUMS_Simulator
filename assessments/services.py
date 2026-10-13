@@ -13,6 +13,24 @@ from .models import TheoryAttempt, TheoryAttemptItem, TheoryResponse
 
 
 @transaction.atomic
+def save_attempt_answers(attempt, answers):
+    """Persist the learner's current selections without scoring the attempt."""
+    if attempt.status != TheoryAttempt.Status.IN_PROGRESS:
+        raise ValueError("Only an in-progress attempt can save answers.")
+    items = attempt.items.select_related("question_version").prefetch_related("question_version__options")
+    for item in items:
+        question = item.question_version
+        selected = question.options.filter(pk=answers.get(str(question.pk))).first()
+        if selected is None:
+            continue
+        TheoryResponse.objects.update_or_create(
+            attempt=attempt,
+            question_version=question,
+            defaults={"selected_option": selected, "is_correct": False, "awarded_score": 0},
+        )
+
+
+@transaction.atomic
 def get_or_start_attempt(enrolment, assessment):
     # Serialise a student's concurrent starts on their enrolment row: two
     # simultaneous requests would otherwise both pass the in-progress check
@@ -50,12 +68,14 @@ def submit_attempt(attempt, answers):
         correct = bool(selected and selected.is_correct)
         awarded = question.points if correct else 0
         score += awarded
-        TheoryResponse.objects.create(
+        TheoryResponse.objects.update_or_create(
             attempt=attempt,
             question_version=question,
-            selected_option=selected,
-            is_correct=correct,
-            awarded_score=awarded,
+            defaults={
+                "selected_option": selected,
+                "is_correct": correct,
+                "awarded_score": awarded,
+            },
         )
     percentage = (Decimal(score) / Decimal(maximum) * 100).quantize(Decimal("0.01")) if maximum else Decimal("0.00")
     attempt.status = TheoryAttempt.Status.SUBMITTED

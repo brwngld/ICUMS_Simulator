@@ -22,6 +22,23 @@
 
   const answered = (card) => [...card.querySelectorAll("input[type=radio]")].some((input) => input.checked);
   const answeredCount = () => questions.filter(answered).length;
+  let saveTimer;
+
+  function saveProgress() {
+    window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(() => {
+      const data = new FormData(form);
+      data.set("action", "save_progress");
+      fetch(form.action || window.location.href, {
+        method: "POST",
+        body: data,
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+      }).catch(() => {
+        hint.textContent = "Your answer is selected locally, but could not be saved yet.";
+      });
+    }, 150);
+  }
 
   function refreshReview() {
     reviewList.replaceChildren();
@@ -91,6 +108,7 @@
   questions.forEach((card) => {
     card.querySelectorAll("input[type=radio]").forEach((input) => {
       input.addEventListener("change", () => {
+        saveProgress();
         const ratio = answeredCount() / total;
         fill.style.width = `${Math.round((current === total ? ratio : Math.max(ratio, (current + 1) / total)) * 100)}%`;
         if (hint.textContent.startsWith("Choose an answer")) hint.textContent = "";

@@ -1,7 +1,10 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
+from urllib.parse import urlencode
 from django.views.decorators.http import require_http_methods
 
 from core.admin_dashboard import render_student_page
@@ -11,7 +14,14 @@ from onboarding.services import active_enrolment_for, needs_disclaimer_acceptanc
 
 from .models import Assessment, TheoryAttempt
 from progress.models import LessonProgress
-from .services import get_or_start_attempt, submit_attempt
+from .services import get_or_start_attempt, save_attempt_answers, submit_attempt
+
+
+def _safe_return_to(request):
+    value = request.POST.get("return_to") or request.GET.get("return_to")
+    if value and url_has_allowed_host_and_scheme(value, {request.get_host()}, require_https=request.is_secure()):
+        return value
+    return reverse("roadmap")
 
 
 @login_required
@@ -31,10 +41,21 @@ def assessment_take(request, assessment_id):
     if assessment.assessment_type == Assessment.Type.FINAL_THEORY and not programme_theory_completed(enrolment):
         raise PermissionDenied("Complete all theory modules before starting the final theory examination.")
     attempt = get_or_start_attempt(enrolment, assessment)
+    return_to = _safe_return_to(request)
     if request.method == "POST":
+        if request.POST.get("action") == "save_progress":
+            save_attempt_answers(attempt, request.POST)
+            return HttpResponse(status=204)
         attempt = submit_attempt(attempt, request.POST)
-        return redirect("assessment-result", attempt_id=attempt.pk)
-    return render_student_page(request, "assessments/take.html", {"assessment": assessment, "attempt": attempt})
+        result_url = reverse("assessment-result", args=(attempt.pk,))
+        return redirect(f"{result_url}?{urlencode({'return_to': return_to})}")
+    saved_answers = {
+        response.question_version_id: response.selected_option_id
+        for response in attempt.responses.filter(selected_option__isnull=False)
+    }
+    for item in attempt.items.all():
+        item.saved_option_id = saved_answers.get(item.question_version_id)
+    return render_student_page(request, "assessments/take.html", {"assessment": assessment, "attempt": attempt, "return_to": return_to, "saved_answers": saved_answers})
 
 
 @login_required
@@ -47,6 +68,7 @@ def assessment_result(request, attempt_id):
     assessment = attempt.assessment
     passed = attempt.outcome == TheoryAttempt.Outcome.PASS
     retake_allowed = assessment.maximum_attempts is None or attempt.attempt_number < assessment.maximum_attempts
+    return_to = _safe_return_to(request)
 
     # Where "continue" goes after a pass: the next unfinished lesson, the
     # module's later content, orientation after the final exam, or the roadmap.
@@ -86,6 +108,7 @@ def assessment_result(request, attempt_id):
             "retake_allowed": retake_allowed,
             "continue_url": continue_url,
             "continue_label": continue_label,
+            "return_to": return_to,
             "review": review,
         },
     )

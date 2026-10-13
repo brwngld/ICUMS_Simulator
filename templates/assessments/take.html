@@ -16,7 +16,7 @@
         <h1>{{ assessment.title }}</h1>
         <p>{{ assessment.items.count }} question{{ assessment.items.count|pluralize }} · pass mark {{ assessment.pass_percentage }}% · no time limit{% if assessment.maximum_attempts %} · up to {{ assessment.maximum_attempts }} attempts{% else %} · unlimited attempts{% endif %}. Time is recorded for insight and never affects your result.</p>
       </div>
-      <a class="quiz-back" href="{% url 'roadmap' %}">← Back to lessons</a>
+      <a class="quiz-back" href="{{ return_to }}">← Back to lessons</a>
     </header>
 
     {% if attempt.items.all %}
@@ -34,7 +34,7 @@
           <div class="quiz-options">
             {% for option in item.question_version.options.all %}
             <label class="quiz-option">
-              <input type="radio" name="{{ item.question_version.pk }}" value="{{ option.pk }}">
+              <input type="radio" name="{{ item.question_version.pk }}" value="{{ option.pk }}" {% if item.saved_option_id == option.pk %}checked{% endif %}>
               <span class="quiz-option-letter" aria-hidden="true">{{ forloop.counter }}</span>
               <span>{{ option.label }}</span>
             </label>
@@ -57,6 +57,7 @@
         <button type="submit" class="quiz-button" id="quiz-submit" hidden disabled>Submit assessment</button>
       </div>
       <p class="quiz-hint" id="quiz-hint" role="status"></p>
+      <input type="hidden" name="return_to" value="{{ return_to }}">
     </form>
     {% else %}
     <p class="quiz-empty" role="alert">This assessment has no published questions yet. Ask your instructor to add questions.</p>
