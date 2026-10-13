@@ -36,12 +36,19 @@
     <div class="lrn-grid">
       <nav class="lrn-nav" aria-label="Lesson sections">
         <div class="lrn-card">
-          <h4>{{ lesson.title }}</h4>
+          <div class="lrn-nav-heading"><h4>Lesson progress</h4><span>{{ current_index|add:1 }} / {{ sections|length }}</span></div>
+          <div class="lrn-rail-progress" aria-hidden="true"><span style="width: {% widthratio current_index|add:1 sections|length 100 %}%"></span></div>
           {% for item in sections %}
           <a href="{{ item.url }}" class="lrn-nav-item {{ item.state }}">
             <span class="lrn-nav-marker" aria-hidden="true">{% if item.state == 'done' %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
             <span>{{ item.title }}</span>
           </a>
+          {% endfor %}
+        </div>
+        <div class="lrn-card">
+          <h4>Quick links</h4>
+          {% for item in sections %}
+          <a class="lrn-quick-link" href="{{ item.url }}">{{ item.title }} <span aria-hidden="true">→</span></a>
           {% endfor %}
         </div>
         <div class="lrn-card">
