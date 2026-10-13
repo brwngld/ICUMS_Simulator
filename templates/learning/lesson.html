@@ -1,62 +1,145 @@
 {% extends "core/base_student.html" %}
+{% load static %}
 
 {% block title %}{{ lesson.title }} · ICUMS Simulator{% endblock %}
 
-{% block content %}
-  <div class="dash">
-    {% if preview_mode %}<div class="dash-notice">PREVIEW — read-only draft lesson for instructors. Nothing here is saved, answered, or completed.</div>{% endif %}
-    <header class="dash-head">
-      <div>
-        <p class="dash-eyebrow">{{ module.title }} · Lesson {{ lesson.order }}</p>
-        <h1>{{ lesson.title }}</h1>
-        {% if lesson.summary %}<p>{{ lesson.summary }}</p>{% endif %}
-      </div>
-    </header>
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261012-1">
+{% endblock %}
 
-    <div class="dash-lesson-grid">
-      <section class="dash-panel">
-        <div class="dash-panel-head">
-          <div><p>Section {{ step_number }} of {{ step_count }}</p></div>
-        </div>
-        {% if current_block %}
-          <section class="dash-copy">
-            {% if current_block.heading %}<h2>{{ current_block.heading }}</h2>{% endif %}
-            <div class="formatted-copy">{{ current_block.body|linebreaks }}</div>
-          </section>
-          {% for check in checks %}
-            <form method="post" class="dash-check">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="answer_check">
-              <input type="hidden" name="position" value="{{ position }}">
-              <input type="hidden" name="check_id" value="{{ check.pk }}">
-              <fieldset>
-                <legend>Check your understanding</legend>
-                <p>{{ check.question_version.prompt }}</p>
-                {% for option in check.question_version.options.all %}<label><input type="radio" name="option" value="{{ option.pk }}"> {{ option.label }}</label>{% endfor %}
-              </fieldset>
-              <button class="dash-secondary" type="submit">Check response</button>
-            </form>
+{% block content %}
+  <div class="lrn">
+    {% if preview_mode %}<div class="dash-notice">PREVIEW — read-only draft lesson for instructors. Nothing here is saved, answered, or completed.</div>{% endif %}
+
+    <div class="lrn-head">
+      <div>
+        <p class="lrn-eyebrow">{{ module.title }} · Lesson {{ lesson.order }}</p>
+        <h1>{{ lesson.title }}</h1>
+        {% if lesson.summary %}<p class="lrn-sub">{{ lesson.summary }}</p>{% endif %}
+        <p class="lrn-meta"><span>~{{ reading_minutes }} min reading</span><span>{{ section_count }} sections</span><span>{% if check %}1 practice question{% else %}reading only{% endif %}</span></p>
+      </div>
+    </div>
+
+    <div class="lrn-grid">
+      <nav class="lrn-nav" aria-label="In this lesson">
+        <div class="lrn-card">
+          <h4>In this lesson</h4>
+          {% if objectives %}<a href="#objectives" data-lrn-target="objectives">Objectives</a>{% endif %}
+          {% for block in blocks %}
+            {% if block.kind == "text" %}<a href="#section-{{ forloop.counter }}" data-lrn-target="section-{{ forloop.counter }}">{{ block.heading|default:"Core reading" }}</a>
+            {% elif block.kind == "example" %}<a href="#section-{{ forloop.counter }}" data-lrn-target="section-{{ forloop.counter }}">Worked example</a>
+            {% elif block.kind == "notice" %}<a href="#section-{{ forloop.counter }}" data-lrn-target="section-{{ forloop.counter }}">Important note</a>{% endif %}
           {% endfor %}
-        {% else %}<p class="dash-empty">This lesson has no content blocks yet.</p>{% endif %}
-        <form method="post" class="dash-actions">
+          {% if check %}<a href="#practice" data-lrn-target="practice">Practice</a>{% endif %}
+        </div>
+      </nav>
+
+      <article class="lrn-article">
+        {% if objectives %}
+        <section id="objectives" class="lrn-objectives" data-lrn-section>
+          <b>By the end of this lesson you can</b>
+          <ul>
+            {% for objective in objectives %}<li>{{ objective }}</li>{% endfor %}
+          </ul>
+          <p>Work through the sections below, then answer the practice question at the end.</p>
+        </section>
+        {% endif %}
+
+        {% for block in blocks %}
+          {% if block.kind == "text" %}
+          <section id="section-{{ forloop.counter }}" data-lrn-section>
+            <h2><small>Learn</small>{{ block.heading|default:"Core reading" }}</h2>
+            <div class="lrn-copy">{{ block.body|linebreaks }}</div>
+          </section>
+          {% elif block.kind == "example" %}
+          <section id="section-{{ forloop.counter }}" data-lrn-section>
+            <h2><small>Apply</small>{{ block.heading|default:"Worked example" }}</h2>
+            <div class="lrn-copy lrn-scenario">{{ block.body|linebreaks }}</div>
+          </section>
+          {% elif block.kind == "notice" %}
+          <section id="section-{{ forloop.counter }}" data-lrn-section>
+            <div class="lrn-key"><b>{{ block.heading|default:"Remember" }}</b>{{ block.body|linebreaks }}</div>
+          </section>
+          {% endif %}
+        {% empty %}
+          <section><p class="lrn-empty">This lesson has no content yet.</p></section>
+        {% endfor %}
+
+        {% if check %}
+        <section id="practice" data-lrn-section>
+          <h2><small>Practise</small>Check what you have learned</h2>
+          <form method="post" class="lrn-check">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="answer_check">
+            <input type="hidden" name="check_id" value="{{ check.pk }}">
+            <h5>{{ check.question_version.prompt }}</h5>
+            <div class="lrn-options">
+              {% for option in check.question_version.options.all %}
+              <label class="lrn-option">
+                <input type="radio" name="option" value="{{ option.pk }}" required>
+                <span class="lrn-option-letter">{{ forloop.counter }}</span>
+                <span>{{ option.label }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            <button class="lrn-button" type="submit">Check response</button>
+          </form>
+        </section>
+        {% endif %}
+
+        {% if not preview_mode %}
+        <form method="post" class="lrn-complete">
           {% csrf_token %}
           <input type="hidden" name="action" value="continue">
-          <input type="hidden" name="position" value="{{ position }}">
+          {% if progress.completed_at %}
+            <p class="lrn-done">Lesson completed {{ progress.completed_at|date:"j M Y, H:i" }}.</p>
+          {% endif %}
           <a href="{% url 'roadmap' %}">Return to roadmap</a>
-          <button class="dash-primary" type="submit">{% if step_number < step_count %}Continue{% else %}Complete lesson{% endif %}</button>
+          <button class="lrn-button" type="submit">{% if progress.completed_at %}Continue →{% else %}Complete lesson →{% endif %}</button>
         </form>
-      </section>
+        {% endif %}
+      </article>
 
-      <aside class="dash-panel">
-        <div class="dash-panel-head">
-          <div><h2>Module lessons</h2></div>
+      <aside class="lrn-aside">
+        {% if key_terms %}
+        <div class="lrn-card">
+          <h4>Key terms</h4>
+          <dl>
+            {% for term, definition in key_terms %}<dt>{{ term }}</dt><dd>{{ definition }}</dd>{% endfor %}
+          </dl>
         </div>
-        <ol class="dash-lesson-list">
-          {% for item in module.lessons.all %}{% if item.is_published %}<li{% if item.pk == lesson.pk %} aria-current="step"{% endif %}>{{ item.title }}</li>{% endif %}{% endfor %}
-        </ol>
-        <p class="dash-muted">Saved section: {{ progress.last_position|add:1 }}</p>
-        {% if lesson.resources.exists %}<h2 style="margin: 1rem 0 .4rem; font-size: .9rem;">Resources</h2><ul class="dash-lesson-list" style="list-style: none; padding-left: 0;">{% for resource in lesson.resources.all %}<li>{% if resource.url %}<a href="{{ resource.url }}">{{ resource.title }}</a>{% else %}{{ resource.title }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+        {% endif %}
+        <div class="lrn-card">
+          <h4>Module lessons</h4>
+          <ol class="lrn-lessons">
+            {% for item in lessons_in_module %}<li{% if item.pk == lesson.pk %} class="on"{% endif %}>{{ item.title }}</li>{% endfor %}
+          </ol>
+        </div>
+        {% if lesson.resources.all %}
+        <div class="lrn-card">
+          <h4>Resources</h4>
+          <ul class="lrn-resources">
+            {% for resource in lesson.resources.all %}<li>{% if resource.url %}<a href="{{ resource.url }}" target="_blank" rel="noopener">{{ resource.title }}</a>{% else %}{{ resource.title }}{% endif %}</li>{% endfor %}
+          </ul>
+        </div>
+        {% endif %}
       </aside>
     </div>
   </div>
+
+  <script>
+  (() => {
+    const links = [...document.querySelectorAll("[data-lrn-target]")];
+    if (!links.length || !("IntersectionObserver" in window)) return;
+    const sections = links.map((link) => document.getElementById(link.dataset.lrnTarget)).filter(Boolean);
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        links.forEach((link) => link.classList.toggle("on", link.dataset.lrnTarget === entry.target.id));
+      });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    sections.forEach((section) => observer.observe(section));
+  })();
+  </script>
 {% endblock %}

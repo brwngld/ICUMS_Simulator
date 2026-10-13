@@ -24,6 +24,16 @@ class ModuleCreateForm(forms.Form):
 class LessonCreateForm(forms.Form):
     title = forms.CharField(max_length=180, label="Lesson title")
     summary = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    objectives = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 3}),
+        label="Learning objectives (one per line)",
+        help_text="Shown at the top of the lesson as the orientation box.",
+    )
+    key_terms = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 3}),
+        label="Key terms (one per line: Term :: definition)",
+        help_text="Shown in the lesson sidebar.",
+    )
     concept_heading = forms.CharField(max_length=180, initial="Key concept")
     concept_body = forms.CharField(widget=forms.Textarea(attrs={"rows": 7}), label="Teaching content")
     example_heading = forms.CharField(max_length=180, required=False)
@@ -129,6 +139,16 @@ class ModuleEditForm(forms.Form):
 class LessonEditForm(forms.Form):
     title = forms.CharField(max_length=180, label="Lesson title")
     summary = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
+    objectives = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 3}),
+        label="Learning objectives (one per line)",
+        help_text="Shown at the top of the lesson as the orientation box.",
+    )
+    key_terms = forms.CharField(
+        required=False, widget=forms.Textarea(attrs={"rows": 3}),
+        label="Key terms (one per line: Term :: definition)",
+        help_text="Shown in the lesson sidebar.",
+    )
 
 
 BlockFormSet = forms.modelformset_factory(

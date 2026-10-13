@@ -275,6 +275,8 @@ def lesson_create(request, module_id):
         slug=_unique_slug(Lesson, "slug", data["title"], module=module),
         title=data["title"],
         summary=data["summary"],
+        objectives=data.get("objectives", ""),
+        key_terms=data.get("key_terms", ""),
         order=module.lessons.count() + 1,
     )
     blocks = [ContentBlock.objects.create(lesson=lesson, kind="text", heading=data["concept_heading"], body=data["concept_body"], order=1)]
@@ -548,7 +550,15 @@ def lesson_preview(request, lesson_id):
     _require_instructor(request.user)
     lesson = get_object_or_404(Lesson.objects.select_related("module__programme_version__programme"), pk=lesson_id)
     blocks = list(lesson.blocks.order_by("order", "id"))
-    checks = blocks[0].knowledge_checks.select_related("question_version").prefetch_related("question_version__options") if blocks else []
+    check = lesson.knowledge_checks.select_related("question_version").prefetch_related("question_version__options").first()
+    objectives = [line.strip() for line in (lesson.objectives or "").splitlines() if line.strip()]
+    key_terms = []
+    for line in (lesson.key_terms or "").splitlines():
+        line = line.strip()
+        if "::" in line:
+            term, definition = line.split("::", 1)
+            key_terms.append((term.strip(), definition.strip()))
+    word_count = sum(len(block.body.split()) for block in blocks)
     return render_student_page(
         request,
         "learning/lesson.html",
@@ -556,11 +566,13 @@ def lesson_preview(request, lesson_id):
             "lesson": lesson,
             "module": lesson.module,
             "preview_mode": True,
-            "current_block": blocks[0] if blocks else None,
-            "checks": checks,
-            "position": 0,
-            "step_number": 1,
-            "step_count": len(blocks),
+            "blocks": blocks,
+            "check": check,
+            "objectives": objectives,
+            "key_terms": key_terms,
+            "lessons_in_module": list(lesson.module.lessons.order_by("order", "title")),
+            "reading_minutes": max(1, round(word_count / 200)),
+            "section_count": len(blocks) + (2 if check else 1),
             "progress": LessonProgress(lesson=lesson),
         },
     )
@@ -637,14 +649,16 @@ def module_edit(request, module_id):
 def lesson_edit(request, lesson_id):
     _require_instructor(request.user)
     lesson = get_object_or_404(Lesson.objects.select_related("module__programme_version"), pk=lesson_id, module__programme_version__status="draft")
-    lesson_form = LessonEditForm(request.POST or None, initial={"title": lesson.title, "summary": lesson.summary})
+    lesson_form = LessonEditForm(request.POST or None, initial={"title": lesson.title, "summary": lesson.summary, "objectives": lesson.objectives, "key_terms": lesson.key_terms})
     block_formset = BlockFormSet(request.POST or None, queryset=lesson.blocks.order_by("order"))
     check = lesson.knowledge_checks.select_related("question_version").first()
     check_form = LessonCheckEditForm(check.question_version, request.POST or None) if check else None
     if request.method == "POST" and lesson_form.is_valid() and block_formset.is_valid() and (check_form is None or check_form.is_valid()):
         lesson.title = lesson_form.cleaned_data["title"]
         lesson.summary = lesson_form.cleaned_data["summary"]
-        lesson.save(update_fields=("title", "summary"))
+        lesson.objectives = lesson_form.cleaned_data["objectives"]
+        lesson.key_terms = lesson_form.cleaned_data["key_terms"]
+        lesson.save(update_fields=("title", "summary", "objectives", "key_terms"))
         block_formset.save()
         if check_form:
             check_form.save()

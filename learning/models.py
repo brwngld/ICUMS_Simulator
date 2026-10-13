@@ -29,6 +29,8 @@ class Lesson(models.Model):
     slug = models.SlugField(max_length=80)
     title = models.CharField(max_length=180)
     summary = models.TextField(blank=True)
+    objectives = models.TextField(blank=True, help_text="One learning objective per line; shown at the top of the lesson.")
+    key_terms = models.TextField(blank=True, help_text="One per line as 'Term :: definition'; shown in the lesson sidebar.")
     order = models.PositiveIntegerField(default=1)
     is_published = models.BooleanField(default=False)
 

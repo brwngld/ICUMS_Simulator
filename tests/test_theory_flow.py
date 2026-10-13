@@ -115,9 +115,10 @@ def test_lesson_position_and_embedded_check_are_saved(client, theory_setup):
     assert LessonCheckResponse.objects.get().is_correct is True
     response = client.post(lesson_url, {"action": "continue", "position": 0})
     progress = LessonProgress.objects.get(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"])
-    assert response.url.endswith("?step=1")
-    assert progress.last_position == 0
-    assert progress.completed_at is None
+    # The staged reader is one page: continuing completes the lesson and moves on
+    # (here, to the module assessment).
+    assert response.url == reverse("assessment-take", args=(theory_setup["assessment"].pk,))
+    assert progress.completed_at is not None
     assert second_block.order == 2
 
 
