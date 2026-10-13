@@ -539,16 +539,8 @@ def assessment_question_delete(request, assessment_id, question_version_id):
     return redirect("assessment-edit", assessment_id=assessment.pk)
 
 
-@login_required
-@require_GET
-def lesson_preview(request, lesson_id):
-    """Read-only instructor preview of a lesson in the student presentation.
-
-    Renders the student template without touching progress: no LessonProgress
-    or ModuleProgress rows are created, and the view answers GET requests
-    only, so the lesson forms can never mutate anything."""
-    _require_instructor(request.user)
-    lesson = get_object_or_404(Lesson.objects.select_related("module__programme_version__programme"), pk=lesson_id)
+def _lesson_section_context(lesson):
+    """Shared section layout for the student delivery view and preview."""
     blocks = list(lesson.blocks.order_by("order", "id"))
     check = lesson.knowledge_checks.select_related("question_version").prefetch_related("question_version__options").first()
     objectives = [line.strip() for line in (lesson.objectives or "").splitlines() if line.strip()]
@@ -558,24 +550,67 @@ def lesson_preview(request, lesson_id):
         if "::" in line:
             term, definition = line.split("::", 1)
             key_terms.append((term.strip(), definition.strip()))
+    concept_block = next((b for b in blocks if b.kind == "text"), None)
+    example_block = next((b for b in blocks if b.kind == "example"), None)
+    notice_block = next((b for b in blocks if b.kind == "notice"), None)
+    sections = []
+    if objectives:
+        sections.append({"slug": "objectives", "title": "Objectives", "stage": "Orient"})
+    if concept_block:
+        sections.append({"slug": "concepts", "title": concept_block.heading or "Key concepts", "stage": "Learn"})
+    if example_block:
+        sections.append({"slug": "example", "title": example_block.heading or "Worked example", "stage": "Apply"})
+    if notice_block:
+        sections.append({"slug": "note", "title": notice_block.heading or "Important note", "stage": "Remember"})
+    if check:
+        sections.append({"slug": "practice", "title": "Practice", "stage": "Practise"})
+    if not sections:
+        sections.append({"slug": "concepts", "title": "Lesson", "stage": "Learn"})
     word_count = sum(len(block.body.split()) for block in blocks)
-    return render_student_page(
-        request,
-        "learning/lesson.html",
+    return {
+        "blocks": blocks,
+        "check": check,
+        "objectives": objectives,
+        "key_terms": key_terms,
+        "concept_block": concept_block,
+        "example_block": example_block,
+        "notice_block": notice_block,
+        "sections": sections,
+        "lessons_in_module": list(lesson.module.lessons.order_by("order", "title")),
+        "module_assessment": lesson.module.assessments.filter(is_published=True).first(),
+        "reading_minutes": max(1, round(word_count / 200)),
+    }
+
+
+@login_required
+@require_GET
+def lesson_preview(request, lesson_id):
+    """Read-only instructor preview of the lesson's first section in the
+    student presentation. No progress rows are created and the view answers
+    GET only, so the lesson forms can never mutate anything."""
+    _require_instructor(request.user)
+    lesson = get_object_or_404(Lesson.objects.select_related("module__programme_version__programme"), pk=lesson_id)
+    context = _lesson_section_context(lesson)
+    sections = context["sections"]
+    requested = request.GET.get("section")
+    index = next((i for i, item in enumerate(sections) if item["slug"] == requested), 0)
+    for i, item in enumerate(sections):
+        item["url"] = reverse("lesson-preview", args=[lesson.pk]) + f"?section={item['slug']}"
+        item["index"] = i
+        item["state"] = "done" if i < index else ("current" if i == index else "todo")
+    context.update(
         {
             "lesson": lesson,
             "module": lesson.module,
             "preview_mode": True,
-            "blocks": blocks,
-            "check": check,
-            "objectives": objectives,
-            "key_terms": key_terms,
-            "lessons_in_module": list(lesson.module.lessons.order_by("order", "title")),
-            "reading_minutes": max(1, round(word_count / 200)),
-            "section_count": len(blocks) + (2 if check else 1),
+            "current_index": index,
+            "current_section": sections[index],
+            "prev_section": sections[index - 1] if index > 0 else None,
+            "next_section": sections[index + 1] if index < len(sections) - 1 else None,
             "progress": LessonProgress(lesson=lesson),
-        },
+        }
     )
+    return render_student_page(request, "learning/lesson.html", context)
 
 
 @login_required

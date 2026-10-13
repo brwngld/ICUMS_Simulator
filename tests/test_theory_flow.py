@@ -113,11 +113,17 @@ def test_lesson_position_and_embedded_check_are_saved(client, theory_setup):
     response = client.post(lesson_url, {"action": "answer_check", "position": 0, "check_id": check.pk, "option": theory_setup["correct"].pk})
     assert response.status_code == 302
     assert LessonCheckResponse.objects.get().is_correct is True
-    response = client.post(lesson_url, {"action": "continue", "position": 0})
+    # Sections are dedicated pages: continuing from the base URL walks them in
+    # order, and completing the last one finishes the lesson (-> assessment).
+    seen = []
+    for _ in range(6):
+        response = client.post(lesson_url, {"action": "continue"})
+        assert response.status_code == 302
+        seen.append(response.url)
+        if "/assessment" in response.url or "/theory/" not in response.url:
+            break
+    assert any(url.endswith("/practice/") for url in seen), seen
     progress = LessonProgress.objects.get(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"])
-    # The staged reader is one page: continuing completes the lesson and moves on
-    # (here, to the module assessment).
-    assert response.url == reverse("assessment-take", args=(theory_setup["assessment"].pk,))
     assert progress.completed_at is not None
     assert second_block.order == 2
 

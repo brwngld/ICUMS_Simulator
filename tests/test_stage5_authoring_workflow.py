@@ -295,19 +295,23 @@ def test_complete_authoring_publish_and_progression_workflow(client, instructor,
     # lesson + knowledge check + completion
     module_one.refresh_from_db()
     lesson_detail_url = reverse("lesson-detail", args=[module_one.code, Lesson.objects.get(module=module_one, title="Lesson One (edited)").slug])
-    page = student_client.get(lesson_detail_url)
-    assert page.status_code == 200
+    page = student_client.get(lesson_detail_url, follow=True)
+    assert page.status_code == 200  # base URL redirects to the current section page
     check = LessonCheck.objects.get(lesson__title="Lesson One (edited)")
     print("CHECK OPTIONS AFTER EDIT:", list(check.question_version.options.order_by("order").values_list("label", "is_correct", "order")), "| QV:", check.question_version.pk)
     correct_option = check.question_version.options.get(is_correct=True)
     wrong_options = check.question_version.options.filter(is_correct=False)
     assert wrong_options.count() >= 1
     wrong_option = wrong_options.first()
-    checked = student_client.post(lesson_detail_url, {"action": "answer_check", "position": "0", "check_id": str(check.pk), "option": str(wrong_option.pk)})
+    practice_url = reverse("lesson-section", args=[module_one.code, Lesson.objects.get(module=module_one, title="Lesson One (edited)").slug, "practice"])
+    checked = student_client.post(practice_url, {"action": "answer_check", "check_id": str(check.pk), "option": str(wrong_option.pk)})
     assert checked.status_code == 302
     assert LessonCheckResponse.objects.filter(is_correct=False).exists()  # wrong answer recorded
-    completed = student_client.post(lesson_detail_url, {"action": "continue", "position": "0"})
-    assert completed.status_code == 302
+    for _ in range(6):
+        completed = student_client.post(lesson_detail_url, {"action": "continue"})
+        assert completed.status_code == 302
+        if "/theory/" not in completed.url:
+            break
     lesson_one_progress = LessonProgress.objects.get(enrolment__student=student, lesson=lesson_one)
     assert lesson_one_progress.completed_at is not None
 
@@ -316,7 +320,10 @@ def test_complete_authoring_publish_and_progression_workflow(client, instructor,
 
     # every published lesson of the module must be completed first
     extra_lesson_progress_url = reverse("lesson-detail", args=[module_one.code, extra_lesson.slug])
-    assert student_client.post(extra_lesson_progress_url, {"action": "continue", "position": "0"}).status_code == 302
+    for _ in range(6):
+        step = student_client.post(extra_lesson_progress_url, {"action": "continue"})
+        if "/theory/" not in step.url:
+            break
     assert LessonProgress.objects.get(lesson=extra_lesson, enrolment__student=student).completed_at is not None
 
     # pass the module assessment through the real take flow
@@ -332,7 +339,10 @@ def test_complete_authoring_publish_and_progression_workflow(client, instructor,
 
     # finish module two the same way
     lesson_two_url = reverse("lesson-detail", args=[module_two.code, Lesson.objects.get(module=module_two, title="Lesson Two").slug])
-    student_client.post(lesson_two_url, {"action": "continue", "position": "0"})
+    for _ in range(6):
+        step = student_client.post(lesson_two_url, {"action": "continue"})
+        if "/theory/" not in step.url:
+            break
     take_two = student_client.get(reverse("assessment-take", args=[module_two_assessment.pk]))
     assert take_two.status_code == 200
     attempt_two = TheoryAttempt.objects.get(enrolment__student=student, assessment=module_two_assessment)

@@ -1,35 +1,67 @@
 {% extends "core/base_student.html" %}
+{% load static %}
 
-{% block title %}Assessment result · ICUMS Simulator{% endblock %}
+{% block title %}{{ attempt.assessment.title }} · Result · ICUMS Simulator{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/quiz.css' %}?v=20261013-1">
+{% endblock %}
 
 {% block content %}
-  <div class="dash">
-    <header class="dash-head">
+  <div class="quiz">
+    <header class="quiz-head">
       <div>
-        <p class="dash-eyebrow">Attempt {{ attempt.attempt_number }}</p>
+        <p class="quiz-eyebrow">Attempt {{ attempt.attempt_number }} of {{ attempt.assessment.maximum_attempts|default:"unlimited" }} · Result</p>
         <h1>{{ attempt.assessment.title }}</h1>
       </div>
+      <a class="quiz-back" href="{% url 'roadmap' %}">← Back to lessons</a>
     </header>
 
-    <section class="dash-panel dash-result">
-      <h2>{{ attempt.get_outcome_display }}</h2>
-      <div class="dash-result-score">{{ attempt.percentage }}%</div>
-      <p class="dash-muted">{{ attempt.score }} of {{ attempt.maximum_score }} points · elapsed time recorded for information only</p>
+    <section class="quiz-result {% if passed %}is-pass{% endif %}" role="status">
+      <h2>{% if passed %}Passed — assessment complete{% else %}Not passed yet{% endif %}</h2>
+      <div class="quiz-result-score">{{ attempt.percentage }}%</div>
+      <p>{{ attempt.score }} of {{ attempt.maximum_score }} points · pass mark {{ pass_mark }}% · elapsed time recorded for information only</p>
+      {% if not passed %}
+      <p>You need {{ pass_mark }}% or more to pass. Review the questions below, revisit the lesson sections, and retake the assessment when you are ready.</p>
+      {% endif %}
+      <div class="quiz-result-actions">
+        {% if passed %}
+        <a class="quiz-button" href="{{ continue_url }}">{{ continue_label }} →</a>
+        {% else %}
+          {% if retake_allowed %}
+          <a class="quiz-button" href="{% url 'assessment-take' attempt.assessment.pk %}">Retake assessment</a>
+          {% else %}
+          <span class="quiz-button" aria-disabled="true">No attempts remaining — ask your instructor</span>
+          {% endif %}
+        <a class="quiz-button is-ghost" href="{% url 'roadmap' %}">Return to lessons</a>
+        {% endif %}
+      </div>
     </section>
 
-    <div class="dash-responses">
-      {% for response in attempt.responses.all %}
-        <article class="dash-panel">
-          <h2>{{ forloop.counter }}. {{ response.question_version.prompt }}</h2>
-          <p><strong>{% if response.is_correct %}Correct{% else %}Needs review{% endif %}</strong></p>
-          {% if response.question_version.explanation %}<p>{{ response.question_version.explanation }}</p>{% endif %}
-          {% if not response.is_correct and response.question_version.remediation_resource %}
-            <p>Recommended: {% if response.question_version.remediation_resource.url %}<a href="{{ response.question_version.remediation_resource.url }}">{% endif %}{{ response.question_version.remediation_resource.title }}{% if response.question_version.remediation_resource.url %}</a>{% endif %}</p>
+    <div class="quiz-review-grid">
+      {% for entry in review %}
+      <article class="quiz-response">
+        <h3>{{ forloop.counter }}. {{ entry.question.prompt }}</h3>
+        {% if entry.response %}
+          {% if entry.response.is_correct %}
+          <span class="tag ok">Correct</span>
+          {% else %}
+          <span class="tag no">Incorrect</span>
           {% endif %}
-        </article>
+        {% else %}
+        <span class="tag no">Not answered</span>
+        {% endif %}
+        <p><strong>Your answer:</strong> {% if entry.chosen %}{{ entry.chosen.label }}{% else %}—{% endif %}</p>
+        {% if entry.response and not entry.response.is_correct and entry.correct %}
+        <p><strong>Correct answer:</strong> {{ entry.correct.label }}</p>
+        {% endif %}
+        {% if entry.question.explanation %}<p class="why"><strong>Why:</strong> {{ entry.question.explanation }}</p>{% endif %}
+        {% if entry.response and not entry.response.is_correct and entry.question.remediation_resource %}
+        <p class="why">Recommended reading: {% if entry.question.remediation_resource.url %}<a href="{{ entry.question.remediation_resource.url }}">{{ entry.question.remediation_resource.title }}</a>{% else %}{{ entry.question.remediation_resource.title }}{% endif %}</p>
+        {% endif %}
+      </article>
       {% endfor %}
     </div>
-
-    <p class="dash-actions"><a class="dash-module-link" href="{% url 'roadmap' %}">Return to roadmap →</a></p>
   </div>
 {% endblock %}

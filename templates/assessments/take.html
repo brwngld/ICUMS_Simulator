@@ -1,28 +1,67 @@
 {% extends "core/base_student.html" %}
+{% load static %}
 
 {% block title %}{{ assessment.title }} · ICUMS Simulator{% endblock %}
 
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/quiz.css' %}?v=20261013-1">
+{% endblock %}
+
 {% block content %}
-  <div class="dash">
-    <header class="dash-head">
+  <div class="quiz">
+    <header class="quiz-head">
       <div>
-        <p class="dash-eyebrow">Untimed theory assessment</p>
+        <p class="quiz-eyebrow">Untimed theory assessment · Attempt {{ attempt.attempt_number }}</p>
         <h1>{{ assessment.title }}</h1>
-        <p>Attempt {{ attempt.attempt_number }}. Answer every question, then submit. Time is recorded for insight but never affects your result.</p>
+        <p>{{ assessment.items.count }} question{{ assessment.items.count|pluralize }} · pass mark {{ assessment.pass_percentage }}% · no time limit{% if assessment.maximum_attempts %} · up to {{ assessment.maximum_attempts }} attempts{% else %} · unlimited attempts{% endif %}. Time is recorded for insight and never affects your result.</p>
       </div>
+      <a class="quiz-back" href="{% url 'roadmap' %}">← Back to lessons</a>
     </header>
 
-    <form method="post" class="dash">
+    {% if attempt.items.all %}
+    <div class="quiz-progress" role="progressbar" aria-valuemin="1" aria-valuemax="{{ attempt.items.count }}" aria-valuenow="1" aria-label="Questions answered">
+      <div class="quiz-progress-track"><div class="quiz-progress-fill" id="quiz-progress-fill"></div></div>
+      <span class="quiz-counter" id="quiz-counter" aria-live="polite">Question 1 of {{ attempt.items.count }}</span>
+    </div>
+
+    <form method="post" id="quiz-form">
       {% csrf_token %}
-      {% for item in attempt.items.all %}
-        <fieldset class="dash-panel dash-question">
-          <legend>{{ forloop.counter }}. {{ item.question_version.prompt }}</legend>
-          {% for option in item.question_version.options.all %}
-            <label><input type="radio" name="{{ item.question_version.pk }}" value="{{ option.pk }}" required> {{ option.label }}</label>
-          {% endfor %}
+      <div class="quiz-stage" id="quiz-stage">
+        {% for item in attempt.items.all %}
+        <fieldset class="quiz-card" data-quiz-card="{{ forloop.counter }}" {% if not forloop.first %}hidden{% endif %}>
+          <legend><small>Question {{ forloop.counter }} of {{ attempt.items.count }}</small>{{ item.question_version.prompt }}</legend>
+          <div class="quiz-options">
+            {% for option in item.question_version.options.all %}
+            <label class="quiz-option">
+              <input type="radio" name="{{ item.question_version.pk }}" value="{{ option.pk }}">
+              <span class="quiz-option-letter" aria-hidden="true">{{ forloop.counter }}</span>
+              <span>{{ option.label }}</span>
+            </label>
+            {% endfor %}
+          </div>
         </fieldset>
-      {% empty %}<p class="dash-empty" role="alert">This assessment has no published questions.</p>{% endfor %}
-      {% if assessment.items.exists %}<div class="dash-actions"><button class="dash-primary" type="submit">Submit assessment</button></div>{% endif %}
+        {% endfor %}
+
+        <section class="quiz-card" data-quiz-card="review" hidden aria-label="Review your answers">
+          <legend><small>Final step</small>Review your answers</legend>
+          <p class="quiz-review-help">Check your selections, change any you like, then submit. Nothing is final until you press Submit.</p>
+          <ol class="quiz-review" id="quiz-review"></ol>
+        </section>
+      </div>
+
+      <div class="quiz-controls">
+        <button type="button" class="quiz-button is-ghost" id="quiz-prev" hidden>← Previous</button>
+        <button type="button" class="quiz-button is-ghost" id="quiz-next">Next →</button>
+        <button type="button" class="quiz-button is-ghost" id="quiz-review-btn" hidden>Review answers</button>
+        <button type="submit" class="quiz-button" id="quiz-submit" hidden disabled>Submit assessment</button>
+      </div>
+      <p class="quiz-hint" id="quiz-hint" role="status"></p>
     </form>
+    {% else %}
+    <p class="quiz-empty" role="alert">This assessment has no published questions yet. Ask your instructor to add questions.</p>
+    {% endif %}
   </div>
+
+  <script src="{% static 'js/quiz.js' %}?v=20261013-1" defer></script>
 {% endblock %}

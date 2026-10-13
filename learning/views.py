@@ -38,7 +38,15 @@ def roadmap(request):
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def lesson_detail(request, module_code, lesson_slug):
+def lesson_detail(request, module_code, lesson_slug, section=None):
+    """The staged lesson: every section is its own page.
+
+    Sections follow the teaching order - Objectives, Key concepts,
+    Worked example, Important note, Practice - and each has a dedicated
+    route. Completing the Practice section (or its Continue control)
+    completes the lesson; all module, assessment, and exam gates are
+    unchanged and enforced server-side.
+    """
     if response := _guard_onboarding(request):
         return response
     enrolment = active_enrolment_for(request.user)
@@ -50,7 +58,42 @@ def lesson_detail(request, module_code, lesson_slug):
     ModuleProgress.objects.get_or_create(enrolment=enrolment, module=module, defaults={"status": ModuleProgress.Status.IN_PROGRESS})
     blocks = list(lesson.blocks.all())
     check = lesson.knowledge_checks.select_related("question_version").prefetch_related("question_version__options").first()
-    lessons_in_module = [item for item in module.lessons.filter(is_published=True).order_by("order", "title")]
+    objectives = [line.strip() for line in (lesson.objectives or "").splitlines() if line.strip()]
+    key_terms = []
+    for line in (lesson.key_terms or "").splitlines():
+        line = line.strip()
+        if "::" in line:
+            term, definition = line.split("::", 1)
+            key_terms.append((term.strip(), definition.strip()))
+
+    # The lesson's section list, in teaching order.
+    sections = []
+    concept_block = next((b for b in blocks if b.kind == "text"), None)
+    example_block = next((b for b in blocks if b.kind == "example"), None)
+    notice_block = next((b for b in blocks if b.kind == "notice"), None)
+    if objectives:
+        sections.append({"slug": "objectives", "title": "Objectives", "stage": "Orient"})
+    if concept_block:
+        sections.append({"slug": "concepts", "title": concept_block.heading or "Key concepts", "stage": "Learn"})
+    if example_block:
+        sections.append({"slug": "example", "title": example_block.heading or "Worked example", "stage": "Apply"})
+    if notice_block:
+        sections.append({"slug": "note", "title": notice_block.heading or "Important note", "stage": "Remember"})
+    if check:
+        sections.append({"slug": "practice", "title": "Practice", "stage": "Practise"})
+    if not sections:
+        sections.append({"slug": "concepts", "title": "Lesson", "stage": "Learn"})
+
+    def section_url(slug):
+        return reverse("lesson-section", args=(module.code, lesson.slug, slug))
+
+    current_index = next((index for index, item in enumerate(sections) if item["slug"] == section), None)
+    if current_index is None:
+        # no/unknown section: resume at the first unvisited page (or Practice when done)
+        resume_index = min(progress.last_position or 0, len(sections) - 1)
+        if request.method == "GET":
+            return redirect(section_url(sections[resume_index]["slug"]))
+        current_index = resume_index
 
     if request.method == "POST":
         action = request.POST.get("action", "continue")
@@ -62,26 +105,30 @@ def lesson_detail(request, module_code, lesson_slug):
                 previous = LessonCheckResponse.objects.filter(enrolment=enrolment, lesson_check=check).aggregate(value=Max("attempt_number"))["value"] or 0
                 LessonCheckResponse.objects.create(enrolment=enrolment, lesson_check=check, attempt_number=previous + 1, selected_option=selected, is_correct=selected.is_correct)
                 messages.success(request, "Correct. " + check.question_version.explanation if selected.is_correct else "Review this point. " + check.question_version.explanation)
-            return redirect(request.path + "#practice")
-        # continue: the staged reader is one page, so advancing completes the lesson.
-        progress.last_position = max(len(blocks) - 1, 0)
+            return redirect(section_url("practice") + "#feedback")
+        # continue: advance to the next section; the last section completes the lesson.
+        if current_index < len(sections) - 1:
+            progress.last_position = max(progress.last_position or 0, current_index + 1)
+            progress.save(update_fields=("last_position", "updated_at"))
+            return redirect(section_url(sections[current_index + 1]["slug"]))
+        progress.last_position = len(sections) - 1
         progress.completed_at = progress.completed_at or timezone.now()
         progress.save(update_fields=("last_position", "completed_at", "updated_at"))
+        lessons_in_module = list(module.lessons.filter(is_published=True).order_by("order", "title"))
         next_lesson = next((item for item in lessons_in_module if item.order > lesson.order), None)
         if next_lesson:
             return redirect("lesson-detail", module_code=module.code, lesson_slug=next_lesson.slug)
         assessment = module.assessments.filter(is_published=True).first()
         return redirect("assessment-take", assessment_id=assessment.pk) if assessment else redirect("roadmap")
 
-    objectives = [line.strip() for line in (lesson.objectives or "").splitlines() if line.strip()]
-    key_terms = []
-    for line in (lesson.key_terms or "").splitlines():
-        line = line.strip()
-        if "::" in line:
-            term, definition = line.split("::", 1)
-            key_terms.append((term.strip(), definition.strip()))
+    progress.last_position = max(progress.last_position or 0, current_index)
+    progress.save(update_fields=("last_position", "updated_at"))
+    for index, item in enumerate(sections):
+        item["url"] = section_url(item["slug"])
+        item["index"] = index
+        item["state"] = "done" if index < current_index or progress.completed_at else ("current" if index == current_index else "todo")
     word_count = sum(len(block.body.split()) for block in blocks)
-    reading_minutes = max(1, round(word_count / 200))
+    module_assessment = module.assessments.filter(is_published=True).first()
     return render_student_page(
         request,
         "learning/lesson.html",
@@ -90,13 +137,19 @@ def lesson_detail(request, module_code, lesson_slug):
             "module": module,
             "lesson": lesson,
             "progress": progress,
-            "blocks": blocks,
+            "sections": sections,
+            "current_index": current_index,
+            "current_section": sections[current_index],
+            "prev_section": sections[current_index - 1] if current_index > 0 else None,
+            "next_section": sections[current_index + 1] if current_index < len(sections) - 1 else None,
+            "concept_block": concept_block,
+            "example_block": example_block,
+            "notice_block": notice_block,
             "check": check,
             "objectives": objectives,
             "key_terms": key_terms,
-            "lessons_in_module": lessons_in_module,
-            "reading_minutes": reading_minutes,
-            "section_count": len(blocks) + (2 if check else 1),
+            "lessons_in_module": list(module.lessons.filter(is_published=True).order_by("order", "title")),
+            "module_assessment": module_assessment,
+            "reading_minutes": max(1, round(word_count / 200)),
         },
     )
-

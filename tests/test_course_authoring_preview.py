@@ -86,7 +86,10 @@ def test_instructor_can_preview_draft_lesson(client, instructor, draft_content):
     assert "PREVIEW" in html
     assert "Preview Lesson" in html
     assert "Draft teaching body." in html
-    assert "Check prompt?" in html
+    # Each section is its own page; the practice question lives on its page.
+    practice = client.get(reverse("lesson-preview", args=[draft_content["lesson"].pk]) + "?section=practice")
+    assert practice.status_code == 200
+    assert "Check prompt?" in practice.content.decode()
 
 
 @pytest.mark.django_db
@@ -198,7 +201,7 @@ def test_student_delivery_unchanged_by_preview(client, student_with_progress=Non
     lesson = Lesson.objects.create(module=module, slug="guard-lesson", title="Guard Lesson", order=1, is_published=True)
     ContentBlock.objects.create(lesson=lesson, heading="h", body="b", order=1)
     client.force_login(student)
-    response = client.get(reverse("lesson-detail", args=[module.code, lesson.slug]))
+    response = client.get(reverse("lesson-detail", args=[module.code, lesson.slug]), follow=True)
     assert response.status_code == 200
     assert "PREVIEW" not in response.content.decode()  # student view is never labelled as preview
     assert LessonProgress.objects.count() == 1  # normal student behaviour intact
