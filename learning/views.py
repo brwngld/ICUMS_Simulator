@@ -22,6 +22,32 @@ def _guard_onboarding(request):
     return None
 
 
+def _lesson_sections():
+    return [
+        {"slug": "objectives", "title": "Objectives", "stage": "Orient"},
+        {"slug": "concepts", "title": "Key concepts", "stage": "Learn"},
+        {"slug": "example", "title": "Worked example", "stage": "Apply"},
+        {"slug": "note", "title": "Important note", "stage": "Remember"},
+        {"slug": "practice", "title": "Practice", "stage": "Practise"},
+    ]
+
+
+def _resolve_current_section(sections, progress, requested_section):
+    current_index = next((index for index, item in enumerate(sections) if item["slug"] == requested_section), None)
+    if current_index is not None:
+        return current_index, False
+
+    resume_index = min(progress.last_position or 0, len(sections) - 1)
+    return resume_index, True
+
+
+def _annotate_sections(sections, section_url, progress, current_index):
+    for index, item in enumerate(sections):
+        item["url"] = section_url(item["slug"])
+        item["index"] = index
+        item["state"] = "done" if index < current_index or progress.completed_at else ("current" if index == current_index else "todo")
+
+
 @login_required
 def roadmap(request):
     if response := _guard_onboarding(request):
@@ -67,29 +93,19 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
             key_terms.append((term.strip(), definition.strip()))
 
     # The lesson's section list, in teaching order.
-    sections = []
     concept_block = next((b for b in blocks if b.kind == "text"), None)
     example_block = next((b for b in blocks if b.kind == "example"), None)
     notice_block = next((b for b in blocks if b.kind == "notice"), None)
-    sections = [
-        {"slug": "objectives", "title": "Objectives", "stage": "Orient"},
-        {"slug": "concepts", "title": "Key concepts", "stage": "Learn"},
-        {"slug": "example", "title": "Worked example", "stage": "Apply"},
-        {"slug": "note", "title": "Important note", "stage": "Remember"},
-        {"slug": "practice", "title": "Practice", "stage": "Practise"},
-    ]
+    sections = _lesson_sections()
 
     def section_url(slug):
         return reverse("lesson-section", args=(module.code, lesson.slug, slug))
 
-    current_index = next((index for index, item in enumerate(sections) if item["slug"] == section), None)
     overview_mode = section is None
-    if current_index is None:
+    current_index, should_redirect = _resolve_current_section(sections, progress, section)
+    if should_redirect and request.method == "GET" and not overview_mode:
         # no/unknown section: resume at the first unvisited page (or Practice when done)
-        resume_index = min(progress.last_position or 0, len(sections) - 1)
-        if request.method == "GET" and not overview_mode:
-            return redirect(section_url(sections[resume_index]["slug"]))
-        current_index = resume_index
+        return redirect(section_url(sections[current_index]["slug"]))
 
     if request.method == "POST":
         action = request.POST.get("action", "continue")
@@ -119,10 +135,7 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
 
     progress.last_position = max(progress.last_position or 0, current_index)
     progress.save(update_fields=("last_position", "updated_at"))
-    for index, item in enumerate(sections):
-        item["url"] = section_url(item["slug"])
-        item["index"] = index
-        item["state"] = "done" if index < current_index or progress.completed_at else ("current" if index == current_index else "todo")
+    _annotate_sections(sections, section_url, progress, current_index)
     word_count = sum(len(block.body.split()) for block in blocks)
     module_assessment = module.assessments.filter(is_published=True).first()
     module_lessons_complete = module_lessons_completed(enrolment, module)
