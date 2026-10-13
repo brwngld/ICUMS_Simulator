@@ -15,9 +15,15 @@
     <div class="lrn-head">
       <div>
         <p class="lrn-eyebrow"><a href="{% url 'roadmap' %}">Theory roadmap</a> <span aria-hidden="true">·</span> {{ module.title }}</p>
+        {% if overview_mode %}
+        <p class="lrn-course">Lesson {{ lesson_position }} of {{ lessons_in_module|length }}</p>
+        <h1>{{ lesson.title }}</h1>
+        <p class="lrn-sub">{% if lesson.summary %}{{ lesson.summary }}{% else %}Build your understanding through guided concepts, examples and practice.{% endif %}{% if not preview_mode %} · ~{{ reading_minutes }} min{% endif %}</p>
+        {% else %}
         <p class="lrn-course">{{ lesson.title }}</p>
         <h1>{{ current_section.title }}</h1>
         <p class="lrn-sub">{{ current_section.stage }} · Lesson {{ lesson_position }} of {{ lessons_in_module|length }} · Section {{ current_index|add:1 }} of {{ sections|length }}{% if not preview_mode %} · ~{{ reading_minutes }} min lesson{% endif %}</p>
+        {% endif %}
       </div>
       {% if progress.completed_at %}<span class="lrn-badge">Lesson completed</span>{% endif %}
     </div>
@@ -75,7 +81,53 @@
         {% endif %}
       </nav>
 
-      <article class="lrn-article" data-lrn-pane>
+      <article class="lrn-article{% if overview_mode %} lrn-overview{% endif %}" data-lrn-pane>
+        {% if overview_mode %}
+        <section class="lrn-enter lrn-overview-intro">
+          <span class="lrn-section-label">Lesson overview</span>
+          <h2>{{ lesson.title }}</h2>
+          <p>{% if lesson.summary %}{{ lesson.summary }}{% else %}This lesson brings together the essential ideas, practical context and decisions needed for this part of the programme.{% endif %}</p>
+          <div class="lrn-overview-meta">
+            <span>~{{ reading_minutes }} min reading</span>
+            <span>{{ sections|length }} learning steps</span>
+            {% if progress.completed_at %}<span class="lrn-status">Completed</span>{% else %}<span class="lrn-status">In progress</span>{% endif %}
+          </div>
+        </section>
+
+        <section class="lrn-enter lrn-overview-section">
+          <h2><small>Understand</small>What you'll learn</h2>
+          {% if objectives %}
+          <div class="lrn-objective-grid">
+            {% for objective in objectives %}
+            <div class="lrn-objective">
+              <span class="lrn-objective-icon" aria-hidden="true">✓</span>
+              <p>{{ objective }}</p>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}<p class="lrn-empty">Learning objectives for this lesson have not been published yet.</p>{% endif %}
+        </section>
+
+        <section class="lrn-enter lrn-overview-section">
+          <h2><small>Follow the journey</small>Lesson content</h2>
+          <div class="lrn-content-list">
+            {% for item in sections %}
+            <a class="lrn-content-item {{ item.state }}" href="{{ item.url }}">
+              <span class="lrn-content-number" aria-hidden="true">{% if item.state == "done" %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
+              <span class="lrn-content-copy"><strong>{{ item.title }}</strong><small>{{ item.stage }}{% if item.state == "current" %} · Continue here{% elif item.state == "done" %} · Completed{% endif %}</small></span>
+              <span class="lrn-content-arrow" aria-hidden="true">→</span>
+            </a>
+            {% endfor %}
+          </div>
+        </section>
+
+        <div class="lrn-overview-actions">
+          <a class="lrn-button" href="{{ current_section.url }}">{% if progress.completed_at %}Review lesson{% else %}Continue lesson{% endif %} →</a>
+          {% if module_assessment and module_lessons_complete %}
+          <a class="lrn-button is-ghost" href="{% url 'assessment-take' module_assessment.pk %}?return_to={{ current_section.url|urlencode }}">Module assessment</a>
+          {% endif %}
+        </div>
+        {% else %}
         {% if current_section.slug == "objectives" %}
         <section class="lrn-enter">
           <div class="lrn-introduction">
@@ -156,6 +208,7 @@
             </form>
           </div>
         </div>
+        {% endif %}
       </article>
     </div>
   </div>

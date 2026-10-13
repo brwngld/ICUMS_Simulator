@@ -83,10 +83,11 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
         return reverse("lesson-section", args=(module.code, lesson.slug, slug))
 
     current_index = next((index for index, item in enumerate(sections) if item["slug"] == section), None)
+    overview_mode = section is None
     if current_index is None:
         # no/unknown section: resume at the first unvisited page (or Practice when done)
         resume_index = min(progress.last_position or 0, len(sections) - 1)
-        if request.method == "GET":
+        if request.method == "GET" and not overview_mode:
             return redirect(section_url(sections[resume_index]["slug"]))
         current_index = resume_index
 
@@ -138,6 +139,7 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
             "sections": sections,
             "current_index": current_index,
             "current_section": sections[current_index],
+            "overview_mode": overview_mode,
             "prev_section": sections[current_index - 1] if current_index > 0 else None,
             "next_section": sections[current_index + 1] if current_index < len(sections) - 1 else None,
             "concept_block": concept_block,

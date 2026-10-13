@@ -66,6 +66,17 @@ def test_every_lesson_has_all_five_section_routes(client, theory_setup):
 
 
 @pytest.mark.django_db
+def test_lesson_base_url_shows_journey_overview(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    client.force_login(theory_setup["user"])
+    response = client.get(reverse("lesson-detail", args=(theory_setup["module"].code, theory_setup["lesson"].slug)))
+    assert response.status_code == 200
+    assert response.context["overview_mode"] is True
+    assert "What you'll learn" in response.content.decode()
+    assert "Lesson content" in response.content.decode()
+
+
+@pytest.mark.django_db
 def test_assessment_answers_resume_after_refresh_and_return_to_lesson(client, theory_setup):
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
     LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"], completed_at=theory_setup["disclaimer"].published_at)
