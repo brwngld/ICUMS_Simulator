@@ -1,24 +1,14 @@
-{% extends "core/base_student.html" %}
-
-{% block title %}Edit {{ lesson.title }} · ICUMS Simulator{% endblock %}
-{% block workspace_name %}Edit lesson{% endblock %}
-{% block content %}
-<div class="dash">
-<header class="dash-head"><div><p class="dash-eyebrow">{{ lesson.module.programme_version.programme.name }} · {{ lesson.module.title }}</p><h1>Edit lesson</h1><p>Edits apply to the draft course and become visible to students when it is published.</p></div></header>
-<form method="post">{% csrf_token %}
-  <section class="dash-panel form-section"><h2>Lesson details</h2>{{ lesson_form.title.as_field_group }}{{ lesson_form.summary.as_field_group }}{{ lesson_form.objectives.as_field_group }}{{ lesson_form.key_terms.as_field_group }}</section>
-  <section class="dash-panel form-section"><h2>Reading sections</h2><p class="dash-muted">Each reading section is one step of the lesson. Reordering arrives with the next authoring update.</p>
-  {% for block_form in block_formset %}<article class="review-lesson">{% for hidden in block_form.hidden_fields %}{{ hidden }}{% endfor %}{{ block_form.heading.as_field_group }}{{ block_form.body.as_field_group }}</article>{% endfor %}
-  {{ block_formset.management_form }}</section>
-  {% if check_form %}
-  <section class="dash-panel form-section"><h2>Knowledge check</h2>
-    {{ check_form.prompt.as_field_group }}
-    {{ check_form.explanation.as_field_group }}
-    {% for field in check_form.visible_fields %}{% if field.name != "prompt" and field.name != "explanation" and field.name != "correct_option" %}{{ field.as_field_group }}{% endif %}{% endfor %}
-    {{ check_form.correct_option.as_field_group }}
-  </section>
-  {% endif %}
-  <div class="form-actions"><a class="dash-secondary" href="{% url 'course-builder-detail' lesson.module.programme_version_id %}">Cancel</a><button class="dash-primary" type="submit">Save lesson</button></div>
-</form>
-</div>
-{% endblock %}
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}Edit {{ lesson.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit lesson{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261014-1">{% endblock %}
+{% block content %}<div class="authoring">
+  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ lesson.module.programme_version.programme.name }} · {{ lesson.module.title }}</p><h1>Edit Lesson — {{ lesson.title }}</h1><p>Edit the persisted content the learner sees. Saving does not publish the course.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'lesson-preview' lesson.pk %}">Learner Preview</a><a class="authoring-secondary" href="{% url 'course-builder-detail' lesson.module.programme_version_id %}">Back to lessons</a></div></header>
+  <form method="post" class="authoring-form">{% csrf_token %}
+    <nav class="authoring-tabs" role="tablist" data-authoring-tabs><button type="button" role="tab" aria-selected="true" data-authoring-tab="details">Lesson details</button><button type="button" role="tab" aria-selected="false" data-authoring-tab="sections" tabindex="-1">Sections</button><button type="button" role="tab" aria-selected="false" data-authoring-tab="practice" tabindex="-1">Practice</button><button type="button" role="tab" aria-selected="false" data-authoring-tab="review" tabindex="-1">Review</button></nav>
+    <section class="authoring-card authoring-panel" data-authoring-panel="details"><div class="authoring-editor-header"><div><h2>Lesson details</h2><p>Metadata, learning objectives and key terminology.</p></div><span class="authoring-status">Draft</span></div>{{ lesson_form.title.as_field_group }}{{ lesson_form.summary.as_field_group }}{{ lesson_form.objectives.as_field_group }}{{ lesson_form.key_terms.as_field_group }}</section>
+    <section class="authoring-card authoring-panel" data-authoring-panel="sections" hidden><div class="authoring-editor-header"><div><h2>Lesson sections</h2><p>Edit each existing content section without changing its persisted type or order.</p></div><span class="authoring-status">{{ block_count }} section{{ block_count|pluralize }}</span></div>{{ block_formset.management_form }}<div class="authoring-item-list">{% for block_form in block_formset %}<article class="authoring-item"><span class="authoring-section-icon">{{ forloop.counter }}</span><div><h3>{% if block_form.instance.kind == 'text' %}Key concepts{% elif block_form.instance.kind == 'example' %}Worked example{% else %}Important note{% endif %}</h3><p>Section {{ forloop.counter|add:1 }} in the learner journey</p></div><span class="authoring-status">Saved</span><div class="authoring-lesson-list">{% for hidden in block_form.hidden_fields %}{{ hidden }}{% endfor %}{{ block_form.heading.as_field_group }}{{ block_form.body.as_field_group }}</div></article>{% empty %}<p class="authoring-empty">No reading sections have been created.</p>{% endfor %}</div></section>
+    <section class="authoring-card authoring-panel" data-authoring-panel="practice" hidden><div class="authoring-editor-header"><div><h2>Practice section</h2><p>Formative question, answer options and learner feedback.</p></div><span class="authoring-status">Section 5</span></div>{% if check_form %}{{ check_form.prompt.as_field_group }}{{ check_form.explanation.as_field_group }}{% for field in check_form.visible_fields %}{% if field.name != "prompt" and field.name != "explanation" and field.name != "correct_option" %}{{ field.as_field_group }}{% endif %}{% endfor %}{{ check_form.correct_option.as_field_group }}{% else %}<p class="authoring-empty">This lesson has no practice question.</p>{% endif %}</section>
+    <section class="authoring-card authoring-panel" data-authoring-panel="review" hidden><div class="authoring-editor-header"><div><h2>Review lesson</h2><p>Confirm content readiness before returning to the course review and publish workflow.</p></div></div><dl class="authoring-facts"><div><dt>Lesson title</dt><dd>{{ lesson.title }}</dd></div><div><dt>Reading sections</dt><dd>{{ block_count }}</dd></div><div><dt>Practice question</dt><dd>{% if check_form %}Configured{% else %}Missing{% endif %}</dd></div><div><dt>Publication</dt><dd>Controlled by course review</dd></div></dl><a class="authoring-secondary" href="{% url 'lesson-preview' lesson.pk %}">Preview as learner</a></section>
+    <div class="authoring-sticky-actions"><a class="authoring-secondary" href="{% url 'course-builder-detail' lesson.module.programme_version_id %}">Cancel</a><button class="authoring-primary" type="submit">Save lesson</button></div>
+  </form>
+</div><script src="{% static 'js/instructor-theory-builder.js' %}?v=20261014-1"></script>{% endblock %}

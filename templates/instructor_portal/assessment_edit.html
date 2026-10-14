@@ -1,39 +1,10 @@
-{% extends "core/base_student.html" %}
-
-{% block title %}{{ assessment.title }} · ICUMS Simulator{% endblock %}
-{% block workspace_name %}Assessment{% endblock %}
-{% block content %}
-<div class="dash">
-<header class="dash-head"><div><p class="dash-eyebrow">Draft course · {{ assessment.get_assessment_type_display }}</p><h1>{{ assessment.title }}</h1><p>Students pass by scoring at least {{ assessment.pass_percentage }}%.{{ assessment.module.title|yesno:" This assessment completes its module once passed,| Passing this examination unlocks simulator orientation and practical training," }}</p></div>
-<div class="form-actions"><a class="dash-secondary" href="{% url 'assessment-preview' assessment.pk %}">Preview</a><a class="dash-secondary" href="{% url 'course-builder-detail' assessment.programme_version_id %}">Back to outline</a></div></header>
-
-<section class="dash-panel form-section">
-  <h2>Settings</h2>
-  <form method="post" class="dash-form">{% csrf_token %}
-    {{ form.title.as_field_group }}
-    <div class="form-columns"><div>{{ form.pass_percentage.as_field_group }}</div><div>{{ form.maximum_attempts.as_field_group }}</div></div>
-    {{ form.randomize_questions.as_field_group }}
-    <div class="dash-actions"><button class="dash-primary" type="submit">Save settings</button></div>
-  </form>
-</section>
-
-<section class="dash-panel form-section">
-  <div class="dash-panel-head"><div><h2>Questions</h2><p>{{ questions|length }} question{{ questions|length|pluralize }} · each learner answer is scored out of the question's points</p></div>
-  <a class="dash-primary" href="{% url 'assessment-question-add' assessment.pk %}">Add a question</a></div>
-  {% for item in questions %}
-  <article class="review-lesson">
-    <div><span class="dash-pill is-info">Question {{ forloop.counter }} · {{ item.question_version.points }} point{{ item.question_version.points|pluralize }}</span></div>
-    <p><strong>{{ item.question_version.prompt }}</strong></p>
-    <p class="dash-muted">{{ item.question_version.explanation|default:"No explanation yet." }}</p>
-    <ul class="dash-lesson-list">
-      {% for option in item.question_version.options.all %}<li{% if option.is_correct %} aria-current="step"{% endif %}>{{ option.label }}{% if option.is_correct %} — correct{% endif %}</li>{% endfor %}
-    </ul>
-    <div class="dash-action-list">
-      <a class="dash-secondary" href="{% url 'assessment-question-edit' assessment.pk item.question_version.pk %}">Edit question</a>
-      <form method="post" action="{% url 'assessment-question-delete' assessment.pk item.question_version.pk %}">{% csrf_token %}<button class="dash-secondary" type="submit">Remove question</button></form>
-    </div>
-  </article>
-  {% empty %}<p class="dash-empty">No questions yet. Publishing requires at least one question.</p>{% endfor %}
-</section>
-</div>
-{% endblock %}
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}{{ assessment.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Assessment{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261014-1">{% endblock %}
+{% block content %}<div class="authoring">
+  <header class="authoring-head"><div><p class="authoring-eyebrow">Draft course · {{ assessment.get_assessment_type_display }}</p><h1>{% if assessment.module %}Module Assessment{% else %}Final Theory Assessment{% endif %}</h1><p>Configure the real assessment settings, questions, correct answers and explanatory feedback.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'assessment-preview' assessment.pk %}">Learner Preview</a><a class="authoring-secondary" href="{% url 'course-builder-detail' assessment.programme_version_id %}">Back to course</a></div></header>
+  <nav class="authoring-tabs" role="tablist" data-authoring-tabs><button type="button" role="tab" aria-selected="true" data-authoring-tab="settings">Settings</button><button type="button" role="tab" aria-selected="false" data-authoring-tab="questions" tabindex="-1">Questions</button><button type="button" role="tab" aria-selected="false" data-authoring-tab="review" tabindex="-1">Review</button></nav>
+  <section class="authoring-panel" data-authoring-panel="settings"><div class="authoring-layout"><form method="post" class="authoring-card authoring-form">{% csrf_token %}<div class="authoring-editor-header"><div><h2>Assessment settings</h2><p>The learner assessment is untimed. Attempt limits and pass mark come from these saved values.</p></div><span class="authoring-status">Draft</span></div>{{ form.title.as_field_group }}<div class="form-columns"><div>{{ form.pass_percentage.as_field_group }}</div><div>{{ form.maximum_attempts.as_field_group }}</div></div>{{ form.randomize_questions.as_field_group }}<div class="authoring-sticky-actions"><button class="authoring-primary" type="submit">Save settings</button></div></form><aside class="authoring-aside"><section class="authoring-card"><h2>Current policy</h2><dl class="authoring-facts"><div><dt>Pass mark</dt><dd>{{ assessment.pass_percentage|floatformat:0 }}%</dd></div><div><dt>Time limit</dt><dd>Untimed</dd></div><div><dt>Maximum attempts</dt><dd>{{ assessment.maximum_attempts|default:"Unlimited" }}</dd></div><div><dt>Question order</dt><dd>{% if assessment.randomize_questions %}Shuffled{% else %}Authored order{% endif %}</dd></div></dl></section></aside></div></section>
+  <section class="authoring-panel" data-authoring-panel="questions" hidden><div class="authoring-head"><div><h2>Assessment questions</h2><p>{{ questions|length }} configured question{{ questions|length|pluralize }}. Practice questions remain separate from formal scoring.</p></div><a class="authoring-primary" href="{% url 'assessment-question-add' assessment.pk %}">+ Add question</a></div><div class="authoring-item-list">{% for item in questions %}<article class="authoring-item"><span class="authoring-module-number">{{ forloop.counter }}</span><div><h3>{{ item.question_version.prompt }}</h3><p>{{ item.question_version.points }} point{{ item.question_version.points|pluralize }} · {{ item.question_version.explanation|default:"No feedback supplied." }}</p><div class="authoring-preview-steps">{% for option in item.question_version.options.all %}<span>{% if option.is_correct %}✓ {% endif %}{{ option.label }}</span>{% endfor %}</div></div><div class="authoring-module-tools"><a class="authoring-secondary" href="{% url 'assessment-question-edit' assessment.pk item.question_version.pk %}">Edit</a><form method="post" action="{% url 'assessment-question-delete' assessment.pk item.question_version.pk %}">{% csrf_token %}<button class="authoring-secondary" type="submit">Remove</button></form></div></article>{% empty %}<div class="authoring-card authoring-empty">No questions yet. Publishing requires at least one valid question.</div>{% endfor %}</div></section>
+  <section class="authoring-card authoring-panel" data-authoring-panel="review" hidden><div class="authoring-editor-header"><div><h2>Assessment review</h2><p>Resolve missing content before publishing the parent course.</p></div><span class="authoring-status">{% if questions %}Ready to preview{% else %}Needs questions{% endif %}</span></div><dl class="authoring-facts"><div><dt>Assessment title</dt><dd>{{ assessment.title }}</dd></div><div><dt>Questions</dt><dd>{{ questions|length }}</dd></div><div><dt>Pass mark</dt><dd>{{ assessment.pass_percentage|floatformat:0 }}%</dd></div><div><dt>Attempts</dt><dd>{{ assessment.maximum_attempts|default:"Unlimited" }}</dd></div><div><dt>Time policy</dt><dd>Untimed</dd></div></dl><a class="authoring-primary" href="{% url 'assessment-preview' assessment.pk %}">Preview assessment</a></section>
+</div><script src="{% static 'js/instructor-theory-builder.js' %}?v=20261014-1"></script>{% endblock %}

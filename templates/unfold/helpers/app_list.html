@@ -1,0 +1,80 @@
+{% load i18n unfold %}
+
+{% if sidebar_navigation %}
+    <div id="nav-sidebar-apps" class="h-0 grow overflow-auto scrollbar-default-hover">
+        {% for group in sidebar_navigation %}
+            {% if group.items %}
+                {% has_nav_item_active group.items as has_active %}
+
+                <div class="hidden mb-1.5 has-[ol]:has-[li]:block{% if group.title == 'My Learning' %} my-learning-group{% endif %}" {% if group.collapsible %}x-data="{navigationOpen: {% if has_active %}true{% else %}false{% endif %}}"{% endif %}>
+                    {% if group.separator %}<hr class="border-t border-base-200 mx-6 my-2 dark:border-base-800" />{% endif %}
+
+                    {% if group.title %}
+                        <h2 class="font-semibold flex flex-row group items-center mb-1 mx-3 py-1.5 px-3 select-none text-font-important-light text-sm dark:text-font-important-dark{% if group.title == 'My Learning' %} my-learning-heading{% endif %} {% if group.collapsible %}cursor-pointer hover:text-primary-600 dark:hover:text-primary-500{% endif %}" {% if group.collapsible %}x-on:click="navigationOpen = !navigationOpen"{% endif %}>
+                            {{ group.title }}
+                            {% include "unfold/helpers/app_list_badge.html" with item=group %}
+                            {% if group.collapsible %}<span class="material-symbols-outlined ml-auto transition-transform group-hover:text-primary-600 dark:group-hover:text-primary-500" x-bind:class="{'rotate-90': navigationOpen}">chevron_right</span>{% endif %}
+                        </h2>
+                    {% endif %}
+
+                    <ol class="flex flex-col px-6{% if group.title == 'My Learning' %} my-learning-list{% endif %}" {% if group.collapsible %}x-show="navigationOpen"{% endif %}>
+                        {% for item in group.items %}
+                            {% if item.has_permission %}
+                                <li{% if group.title == 'My Learning' %} class="my-learning-item{% if item.submenu %} has-children{% endif %}"{% endif %}{% if item.submenu %} x-data="{navigationOpen: {% if item.active %}true{% else %}false{% endif %}}"{% endif %}>
+                                    {% if item.submenu %}
+                                        <button type="button" class="flex h-[38px] items-center -mx-3 px-3 rounded-default w-[calc(100%+1.5rem)] hover:text-primary-600 dark:hover:text-primary-500{% if group.title == 'My Learning' %} my-learning-parent{% endif %} {% if item.active %}font-semibold text-primary-600 dark:text-primary-500 active{% endif %}" x-on:click="navigationOpen = !navigationOpen" aria-label="Toggle {{ item.title }}">
+                                            <span class="my-learning-icon">{% if item.icon_template %}{% include item.icon_template with item=item %}{% elif item.icon %}<span class="material-symbols-outlined md-18">{{ item.icon }}</span>{% endif %}</span>
+                                            <span class="my-learning-parent-label">{{ item.title|safe }}</span>
+                                            <span class="material-symbols-outlined md-18 ml-auto transition-transform my-learning-chevron" x-bind:class="{'rotate-90': navigationOpen}">chevron_right</span>
+                                        </button>
+                                        <ol class="flex flex-col border-l border-base-200 dark:border-base-800 ml-[6px] pl-5{% if group.title == 'My Learning' %} my-learning-children{% endif %}" x-show="navigationOpen" x-cloak>
+                                            {% for child in item.items %}
+                                                {% if child.has_permission %}
+                                                    <li{% if child.submenu %} x-data="{navigationOpen: {% if child.active %}true{% else %}false{% endif %}}"{% endif %}>
+                                                        {% if child.submenu %}
+                                                            <button type="button" class="my-learning-child my-learning-module{% if child.active %} active{% endif %}" x-on:click="navigationOpen = !navigationOpen" aria-label="Toggle {{ child.title }}">
+                                                                <span>{{ child.title|safe }}</span>
+                                                                <span class="material-symbols-outlined my-learning-chevron" x-bind:class="{'rotate-90': navigationOpen}">chevron_right</span>
+                                                            </button>
+                                                            {% if child.items %}
+                                                            <ol class="my-learning-lessons" x-show="navigationOpen" x-cloak>
+                                                                {% for leaf in child.items %}
+                                                                    {% if leaf.has_permission %}
+                                                                    <li><a href="{{ leaf.link }}" class="my-learning-lesson {{ leaf.learning_state }}{% if leaf.active %} active{% endif %}"><span class="my-learning-state" aria-hidden="true"></span><span class="my-learning-lesson-label">{{ leaf.title|safe }}</span></a></li>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            </ol>
+                                                            {% endif %}
+                                                        {% elif child.link %}
+                                                            <a href="{{ child.link }}" class="flex min-h-[34px] items-center px-3 rounded-default hover:text-primary-600 dark:hover:text-primary-500{% if group.title == 'My Learning' %} my-learning-child{% endif %} {% if child.active %}font-semibold text-primary-600 dark:text-primary-500 active{% endif %}"><span>{{ child.title|safe }}</span></a>
+                                                        {% else %}
+                                                            <span class="flex min-h-[34px] items-center px-3 opacity-60{% if group.title == 'My Learning' %} my-learning-child{% endif %}" aria-disabled="true"><span>{{ child.title|safe }}</span></span>
+                                                        {% endif %}
+                                                    </li>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </ol>
+                                    {% elif item.disabled %}
+                                        <span class="flex h-[38px] items-center -mx-3 px-3 rounded-default opacity-60{% if group.title == 'My Learning' %} my-learning-parent my-learning-unavailable{% endif %}">
+                                            <span class="my-learning-icon">{% if item.icon_template %}{% include item.icon_template with item=item %}{% elif item.icon %}<span class="material-symbols-outlined md-18">{{ item.icon }}</span>{% endif %}</span>
+                                            <span class="my-learning-parent-label">{{ item.title|safe }}</span>
+                                        </span>
+                                    {% else %}
+                                        <a href="{% if item.link_callback %}{{ item.link_callback }}{% else %}{{ item.link }}{% endif %}" class="flex h-[38px] items-center -mx-3 px-3 rounded-default hover:text-primary-600 dark:hover:text-primary-500 {% if item.active %}bg-base-100 font-semibold text-primary-600 dark:bg-white/[.06] dark:text-primary-500 active{% endif %}" {% if item.link_attrs %}{% include "unfold/helpers/attrs.html" with attrs=item.link_attrs %}{% endif %}>
+                                            {% if item.icon_template %}{% include item.icon_template with item=item %}{% elif item.icon %}<span class="material-symbols-outlined md-18 mr-3 w-[18px]">{{ item.icon }}</span>{% endif %}
+                                            <span>{{ item.title|safe }}</span>
+                                            {% include "unfold/helpers/app_list_badge.html" with item=item %}
+                                        </a>
+                                    {% endif %}
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ol>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% include "unfold/helpers/app_list_all.html" %}
+{% else %}
+    <p>{% trans "You don’t have permission to view or edit anything." as error_message %}{% include "unfold/helpers/messages/error.html" with error=error_message %}</p>
+{% endif %}

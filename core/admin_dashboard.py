@@ -239,31 +239,113 @@ def _admin_navigation():
 def _student_navigation(request):
     """The Student and Tutor/Instructor navigation — an independent copy for
     the student portal. Editing this list never affects the administrator
-    sidebar. Theory and Practical are always listed so the portal reads the
-    same for every student; the pages themselves still enforce enrolment,
-    orientation and role access. Instructor tools appear only for users
-    with instructor access."""
+    sidebar. Learning destinations remain visible while the pages themselves
+    enforce enrolment, orientation and role access. Instructor tools appear
+    only for users with instructor access."""
     from accounts.context_processors import role_context
     from django.urls import reverse
 
     roles = role_context(request)
+    roadmap_url = reverse("roadmap")
+    module_items = []
+    assessment_items = []
+    enrolment = (
+        request.user.enrolments.filter(status="active")
+        .select_related("programme_version")
+        .first()
+    )
+    if enrolment:
+        from learning.services import module_is_unlocked
+        from progress.models import LessonProgress
+
+        completed_lessons = set(
+            LessonProgress.objects.filter(enrolment=enrolment, completed_at__isnull=False)
+            .values_list("lesson_id", flat=True)
+        )
+        modules = list(
+            enrolment.programme_version.modules.filter(is_published=True)
+            .prefetch_related("lessons", "assessments")
+            .order_by("order", "title")
+        )
+        for index, module in enumerate(modules, start=1):
+            lessons = list(module.lessons.filter(is_published=True).order_by("order", "title"))
+            first_lesson = lessons[0] if lessons else None
+            link = reverse("module-overview", args=(module.code,))
+            unlocked = module_is_unlocked(enrolment, module)
+            lesson_items = []
+            for lesson_index, lesson in enumerate(lessons, start=1):
+                lesson_link = reverse("lesson-detail", args=(module.code, lesson.slug))
+                lesson_items.append(
+                    {
+                        "title": f"{lesson_index}. {lesson.title}",
+                        "link": lesson_link,
+                        "active": request.path.startswith(lesson_link),
+                        "learning_state": (
+                            "complete" if lesson.pk in completed_lessons
+                            else "locked" if not unlocked
+                            else "current" if request.path.startswith(lesson_link)
+                            else "incomplete"
+                        ),
+                    }
+                )
+            module_items.append(
+                {
+                    "title": f"Module {index}",
+                    "link": link,
+                    "submenu": True,
+                    "active": request.path == link or any(item["active"] for item in lesson_items),
+                    "items": lesson_items,
+                }
+            )
+            assessment = module.assessments.filter(is_published=True).first()
+            if assessment:
+                assessment_items.append(
+                    {
+                        "title": f"Module {index} assessment",
+                        "link": reverse("assessment-take", args=(assessment.pk,)),
+                    }
+                )
+
     groups = [
         {
             "title": "",
             "items": [{"title": "Dashboard", "icon": "dashboard", "icon_template": "core/nav_icons/dashboard.html", "link": reverse("dashboard")}],
         },
         {
-            "title": "Theory",
-            "items": [{"title": "Theory", "icon": "menu_book", "icon_template": "core/nav_icons/theory.html", "link": reverse("roadmap")}],
-        },
-        {
-            "title": "Practical",
-            "items": [{"title": "Practical/Theory", "icon": "layers", "icon_template": "core/nav_icons/practical.html", "link": reverse("scenario-list")}],
-        },
-        {
-            "title": "Simulator",
+            "title": "My Learning",
             "items": [
-                {"title": "Simulator sandbox", "icon": "box", "icon_template": "core/nav_icons/sandbox.html", "link": reverse("simulator-portal")},
+                {
+                    "title": "Theoretical Training",
+                    "icon": "menu_book",
+                    "icon_template": "core/nav_icons/theory.html",
+                    "link": roadmap_url,
+                    "submenu": True,
+                    "active": request.path.startswith(("/theory/", "/assessments/")),
+                    "items": [{"title": "Course Overview", "link": roadmap_url if enrolment else "#"}, *module_items],
+                },
+                {
+                    "title": "Simulator",
+                    "icon": "box",
+                    "icon_template": "core/nav_icons/sandbox.html",
+                    "link": reverse("simulator-portal"),
+                    "submenu": True,
+                    "items": [{"title": "Simulator Sandbox", "link": reverse("simulator-portal")}],
+                },
+                {
+                    "title": "Practical",
+                    "icon": "layers",
+                    "icon_template": "core/nav_icons/practical.html",
+                    "link": reverse("scenario-list"),
+                    "submenu": True,
+                    "items": [{"title": "Theory & Practical", "link": reverse("scenario-list")}],
+                },
+                {
+                    "title": "Assessments",
+                    "icon": "assignment",
+                    "link": assessment_items[0]["link"] if assessment_items else (roadmap_url if enrolment else "#"),
+                    "submenu": bool(assessment_items),
+                    "items": assessment_items,
+                },
             ],
         },
     ]
@@ -292,11 +374,43 @@ def _instructor_crumb():
     return _crumb("Instructor", "/instructor/")
 
 
+def _lesson_crumbs(ctx):
+    return [
+        _crumb("Home", "/"),
+        _crumb("Theoretical Training", "/theory/"),
+        _crumb(f"Module {ctx['module'].order}", reverse("module-overview", args=(ctx["module"].code,))),
+        _crumb(f"Lesson {ctx.get('lesson_position', 1)}"),
+    ]
+
+
+def _module_crumbs(ctx):
+    return [
+        _crumb("Home", "/"),
+        _crumb("Theoretical Training", "/theory/"),
+        _crumb(f"Module {ctx['module'].order}"),
+    ]
+
+
+def _assessment_crumbs(ctx):
+    assessment = ctx.get("assessment") or ctx["attempt"].assessment
+    crumbs = [_crumb("Home", "/"), _crumb("Theoretical Training", "/theory/")]
+    if assessment.module_id:
+        crumbs.append(_crumb(f"Module {assessment.module.order}", "/theory/"))
+    crumbs.append(_crumb("Assessment"))
+    return crumbs
+
+
 # Portal page hierarchy, keyed by URL name and built from the view's own
 # context, so every trail reflects the real parent pages. Pages without an
 # entry (the dashboards, the roadmap, the scenario list, orientation) are
 # top-level and keep a plain title, like the admin overview.
 _BREADCRUMB_BUILDERS = {
+    "roadmap": lambda ctx: [
+        _crumb("Home", "/"),
+        _crumb("Theoretical Training", "/theory/"),
+        _crumb("Course Overview"),
+    ],
+    "module-overview": _module_crumbs,
     "instructor-student-detail": lambda ctx: [
         _instructor_crumb(),
         _crumb(ctx["enrolment"].student),
@@ -332,19 +446,10 @@ _BREADCRUMB_BUILDERS = {
         _instructor_crumb(),
         _crumb("One-time simulator password"),
     ],
-    "lesson-detail": lambda ctx: [
-        _crumb("Theory", "/theory/"),
-        _crumb(ctx["module"].title),
-        _crumb(ctx["lesson"].title),
-    ],
-    "assessment-take": lambda ctx: [
-        _crumb("Theory", "/theory/"),
-        _crumb(ctx["assessment"].title),
-    ],
-    "assessment-result": lambda ctx: [
-        _crumb("Theory", "/theory/"),
-        _crumb(ctx["attempt"].assessment.title),
-    ],
+    "lesson-detail": _lesson_crumbs,
+    "lesson-section": _lesson_crumbs,
+    "assessment-take": _assessment_crumbs,
+    "assessment-result": _assessment_crumbs,
     "scenario-detail": lambda ctx: [
         _crumb("Practical/Theory", "/practical/"),
         _crumb(ctx["scenario_version"].scenario.title),

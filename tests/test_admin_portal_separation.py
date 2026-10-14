@@ -84,7 +84,7 @@ def test_admin_portal_sidebar_shows_student_navigation_and_advanced_admin(client
     assert response.status_code == 200
     content = response.content.decode()
     assert "Advanced Admin" in content
-    assert "Simulator sandbox" in content
+    assert "Simulator Sandbox" in content
     # The admin changelist navigation must not leak into the portal.
     assert "Simulator credentials" not in content
 
@@ -131,25 +131,29 @@ def test_student_sees_full_header(client, student, programme):
     assert "Welcome" in html
 
 
-def test_student_sidebar_always_lists_theory_and_practical(client, student, programme):
-    """Theory and Practical are listed for every student; access itself is
-    still enforced by the pages, and instructor tools stay hidden."""
+def test_student_sidebar_uses_my_learning_hierarchy(client, student, programme):
+    """Student learning destinations use the agreed My Learning hierarchy."""
     client.force_login(student)
     response = client.get(reverse("dashboard"))
     html = response.content.decode()
-    assert ">Theory<" in html
-    assert "Practical/Theory" in html
+    assert "My Learning" in html
+    assert "Theoretical Training" in html
+    assert "Course Overview" in html
+    assert "Simulator Sandbox" in html
+    assert "Theory & Practical" in html
+    assert "Assessments" in html
     assert "Theory builder" not in html
     assert "Practical/Theory builder" not in html
     assert "Instructor<" not in html
 
 
-def test_tutor_sidebar_lists_theory_and_practical(client, tutor, programme):
+def test_tutor_sidebar_lists_learning_hierarchy(client, tutor, programme):
     client.force_login(tutor)
     response = client.get(reverse("dashboard"))
     html = response.content.decode()
-    assert ">Theory<" in html
-    assert "Practical/Theory" in html
+    assert "My Learning" in html
+    assert "Theoretical Training" in html
+    assert "Theory & Practical" in html
 
 
 def test_student_cannot_reach_admin_changelist(client, student):

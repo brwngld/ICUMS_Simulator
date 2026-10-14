@@ -2,7 +2,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
@@ -82,7 +82,12 @@ def _unique_slug(model, field, value, **scope):
 @login_required
 def course_builder(request):
     _require_instructor(request.user)
-    drafts = ProgrammeVersion.objects.filter(status=ProgrammeVersion.Status.DRAFT).select_related("programme").prefetch_related("modules__lessons")
+    drafts = (
+        ProgrammeVersion.objects.filter(status=ProgrammeVersion.Status.DRAFT)
+        .select_related("programme")
+        .prefetch_related("modules__lessons")
+        .annotate(module_total=Count("modules", distinct=True), lesson_total=Count("modules__lessons", distinct=True))
+    )
     learning_path = request.GET.get("path", "all")
     if learning_path not in {"all", "theory", "combined"}:
         learning_path = "all"

@@ -1,15 +1,6 @@
-{% extends "core/base_student.html" %}
-
-{% block title %}Edit course name · ICUMS Simulator{% endblock %}
-{% block workspace_name %}Edit course{% endblock %}
-{% block content %}
-<div class="dash">
-<header class="dash-head"><div><p class="dash-eyebrow">Draft course · Version {{ version.version }}</p><h1>Edit course name</h1><p>The course name is what students see on their dashboard and roadmap.</p></div></header>
-<section class="dash-panel">
-  <form method="post" class="dash-form">{% csrf_token %}
-    {{ form.name.as_field_group }}
-    <div class="dash-actions"><button class="dash-primary" type="submit">Save course name</button><a class="dash-secondary" href="{% url 'course-builder-detail' version.pk %}">Cancel</a></div>
-  </form>
-</section>
-</div>
-{% endblock %}
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}Edit course · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit course{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261014-1">{% endblock %}
+{% block content %}<div class="authoring"><header class="authoring-head"><div><p class="authoring-eyebrow">Draft course · Version {{ version.version }}</p><h1>Edit Course</h1><p>Update the course information supported by the existing course record.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}">Back to course</a><a class="authoring-primary" href="{% url 'course-review' version.pk %}">Review course</a></div></header>
+<nav class="authoring-tabs"><a class="active" href="#basic">Basic information</a><a href="{% url 'course-builder-detail' version.pk %}#modules">Structure</a><a href="{% url 'course-review' version.pk %}">Review</a></nav>
+<div class="authoring-layout"><form method="post" class="authoring-card authoring-form" id="basic">{% csrf_token %}<div class="authoring-editor-header"><div><h2>Basic information</h2><p>The course name appears in the learner Course Overview and navigation.</p></div><span class="authoring-status">Draft</span></div>{{ form.name.as_field_group }}<div class="authoring-sticky-actions"><a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}">Cancel</a><button class="authoring-primary" type="submit">Save changes</button></div></form><aside class="authoring-aside"><section class="authoring-card"><h2>Stored course data</h2><dl class="authoring-facts"><div><dt>Version</dt><dd>{{ version.version }}</dd></div><div><dt>Status</dt><dd>{{ version.get_status_display }}</dd></div><div><dt>Modules</dt><dd>{{ version.modules.count }}</dd></div></dl><p>Additional course metadata is not stored by the current model and has not been fabricated in this editor.</p></section></aside></div></div>{% endblock %}
