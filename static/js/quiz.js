@@ -16,9 +16,29 @@
   const fill = document.querySelector("#quiz-progress-fill");
   const progress = document.querySelector(".quiz-progress");
   const reviewList = document.querySelector("#quiz-review");
+  const position = document.querySelector("#quiz-position");
+  const dotsHost = document.querySelector("#quiz-dots");
   const total = questions.length;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let current = 0; // index into questions; review is "current === total"
+  const marked = new Set();
+  const dots = questions.map((card, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "quiz-dot";
+    button.textContent = String(index + 1);
+    button.setAttribute("aria-label", `Go to question ${index + 1}`);
+    button.addEventListener("click", () => show(index));
+    dotsHost.append(button);
+    const mark = card.querySelector("[data-mark-review]");
+    mark.addEventListener("click", () => {
+      if (marked.has(index)) marked.delete(index); else marked.add(index);
+      mark.classList.toggle("is-marked", marked.has(index));
+      mark.textContent = marked.has(index) ? "♥ Marked for review" : "♡ Mark for review";
+      updateIndicators();
+    });
+    return button;
+  });
 
   const answered = (card) => [...card.querySelectorAll("input[type=radio]")].some((input) => input.checked);
   const answeredCount = () => questions.filter(answered).length;
@@ -47,7 +67,7 @@
       const selected = card.querySelector("input[type=radio]:checked");
       const label = selected ? selected.closest(".quiz-option").querySelector("span:last-child").textContent : "Not answered yet";
       const li = document.createElement("li");
-      li.className = selected ? "is-answered" : "is-missing";
+      li.className = `${selected ? "is-answered" : "is-missing"}${marked.has(index) ? " is-marked" : ""}`;
       const open = document.createElement("button");
       open.type = "button";
       open.className = "quiz-review-open";
@@ -55,9 +75,18 @@
       open.addEventListener("click", () => show(index));
       const choice = document.createElement("span");
       choice.className = "quiz-review-choice";
-      choice.textContent = selected ? label : "Not answered";
+      choice.textContent = `${selected ? "Answered" : "Unanswered"}${marked.has(index) ? " · Marked for review" : ""}`;
+      choice.title = selected ? label : "Not answered";
       li.append(open, choice);
       reviewList.append(li);
+    });
+  }
+
+  function updateIndicators() {
+    dots.forEach((dot, index) => {
+      dot.classList.toggle("answered", answered(questions[index]));
+      dot.classList.toggle("marked", marked.has(index));
+      dot.classList.toggle("current", current === index);
     });
   }
 
@@ -68,11 +97,13 @@
     active.hidden = false;
     if (current === total) {
       refreshReview();
-      counter.textContent = "Review your answers";
+      counter.textContent = `Review your answers · ${answeredCount()} of ${total} answered`;
       progress.setAttribute("aria-valuenow", String(answeredCount()));
+      position.textContent = "Review";
     } else {
-      counter.textContent = `Question ${current + 1} of ${total}`;
+      counter.textContent = `Question ${current + 1} of ${total} · ${answeredCount()} answered`;
       progress.setAttribute("aria-valuenow", String(current + 1));
+      position.textContent = `${current + 1} / ${total}`;
     }
     prev.hidden = current === 0;
     next.hidden = current >= total - 1;
@@ -80,6 +111,7 @@
     submit.hidden = current !== total;
     const ratio = current === total ? answeredCount() / total : (current + 1) / total;
     fill.style.width = `${Math.round(ratio * 100)}%`;
+    updateIndicators();
     hint.textContent = "";
     submit.disabled = answeredCount() < total;
     if (current === total) {
@@ -111,6 +143,8 @@
         saveProgress();
         const ratio = answeredCount() / total;
         fill.style.width = `${Math.round((current === total ? ratio : Math.max(ratio, (current + 1) / total)) * 100)}%`;
+        counter.textContent = `Question ${current + 1} of ${total} · ${answeredCount()} answered`;
+        updateIndicators();
         if (hint.textContent.startsWith("Choose an answer")) hint.textContent = "";
       });
     });

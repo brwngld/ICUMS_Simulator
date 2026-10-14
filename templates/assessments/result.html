@@ -5,31 +5,26 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/quiz.css' %}?v=20261013-2">
+  <link rel="stylesheet" href="{% static 'css/quiz.css' %}?v=20261014-1">
 {% endblock %}
 
 {% block content %}
-  <div class="quiz">
-    <header class="quiz-head quiz-hero">
-      <div>
-        <p class="quiz-eyebrow">Module assessment · Attempt {{ attempt.attempt_number }}</p>
-        <h1>{{ attempt.assessment.title }}</h1>
-        <p>{% if passed %}Your result confirms that you have demonstrated understanding of this module.{% else %}Review the feedback below, revisit the lesson material, and try again when you are ready.{% endif %}</p>
-      </div>
-      <a class="quiz-back" href="{{ return_to }}">← Back to lessons</a>
-    </header>
-
+  <div class="quiz learning-workspace-page learning-workspace-main learning-workspace-main-wide">
     <section class="quiz-result {% if passed %}is-pass{% endif %}" role="status">
-      <h2>{% if passed %}Passed — assessment complete{% else %}Not passed yet{% endif %}</h2>
+      <span class="quiz-result-icon" aria-hidden="true">{% if passed %}♙{% else %}↻{% endif %}</span>
+      <h1>Assessment completed</h1>
+      <p>{{ attempt.assessment.title }} · Attempt {{ attempt.attempt_number }}</p>
       <div class="quiz-result-score">{{ attempt.percentage }}%</div>
-      <p>{{ attempt.score }} of {{ attempt.maximum_score }} points · pass mark {{ pass_mark }}% · no time limit</p>
+      <span class="quiz-outcome">{% if passed %}Passed{% else %}Not passed yet{% endif %}</span>
+      <p>Required score: {{ pass_mark }}% · {{ attempt.score }} of {{ attempt.maximum_score }} points</p>
       {% if attempts_limited %}<p>{{ remaining_attempts }} attempt{{ remaining_attempts|pluralize }} remaining.</p>{% endif %}
       {% if not passed %}
       <p>You need {{ pass_mark }}% or more to pass. Review the questions below, revisit the lesson sections, and retake the assessment when you are ready.</p>
       {% endif %}
       <div class="quiz-result-actions">
+        <a class="quiz-button is-ghost" href="#answer-review">Review answers</a>
         {% if passed %}
-        <a class="quiz-button" href="{{ continue_url }}">{{ continue_label }} →</a>
+        <a class="quiz-button" href="{{ continue_url }}">{{ continue_label }}</a>
         {% else %}
           {% if retake_allowed %}
           <a class="quiz-button" href="{% url 'assessment-take' attempt.assessment.pk %}?return_to={{ return_to|urlencode }}">Retake assessment</a>
@@ -41,7 +36,7 @@
       </div>
     </section>
 
-    <div class="quiz-review-grid">
+    <div class="quiz-review-grid" id="answer-review">
       {% for entry in review %}
       <article class="quiz-response">
         <h3>{{ forloop.counter }}. {{ entry.question.prompt }}</h3>

@@ -1,0 +1,31 @@
+/* Shared structural foundation for theory lessons and theory assessments.
+   Component-specific visual treatments remain in lesson.css and quiz.css. */
+.learning-workspace-page {
+  width: min(100%, 82rem);
+  margin-inline: auto;
+}
+
+.learning-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 17rem);
+  gap: clamp(1rem, 2vw, 1.5rem);
+  align-items: start;
+}
+
+.learning-workspace-main { min-width: 0; }
+.learning-workspace-main-wide { width: min(100%, 68rem); }
+.learning-workspace-aside {
+  position: sticky;
+  top: 1rem;
+  min-width: 0;
+}
+
+@media (max-width: 63.9375rem) {
+  .learning-workspace-grid { grid-template-columns: minmax(0, 1fr); }
+  .learning-workspace-aside { position: static; }
+}
+
+@media (max-width: 47.9375rem) {
+  .learning-workspace-page { width: 100%; }
+  .learning-workspace-grid { gap: 1rem; }
+}

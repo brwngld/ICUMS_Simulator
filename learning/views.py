@@ -10,10 +10,10 @@ from django.views.decorators.http import require_http_methods
 from core.admin_dashboard import render_student_page
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 from progress.models import LessonProgress, ModuleProgress
-from assessments.models import Assessment, LessonCheck, LessonCheckResponse
+from assessments.models import Assessment, LessonCheck, LessonCheckResponse, TheoryAttempt
 
 from .models import Lesson, Module
-from .services import module_is_unlocked, module_lessons_completed, module_summary, programme_theory_completed
+from .services import module_is_unlocked, module_lessons_completed, programme_theory_completed
 
 
 def _guard_onboarding(request):
@@ -24,7 +24,7 @@ def _guard_onboarding(request):
 
 def _lesson_sections():
     return [
-        {"slug": "objectives", "title": "Objectives", "stage": "Orient"},
+        {"slug": "objectives", "title": "Introduction", "stage": "Start"},
         {"slug": "concepts", "title": "Key concepts", "stage": "Learn"},
         {"slug": "example", "title": "Worked example", "stage": "Apply"},
         {"slug": "note", "title": "Important note", "stage": "Remember"},
@@ -35,7 +35,8 @@ def _lesson_sections():
 def _resolve_current_section(sections, progress, requested_section):
     current_index = next((index for index, item in enumerate(sections) if item["slug"] == requested_section), None)
     if current_index is not None:
-        return current_index, False
+        furthest_available = len(sections) - 1 if progress.completed_at else min(progress.last_position, len(sections) - 1)
+        return (furthest_available, True) if current_index > furthest_available else (current_index, False)
 
     resume_index = min(progress.last_position or 0, len(sections) - 1)
     return resume_index, True
@@ -45,7 +46,95 @@ def _annotate_sections(sections, section_url, progress, current_index):
     for index, item in enumerate(sections):
         item["url"] = section_url(item["slug"])
         item["index"] = index
-        item["state"] = "done" if index < current_index or progress.completed_at else ("current" if index == current_index else "todo")
+        if progress.completed_at or index < progress.last_position:
+            item["state"] = "done"
+        elif index == current_index:
+            item["state"] = "current"
+        elif index == progress.last_position:
+            item["state"] = "available"
+        else:
+            item["state"] = "locked"
+
+
+@login_required
+def module_overview(request, module_code):
+    if response := _guard_onboarding(request):
+        return response
+    enrolment = active_enrolment_for(request.user)
+    module = get_object_or_404(
+        Module.objects.select_related("programme_version__programme").prefetch_related(
+            "lessons__blocks", "lessons__resources", "assessments"
+        ),
+        programme_version=enrolment.programme_version,
+        code=module_code,
+        is_published=True,
+    )
+    if not module_is_unlocked(enrolment, module):
+        raise PermissionDenied("Complete the prerequisite module first.")
+
+    lessons = list(module.lessons.filter(is_published=True).order_by("order", "title"))
+    progress_by_lesson = {
+        item.lesson_id: item
+        for item in LessonProgress.objects.filter(enrolment=enrolment, lesson__in=lessons)
+    }
+    lesson_items = []
+    objectives = []
+    resources = []
+    resource_ids = set()
+    next_lesson = None
+    total_minutes = 0
+    completed_count = 0
+    for lesson in lessons:
+        progress = progress_by_lesson.get(lesson.pk)
+        status = "completed" if progress and progress.completed_at else "in_progress" if progress else "not_started"
+        completed_count += status == "completed"
+        words = sum(len(block.body.split()) for block in lesson.blocks.all())
+        minutes = max(1, round(words / 200))
+        total_minutes += minutes
+        lesson_items.append({"lesson": lesson, "progress": progress, "status": status, "minutes": minutes})
+        if next_lesson is None and status != "completed":
+            next_lesson = lesson
+        for line in (lesson.objectives or "").splitlines():
+            value = line.strip()
+            if value and value not in objectives:
+                objectives.append(value)
+        for resource in lesson.resources.all():
+            if resource.pk not in resource_ids:
+                resource_ids.add(resource.pk)
+                resources.append(resource)
+
+    assessment = module.assessments.filter(is_published=True).first()
+    attempts = TheoryAttempt.objects.filter(
+        enrolment=enrolment, assessment=assessment, status=TheoryAttempt.Status.SUBMITTED
+    ).order_by("-percentage", "-submitted_at") if assessment else TheoryAttempt.objects.none()
+    best_attempt = attempts.first()
+    attempt_count = attempts.count()
+    lessons_complete = bool(lessons) and completed_count == len(lessons)
+    attempts_remaining = None
+    if assessment and assessment.maximum_attempts is not None:
+        attempts_remaining = max(assessment.maximum_attempts - attempt_count, 0)
+    can_attempt = bool(assessment and lessons_complete and (attempts_remaining is None or attempts_remaining > 0))
+    assessment_passed = bool(best_attempt and best_attempt.outcome == TheoryAttempt.Outcome.PASS)
+    progress_percentage = round(completed_count / len(lessons) * 100) if lessons else 0
+
+    return render_student_page(request, "learning/module_overview.html", {
+        "enrolment": enrolment,
+        "module": module,
+        "lesson_items": lesson_items,
+        "objectives": objectives,
+        "resources": resources,
+        "assessment": assessment,
+        "best_attempt": best_attempt,
+        "attempt_count": attempt_count,
+        "attempts_remaining": attempts_remaining,
+        "can_attempt": can_attempt,
+        "assessment_passed": assessment_passed,
+        "lessons_complete": lessons_complete,
+        "next_lesson": next_lesson,
+        "completed_count": completed_count,
+        "progress_percentage": progress_percentage,
+        "total_minutes": total_minutes,
+    })
 
 
 @login_required
@@ -57,9 +146,113 @@ def roadmap(request):
     ):
         return redirect(f'{reverse("course-builder")}?path=theory')
     enrolment = active_enrolment_for(request.user)
-    modules = Module.objects.filter(programme_version=enrolment.programme_version, is_published=True)
+    modules = list(
+        Module.objects.filter(programme_version=enrolment.programme_version, is_published=True)
+        .prefetch_related("lessons__blocks", "lessons__resources", "assessments")
+        .order_by("order", "title")
+    )
     final_assessment = Assessment.objects.filter(programme_version=enrolment.programme_version, assessment_type=Assessment.Type.FINAL_THEORY, is_published=True).first()
-    return render_student_page(request, "learning/roadmap.html", {"enrolment": enrolment, "module_summaries": [module_summary(enrolment, module) for module in modules], "theory_completed": programme_theory_completed(enrolment), "final_assessment": final_assessment})
+    progress_by_lesson = {
+        item.lesson_id: item
+        for item in LessonProgress.objects.filter(enrolment=enrolment, lesson__module__in=modules)
+    }
+    best_attempts = {}
+    for attempt in (
+        TheoryAttempt.objects.filter(enrolment=enrolment, status=TheoryAttempt.Status.SUBMITTED, assessment__module__in=modules)
+        .select_related("assessment")
+        .order_by("assessment_id", "-percentage")
+    ):
+        best_attempts.setdefault(attempt.assessment_id, attempt)
+
+    module_cards = []
+    counts = {"completed": 0, "in_progress": 0, "not_started": 0}
+    next_lesson = None
+    total_minutes = 0
+    outcomes = []
+    resources = []
+    resource_ids = set()
+    for module in modules:
+        lessons = list(module.lessons.filter(is_published=True).order_by("order", "title"))
+        unlocked = module_is_unlocked(enrolment, module)
+        lesson_cards = []
+        completed = 0
+        module_minutes = 0
+        for lesson in lessons:
+            progress = progress_by_lesson.get(lesson.pk)
+            status = "completed" if progress and progress.completed_at else "in_progress" if progress else "not_started"
+            counts[status] += 1
+            completed += status == "completed"
+            words = sum(len(block.body.split()) for block in lesson.blocks.all())
+            minutes = max(1, round(words / 200))
+            module_minutes += minutes
+            lesson_cards.append({"lesson": lesson, "status": status, "minutes": minutes})
+            if next_lesson is None and unlocked and status != "completed":
+                next_lesson = lesson
+            for line in (lesson.objectives or "").splitlines():
+                value = line.strip()
+                if value and value not in outcomes:
+                    outcomes.append(value)
+            for resource in lesson.resources.all():
+                if resource.pk not in resource_ids:
+                    resource_ids.add(resource.pk)
+                    resources.append(resource)
+        assessment = module.assessments.filter(is_published=True).first()
+        best = best_attempts.get(assessment.pk) if assessment else None
+        assessment_state = (
+            "locked" if not assessment or not module_lessons_completed(enrolment, module)
+            else "passed" if best and best.outcome == TheoryAttempt.Outcome.PASS
+            else "attempted" if best
+            else "available"
+        )
+        total_minutes += module_minutes
+        module_cards.append({
+            "module": module,
+            "lessons": lesson_cards,
+            "first_lesson": lessons[0] if lessons else None,
+            "unlocked": unlocked,
+            "completed_count": completed,
+            "lesson_count": len(lessons),
+            "percentage": round(completed / len(lessons) * 100) if lessons else 0,
+            "minutes": module_minutes,
+            "assessment": assessment,
+            "assessment_state": assessment_state,
+            "best_attempt": best,
+        })
+    total_lessons = sum(counts.values())
+    course_percentage = round(counts["completed"] / total_lessons * 100) if total_lessons else 0
+    next_assessment = next(
+        (item["assessment"] for item in module_cards if item["assessment_state"] in ("available", "attempted")),
+        None,
+    )
+    current_module = next(
+        (item for item in module_cards if item["unlocked"] and item["assessment_state"] != "passed"),
+        module_cards[-1] if module_cards else None,
+    )
+    resource_categories = {"documents": [], "glossary": [], "reading": []}
+    for resource in resources:
+        resource_text = f"{resource.title} {resource.description}".lower()
+        if "glossary" in resource_text or "key term" in resource_text:
+            resource_categories["glossary"].append(resource)
+        elif "reading" in resource_text or "reference" in resource_text:
+            resource_categories["reading"].append(resource)
+        else:
+            resource_categories["documents"].append(resource)
+    return render_student_page(request, "learning/roadmap.html", {
+        "enrolment": enrolment,
+        "module_summaries": module_cards,
+        "theory_completed": programme_theory_completed(enrolment),
+        "final_assessment": final_assessment,
+        "lesson_counts": counts,
+        "total_lessons": total_lessons,
+        "course_percentage": course_percentage,
+        "total_minutes": total_minutes,
+        "next_lesson": next_lesson,
+        "next_assessment": next_assessment,
+        "current_module": current_module,
+        "learning_outcomes": outcomes[:4],
+        "course_resources": resources[:4],
+        "resource_categories": resource_categories,
+    })
 
 
 @login_required
@@ -101,10 +294,11 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
     def section_url(slug):
         return reverse("lesson-section", args=(module.code, lesson.slug, slug))
 
-    overview_mode = section is None
+    overview_mode = False
     current_index, should_redirect = _resolve_current_section(sections, progress, section)
-    if should_redirect and request.method == "GET" and not overview_mode:
-        # no/unknown section: resume at the first unvisited page (or Practice when done)
+    if should_redirect and request.method == "GET":
+        # Resume at the authoritative first unfinished section. Direct links
+        # cannot bypass sequential completion.
         return redirect(section_url(sections[current_index]["slug"]))
 
     if request.method == "POST":
@@ -118,23 +312,19 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
                 LessonCheckResponse.objects.create(enrolment=enrolment, lesson_check=check, attempt_number=previous + 1, selected_option=selected, is_correct=selected.is_correct)
                 messages.success(request, "Correct. " + check.question_version.explanation if selected.is_correct else "Review this point. " + check.question_version.explanation)
             return redirect(section_url("practice") + "#feedback")
-        # continue: advance to the next section; the last section completes the lesson.
+        # Explicit, idempotent completion. Revisiting and continuing from an
+        # already completed section never advances the persisted frontier.
         if current_index < len(sections) - 1:
-            progress.last_position = max(progress.last_position or 0, current_index + 1)
-            progress.save(update_fields=("last_position", "updated_at"))
-            return redirect(section_url(sections[current_index + 1]["slug"]))
-        progress.last_position = len(sections) - 1
+            if current_index == progress.last_position:
+                progress.last_position = current_index + 1
+                progress.save(update_fields=("last_position", "updated_at"))
+            next_index = min(current_index + 1, progress.last_position)
+            return redirect(section_url(sections[next_index]["slug"]))
+        progress.last_position = len(sections)
         progress.completed_at = progress.completed_at or timezone.now()
         progress.save(update_fields=("last_position", "completed_at", "updated_at"))
-        lessons_in_module = list(module.lessons.filter(is_published=True).order_by("order", "title"))
-        next_lesson = next((item for item in lessons_in_module if item.order > lesson.order), None)
-        if next_lesson:
-            return redirect("lesson-detail", module_code=module.code, lesson_slug=next_lesson.slug)
-        assessment = module.assessments.filter(is_published=True).first()
-        return redirect("assessment-take", assessment_id=assessment.pk) if assessment else redirect("roadmap")
+        return redirect("module-overview", module_code=module.code)
 
-    progress.last_position = max(progress.last_position or 0, current_index)
-    progress.save(update_fields=("last_position", "updated_at"))
     _annotate_sections(sections, section_url, progress, current_index)
     word_count = sum(len(block.body.split()) for block in blocks)
     module_assessment = module.assessments.filter(is_published=True).first()
@@ -166,5 +356,7 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
             "module_assessment": module_assessment,
             "module_lessons_complete": module_lessons_complete,
             "reading_minutes": max(1, round(word_count / 200)),
+            "completed_section_count": len(sections) if progress.completed_at else min(progress.last_position, len(sections)),
+            "section_progress_percentage": 100 if progress.completed_at else round(min(progress.last_position, len(sections)) / len(sections) * 100),
         },
     )

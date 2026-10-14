@@ -538,6 +538,129 @@ html[data-theme="dark"] .sidebar-signout:hover { color: #f87171; background: col
 
 .stacked-form .errorlist { margin: 0 0 .35rem; padding: 0; list-style: none; color: #b42318; font-size: .78rem; }
 
+/* --- Student sidebar: My Learning hierarchy ------------------------------- */
+.my-learning-group { margin-top: .55rem; }
+.my-learning-group .my-learning-heading {
+  margin: 0 .8rem .45rem;
+  padding: .65rem .75rem .55rem;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font-size: .72rem;
+  font-weight: 750;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.my-learning-group .my-learning-list { gap: .2rem; padding: 0 .8rem; }
+.my-learning-group .my-learning-item { min-width: 0; }
+.my-learning-group .my-learning-parent {
+  width: 100%;
+  min-height: 2.65rem;
+  height: auto;
+  margin: 0;
+  padding: .45rem .55rem;
+  gap: .65rem;
+  border-radius: .65rem;
+  color: var(--text);
+  font-size: .78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: left;
+  transition: background .16s ease, color .16s ease;
+}
+.my-learning-group .my-learning-parent:hover,
+.my-learning-group .my-learning-parent.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.my-learning-group .my-learning-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: 0 0 1.75rem;
+  border-radius: .5rem;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.my-learning-group .my-learning-icon .ui-icon,
+.my-learning-group .my-learning-icon .material-symbols-outlined { width: 1rem; height: 1rem; font-size: 1rem; }
+.my-learning-group .my-learning-parent-label { min-width: 0; white-space: normal; }
+.my-learning-group .my-learning-chevron { flex: 0 0 auto; color: var(--muted); font-size: 1rem; }
+.my-learning-group .my-learning-children {
+  position: relative;
+  margin: .15rem 0 .45rem 1.42rem;
+  padding: .1rem 0 .1rem 1.3rem;
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+.my-learning-group .my-learning-child {
+  position: relative;
+  min-height: 2rem;
+  padding: .3rem .55rem;
+  color: var(--muted);
+  font-size: .75rem;
+  line-height: 1.25;
+}
+.my-learning-group .my-learning-child::before {
+  content: "";
+  position: absolute;
+  left: -.38rem;
+  width: .32rem;
+  height: .32rem;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 48%, var(--border));
+  border-radius: 50%;
+  background: var(--panel);
+}
+.my-learning-group .my-learning-child:hover,
+.my-learning-group .my-learning-child.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.my-learning-group .my-learning-child.active::before { border-color: var(--accent); background: var(--accent); }
+.my-learning-group .my-learning-unavailable { opacity: .65; }
+.my-learning-group .my-learning-module {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 2rem;
+  padding: .3rem .55rem;
+  border: 0;
+  border-radius: .5rem;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.my-learning-group .my-learning-module:hover,
+.my-learning-group .my-learning-module.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.my-learning-group .my-learning-lessons { display: grid; gap: .15rem; margin: .1rem 0 .35rem; padding: 0; list-style: none; }
+.my-learning-group .my-learning-lesson {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  min-width: 0;
+  min-height: 2.15rem;
+  padding: .35rem .5rem;
+  border-radius: .5rem;
+  color: var(--muted);
+  font-size: .72rem;
+  text-decoration: none;
+}
+.my-learning-group .my-learning-lesson:hover,
+.my-learning-group .my-learning-lesson.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.my-learning-group .my-learning-state {
+  width: .58rem;
+  height: .58rem;
+  flex: 0 0 .58rem;
+  border: 1.5px solid color-mix(in srgb, var(--muted) 65%, transparent);
+  border-radius: 50%;
+}
+.my-learning-group .my-learning-lesson.complete .my-learning-state { border-color: #067a5e; background: #067a5e; box-shadow: inset 0 0 0 2px var(--panel); }
+.my-learning-group .my-learning-lesson.active .my-learning-state { border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--panel); background: var(--accent); }
+.my-learning-group .my-learning-lesson.locked { opacity: .58; }
+.my-learning-group .my-learning-lesson-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* --- Environment badge: amber pill matching the admin header ---------------- */
 .environment-badge { padding: .28rem .6rem; border-radius: 99px; color: var(--warning-text); background: var(--warning); font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
 .environment-badge i { background: #d97706; }

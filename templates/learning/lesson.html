@@ -5,50 +5,41 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261013-2">
+  <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261014-1">
 {% endblock %}
 
 {% block content %}
-  <div class="lrn">
+  <div class="lrn learning-workspace-page">
     {% if preview_mode %}<div class="dash-notice">PREVIEW — read-only draft lesson for instructors. Nothing here is saved, answered, or completed.</div>{% endif %}
 
-    <div class="lrn-head">
+    <header class="lrn-head lrn-hero">
       <div>
-        <p class="lrn-eyebrow"><a href="{% url 'roadmap' %}">Theory roadmap</a> <span aria-hidden="true">·</span> {{ module.title }}</p>
-        {% if overview_mode %}
-        <p class="lrn-course">Lesson {{ lesson_position }} of {{ lessons_in_module|length }}</p>
+        <div class="lrn-hero-kicker"><span>Module {{ module.order }}</span><span>Lesson {{ lesson_position }} of {{ lessons_in_module|length }}</span></div>
         <h1>{{ lesson.title }}</h1>
-        <p class="lrn-sub">{% if lesson.summary %}{{ lesson.summary }}{% else %}Build your understanding through guided concepts, examples and practice.{% endif %}{% if not preview_mode %} · ~{{ reading_minutes }} min{% endif %}</p>
-        {% else %}
-        <p class="lrn-course">{{ lesson.title }}</p>
-        <h1>{{ current_section.title }}</h1>
-        <p class="lrn-sub">{{ current_section.stage }} · Lesson {{ lesson_position }} of {{ lessons_in_module|length }} · Section {{ current_index|add:1 }} of {{ sections|length }}{% if not preview_mode %} · ~{{ reading_minutes }} min lesson{% endif %}</p>
-        {% endif %}
-      </div>
-      {% if progress.completed_at %}<span class="lrn-badge">Lesson completed</span>{% endif %}
-    </div>
-
-    <div class="lrn-progress" role="progressbar" aria-valuemin="1" aria-valuemax="{{ sections|length }}" aria-valuenow="{{ current_index|add:1 }}" aria-label="Lesson progress">
-      {% for item in sections %}<a class="lrn-progress-dot {{ item.state }}" href="{{ item.url }}" aria-label="{{ item.title }}{% if item.state == 'done' %} (completed){% elif item.state == 'current' %} (current section){% endif %}"></a>{% endfor %}
-      <span class="lrn-progress-count">{{ current_index|add:1 }} / {{ sections|length }}</span>
-    </div>
-
-    <div class="lrn-grid">
-      <nav class="lrn-nav" aria-label="Lesson sections">
-        <div class="lrn-card">
-          <div class="lrn-nav-heading"><h4>Lesson progress</h4><span>{{ current_index|add:1 }} / {{ sections|length }}</span></div>
-          <div class="lrn-rail-progress" aria-hidden="true"><span style="width: {% widthratio current_index|add:1 sections|length 100 %}%"></span></div>
-          {% for item in sections %}
-          <a href="{{ item.url }}" class="lrn-nav-item {{ item.state }}">
-            <span class="lrn-nav-marker" aria-hidden="true">{% if item.state == 'done' %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
-            <span>{{ item.title }}</span>
-          </a>
-          {% endfor %}
+        <p class="lrn-sub">{% if lesson.summary %}{{ lesson.summary }}{% else %}Build your understanding through guided concepts, examples and practice.{% endif %}</p>
+        <div class="lrn-meta" aria-label="Lesson information">
+          {% if not preview_mode %}<span>◷ ~{{ reading_minutes }} min</span>{% endif %}
+          <span>▤ Reading</span>
+          <span class="lrn-status-pill">{% if progress.completed_at %}Completed{% else %}Not completed{% endif %}</span>
         </div>
-        <div class="lrn-card">
-          <h4>Quick links</h4>
+      </div>
+    </header>
+
+    <nav class="lrn-journey" aria-label="Lesson journey">
+      <div class="lrn-journey-heading"><strong>Lesson journey</strong><span>{{ completed_section_count }} of {{ sections|length }} completed</span></div>
+      <div class="lrn-journey-steps">
+        {% for item in sections %}{% if item.state == 'locked' %}<span class="lrn-journey-step locked" aria-label="{{ item.title }} locked"><span>▣</span><small>{{ item.title }}</small></span>{% else %}<a class="lrn-journey-step {{ item.state }}" href="{{ item.url }}"><span>{% if item.state == 'done' %}✓{% else %}{{ forloop.counter }}{% endif %}</span><small>{{ item.title }}</small></a>{% endif %}{% endfor %}
+      </div>
+    </nav>
+
+    <div class="lrn-grid learning-workspace-grid">
+      <nav class="lrn-nav learning-workspace-aside" aria-label="Lesson sections">
+        <div class="lrn-card lrn-progress-card">
+          <div class="lrn-nav-heading"><h4>Lesson progress</h4><span>{{ section_progress_percentage }}%</span></div>
+          <p class="lrn-progress-copy">{{ completed_section_count }} of {{ sections|length }} sections completed</p>
+          <div class="lrn-rail-progress" aria-hidden="true"><span style="width: {{ section_progress_percentage }}%"></span></div>
           {% for item in sections %}
-          <a class="lrn-quick-link" href="{{ item.url }}">{{ item.title }} <span aria-hidden="true">→</span></a>
+          {% if item.state == 'locked' %}<span class="lrn-nav-item locked" aria-label="{{ item.title }} locked"><span class="lrn-nav-marker" aria-hidden="true">▣</span><span>{{ item.title }}</span></span>{% else %}<a href="{{ item.url }}" class="lrn-nav-item {{ item.state }}"><span class="lrn-nav-marker" aria-hidden="true">{% if item.state == 'done' %}✓{% else %}{{ forloop.counter }}{% endif %}</span><span>{{ item.title }}</span></a>{% endif %}
           {% endfor %}
         </div>
         <div class="lrn-card">
@@ -88,7 +79,7 @@
         {% endif %}
       </nav>
 
-      <article class="lrn-article{% if overview_mode %} lrn-overview{% endif %}" data-lrn-pane>
+      <article class="lrn-article learning-workspace-main{% if overview_mode %} lrn-overview{% endif %}" data-lrn-pane>
         {% if overview_mode %}
         <section class="lrn-enter lrn-overview-intro">
           <span class="lrn-section-label">Lesson overview</span>
@@ -101,10 +92,10 @@
           </div>
         </section>
 
-        <section class="lrn-enter lrn-overview-section">
-          <h2><small>Understand</small>What you'll learn</h2>
+        <section class="lrn-enter lrn-overview-section lrn-objectives-panel">
+          <div class="lrn-objectives-heading"><span class="lrn-target" aria-hidden="true">◎</span><div><h2>What you'll learn</h2><p>By the end of this lesson, you should be able to:</p></div></div>
           {% if objectives %}
-          <div class="lrn-objective-grid">
+          <div class="lrn-objective-list">
             {% for objective in objectives %}
             <div class="lrn-objective">
               <span class="lrn-objective-icon" aria-hidden="true">✓</span>
@@ -137,20 +128,16 @@
         {% else %}
         {% if current_section.slug == "objectives" %}
         <section class="lrn-enter">
-          <div class="lrn-introduction">
-            <span class="lrn-section-label">Lesson overview</span>
-            <p>{% if lesson.summary %}{{ lesson.summary }}{% else %}This lesson introduces the key ideas, practical context and decisions you will need to understand this part of the programme.{% endif %}</p>
-          </div>
-          <h2><small>{{ current_section.stage }}</small>By the end of this lesson you can</h2>
-          <div class="lrn-objective-grid">
+          <h2><small>{{ current_section.stage }}</small>Why this lesson matters</h2>
+          <div class="lrn-introduction"><p>{% if lesson.summary %}{{ lesson.summary }}{% else %}This lesson introduces the key ideas, practical context and decisions you will need to understand this part of the programme.{% endif %}</p></div>
+          <div class="lrn-objectives-panel lrn-objectives-inline"><h3>What you'll learn</h3><div class="lrn-objective-list">
             {% for objective in objectives %}
             <div class="lrn-objective">
               <span class="lrn-objective-icon" aria-hidden="true">✓</span>
               <p>{{ objective }}</p>
             </div>
             {% endfor %}
-          </div>
-          <p class="lrn-hint">Work through the sections in order, then answer the practice question at the end. You can revisit any completed section at any time.</p>
+          </div></div>
         </section>
 
         {% elif current_section.slug == "concepts" %}
@@ -205,13 +192,13 @@
         {% endif %}
 
         <div class="lrn-complete">
-          <a href="{% url 'roadmap' %}">Return to roadmap</a>
+          <a href="{% url 'module-overview' module.code %}">Return to module overview</a>
           <div class="lrn-pager">
             {% if prev_section %}<a class="lrn-button is-ghost" href="{{ prev_section.url }}">← {{ prev_section.title }}</a>{% endif %}
-            <form method="post">
+            <form method="post" data-completion-form>
               {% csrf_token %}
               <input type="hidden" name="action" value="continue">
-              <button class="lrn-button" type="submit">{% if next_section %}Next: {{ next_section.title }} →{% else %}Complete lesson →{% endif %}</button>
+              <button class="lrn-button" type="submit">{% if progress.completed_at %}{% if next_section %}Next: {{ next_section.title }} →{% else %}Return to module →{% endif %}{% elif next_section %}Mark Complete &amp; Continue →{% else %}Complete Lesson →{% endif %}</button>
             </form>
           </div>
         </div>
@@ -219,4 +206,5 @@
       </article>
     </div>
   </div>
+  <script src="{% static 'js/lesson-progress.js' %}?v=20261014-1"></script>
 {% endblock %}

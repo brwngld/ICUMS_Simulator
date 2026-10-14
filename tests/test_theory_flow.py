@@ -43,7 +43,7 @@ def test_current_disclaimer_blocks_dashboard_until_accepted(client, theory_setup
 
 
 @pytest.mark.django_db
-def test_lesson_completion_is_saved_and_opens_assessment(client, theory_setup):
+def test_lesson_completion_is_saved_and_returns_to_module_overview(client, theory_setup):
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
     client.force_login(theory_setup["user"])
     lesson_url = reverse("lesson-detail", args=(theory_setup["module"].code, theory_setup["lesson"].slug))
@@ -51,29 +51,87 @@ def test_lesson_completion_is_saved_and_opens_assessment(client, theory_setup):
     for _ in range(4):
         response = client.post(response.url, {"action": "continue"})
     assert response.status_code == 302
-    assert response.url == reverse("assessment-take", args=(theory_setup["assessment"].pk,))
+    assert response.url == reverse("module-overview", args=(theory_setup["module"].code,))
     assert LessonProgress.objects.filter(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"], completed_at__isnull=False).exists()
 
 
 @pytest.mark.django_db
-def test_every_lesson_has_all_five_section_routes(client, theory_setup):
+def test_lesson_sections_unlock_sequentially(client, theory_setup):
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
     client.force_login(theory_setup["user"])
-    for section in ("objectives", "concepts", "example", "note", "practice"):
-        response = client.get(reverse("lesson-section", args=(theory_setup["module"].code, theory_setup["lesson"].slug, section)))
-        assert response.status_code == 200
-        assert response.context["current_section"]["slug"] == section
+    first_url = reverse("lesson-section", args=(theory_setup["module"].code, theory_setup["lesson"].slug, "objectives"))
+    practice_url = reverse("lesson-section", args=(theory_setup["module"].code, theory_setup["lesson"].slug, "practice"))
+    assert client.get(first_url).status_code == 200
+    locked = client.get(practice_url)
+    assert locked.status_code == 302
+    assert locked.url == first_url
+    response = client.post(first_url, {"action": "continue"})
+    assert response.url.endswith("/concepts/")
 
 
 @pytest.mark.django_db
-def test_lesson_base_url_shows_journey_overview(client, theory_setup):
+def test_lesson_base_url_resumes_first_unfinished_section(client, theory_setup):
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
     client.force_login(theory_setup["user"])
     response = client.get(reverse("lesson-detail", args=(theory_setup["module"].code, theory_setup["lesson"].slug)))
+    assert response.status_code == 302
+    assert response.url.endswith("/objectives/")
+    response = client.get(response.url)
+    html = response.content.decode()
+    assert "Mark Complete &amp; Continue" in html
+    assert "learning-workspace-grid" in html
+    assert "learning-workspace-aside" in html
+    assert "Module 1" in html
+    assert "1. Lesson One" in html
+    assert "my-learning-lesson current active" in html
+    assert [crumb["title"] for crumb in response.context["breadcrumbs"]] == [
+        "Home", "Theoretical Training", "Module 1", "Lesson 1"
+    ]
+
+
+@pytest.mark.django_db
+def test_module_overview_uses_real_lesson_and_assessment_state(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    client.force_login(theory_setup["user"])
+    response = client.get(reverse("module-overview", args=(theory_setup["module"].code,)))
     assert response.status_code == 200
-    assert response.context["overview_mode"] is True
-    assert "What you'll learn" in response.content.decode()
-    assert "Lesson content" in response.content.decode()
+    html = response.content.decode()
+    assert "Learning objectives" in html
+    assert "Lessons in this module" in html
+    assert "Module One Assessment" in html
+    assert "Start module" in html
+    assert response.context["progress_percentage"] == 0
+
+
+@pytest.mark.django_db
+def test_section_completion_is_explicit_and_idempotent(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    client.force_login(theory_setup["user"])
+    url = reverse("lesson-section", args=(theory_setup["module"].code, theory_setup["lesson"].slug, "objectives"))
+    client.get(url)
+    progress = LessonProgress.objects.get(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"])
+    assert progress.last_position == 0
+    client.post(url, {"action": "continue"})
+    client.post(url, {"action": "continue"})
+    progress.refresh_from_db()
+    assert progress.last_position == 1
+
+
+@pytest.mark.django_db
+def test_course_overview_uses_real_progress_modules_and_assessments(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    client.force_login(theory_setup["user"])
+    response = client.get(reverse("roadmap"))
+    assert response.status_code == 200
+    html = response.content.decode()
+    assert "course-overview-layout" in html
+    assert "Course modules" in html
+    assert "Module One" in html
+    assert "Lesson One" in html
+    assert "Module assessments" in html
+    assert response.context["total_lessons"] == 1
+    assert response.context["course_percentage"] == 0
+    assert response.context["next_lesson"] == theory_setup["lesson"]
 
 
 @pytest.mark.django_db
@@ -95,6 +153,10 @@ def test_assessment_answers_resume_after_refresh_and_return_to_lesson(client, th
     )
     assert save.status_code == 204
     resumed = client.get(f"{assessment_url}?return_to={lesson_url}")
+    assert "learning-workspace-page" in resumed.content.decode()
+    assert "quiz-layout learning-workspace-grid" in resumed.content.decode()
+    assert "quiz-aside learning-workspace-aside" in resumed.content.decode()
+    assert "Mark for review" in resumed.content.decode()
     assert resumed.context["return_to"] == lesson_url
     assert resumed.context["saved_answers"][theory_setup["question"].pk] == theory_setup["wrong"].pk
     assert resumed.context["attempt"].pk == attempt.pk
