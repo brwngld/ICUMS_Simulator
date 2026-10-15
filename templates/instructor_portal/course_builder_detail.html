@@ -1,12 +1,48 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}{{ version.programme.name }} · Course builder{% endblock %}{% block workspace_name %}{{ version.programme.name }}{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-7">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-8">{% endblock %}
 {% block content %}<div class="authoring">
   <header class="authoring-head"><div><p class="authoring-eyebrow">Draft course · Version {{ version.version }}</p><h1>{{ version.programme.name }}</h1><p>Manage the course structure, lesson content and assessment readiness before publishing.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'course-builder' %}">All courses</a><a class="authoring-secondary" href="{% url 'course-edit' version.pk %}">Edit course</a>{% if final_exam %}<a class="authoring-secondary" href="{% url 'assessment-edit' final_exam.pk %}">Final exam</a>{% else %}<a class="authoring-secondary" href="{% url 'final-exam-create' version.pk %}">Add final exam</a>{% endif %}<a class="authoring-primary" href="{% url 'course-review' version.pk %}">Review course</a></div></header>
   <div class="authoring-progress"><span class="complete">1 Create course</span><span class="{% if version.modules.exists %}complete{% else %}current{% endif %}">2 Add modules</span><span class="{% if version.modules.first.lessons.exists %}complete{% endif %}">3 Create lessons</span><span>4 Add sections</span><span>5 Configure assessment</span><span>6 Review and publish</span></div>
   <nav class="authoring-tabs authoring-assessment-tabs authoring-course-tabs" aria-label="Course editor"><a href="{% url 'course-edit' version.pk %}"><span class="authoring-tab-number">1</span><span>Basic information</span></a><a href="{% url 'course-edit' version.pk %}?tab=overview"><span class="authoring-tab-number">2</span><span>Course overview</span></a><a href="{% url 'course-edit' version.pk %}?tab=settings"><span class="authoring-tab-number">3</span><span>Course settings</span></a><a class="active" href="#modules"><span class="authoring-tab-number">4</span><span>Structure</span></a><a href="{% url 'course-review' version.pk %}"><span class="authoring-tab-number">5</span><span>Review</span></a></nav>
-  <div class="authoring-layout" id="modules"><main><div class="authoring-head"><div><h2>Course modules</h2><p>Organise modules and their lessons in the required learning order.</p></div></div><div class="authoring-module-list">{% for module in version.modules.all %}<article class="authoring-module"><span class="authoring-module-number">{{ module.order }}</span><div><h3>{{ module.title }}</h3><p>{{ module.description|default:"No module description yet." }} · {{ module.lessons.count }} lesson{{ module.lessons.count|pluralize }}</p></div><div class="authoring-module-tools"><a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a><a class="authoring-secondary" href="{% url 'module-edit' module.pk %}">Edit module</a>{% for assessment in module.assessments.all %}{% if assessment.assessment_type == 'module' %}<a class="authoring-secondary" href="{% url 'assessment-edit' assessment.pk %}">Assessment</a>{% endif %}{% empty %}<a class="authoring-secondary" href="{% url 'module-assessment-create' module.pk %}">Add assessment</a>{% endfor %}<form method="post" action="{% url 'module-move' module.pk %}" class="authoring-table-actions">{% csrf_token %}<input type="hidden" name="direction" value="up"><button class="authoring-secondary" type="submit" aria-label="Move {{ module.title }} up">↑</button><button class="authoring-secondary" type="submit" aria-label="Move {{ module.title }} down">↓</button></form></div><div class="authoring-lesson-list">{% for lesson in module.lessons.all %}<div class="authoring-lesson"><span><strong>{{ forloop.counter }}. {{ lesson.title }}</strong> · {{ lesson.blocks.count }} content section{{ lesson.blocks.count|pluralize }}</span><div><a href="{% url 'lesson-preview' lesson.pk %}">Preview</a><a href="{% url 'lesson-edit' lesson.pk %}">Edit</a><form method="post" action="{% url 'lesson-move' lesson.pk %}" class="authoring-table-actions">{% csrf_token %}<input type="hidden" name="direction" value="up"><button type="submit" aria-label="Move {{ lesson.title }} up">↑</button><button type="submit" aria-label="Move {{ lesson.title }} down">↓</button></form></div></div>{% empty %}<p class="authoring-empty">No lessons yet. Add the first lesson to this module.</p>{% endfor %}</div></article>{% empty %}<div class="authoring-card authoring-empty">Add the first module to begin the course structure.</div>{% endfor %}</div></main>
-    <aside class="authoring-aside"><section class="authoring-card"><h2>Add a module</h2><p>Create the next module in the course sequence.</p><form method="post" action="{% url 'course-builder-module-create' version.pk %}" class="authoring-form">{% csrf_token %}{{ module_form.as_div }}<button class="authoring-primary" type="submit">+ Add module</button></form></section><section class="authoring-card"><h2>Course readiness</h2><dl class="authoring-facts"><div><dt>Modules</dt><dd>{{ version.modules.count }}</dd></div><div><dt>Final exam</dt><dd>{% if final_exam %}Configured{% else %}Missing{% endif %}</dd></div><div><dt>Publication</dt><dd>Draft</dd></div></dl><a class="authoring-secondary" href="{% url 'course-review' version.pk %}">Open validation review</a></section></aside>
+  <div class="authoring-layout" id="modules"><main><div class="authoring-head"><div><h2>Course modules</h2><p>Organise modules and their lessons in the required learning order.</p></div></div>
+    <div class="authoring-module-list">
+      {% for group in course_groups %}
+      <article class="authoring-module">
+        <span class="authoring-module-number">{{ forloop.counter }}</span>
+        <div>
+          <h3>{{ group.course.title }}</h3>
+          <p>{{ group.course.description|default:"No course description yet." }} · {{ group.modules|length }} module{{ group.modules|length|pluralize }}</p>
+          {% if group.course.difficulty %}<span class="authoring-difficulty-badge authoring-difficulty-badge--{{ group.course.difficulty }}">{{ group.course.get_difficulty_display }}</span>{% endif %}
+        </div>
+        <div class="authoring-module-tools">
+          <a class="authoring-primary" href="{% url 'programme-course-edit' group.course.pk %}">Edit course</a>
+          <a class="authoring-secondary" href="{% url 'course-content-preview' group.course.pk %}">Student view</a>
+          <form method="post" action="{% url 'programme-course-move' group.course.pk %}" class="authoring-table-actions">{% csrf_token %}<input type="hidden" name="direction" value="up"><button class="authoring-secondary" type="submit" aria-label="Move {{ group.course.title }} up">↑</button><button class="authoring-secondary" type="submit" aria-label="Move {{ group.course.title }} down">↓</button></form>
+          <form method="post" action="{% url 'programme-course-delete' group.course.pk %}" class="authoring-table-actions">{% csrf_token %}<button class="authoring-secondary" type="submit">Remove</button></form>
+        </div>
+        <div class="authoring-lesson-list">
+          {% for module in group.modules %}
+          <div class="authoring-lesson">
+            <span><strong>{{ forloop.counter }}. {{ module.title }}</strong> · {{ module.lessons.count }} lesson{{ module.lessons.count|pluralize }}</span>
+            <div><a href="{% url 'module-edit' module.pk %}">Edit module</a><a href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a><a href="{% url 'course-content-preview' group.course.pk %}">Preview</a></div>
+          </div>
+          {% empty %}
+          <p class="authoring-empty">No modules in this course yet. Move one in from the list below.</p>
+          {% endfor %}
+        </div>
+      </article>
+      {% endfor %}
+      {% if loose_modules %}
+      <p class="authoring-eyebrow">Modules without a course</p>
+      <div class="authoring-module-list">
+        {% for module in loose_modules %}{% include "instructor_portal/module_row.html" %}{% endfor %}
+      </div>
+      {% endif %}
+      {% if not course_groups and not loose_modules %}<div class="authoring-card authoring-empty">Add the first module to begin the course structure.</div>{% endif %}
+    </div>
+  </main>
+    <aside class="authoring-aside"><section class="authoring-card"><h2>Add a course</h2><p>Create the next subject area on the learner roadmap.</p><form method="post" action="{% url 'programme-course-create' version.pk %}" class="authoring-form">{% csrf_token %}{{ course_form.as_div }}<button class="authoring-primary" type="submit">+ Add course</button></form></section><section class="authoring-card"><h2>Add a module</h2><p>Create the next module in the course sequence.</p><form method="post" action="{% url 'course-builder-module-create' version.pk %}" class="authoring-form">{% csrf_token %}{{ module_form.as_div }}<button class="authoring-primary" type="submit">+ Add module</button></form></section><section class="authoring-card"><h2>Course readiness</h2><dl class="authoring-facts"><div><dt>Courses</dt><dd>{{ version.courses.count }}</dd></div><div><dt>Modules</dt><dd>{{ version.modules.count }}</dd></div><div><dt>Final exam</dt><dd>{% if final_exam %}Configured{% else %}Missing{% endif %}</dd></div><div><dt>Publication</dt><dd>Draft</dd></div></dl><a class="authoring-secondary" href="{% url 'course-review' version.pk %}">Open validation review</a></section></aside>
   </div>
   {% for module in version.modules.all %}{% if module.guided_practicals.exists %}<section class="authoring-card authoring-create"><h2>{{ module.title }} · Practical/Theory activities</h2><div class="authoring-table-actions">{% for practical in module.guided_practicals.all %}<a class="authoring-secondary" href="{% url 'practical-preview' practical.pk %}">Preview {{ practical.scenario.title }}</a><a class="authoring-secondary" href="{% url 'practical-edit' practical.pk %}">Edit</a>{% endfor %}</div></section>{% endif %}{% endfor %}
 </div>

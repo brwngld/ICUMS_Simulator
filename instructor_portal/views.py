@@ -4,18 +4,32 @@ from django.contrib import messages
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.db.models import Count, Max, Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 from uuid import uuid4
 
 from core.admin_dashboard import render_student_page
-from .ordering import move_lesson as move_lesson_order, move_module as move_module_order
+from .ordering import (
+    move_course as move_course_order,
+    move_lesson as move_lesson_order,
+    move_module as move_module_order,
+)
 from django.utils import timezone
 from django.utils.text import slugify
 
 from assessments.models import AnswerOption, Assessment, AssessmentItem, LessonCheck, Question, QuestionVersion
-from learning.models import ContentBlock, Lesson, Module
+from learning.models import ContentBlock, Course, Lesson, Module
+from learning.services import DIFFICULTY_LEVELS
+from learning.rich_text import count_words, plain_text
+from learning.rich_text_images import (
+    clone_lesson_images,
+    pixel_size as rich_image_size,
+    prune_lesson as prune_rich_text_images,
+    store_image as store_rich_text_image,
+)
+from learning.views import module_overview_context, roadmap_context
 from scenarios.models import ScenarioVersion as ScenarioVersionModel
 from onboarding.models import Enrolment, Programme, ProgrammeVersion
 from progress.models import LessonProgress
@@ -38,6 +52,7 @@ from .forms import (
     ModuleEditForm,
     PracticalCreateForm,
     PracticalEditForm,
+    ProgrammeCourseForm,
     ScenarioStateFormSet,
 )
 
@@ -144,17 +159,128 @@ def course_builder_detail(request, version_id):
     # used before skipped the admin chrome context, leaving its header —
     # sidebar toggle included — empty.
     final_exam = version.assessments.filter(assessment_type=Assessment.Type.FINAL_THEORY).first()
+    modules = list(
+        version.modules.prefetch_related("lessons", "assessments", "guided_practicals__scenario").order_by("order", "title")
+    )
+    course_groups = [
+        {"course": course, "modules": [item for item in modules if item.course_id == course.pk]}
+        for course in version.courses.all()
+    ]
     return render_student_page(
         request,
         "instructor_portal/course_builder_detail.html",
-        {"version": version, "module_form": ModuleCreateForm(), "final_exam": final_exam},
+        {
+            "version": version,
+            "module_form": ModuleCreateForm(version),
+            "course_form": ProgrammeCourseForm(),
+            "course_groups": course_groups,
+            "loose_modules": [item for item in modules if item.course_id is None],
+            "final_exam": final_exam,
+        },
     )
+
+
+@login_required
+@transaction.atomic
+def programme_course_create(request, version_id):
+    _require_instructor(request.user)
+    version = get_object_or_404(ProgrammeVersion, pk=version_id, status="draft")
+    if request.method != "POST":
+        return redirect("course-builder-detail", version_id=version.pk)
+    form = ProgrammeCourseForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Please correct the course form.")
+        return redirect("course-builder-detail", version_id=version.pk)
+    course = Course.objects.create(
+        programme_version=version,
+        code=_unique_slug(Course, "code", form.cleaned_data["title"], programme_version=version),
+        title=form.cleaned_data["title"],
+        description=form.cleaned_data["description"],
+        difficulty=form.cleaned_data["difficulty"],
+        is_required=form.cleaned_data["is_required"],
+        order=version.courses.count() + 1,
+    )
+    messages.success(request, "Course added to the roadmap. Move a module into it next.")
+    return redirect("programme-course-edit", course_id=course.pk)
+
+
+@login_required
+def programme_course_edit(request, course_id):
+    _require_instructor(request.user)
+    course = get_object_or_404(
+        Course.objects.select_related("programme_version__programme"),
+        pk=course_id,
+        programme_version__status="draft",
+    )
+    form = ProgrammeCourseForm(request.POST or None, course=course)
+    if request.method == "POST" and form.is_valid():
+        course.title = form.cleaned_data["title"]
+        course.description = form.cleaned_data["description"]
+        course.difficulty = form.cleaned_data["difficulty"]
+        course.is_required = form.cleaned_data["is_required"]
+        course.save(update_fields=("title", "description", "difficulty", "is_required"))
+        messages.success(request, "Course updated.")
+        return redirect("course-builder-detail", version_id=course.programme_version_id)
+    return render_student_page(
+        request,
+        "instructor_portal/programme_course_edit.html",
+        {
+            "course": course,
+            "form": form,
+            "modules": course.modules.order_by("order", "title"),
+            "issues": _programme_course_issues(course),
+        },
+    )
+
+
+@login_required
+@require_POST
+def programme_course_delete(request, course_id):
+    _require_instructor(request.user)
+    course = get_object_or_404(Course, pk=course_id, programme_version__status="draft")
+    version_id = course.programme_version_id
+    if course.modules.exists():
+        messages.error(request, "Move its modules to another course before removing it.")
+    else:
+        course.delete()
+        messages.success(request, "Course removed.")
+    return redirect("course-builder-detail", version_id=version_id)
+
+
+@login_required
+@require_POST
+def programme_course_move(request, course_id):
+    _require_instructor(request.user)
+    course = get_object_or_404(Course, pk=course_id, programme_version__status="draft")
+    direction = request.POST.get("direction")
+    if direction not in ("up", "down"):
+        messages.error(request, "Unknown move direction.")
+    elif move_course_order(course, direction):
+        messages.success(request, "Course order updated.")
+    return redirect("course-builder-detail", version_id=course.programme_version_id)
+
+
+@login_required
+@require_GET
+def course_content_preview(request, course_id):
+    """One course exactly as an enrolled student sees it, draft included."""
+    _require_instructor(request.user)
+    course = get_object_or_404(
+        Course.objects.select_related("programme_version__programme"), pk=course_id
+    )
+    return render_student_page(request, "learning/roadmap.html", {
+        **roadmap_context(course.programme_version, None, course=course),
+        "preview_mode": True,
+    })
 
 
 def _lesson_issues(lesson):
     """What a single lesson still needs before a learner can study it."""
     issues = []
-    if not lesson.blocks.exists():
+    blocks = list(lesson.blocks.all())
+    # A section with an empty body still publishes as a blank panel, so a lesson
+    # is only ready when every one of its sections carries text.
+    if not blocks or any(not plain_text(block.body) for block in blocks):
         issues.append(f'Add teaching content to “{lesson.title}”.')
     if not lesson.knowledge_checks.exists():
         issues.append(f'Add a knowledge check to “{lesson.title}”.')
@@ -240,6 +366,37 @@ def _final_exam_issues(version):
     return issues
 
 
+def _programme_course_issues(course):
+    """What one course still needs before learners follow it on the roadmap."""
+    issues = []
+    modules = list(course.modules.all())
+    if not modules:
+        issues.append(f'Add at least one module to “{course.title}”.')
+    elif not any(not _module_blockers(module) and module.lessons.exists() for module in modules):
+        issues.append(f'Finish a module in “{course.title}” so learners have something to start with.')
+    if not course.difficulty:
+        issues.append(f'Set a difficulty level for “{course.title}” to place it on the roadmap ladder.')
+    return issues
+
+
+def _programme_course_blockers(version, publishable):
+    """Courses cannot hold up publication unless they exist and are empty.
+
+    An unclassified course is only a warning: it stays open to learners and
+    gates nothing, so a legacy course container never strands a published
+    programme.
+    """
+    blockers = []
+    ready_modules = set(publishable)
+    for course in version.courses.all():
+        modules = list(course.modules.all())
+        if not modules:
+            blockers.append(f'“{course.title}” has no modules. Move a module into it or remove the course.')
+        elif not any(module in ready_modules for module in modules):
+            blockers.append(f'“{course.title}” has no module ready for learners yet.')
+    return blockers
+
+
 def _course_issues(version):
     issues = []
     modules = version.modules.prefetch_related("lessons__blocks", "lessons__knowledge_checks__question_version__options", "assessments__items")
@@ -247,6 +404,11 @@ def _course_issues(version):
         issues.append("Add at least one module.")
     for module in modules:
         issues.extend(_module_issues(module))
+    for course in version.courses.all():
+        issues.extend(_programme_course_issues(course))
+    if version.courses.exists():
+        for module in version.modules.filter(course__isnull=True):
+            issues.append(f'Move “{module.title}” into a course so learners meet it on the roadmap.')
     issues.extend(_final_exam_issues(version))
     return issues
 
@@ -261,6 +423,7 @@ def course_review(request, version_id):
             "modules__guided_practicals__scenario",
             "modules__guided_practicals__states",
             "modules__guided_practicals__action_definitions",
+            "modules__assessments__items__question_version",
             "assessments__items__question_version",
         ),
         pk=version_id,
@@ -269,6 +432,7 @@ def course_review(request, version_id):
     publishable = _publishable_modules(version)
     return render_student_page(request, "instructor_portal/course_review.html", {
         "version": version,
+        "final_exam": version.assessments.filter(assessment_type=Assessment.Type.FINAL_THEORY).first(),
         "issues": _course_issues(version),
         "publishable_modules": publishable,
         "pending_modules": [(module, _module_issues(module)) for module in version.modules.all() if module not in publishable],
@@ -287,6 +451,7 @@ def _publish_blockers(version, publishable=None):
     blockers = []
     if not ready:
         blockers.append("Finish at least one module — no module is ready for learners yet.")
+    blockers.extend(_programme_course_blockers(version, ready))
     blockers.extend(_final_exam_issues(version))
     return blockers
 
@@ -306,6 +471,12 @@ def course_publish(request, version_id):
     ready_modules = list(publishable)
     ready_lessons = [lesson for lessons in publishable.values() for lesson in lessons]
     Module.objects.filter(pk__in=[module.pk for module in ready_modules]).update(is_published=True)
+    ready_ids = {module.pk for module in ready_modules}
+    live_courses = [
+        course.pk for course in version.courses.all()
+        if any(module.pk in ready_ids for module in course.modules.all())
+    ]
+    Course.objects.filter(pk__in=live_courses).update(is_published=True)
     Lesson.objects.filter(pk__in=[lesson.pk for lesson in ready_lessons]).update(is_published=True)
     assessments = Assessment.objects.filter(
         Q(module__in=ready_modules) | Q(module__isnull=True, assessment_type=Assessment.Type.FINAL_THEORY)
@@ -466,6 +637,13 @@ def _clone_course_content(source_version, new_version):
     _clone_question_versions(source_version, copies)
     _carry_completion_policy(source_version, new_version)
 
+    # Courses are copied before modules so each module lands in the draft's own
+    # copy of its course.
+    for course in source_version.courses.all():
+        copy = _copy_row(course, copies, is_published=False)
+        copy.save()
+        copies.remember(course, copy)
+
     modules = []
     for module in source_version.modules.all():
         copy = _copy_row(module, copies, prerequisite=None, is_published=False)
@@ -484,6 +662,9 @@ def _clone_course_content(source_version, new_version):
             # Resources are a shared library, so only the links to them are copied.
             lesson_copy.resources.set(lesson.resources.all())
             _clone_cascade_rows(lesson, lesson_copy, copies)
+            # Uploaded images are copied and re-linked, so deleting them from the
+            # published edition cannot blank a picture in the new draft.
+            clone_lesson_images(lesson, lesson_copy, copies)
         for assessment in module.assessments.all():
             assessment_copy = _copy_row(assessment, copies, is_published=False)
             assessment_copy.save()
@@ -570,10 +751,11 @@ def module_create(request, version_id):
     version = get_object_or_404(ProgrammeVersion, pk=version_id, status="draft")
     if request.method != "POST":
         return redirect("course-builder-detail", version_id=version.pk)
-    form = ModuleCreateForm(request.POST)
+    form = ModuleCreateForm(version, request.POST)
     if form.is_valid():
         Module.objects.create(
             programme_version=version,
+            course=form.cleaned_data.get("course"),
             code=_unique_slug(Module, "code", form.cleaned_data["title"], programme_version=version),
             title=form.cleaned_data["title"],
             description=form.cleaned_data["description"],
@@ -907,7 +1089,7 @@ def _lesson_section_context(lesson):
         sections.append({"slug": "practice", "title": "Practice", "stage": "Practise"})
     if not sections:
         sections.append({"slug": "concepts", "title": "Lesson", "stage": "Learn"})
-    word_count = sum(len(block.body.split()) for block in blocks)
+    word_count = sum(count_words(block.body) for block in blocks)
     return {
         "blocks": blocks,
         "checks": checks,
@@ -996,6 +1178,44 @@ def practical_preview(request, scenario_version_id):
     )
 
 
+@login_required
+@require_GET
+def course_preview(request, version_id):
+    """The course overview exactly as an enrolled student sees it.
+
+    Draft content is included and no enrolment is consulted, so nothing here
+    can be completed, scored or recorded.
+    """
+    _require_instructor(request.user)
+    version = get_object_or_404(
+        ProgrammeVersion.objects.select_related("programme").prefetch_related(
+            "modules__lessons__blocks", "modules__lessons__resources", "modules__assessments"
+        ),
+        pk=version_id,
+    )
+    return render_student_page(request, "learning/roadmap.html", {
+        **roadmap_context(version, None),
+        "preview_mode": True,
+    })
+
+
+@login_required
+@require_GET
+def module_preview(request, module_id):
+    """A single module overview as an enrolled student sees it, draft included."""
+    _require_instructor(request.user)
+    module = get_object_or_404(
+        Module.objects.select_related("programme_version__programme").prefetch_related(
+            "lessons__blocks", "lessons__resources", "assessments"
+        ),
+        pk=module_id,
+    )
+    return render_student_page(request, "learning/module_overview.html", {
+        **module_overview_context(module, None),
+        "preview_mode": True,
+    })
+
+
 def _apply_cover(instance, form):
     """Assign or clear a cover image; returns the name of a replaced file."""
     previous = instance.cover_image.name if instance.cover_image else ""
@@ -1075,10 +1295,14 @@ def module_edit(request, module_id):
     if request.method == "POST" and form.is_valid():
         module.title = form.cleaned_data["title"]
         module.description = form.cleaned_data["description"]
+        if "course" in request.POST:
+            # A form that does not offer the choice must not detach the module
+            # from its course.
+            module.course = form.cleaned_data["course"]
         module.difficulty = form.cleaned_data["difficulty"]
         module.prerequisite = form.cleaned_data["prerequisite"]
         replaced = _apply_cover(module, form)
-        module.save(update_fields=("title", "description", "difficulty", "prerequisite", "cover_image"))
+        module.save(update_fields=("title", "description", "course", "difficulty", "prerequisite", "cover_image"))
         _delete_replaced_cover(module, replaced)
         messages.success(request, "Module updated.")
         return redirect("course-builder-detail", version_id=module.programme_version_id)
@@ -1101,6 +1325,7 @@ def lesson_edit(request, lesson_id):
         lesson.key_terms = lesson_form.cleaned_data["key_terms"]
         lesson.save(update_fields=("title", "summary", "objectives", "key_terms"))
         block_formset.save()
+        prune_rich_text_images(lesson)
         if check_form:
             check_form.save()
         messages.success(request, "Lesson updated.")
@@ -1182,8 +1407,31 @@ def lesson_section_delete(request, lesson_id, block_id):
     else:
         block.knowledge_checks.update(after_block=replacement)
         block.delete()
+        prune_rich_text_images(lesson)
         messages.success(request, "Lesson section removed.")
     return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=sections')
+
+
+@login_required
+@require_POST
+def lesson_rich_image_upload(request, lesson_id):
+    """Store an image pasted into the section editor and return where to show it.
+
+    The lesson's sections are the only place these files appear, and they stay
+    behind the login gate because ``lesson_rich_text/`` is not a public prefix.
+    """
+    _require_instructor(request.user)
+    lesson = _draft_lesson(lesson_id)
+    upload = request.FILES.get("file")
+    if upload is None:
+        return JsonResponse({"error": "Choose an image file."}, status=400)
+    try:
+        image = store_rich_text_image(lesson, upload, created_by=request.user)
+    except ValueError as error:
+        return JsonResponse({"error": str(error)}, status=400)
+    alt = (request.POST.get("alt") or "").strip()[:180]
+    width, height = rich_image_size(image)
+    return JsonResponse({"url": image.file.url, "alt": alt, "width": width, "height": height})
 
 
 @login_required

@@ -43,6 +43,44 @@ def test_current_disclaimer_blocks_dashboard_until_accepted(client, theory_setup
 
 
 @pytest.mark.django_db
+def test_dashboard_recommends_the_next_lesson(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    client.force_login(theory_setup["user"])
+
+    response = client.get(reverse("dashboard"))
+
+    assert response.status_code == 200
+    assert response.context["primary_action"]["label"] == "Continue learning"
+    assert response.context["primary_action"]["url"] == reverse(
+        "lesson-detail", args=(theory_setup["module"].code, theory_setup["lesson"].slug)
+    )
+    html = response.content.decode()
+    assert "Your learning roadmap" in html
+    assert "Your training journey" in html
+    assert "Account access" not in html
+
+
+@pytest.mark.django_db
+def test_dashboard_prioritises_module_assessment_after_lessons(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    LessonProgress.objects.create(
+        enrolment=theory_setup["enrolment"],
+        lesson=theory_setup["lesson"],
+        completed_at=theory_setup["disclaimer"].published_at,
+    )
+    client.force_login(theory_setup["user"])
+
+    response = client.get(reverse("dashboard"))
+
+    assert response.status_code == 200
+    assert response.context["primary_action"]["label"] == "Take module assessment"
+    assert response.context["primary_action"]["url"] == reverse(
+        "assessment-take", args=(theory_setup["assessment"].pk,)
+    )
+    assert "Take module assessment" in response.content.decode()
+
+
+@pytest.mark.django_db
 def test_lesson_completion_is_saved_and_returns_to_module_overview(client, theory_setup):
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
     client.force_login(theory_setup["user"])
@@ -82,8 +120,9 @@ def test_lesson_base_url_resumes_first_unfinished_section(client, theory_setup):
     assert "learning-workspace-grid" in html
     assert "learning-workspace-aside" in html
     assert "Module 1" in html
-    assert "1. Lesson One" in html
-    assert "my-learning-lesson current active" in html
+    # §4: the global sidebar carries one roadmap entry, not individual lessons.
+    assert "1. Lesson One" not in html
+    assert "my-learning-lesson" not in html
     assert [crumb["title"] for crumb in response.context["breadcrumbs"]] == [
         "Home", "Theoretical Training", "Module 1", "Lesson 1"
     ]

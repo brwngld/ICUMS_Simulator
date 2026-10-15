@@ -269,7 +269,7 @@ def test_lesson_edit_updates_details_blocks_and_check(client, instructor, draft_
     assert lesson.summary == "Edited summary."
     draft_course["block"].refresh_from_db()
     assert draft_course["block"].heading == "Edited heading"
-    assert draft_course["block"].body == "Edited body copy."
+    assert draft_course["block"].body == "<p>Edited body copy.</p>"
     check.question_version.refresh_from_db()
     assert check.question_version.prompt == "Edited prompt?"
     assert check.question_version.explanation == "Edited explanation."

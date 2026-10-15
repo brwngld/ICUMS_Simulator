@@ -138,7 +138,7 @@ def test_student_sidebar_uses_my_learning_hierarchy(client, student, programme):
     html = response.content.decode()
     assert "My Learning" in html
     assert "Theoretical Training" in html
-    assert "Course Overview" in html
+    assert "Learning Roadmap" in html
     assert "Simulator Sandbox" in html
     assert "Theory & Practical" in html
     assert "Assessments" in html

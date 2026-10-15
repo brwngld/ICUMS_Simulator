@@ -9,8 +9,8 @@
   --d-ring: #e2e8f0;
   --d-row-hover: #f1f5f9;
   --d-shadow: 0 12px 26px #1014261a;
-  --d-accent: #5145cd;
-  --d-accent-border: #c7cdf7;
+  --d-accent: var(--color-primary-600, #4236b6);
+  --d-accent-border: var(--color-primary-200, #c7cdf7);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -23,8 +23,8 @@ html[data-theme="dark"] .dash {
   --d-ring: #2b3950;
   --d-row-hover: #1e2939;
   --d-shadow: 0 12px 26px #00000059;
-  --d-accent: #9b8cff;
-  --d-accent-border: #4b4485;
+  --d-accent: var(--color-primary-400, #8a86de);
+  --d-accent-border: var(--color-primary-800, #302b76);
 }
 
 @keyframes dash-rise {
@@ -74,6 +74,9 @@ html[data-theme="dark"] .dash {
 .dash-donut-wrap { display: flex; align-items: center; gap: 1.5rem; padding-top: 1rem; }
 .dash-donut { width: 9.5rem; height: 9.5rem; transform: rotate(0deg); animation: dash-donut-in .7s cubic-bezier(.22, .9, .3, 1) .3s backwards; }
 .dash-donut-ring { stroke: var(--d-ring); }
+.dash-role-students { stroke: var(--d-accent); background: var(--d-accent); }
+.dash-role-instructors { stroke: #087f8c; background: #087f8c; }
+.dash-role-superusers { stroke: #d97706; background: #d97706; }
 .dash-legend { display: flex; flex-direction: column; gap: .45rem; margin: 0; padding: 0; list-style: none; font-size: .78rem; }
 .dash-legend li { display: flex; align-items: center; gap: .5rem; animation: dash-rise .4s ease backwards; }
 .dash-legend li:nth-child(1) { animation-delay: .45s; }

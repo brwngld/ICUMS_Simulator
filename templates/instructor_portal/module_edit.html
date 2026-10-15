@@ -1,6 +1,6 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}Edit {{ module.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit module{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-7">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-8">{% endblock %}
 {% block content %}<div class="authoring">
   <header class="authoring-head">
     <div>
@@ -69,6 +69,7 @@
         </div>
 
         {{ form.difficulty.as_field_group }}
+        {{ form.course.as_field_group }}
         {{ form.prerequisite.as_field_group }}
         <div class="authoring-sticky-actions">
           <a class="authoring-secondary" href="{% url 'course-builder-detail' module.programme_version_id %}">Cancel</a>

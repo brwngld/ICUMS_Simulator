@@ -184,7 +184,7 @@ def test_complete_authoring_publish_and_progression_workflow(client, instructor,
     assert response.status_code == 302, "lesson edit should save and redirect"
     lesson_one.refresh_from_db(); block.refresh_from_db(); check.refresh_from_db()
     assert lesson_one.title == "Lesson One (edited)"
-    assert block.body == "Edited body"
+    assert block.body == "<p>Edited body</p>"
     assert check.question_version.prompt == "Edited check?"
 
     # ---- 7. reorder lessons and confirm the saved order ---------------------------

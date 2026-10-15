@@ -34,6 +34,16 @@ def _move(queryset, target, direction):
     return True
 
 
+def move_course(course, direction):
+    """Move a course within its difficulty level. Returns True when moved."""
+    from learning.models import Course
+
+    siblings = Course.objects.filter(
+        programme_version=course.programme_version, difficulty=course.difficulty
+    ).order_by("order", "title")
+    return _move(siblings, course, direction)
+
+
 def move_module(module, direction):
     """Move a module within its draft course. Returns True when moved."""
     from learning.models import Module

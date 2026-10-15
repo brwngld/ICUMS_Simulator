@@ -35,13 +35,13 @@ def _role_segments(students, staff, superusers):
     if total == 0:
         return []
     roles = [
-        ("Students", students, "#5145cd"),
-        ("Instructors", staff, "#087f8c"),
-        ("Superusers", superusers, "#d97706"),
+        ("Students", students, "students"),
+        ("Instructors", staff, "instructors"),
+        ("Superusers", superusers, "superusers"),
     ]
     segments = []
     offset = 0
-    for label, count, colour in roles:
+    for label, count, tone in roles:
         pct = round(count * 100 / total, 1)
         if pct <= 0:
             continue
@@ -50,7 +50,7 @@ def _role_segments(students, staff, superusers):
             "count": count,
             "pct": pct,
             "dash_offset": round(offset - 25, 2),
-            "colour": colour,
+            "tone": tone,
         })
         offset += pct
     return segments
@@ -247,7 +247,6 @@ def _student_navigation(request):
 
     roles = role_context(request)
     roadmap_url = reverse("roadmap")
-    module_items = []
     assessment_items = []
     enrolment = (
         request.user.enrolments.filter(status="active")
@@ -255,48 +254,15 @@ def _student_navigation(request):
         .first()
     )
     if enrolment:
-        from learning.services import module_is_unlocked
-        from progress.models import LessonProgress
-
-        completed_lessons = set(
-            LessonProgress.objects.filter(enrolment=enrolment, completed_at__isnull=False)
-            .values_list("lesson_id", flat=True)
-        )
+        # The roadmap page carries the module and lesson navigation itself, so the
+        # sidebar only needs one entry here — individual courses, modules and
+        # lessons must not populate the global sidebar.
         modules = list(
             enrolment.programme_version.modules.filter(is_published=True)
-            .prefetch_related("lessons", "assessments")
+            .prefetch_related("assessments")
             .order_by("order", "title")
         )
         for index, module in enumerate(modules, start=1):
-            lessons = list(module.lessons.filter(is_published=True).order_by("order", "title"))
-            first_lesson = lessons[0] if lessons else None
-            link = reverse("module-overview", args=(module.code,))
-            unlocked = module_is_unlocked(enrolment, module)
-            lesson_items = []
-            for lesson_index, lesson in enumerate(lessons, start=1):
-                lesson_link = reverse("lesson-detail", args=(module.code, lesson.slug))
-                lesson_items.append(
-                    {
-                        "title": f"{lesson_index}. {lesson.title}",
-                        "link": lesson_link,
-                        "active": request.path.startswith(lesson_link),
-                        "learning_state": (
-                            "complete" if lesson.pk in completed_lessons
-                            else "locked" if not unlocked
-                            else "current" if request.path.startswith(lesson_link)
-                            else "incomplete"
-                        ),
-                    }
-                )
-            module_items.append(
-                {
-                    "title": f"Module {index}",
-                    "link": link,
-                    "submenu": True,
-                    "active": request.path == link or any(item["active"] for item in lesson_items),
-                    "items": lesson_items,
-                }
-            )
             assessment = module.assessments.filter(is_published=True).first()
             if assessment:
                 assessment_items.append(
@@ -321,7 +287,7 @@ def _student_navigation(request):
                     "link": roadmap_url,
                     "submenu": True,
                     "active": request.path.startswith(("/theory/", "/assessments/")),
-                    "items": [{"title": "Course Overview", "link": roadmap_url if enrolment else "#"}, *module_items],
+                    "items": [{"title": "Learning Roadmap", "link": roadmap_url if enrolment else "#"}],
                 },
                 {
                     "title": "Simulator",
@@ -374,21 +340,46 @@ def _instructor_crumb():
     return _crumb("Instructor", "/instructor/")
 
 
+def _course_crumb(ctx):
+    """The course a module belongs to, when the learner reaches it through the
+    roadmap. Modules with no course, draft-only courses and the compatibility
+    containers that legacy programmes were wrapped in (no difficulty level, so
+    they duplicate the programme name) keep the existing two-level trail."""
+    module = ctx.get("module")
+    course = getattr(module, "course", None)
+    if course is None:
+        return None
+    if not (course.is_published or ctx.get("preview_mode")):
+        return None
+    if not course.difficulty and not ctx.get("preview_mode"):
+        return None
+    link = (
+        f"/instructor/learner-courses/{course.pk}/student-view/"
+        if ctx.get("preview_mode")
+        else f"/theory/courses/{course.code}/"
+    )
+    return _crumb(course.title, link)
+
+
 def _lesson_crumbs(ctx):
-    return [
-        _crumb("Home", "/"),
-        _crumb("Theoretical Training", "/theory/"),
+    crumbs = [_crumb("Home", "/"), _crumb("Theoretical Training", "/theory/")]
+    course = _course_crumb(ctx)
+    if course:
+        crumbs.append(course)
+    crumbs += [
         _crumb(f"Module {ctx['module'].order}", reverse("module-overview", args=(ctx["module"].code,))),
         _crumb(f"Lesson {ctx.get('lesson_position', 1)}"),
     ]
+    return crumbs
 
 
 def _module_crumbs(ctx):
-    return [
-        _crumb("Home", "/"),
-        _crumb("Theoretical Training", "/theory/"),
-        _crumb(f"Module {ctx['module'].order}"),
-    ]
+    crumbs = [_crumb("Home", "/"), _crumb("Theoretical Training", "/theory/")]
+    course = _course_crumb(ctx)
+    if course:
+        crumbs.append(course)
+    crumbs.append(_crumb(f"Module {ctx['module'].order}"))
+    return crumbs
 
 
 def _assessment_crumbs(ctx):
@@ -411,6 +402,12 @@ _BREADCRUMB_BUILDERS = {
         _crumb("Course Overview"),
     ],
     "module-overview": _module_crumbs,
+    "course-overview": lambda ctx: [
+        _crumb("Home", "/"),
+        _crumb("Theoretical Training", "/theory/"),
+        _crumb("Course Overview", "/theory/"),
+        _crumb(ctx["course"].title),
+    ],
     "instructor-student-detail": lambda ctx: [
         _instructor_crumb(),
         _crumb(ctx["enrolment"].student),

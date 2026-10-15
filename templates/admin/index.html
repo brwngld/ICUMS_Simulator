@@ -9,7 +9,7 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}?v=20261015-1">
+  <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}?v=20261015-2">
 {% endblock %}
 
 {% block content %}
@@ -45,7 +45,7 @@
           <svg class="dash-donut" viewBox="0 0 42 42" role="img" aria-label="Users by role">
             <circle class="dash-donut-ring" cx="21" cy="21" r="15.916" fill="none" stroke-width="6"/>
             {% for seg in dash.role_segments %}
-              <circle cx="21" cy="21" r="15.916" fill="none" stroke="{{ seg.colour }}" stroke-width="6"
+              <circle class="dash-role-{{ seg.tone }}" cx="21" cy="21" r="15.916" fill="none" stroke-width="6"
                       stroke-dasharray="{{ seg.pct }} 100"
                       stroke-dashoffset="{{ seg.dash_offset }}"
                       pathLength="100"/>
@@ -53,7 +53,7 @@
           </svg>
           <ul class="dash-legend">
             {% for seg in dash.role_segments %}
-              <li><i style="background: {{ seg.colour }}" aria-hidden="true"></i>{{ seg.label }}<strong>{{ seg.count }}</strong></li>
+              <li><i class="dash-role-{{ seg.tone }}" aria-hidden="true"></i>{{ seg.label }}<strong>{{ seg.count }}</strong></li>
             {% endfor %}
           </ul>
         {% else %}

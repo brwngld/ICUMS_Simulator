@@ -100,4 +100,5 @@
   }
 
   apply();
+  window.ICUMSThemeReady = true;
 })();

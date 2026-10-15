@@ -46,7 +46,7 @@ from evaluations.models import (
     RubricCriterion,
     RubricVersion,
 )
-from learning.models import ContentBlock, Lesson, Module, Resource
+from learning.models import ContentBlock, Course, Lesson, Module, Resource, RichTextImage
 from onboarding.models import DisclaimerAcceptance, Enrolment, Programme, ProgrammeVersion
 from progress.models import LessonProgress, ModuleProgress, ProgrammeProgress
 from reports.models import Certificate, CompletionPolicy, CompletionRecord
@@ -103,8 +103,10 @@ DELETION_ORDER = [
     Assessment,
     LessonCheck,
     ContentBlock,
+    RichTextImage,
     Lesson,
     Module,
+    Course,
     QuestionVersion,
     AnswerOption,
     Question,

@@ -42,7 +42,7 @@ def make_draft_course(module_count=0):
 
 
 @pytest.mark.django_db
-def test_course_review_renders_submitted_lesson_as_readonly_form(client):
+def test_course_review_links_to_the_student_view_of_each_lesson(client):
     instructor = make_instructor("review-instructor")
     version = make_draft_course(module_count=1)
     module = version.modules.first()
@@ -75,19 +75,17 @@ def test_course_review_renders_submitted_lesson_as_readonly_form(client):
     assert SHARED_CSS in content
     assert "portal-main" in content
     assert "view-mode-badge" in content
-    # The submitted lesson uses the SAME form layout as the lesson builder,
-    # rendered read-only (inputs/textareas readonly).
-    assert 'value="Uniform Lesson Title" readonly' in content
-    assert ">Uniform summary copy</textarea>" in content
-    assert ">Teaching body copy</textarea>" in content
-    assert ">What is being trained?</textarea>" in content
-    assert 'value="The correct step" readonly' in content
+    # The review page hands the read-only content review to the student view,
+    # so every lesson is reachable there in the learner presentation.
+    assert reverse("lesson-preview", args=(lesson.pk,)) in content
+    assert reverse("course-preview", args=(version.pk,)) in content
+    assert reverse("module-preview", args=(module.pk,)) in content
     # With no outstanding issues nothing is disabled.
     assert "disabled" not in content
 
 
 @pytest.mark.django_db
-def test_course_review_shows_practical_with_disabled_selects_and_readonly_steps(client):
+def test_course_review_links_to_the_student_view_of_each_practical(client):
     instructor = make_instructor("practical-review-instructor")
     version = make_draft_course(module_count=1)
     module = version.modules.first()
@@ -113,12 +111,12 @@ def test_course_review_shows_practical_with_disabled_selects_and_readonly_steps(
     content = response.content.decode()
     assert SHARED_CSS in content
     assert "view-mode-badge" in content
-    # Selects are disabled (never restyled); text controls are readonly.
-    assert "<select" in content and "disabled><option selected>Import</option></select>" in content
-    assert "disabled><option selected>Beginner</option></select>" in content
-    assert 'type="number" value="3" readonly' in content
-    assert ">Fictional briefing copy</textarea>" in content
-    assert ">Review documents\nCreate UCR\n</textarea>" in content
+    # The guided practical is reviewed in the learner presentation, not as a
+    # form dump on this page.
+    assert reverse("practical-preview", args=(practical.pk,)) in content
+    preview = client.get(reverse("practical-preview", args=(practical.pk,))).content.decode()
+    assert "Fictional briefing copy" in preview
+    assert "Review documents" in preview and "Create UCR" in preview
 
 
 @pytest.mark.django_db

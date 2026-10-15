@@ -3,7 +3,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from assessments.models import AnswerOption, AssessmentItem, Question, QuestionVersion
-from learning.models import ContentBlock, Module
+from learning.models import ContentBlock, Course, Module
 from scenarios.models import ScenarioState
 from onboarding.models import Programme, ProgrammeVersion
 
@@ -25,6 +25,50 @@ class ModuleCreateForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 3}),
         help_text="Briefly describe what learners will be able to do after this module.",
     )
+    course = forms.ModelChoiceField(
+        queryset=Course.objects.none(),
+        required=False,
+        label="Course",
+        help_text="Add this module to a course on the learner roadmap.",
+    )
+
+    def __init__(self, version=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if version is not None:
+            self.fields["course"].queryset = Course.objects.filter(
+                programme_version=version
+            ).order_by("order", "title")
+
+
+class ProgrammeCourseForm(forms.Form):
+    """One course on the learner roadmap: a subject area at one difficulty level."""
+
+    title = forms.CharField(max_length=180, label="Course title")
+    description = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Shown on the learner roadmap under the course title.",
+    )
+    difficulty = forms.ChoiceField(
+        required=False,
+        choices=[("", "— Select difficulty —")] + list(Programme.Difficulty.choices),
+        label="Difficulty level",
+        help_text="Places the course on the roadmap ladder. Learners reach it once the level below is finished; a course with no level stays open straight away.",
+    )
+    is_required = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Required for progression",
+        help_text="Learners finish every required course at a level before the next level unlocks.",
+    )
+
+    def __init__(self, *args, course=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if course is not None:
+            self.fields["title"].initial = course.title
+            self.fields["description"].initial = course.description
+            self.fields["difficulty"].initial = course.difficulty
+            self.fields["is_required"].initial = course.is_required
 
 
 class LessonCreateForm(forms.Form):
@@ -168,6 +212,12 @@ class ModuleEditForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 3}),
         help_text="Briefly describe what learners will be able to do after this module.",
     )
+    course = forms.ModelChoiceField(
+        queryset=Course.objects.none(),
+        required=False,
+        label="Course",
+        help_text="The course this module belongs to on the learner roadmap.",
+    )
     cover_image = forms.ImageField(
         required=False,
         label="Cover image",
@@ -196,8 +246,12 @@ class ModuleEditForm(forms.Form):
         self.fields["prerequisite"].queryset = Module.objects.filter(
             programme_version=module.programme_version
         ).exclude(pk=module.pk).order_by("order")
+        self.fields["course"].queryset = Course.objects.filter(
+            programme_version=module.programme_version
+        ).order_by("order", "title")
         self.fields["title"].initial = module.title
         self.fields["description"].initial = module.description
+        self.fields["course"].initial = module.course_id
         self.fields["difficulty"].initial = module.difficulty
         self.fields["prerequisite"].initial = module.prerequisite_id
 
@@ -234,12 +288,20 @@ class LessonEditForm(forms.Form):
     )
 
 
-BlockFormSet = forms.modelformset_factory(
-    ContentBlock,
-    fields=("heading", "body"),
-    extra=0,
-    widgets={"body": forms.Textarea(attrs={"rows": 5})},
-)
+class ContentBlockSectionForm(forms.ModelForm):
+    class Meta:
+        model = ContentBlock
+        fields = ("heading", "body")
+        widgets = {"body": forms.Textarea(attrs={"rows": 5})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A section that is not written yet stays savable; the review checklist is
+        # what refuses to publish a lesson with empty teaching content.
+        self.fields["body"].required = False
+
+
+BlockFormSet = forms.modelformset_factory(ContentBlock, form=ContentBlockSectionForm, extra=0)
 
 
 class LessonCheckEditForm(forms.Form):

@@ -1,7 +1,23 @@
 # Legacy theme leak audit
 
 Date: 14 October 2026  
-Status: findings only; no theme, template, script, settings, or application code changed
+Status: automated remediation applied 15 October 2026; manual visual sweep remains
+
+## Remediation update — 15 October 2026
+
+The approved source and deployment remediation has now been applied:
+
+- rebuilt the verified `local_data/static_collected` directory with local-production settings;
+- confirmed the manifest contains current hashes plus 26 Unfold assets;
+- added `manage.py check_static_manifest` to reject missing, stale, or incomplete collected output;
+- replaced the audited legacy accent literals in active CSS/templates with Unfold primary/base tokens;
+- moved admin donut presentation colours out of Python and into semantic CSS classes;
+- replaced purple HS-table striping with neutral base-surface tokens;
+- made `theme.js` the sole theme-state controller and removed the duplicate writer from `app-shell.js`;
+- moved both password-change pages into the shared Unfold shell; and
+- added a regression test that rejects the known legacy literals and duplicate theme-state ownership.
+
+Automated verification completed with 373 passing tests. A manual route-by-route screenshot and contrast review remains recommended before the next production deployment, particularly for simulator workflows in dark mode. The generated collected-static directory remains ignored build output and was not edited by hand.
 
 ## Executive summary
 

@@ -16,9 +16,8 @@ from django.views.static import serve
 from accounts.context_processors import role_context
 from assessments.models import Assessment
 from audit.models import AuditEvent
-from learning.models import Module
 from reports.models import CompletionRecord
-from learning.services import module_summary
+from learning.views import roadmap_context
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 from progress.models import ProgrammeProgress
 from accounts.models import SimulatorCredential
@@ -30,15 +29,79 @@ def dashboard(request):
     if needs_disclaimer_acceptance(request.user):
         return redirect("disclaimer")
     enrolment = request.user.enrolments.filter(status="active").select_related("programme_version__programme").first()
-    summaries = []
+    learning = None
     if enrolment:
-        modules = Module.objects.filter(programme_version=enrolment.programme_version, is_published=True)
-        summaries = [module_summary(enrolment, module) for module in modules]
+        learning = roadmap_context(enrolment.programme_version, enrolment)
+    summaries = learning["module_summaries"] if learning else []
     final_assessment = Assessment.objects.filter(programme_version=enrolment.programme_version, assessment_type=Assessment.Type.FINAL_THEORY, is_published=True).first() if enrolment else None
     programme_progress = ProgrammeProgress.objects.filter(enrolment=enrolment).first() if enrolment else None
     completion_record = CompletionRecord.objects.filter(enrolment=enrolment).first() if enrolment else None
     roles = role_context(request)
-    context = {"role_names": set(request.user.groups.values_list("name", flat=True)), "enrolment": enrolment, "module_summaries": summaries, "programme_progress": programme_progress, "final_assessment": final_assessment, "completion_record": completion_record, "simulator_credential": SimulatorCredential.objects.filter(user=request.user).first(), "can_access_instructor_portal": roles["can_access_instructor_portal"], "has_active_enrolment": roles["has_active_enrolment"], "can_access_practical": roles["can_access_practical"]}
+    completed_modules = sum(item["assessment_state"] == "passed" for item in summaries)
+    total_modules = len(summaries)
+    module_completion_percentage = round(completed_modules / total_modules * 100) if total_modules else 0
+
+    primary_action = None
+    if enrolment:
+        if programme_progress and programme_progress.orientation_completed_at:
+            primary_action = {
+                "eyebrow": "Practical training",
+                "title": "Continue your guided simulator training",
+                "description": "Your theory training and simulator orientation are complete. Continue with the available practical activities.",
+                "label": "Continue practical training",
+                "url": reverse("scenario-list"),
+            }
+        elif programme_progress and programme_progress.orientation_unlocked_at:
+            primary_action = {
+                "eyebrow": "Simulator orientation",
+                "title": "Complete your simulator orientation",
+                "description": "Your theory requirements are complete. Finish orientation to unlock practical training.",
+                "label": "Continue to orientation",
+                "url": reverse("orientation"),
+            }
+        elif learning["theory_completed"] and final_assessment:
+            primary_action = {
+                "eyebrow": "Final theory examination",
+                "title": final_assessment.title,
+                "description": "You have completed every module. Take the final theory examination to continue toward practical training.",
+                "label": "Take final theory examination",
+                "url": learning["final_assessment_url"],
+            }
+        elif learning["next_assessment"]:
+            assessment = learning["next_assessment"]
+            primary_action = {
+                "eyebrow": "Module assessment",
+                "title": assessment.title,
+                "description": "You have completed this module's lessons. Check your understanding to unlock the next stage.",
+                "label": "Take module assessment",
+                "url": learning["next_assessment_url"],
+            }
+        elif learning["next_lesson"]:
+            lesson = learning["next_lesson"]
+            primary_action = {
+                "eyebrow": "Theory training",
+                "title": lesson.module.title,
+                "description": "Your next module is ready. Continue with its lessons and knowledge checks.",
+                "label": "Continue learning",
+                "url": learning["next_lesson_url"],
+            }
+
+    context = {
+        "role_names": set(request.user.groups.values_list("name", flat=True)),
+        "enrolment": enrolment,
+        "module_summaries": summaries,
+        "programme_progress": programme_progress,
+        "final_assessment": final_assessment,
+        "completion_record": completion_record,
+        "simulator_credential": SimulatorCredential.objects.filter(user=request.user).first(),
+        "can_access_instructor_portal": roles["can_access_instructor_portal"],
+        "has_active_enrolment": roles["has_active_enrolment"],
+        "can_access_practical": roles["can_access_practical"],
+        "primary_action": primary_action,
+        "completed_modules": completed_modules,
+        "total_modules": total_modules,
+        "module_completion_percentage": module_completion_percentage,
+    }
     # Presentation context only: the student/tutor home renders the shared
     # Unfold shell with its role-appropriate navigation. This supplies the
     # sidebar content without touching Django Admin's has_permission gate —

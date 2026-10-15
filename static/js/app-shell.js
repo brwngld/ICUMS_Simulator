@@ -1,11 +1,5 @@
 /* Shared shell enhancement: responsive navigation, menu accordions, and theme controls. */
 (() => {
-  const themeKey = 'icums-theme';
-  const root = document.documentElement;
-  const systemTheme = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  const storedTheme = window.localStorage.getItem(themeKey);
-  root.dataset.theme = storedTheme === 'dark' || storedTheme === 'light' ? storedTheme : systemTheme();
-
   const sidebar = document.querySelector('.app-layout .site-header, .portal-sidebar');
   if (!sidebar) return;
 
@@ -79,21 +73,13 @@
   }
 
   const refreshThemeLabel = () => {
-    const dark = root.dataset.theme === 'dark';
+    const dark = document.documentElement.dataset.theme === 'dark';
     document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
       button.setAttribute('aria-pressed', String(dark));
       const label = button.querySelector('[data-theme-label]');
       if (label) label.textContent = dark ? 'Light theme' : 'Dark theme';
     });
   };
-  if (!window.ICUMSThemeReady) {
-    document.addEventListener('click', (event) => {
-      if (!event.target.closest('[data-theme-toggle]')) return;
-      root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
-      window.localStorage.setItem(themeKey, root.dataset.theme);
-      refreshThemeLabel();
-    });
-  }
   refreshThemeLabel();
 
   const mobile = window.matchMedia('(max-width: 52rem)');

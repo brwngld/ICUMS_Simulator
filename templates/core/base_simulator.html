@@ -13,9 +13,9 @@ the simulator stylesheets loaded below; the legacy simulator shell
 
 {% block extrastyle %}
   {{ block.super }}
-  <script src="{% static 'js/theme.js' %}?v=20261010-3"></script>
-  <link rel="stylesheet" href="{% static 'css/dash.css' %}?v=20261015-1">
-  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261015-1">
+  <script src="{% static 'js/theme.js' %}?v=20261015-1"></script>
+  <link rel="stylesheet" href="{% static 'css/dash.css' %}?v=20261015-2">
+  <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261015-2">
   {% block page_css %}{% endblock %}
   <style>
     /* Keep the Unfold chrome's own colours and metrics where app.css and
@@ -43,9 +43,9 @@ the simulator stylesheets loaded below; the legacy simulator shell
     .sim-top-nav a { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: .42rem .5rem; border-radius: .5rem; font-size: .76rem; font-weight: 650; color: #475569; text-decoration: none; white-space: nowrap; }
     html.dark .sim-top-nav a { color: #aab4ca; }
     .sim-top-nav a:hover { color: #4236b6; background: #eef0fd; }
-    html.dark .sim-top-nav a:hover { color: #bdb3ff; background: #1b1940; }
+    html.dark .sim-top-nav a:hover { color: var(--color-primary-300); background: var(--color-primary-950); }
     .sim-top-nav a[aria-current="page"] { color: #4236b6; background: #eef0fd; box-shadow: inset 0 -2px 0 #4236b6; }
-    html.dark .sim-top-nav a[aria-current="page"] { color: #bdb3ff; background: #262254; box-shadow: inset 0 -2px 0 #8a86de; }
+    html.dark .sim-top-nav a[aria-current="page"] { color: var(--color-primary-300); background: var(--color-primary-900); box-shadow: inset 0 -2px 0 var(--color-primary-400); }
     @media (max-width: 60rem) { .sim-top-nav { justify-content: flex-start; } .sim-top-nav a { flex: 0 0 auto; padding: .42rem .8rem; } }
   </style>
   {% block simulator_style %}{% endblock %}

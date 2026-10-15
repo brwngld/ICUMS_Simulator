@@ -1,0 +1,100 @@
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}Edit {{ course.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit course{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-8">{% endblock %}
+{% block content %}<div class="authoring">
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">{{ course.programme_version.programme.name }} · Course {{ course.order }}</p>
+      <h1>{{ course.title }}</h1>
+      <p>Manage the course title, its difficulty level on the learner roadmap and the modules it contains.</p>
+    </div>
+    <div class="authoring-actions">
+      <a class="authoring-secondary" href="{% url 'course-builder-detail' course.programme_version_id %}">Back to course</a>
+      <a class="authoring-secondary" href="{% url 'course-content-preview' course.pk %}">Student view</a>
+    </div>
+  </header>
+
+  <nav class="authoring-tabs" role="tablist" aria-label="Course editor" data-authoring-tabs>
+    <button type="button" role="tab" aria-selected="true"  data-authoring-tab="summary">Summary</button>
+    <button type="button" role="tab" aria-selected="false" data-authoring-tab="modules" tabindex="-1">Modules <span class="authoring-tab-count">{{ course.modules.count }}</span></button>
+  </nav>
+
+  {# ── Tab 1: Summary ───────────────────────────────────────────────────── #}
+  <section class="authoring-panel" data-authoring-panel="summary">
+    <div class="authoring-layout">
+      <form method="post" class="authoring-card authoring-form">
+        {% csrf_token %}
+        <div class="authoring-editor-header">
+          <div><h2>Course information</h2><p>These fields feed the learner's roadmap and the difficulty ladder.</p></div>
+          <span class="authoring-status">Draft</span>
+        </div>
+        {{ form.title.as_field_group }}
+        {{ form.description.as_field_group }}
+        {{ form.difficulty.as_field_group }}
+        {{ form.is_required.as_field_group }}
+        <div class="authoring-sticky-actions">
+          <a class="authoring-secondary" href="{% url 'course-builder-detail' course.programme_version_id %}">Cancel</a>
+          <button class="authoring-primary" type="submit">Save course</button>
+        </div>
+      </form>
+      <aside class="authoring-aside">
+        <section class="authoring-card">
+          <h2>Course content</h2>
+          <dl class="authoring-facts">
+            <div><dt>Order</dt><dd>{{ course.order }}</dd></div>
+            <div><dt>Modules</dt><dd>{{ course.modules.count }}</dd></div>
+            <div><dt>Difficulty</dt><dd>{% if course.difficulty %}<span class="authoring-difficulty-badge authoring-difficulty-badge--{{ course.difficulty }}">{{ course.get_difficulty_display }}</span>{% else %}<span style="color:#b91c1c">Missing</span>{% endif %}</dd></div>
+            <div><dt>Visibility</dt><dd>Draft</dd></div>
+          </dl>
+        </section>
+        {% if issues %}
+        <section class="authoring-card">
+          <h2>Before publishing</h2>
+          <ul class="authoring-guidance-list">{% for issue in issues %}<li>{{ issue }}</li>{% endfor %}</ul>
+        </section>
+        {% endif %}
+      </aside>
+    </div>
+  </section>
+
+  {# ── Tab 2: Modules ───────────────────────────────────────────────────── #}
+  <section class="authoring-panel" data-authoring-panel="modules" hidden>
+    <div class="authoring-layout">
+      <div>
+        <div class="authoring-head" style="margin-bottom:.75rem">
+          <div><h2 style="margin:0;font-size:1rem">Course modules</h2><p style="margin:.2rem 0 0;font-size:.72rem;color:var(--au-muted)">Assign a module to this course from its edit page, under Course.</p></div>
+          <a class="authoring-secondary" href="{% url 'course-builder-detail' course.programme_version_id %}">All modules</a>
+        </div>
+        <div class="authoring-module-list">
+          {% for module in modules %}
+          <article class="authoring-module">
+            <span class="authoring-module-number">{{ forloop.counter }}</span>
+            <div>
+              <h3>{{ module.title }}</h3>
+              <p>{{ module.description|default:"No module description yet." }} · {{ module.lessons.count }} lesson{{ module.lessons.count|pluralize }}</p>
+            </div>
+            <div class="authoring-module-tools">
+              <a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a>
+              <a class="authoring-secondary" href="{% url 'module-edit' module.pk %}">Edit module</a>
+            </div>
+          </article>
+          {% empty %}
+          <div class="authoring-card authoring-empty">No modules in this course yet.</div>
+          {% endfor %}
+        </div>
+      </div>
+      <aside class="authoring-aside">
+        <section class="authoring-card">
+          <h2>Roadmap rules</h2>
+          <dl class="authoring-facts">
+            <div><dt>Required</dt><dd>{% if course.is_required %}Gates the next level{% else %}Optional{% endif %}</dd></div>
+            <div><dt>Level</dt><dd>{{ course.get_difficulty_display|default:"Any level" }}</dd></div>
+          </dl>
+          <p>Learners open a difficulty level only after completing every required course above it.</p>
+        </section>
+      </aside>
+    </div>
+  </section>
+</div>
+<script src="{% static 'js/instructor-theory-builder.js' %}?v=20261015-5"></script>
+{% endblock %}

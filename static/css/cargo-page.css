@@ -211,7 +211,7 @@ html[data-theme="dark"] .cargo-panel .empty-row { color: #aab4ca; background: #1
 .cargo-panel td form { margin: 0; }
 html[data-theme="dark"] .frontend-note { color: #f2d889; border-color: #4a3f1d; background: #2a2313; }
 html[data-theme="dark"] .gsa-permanent-note { color: #ffb5ad; background: #472522; }
-html[data-theme="dark"] .clearance-menu-grid a { color: #bdb3ff; background: #172033; border-color: var(--line); }
+html[data-theme="dark"] .clearance-menu-grid a { color: var(--color-primary-300, #a8aded); background: var(--color-base-900, #0f172a); border-color: var(--line); }
 html[data-theme="dark"] .clearance-menu-grid a:hover { background: #262254; }
 html[data-theme="dark"] .code-dialog-card { color: var(--ink); background: var(--panel); }
 html[data-theme="dark"] .code-search label { color: #cbd5e1; }
@@ -307,9 +307,9 @@ html[data-theme="dark"] #app-tab-general [readonly] { color: #aab4ca; background
 .app-hs-table td { padding: .5rem .6rem; overflow-wrap: anywhere; text-align: center; vertical-align: middle; line-height: 1.35; }
 .app-hs-table td:nth-child(3) { text-align: left; }
 .app-hs-table tbody tr { cursor: pointer; }
-.app-hs-table tbody tr:nth-child(even) { background: rgba(120, 110, 220, .05); }
+.app-hs-table tbody tr:nth-child(even) { background: var(--color-base-50, #f8fafc); }
 .app-hs-table tbody tr:hover, .app-hs-table tbody tr:focus { background: #eef0fd; }
-html[data-theme="dark"] .app-hs-table tbody tr:nth-child(even) { background: rgba(120, 110, 220, .1); }
+html[data-theme="dark"] .app-hs-table tbody tr:nth-child(even) { background: var(--color-base-800, #1e293b); }
 html[data-theme="dark"] .app-hs-table tbody tr:hover, html[data-theme="dark"] .app-hs-table tbody tr:focus { background: #1b1940; }
 html[data-theme="dark"] .app-hs-dialog .cargo-table-wrap { border-color: var(--line); }
 .app-invoice-grid > .full-field { grid-column: 2 / -1; }

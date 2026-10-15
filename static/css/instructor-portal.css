@@ -26,5 +26,5 @@ html[data-theme="dark"] :where(.portal-main) :is(input:not([type="checkbox"]):no
 /* "View mode" pill — same design as the simulator portal badge
    (simulator-portal.css), with app.css tokens. */
 .view-mode-badge { display: inline-flex; align-items: center; gap: .35rem; padding: .22rem .6rem; border: 1px solid #aab4ca; border-radius: 999px; background: #eef0fd; color: #4236b6; font-size: .72rem; font-weight: 750; white-space: nowrap; }
-html[data-theme="dark"] .view-mode-badge { border-color: #64748b; background: #2b3950; color: #bdb3ff; }
+html[data-theme="dark"] .view-mode-badge { border-color: var(--color-base-500, #64748b); background: var(--color-base-700, #334155); color: var(--color-primary-300, #a8aded); }
 .page-intro .view-mode-badge { flex-shrink: 0; align-self: center; }

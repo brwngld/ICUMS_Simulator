@@ -9,7 +9,13 @@ from django.views.decorators.http import require_http_methods
 
 from core.admin_dashboard import render_student_page
 
-from learning.services import module_is_unlocked, module_lessons_completed, programme_theory_completed
+from learning.services import (
+    locked_module_message,
+    module_is_locked,
+    module_is_unlocked,
+    module_lessons_completed,
+    programme_theory_completed,
+)
 from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
 
 from .models import Assessment, TheoryAttempt
@@ -33,6 +39,8 @@ def assessment_take(request, assessment_id):
     assessment = get_object_or_404(Assessment.objects.prefetch_related("items__question_version__options"), pk=assessment_id, is_published=True)
     if assessment.programme_version_id != enrolment.programme_version_id:
         raise PermissionDenied("This assessment is not available.")
+    if assessment.module and module_is_locked(enrolment, assessment.module):
+        raise PermissionDenied(locked_module_message(assessment.module))
     if assessment.module and (
         not module_is_unlocked(enrolment, assessment.module)
         or not module_lessons_completed(enrolment, assessment.module)

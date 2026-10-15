@@ -3,7 +3,7 @@
    from base_student.html so both surfaces render identically. */
     .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #4236b6; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; }
     /* Dark tokens mirror the admin overview reference (admin-dashboard.css). */
-    html.dark .dash, html[data-theme="dark"] .dash { --d-border: #2b3950; --d-muted: #aab4ca; --d-accent: #9b8cff; --d-card-bg: #172033; }
+    html.dark .dash, html[data-theme="dark"] .dash { --d-border: var(--color-base-700, #334155); --d-muted: var(--color-font-subtle-dark, #94a3b8); --d-accent: var(--color-primary-400, #8a86de); --d-card-bg: var(--color-base-900, #0f172a); }
     .dash-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; }
     .dash-head .view-mode-badge { align-self: center; flex-shrink: 0; }
     @media (max-width: 40rem) { .dash-head { align-items: flex-start; flex-direction: column; } }
@@ -161,6 +161,58 @@
       .dash-bars li { grid-template-columns: minmax(6rem, 10rem) 1fr 2.5rem; gap: .5rem; font-size: .75rem; }
     }
 
+/* Student dashboard: action-led learning workspace. */
+.student-dashboard { max-width: 72rem; }
+.student-next-action { padding: 1.2rem 1.25rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg); }
+.student-next-meta { display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: var(--d-muted); font-size: .72rem; }
+.student-next-action h2 { margin: .85rem 0 .65rem; font-size: 1.1rem; }
+.student-next-action h3 { margin: 0; font-size: 1rem; }
+.student-next-action p { margin: .45rem 0 1rem; max-width: 48rem; color: var(--d-muted); font-size: .8rem; line-height: 1.55; }
+.student-overall-progress, .student-module-track { display: block; overflow: hidden; border-radius: 99px; background: var(--color-base-200); }
+html.dark .student-overall-progress, html.dark .student-module-track,
+html[data-theme="dark"] .student-overall-progress, html[data-theme="dark"] .student-module-track { background: var(--color-base-700); }
+.student-overall-progress { height: .5rem; }
+.student-overall-progress span, .student-module-track span { display: block; height: 100%; border-radius: inherit; background: var(--d-accent); }
+.student-next-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: .8rem; color: var(--d-muted); font-size: .72rem; }
+.student-primary-action { display: inline-flex; align-items: center; justify-content: center; min-height: 2.4rem; padding: .55rem 1rem; border-radius: 99px; color: var(--color-base-50) !important; background: var(--d-accent); font-weight: 700; text-decoration: none; }
+.student-primary-action:hover { filter: brightness(.94); }
+.student-status-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.student-status-card { min-height: 7rem; justify-content: flex-end; background: transparent; }
+.student-status-card .dash-card-icon { margin-bottom: auto; }
+.student-status-card .dash-card-value { font-size: 1.1rem; }
+.student-roadmap .dash-panel-head, .student-journey .dash-panel-head { margin-bottom: .5rem; border-bottom: 0; }
+.student-module-list { display: grid; gap: .2rem; margin: 0; padding: 0; list-style: none; }
+.student-module-list li { display: grid; grid-template-columns: 1.2rem minmax(10rem, 18rem) minmax(8rem, 1fr) 2.5rem; align-items: center; gap: .65rem; min-height: 2.2rem; font-size: .76rem; }
+.student-module-list a { overflow: hidden; color: inherit; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+.student-module-list strong { text-align: right; font-size: .7rem; }
+.student-module-state { color: var(--d-accent); font-weight: 800; text-align: center; }
+.student-module-track { height: .35rem; }
+.student-module-list .is-complete .student-module-track span { background: var(--color-success-600, #059669); }
+.student-module-list .is-complete .student-module-state { color: var(--color-success-600, #059669); }
+.student-module-list .is-locked { color: var(--d-muted); }
+.student-journey > ol { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.student-journey li { display: grid; justify-items: center; gap: .25rem; padding: .9rem .6rem; border-radius: .55rem; text-align: center; }
+.student-journey li.is-active { background: color-mix(in srgb, var(--d-accent) 8%, transparent); }
+.student-journey .ui-icon { width: 1.2rem; height: 1.2rem; color: var(--d-accent); }
+.student-journey strong { font-size: .8rem; }
+.student-journey small { color: var(--d-muted); font-size: .68rem; }
+.student-simulator-access > div { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.student-simulator-access h2 { margin: 0; font-size: .95rem; }
+.student-simulator-access p { margin: .55rem 0; color: var(--d-muted); font-size: .76rem; line-height: 1.5; }
+.student-simulator-access a { font-size: .76rem; }
+@media (max-width: 48rem) {
+  .student-status-cards { grid-template-columns: 1fr; }
+  .student-status-card { min-height: 5.8rem; }
+  .student-module-list li { grid-template-columns: 1.2rem minmax(0, 1fr) 2.5rem; gap: .5rem; padding: .3rem 0; }
+  .student-module-track { grid-column: 2 / -1; grid-row: 2; }
+  .student-journey > ol { grid-template-columns: 1fr; }
+  .student-journey li { grid-template-columns: 1.5rem 7rem 1fr; justify-items: start; align-items: center; text-align: left; }
+}
+@media (max-width: 32rem) {
+  .student-next-meta, .student-next-footer { align-items: flex-start; flex-direction: column; }
+  .student-primary-action { width: 100%; }
+}
+
     .dash-form { display: flex; flex-direction: column; gap: .75rem; margin: 1rem 0 0; }
     .dash-form label { display: flex; align-items: flex-start; gap: .6rem; font-size: .8rem; }
     .dash-form input[type="checkbox"] { margin-top: .15rem; }
@@ -208,7 +260,7 @@ html[data-theme="dark"] .builder-path-tabs { border-color: #2b3950; background: 
 .builder-path-tabs a { padding: .45rem 1rem; border-radius: .45rem; font-size: .8rem; font-weight: 650; color: #475569; text-decoration: none; border: 0; background: transparent; }
 .builder-path-tabs a.active { color: #4236b6; background: #eef0fd; box-shadow: inset 0 -2px 0 #4236b6; }
 html[data-theme="dark"] .builder-path-tabs a { color: #aab4ca; }
-html[data-theme="dark"] .builder-path-tabs a.active { color: #bdb3ff; background: #262254; box-shadow: inset 0 -2px 0 #8a86de; }
+html[data-theme="dark"] .builder-path-tabs a.active { color: var(--color-primary-300, #a8aded); background: var(--color-primary-900, #2b2860); box-shadow: inset 0 -2px 0 var(--color-primary-400, #8a86de); }
 /* Numbered step badges: solid indigo circles (dash-steps idiom) */
 .step-number { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; flex-shrink: 0; border: 0; border-radius: 50%; color: #fff; background: #4236b6; font-size: .78rem; font-weight: 700; }
 html[data-theme="dark"] .step-number { background: #8a86de; }
@@ -223,7 +275,7 @@ html[data-theme="dark"] .builder-progress { color: #aab4ca; }
 html[data-theme="dark"] .builder-progress li::before { background: #2b3950; }
 html[data-theme="dark"] .builder-progress li.complete { color: #7fd8bd; }
 html[data-theme="dark"] .builder-progress li.complete::before { background: #7fd8bd; }
-html[data-theme="dark"] .builder-progress a { color: #bdb3ff; }
+html[data-theme="dark"] .builder-progress a { color: var(--color-primary-300, #a8aded); }
 /* Submit row: border-top action bar, primary right */
 .form-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .6rem; padding-top: .9rem; border-top: 1px solid #e2e8f0; }
 .dash-head .form-actions { border-top: 0; padding-top: 0; }
@@ -238,7 +290,7 @@ html[data-theme="dark"] .form-actions { border-top-color: #2b3950; }
 .builder-card h2, .form-section h2 { margin: .75rem 0 .35rem; font-size: .95rem; }
 .module-card, .outline-module { transition: border-color .15s ease, box-shadow .15s ease; }
 .module-card:hover { border-color: #c7cdf7; box-shadow: 0 2px 4px rgba(15, 23, 42, .05), 0 8px 20px rgba(15, 23, 42, .07); }
-html[data-theme="dark"] .module-card:hover { border-color: #3d3a7a; }
+html[data-theme="dark"] .module-card:hover { border-color: var(--color-primary-800, #302b76); }
 .outline-actions { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
 .outline-actions .move-controls { display: inline-flex; gap: .3rem; margin: 0; }
 .move-controls button { min-height: 2rem !important; padding: .25rem .55rem !important; }
