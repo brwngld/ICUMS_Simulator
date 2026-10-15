@@ -20,6 +20,7 @@ from django.urls import include, path
 from django.views.generic import RedirectView
 
 from accounts.views import LoginView
+from core import views as core_views
 
 handler403 = "core.views.permission_denied"
 
@@ -38,6 +39,7 @@ urlpatterns = [
     path("practical/assessment/", include("assessment.urls")),
     path("practical-results/", include("evaluations.urls")),
     path("records/", include("reports.urls")),
+    path("media/<path:path>", core_views.media_file, name="media"),
     path("", include("core.urls")),
 ]
 

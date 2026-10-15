@@ -1,7 +1,9 @@
 from urllib.parse import urlsplit
 
+from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import redirect, render
@@ -9,6 +11,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.views import defaults as django_views
+from django.views.static import serve
 
 from accounts.context_processors import role_context
 from assessments.models import Assessment
@@ -91,3 +94,14 @@ def permission_denied(request, exception=None):
                 candidate = None  # don't redirect straight back onto the gate
         return redirect(candidate or reverse("dashboard"))
     return django_views.permission_denied(request, exception)
+
+
+# Course covers are public artwork, but every other upload (simulator attachments
+# and the like) shares MEDIA_ROOT, so those need a signed-in session.
+PUBLIC_MEDIA_PREFIXES = ("course_covers/",)
+
+
+def media_file(request, path):
+    if not path.startswith(PUBLIC_MEDIA_PREFIXES) and not request.user.is_authenticated:
+        return redirect_to_login(request.get_full_path())
+    return serve(request, path, document_root=settings.MEDIA_ROOT)
