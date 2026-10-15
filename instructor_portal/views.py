@@ -1,8 +1,8 @@
-from django.contrib.auth.decorators import login_required
+﻿from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
@@ -57,7 +57,10 @@ def simulator_credential_issue(request, user_id):
     _require_instructor(request.user)
     if request.method != "POST":
         return redirect("instructor-dashboard")
+
+
     from accounts.models import User
+
     student = get_object_or_404(User, pk=user_id)
     credential, _ = SimulatorCredential.objects.get_or_create(user=student)
     raw_password = credential.issue()
@@ -82,16 +85,26 @@ def _unique_slug(model, field, value, **scope):
 @login_required
 def course_builder(request):
     _require_instructor(request.user)
-    drafts = (
-        ProgrammeVersion.objects.filter(status=ProgrammeVersion.Status.DRAFT)
-        .select_related("programme")
+    status_filter = request.GET.get("status", "all")
+    if status_filter not in {"all", "draft", "published", "retired"}:
+        status_filter = "all"
+    qs = (
+        ProgrammeVersion.objects.select_related("programme")
         .prefetch_related("modules__lessons")
         .annotate(module_total=Count("modules", distinct=True), lesson_total=Count("modules__lessons", distinct=True))
+        .order_by("programme__name", "version")
     )
+    if status_filter != "all":
+        qs = qs.filter(status=status_filter)
     learning_path = request.GET.get("path", "all")
     if learning_path not in {"all", "theory", "combined"}:
         learning_path = "all"
-    return render_student_page(request, "instructor_portal/course_builder.html", {"drafts": drafts, "form": CourseCreateForm(), "learning_path": learning_path})
+    return render_student_page(request, "instructor_portal/course_builder.html", {
+        "versions": qs,
+        "form": CourseCreateForm(),
+        "learning_path": learning_path,
+        "status_filter": status_filter,
+    })
 
 
 @login_required
@@ -106,7 +119,11 @@ def course_create(request):
         return render_student_page(request, "instructor_portal/course_builder.html", {"drafts": drafts, "form": form}, status=400)
     name = form.cleaned_data["name"]
     code = _unique_slug(Programme, "code", name)
-    programme = Programme.objects.create(name=name, code=code)
+    programme = Programme.objects.create(
+        name=name,
+        code=code,
+        description=form.cleaned_data.get("description", ""),
+    )
     version = ProgrammeVersion.objects.create(programme=programme, version=1, status="draft")
     messages.success(request, "Draft course created. Add its first module next.")
     return redirect("course-builder-detail", version_id=version.pk)
@@ -232,6 +249,62 @@ def course_publish(request, version_id):
     version.save(update_fields=("status", "published_at"))
     messages.success(request, f'“{version.programme.name}” is now available to enrolled students.')
     return redirect("instructor-dashboard")
+
+
+@login_required
+def course_view_published(request, version_id):
+    """Read-only instructor view of a published or retired course."""
+    _require_instructor(request.user)
+    version = get_object_or_404(
+        ProgrammeVersion.objects.select_related("programme").prefetch_related(
+            "modules__lessons__blocks",
+            "modules__assessments__items",
+            "assessments__items",
+        ),
+        pk=version_id,
+    )
+    if version.status == ProgrammeVersion.Status.DRAFT:
+        return redirect("course-builder-detail", version_id=version.pk)
+    final_exam = version.assessments.filter(assessment_type=Assessment.Type.FINAL_THEORY).first()
+    enrolment_count = version.enrolments.count()
+    return render_student_page(request, "instructor_portal/course_view_published.html", {
+        "version": version,
+        "final_exam": final_exam,
+        "enrolment_count": enrolment_count,
+    })
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def course_revert_to_draft(request, version_id):
+    """Create a new editable draft from a published/retired course."""
+    _require_instructor(request.user)
+    version = get_object_or_404(
+        ProgrammeVersion.objects.select_related("programme"),
+        pk=version_id,
+    )
+    if version.status == ProgrammeVersion.Status.DRAFT:
+        messages.info(request, "This course is already a draft.")
+        return redirect("course-builder-detail", version_id=version.pk)
+    next_ver = (
+        ProgrammeVersion.objects.filter(programme=version.programme)
+        .order_by("-version")
+        .values_list("version", flat=True)
+        .first()
+        or 0
+    ) + 1
+    new_version = ProgrammeVersion.objects.create(
+        programme=version.programme,
+        version=next_ver,
+        status=ProgrammeVersion.Status.DRAFT,
+    )
+    messages.success(
+        request,
+        "Draft v" + str(new_version.version) + ' of "' + version.programme.name + '" created. '
+        "The published version remains active for enrolled students.",
+    )
+    return redirect("course-builder-detail", version_id=new_version.pk)
 
 
 @login_required
@@ -547,7 +620,11 @@ def assessment_question_delete(request, assessment_id, question_version_id):
 def _lesson_section_context(lesson):
     """Shared section layout for the student delivery view and preview."""
     blocks = list(lesson.blocks.order_by("order", "id"))
-    check = lesson.knowledge_checks.select_related("question_version").prefetch_related("question_version__options").first()
+    checks = list(
+        lesson.knowledge_checks.select_related("question_version")
+        .prefetch_related("question_version__options")
+        .order_by("order", "id")
+    )
     objectives = [line.strip() for line in (lesson.objectives or "").splitlines() if line.strip()]
     key_terms = []
     for line in (lesson.key_terms or "").splitlines():
@@ -567,14 +644,14 @@ def _lesson_section_context(lesson):
         sections.append({"slug": "example", "title": example_block.heading or "Worked example", "stage": "Apply"})
     if notice_block:
         sections.append({"slug": "note", "title": notice_block.heading or "Important note", "stage": "Remember"})
-    if check:
+    if checks:
         sections.append({"slug": "practice", "title": "Practice", "stage": "Practise"})
     if not sections:
         sections.append({"slug": "concepts", "title": "Lesson", "stage": "Learn"})
     word_count = sum(len(block.body.split()) for block in blocks)
     return {
         "blocks": blocks,
-        "check": check,
+        "checks": checks,
         "objectives": objectives,
         "key_terms": key_terms,
         "concept_block": concept_block,
@@ -582,7 +659,6 @@ def _lesson_section_context(lesson):
         "notice_block": notice_block,
         "sections": sections,
         "lessons_in_module": list(lesson.module.lessons.order_by("order", "title")),
-        "module_assessment": lesson.module.assessments.filter(is_published=True).first(),
         "reading_minutes": max(1, round(word_count / 200)),
     }
 
@@ -610,6 +686,7 @@ def lesson_preview(request, lesson_id):
             "preview_mode": True,
             "current_index": index,
             "current_section": sections[index],
+            "concepts_url": next((item["url"] for item in sections if item["slug"] == "concepts"), ""),
             "prev_section": sections[index - 1] if index > 0 else None,
             "next_section": sections[index + 1] if index < len(sections) - 1 else None,
             "progress": LessonProgress(lesson=lesson),
@@ -661,12 +738,40 @@ def practical_preview(request, scenario_version_id):
 def course_edit(request, version_id):
     _require_instructor(request.user)
     version = get_object_or_404(ProgrammeVersion.objects.select_related("programme"), pk=version_id, status="draft")
-    form = CourseEditForm(request.POST or None)
+    programme = version.programme
+    form = CourseEditForm(
+        request.POST or None,
+        request.FILES or None,
+        initial={
+            "name": programme.name,
+            "description": programme.description,
+            "learning_outcomes": programme.learning_outcomes,
+            "difficulty": programme.difficulty,
+            "estimated_weeks": programme.estimated_weeks,
+        },
+    )
     if request.method == "POST" and form.is_valid():
-        version.programme.name = form.cleaned_data["name"]
-        version.programme.save(update_fields=("name",))
-        messages.success(request, "Course name updated.")
-        return redirect("course-builder-detail", version_id=version.pk)
+        tab = request.POST.get("tab", "basic")
+        if tab == "basic":
+            programme.name = form.cleaned_data["name"]
+            programme.description = form.cleaned_data.get("description", "")
+            if form.cleaned_data.get("clear_cover_image") and programme.cover_image:
+                programme.cover_image.delete(save=False)
+                programme.cover_image = None
+            elif form.cleaned_data.get("cover_image"):
+                programme.cover_image = form.cleaned_data["cover_image"]
+            programme.save(update_fields=("name", "description", "cover_image"))
+            messages.success(request, "Basic information saved.")
+        elif tab == "outcomes":
+            programme.learning_outcomes = form.cleaned_data.get("learning_outcomes", "")
+            programme.save(update_fields=("learning_outcomes",))
+            messages.success(request, "Learning outcomes saved.")
+        elif tab == "settings":
+            programme.difficulty = form.cleaned_data.get("difficulty", "")
+            programme.estimated_weeks = form.cleaned_data.get("estimated_weeks") or None
+            programme.save(update_fields=("difficulty", "estimated_weeks"))
+            messages.success(request, "Course settings saved.")
+        return redirect(f'{reverse("course-edit", args=[version.pk])}?tab={tab}')
     return render_student_page(request, "instructor_portal/course_edit.html", {"version": version, "form": form})
 
 
@@ -691,7 +796,8 @@ def lesson_edit(request, lesson_id):
     lesson = get_object_or_404(Lesson.objects.select_related("module__programme_version"), pk=lesson_id, module__programme_version__status="draft")
     lesson_form = LessonEditForm(request.POST or None, initial={"title": lesson.title, "summary": lesson.summary, "objectives": lesson.objectives, "key_terms": lesson.key_terms})
     block_formset = BlockFormSet(request.POST or None, queryset=lesson.blocks.order_by("order"))
-    check = lesson.knowledge_checks.select_related("question_version").first()
+    checks = list(lesson.knowledge_checks.select_related("question_version").order_by("order", "id"))
+    check = checks[0] if checks else None
     check_form = LessonCheckEditForm(check.question_version, request.POST or None) if check else None
     if request.method == "POST" and lesson_form.is_valid() and block_formset.is_valid() and (check_form is None or check_form.is_valid()):
         lesson.title = lesson_form.cleaned_data["title"]
@@ -707,8 +813,93 @@ def lesson_edit(request, lesson_id):
     return render_student_page(
         request,
         "instructor_portal/lesson_edit.html",
-        {"lesson": lesson, "lesson_form": lesson_form, "block_formset": block_formset, "check_form": check_form, "block_count": lesson.blocks.count()},
+        {"lesson": lesson, "lesson_form": lesson_form, "block_formset": block_formset, "check_form": check_form, "checks": checks, "block_count": lesson.blocks.count()},
     )
+
+
+@login_required
+@transaction.atomic
+def lesson_practice_add(request, lesson_id):
+    _require_instructor(request.user)
+    lesson = get_object_or_404(
+        Lesson.objects.select_related("module__programme_version"),
+        pk=lesson_id,
+        module__programme_version__status="draft",
+    )
+    form = AssessmentQuestionForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        after_block = lesson.blocks.order_by("order", "id").first()
+        if after_block is None:
+            form.add_error(None, "Add a lesson content section before adding a practice question.")
+            return render_student_page(
+                request,
+                "instructor_portal/lesson_practice_question_form.html",
+                {"lesson": lesson, "form": form, "heading": "Add practice question"},
+                status=400,
+            )
+        data = form.cleaned_data
+        question = Question.objects.create(code=_unique_slug(Question, "code", data["prompt"][:60]))
+        question_version = QuestionVersion.objects.create(
+            question=question,
+            version=1,
+            prompt=data["prompt"],
+            explanation=data.get("explanation", ""),
+            points=data["points"],
+        )
+        for order, (position, label) in enumerate(data["completed_options"], start=1):
+            AnswerOption.objects.create(
+                question_version=question_version,
+                label=label,
+                is_correct=str(position) == data["correct_position"],
+                order=order,
+            )
+        next_order = (lesson.knowledge_checks.aggregate(value=Max("order"))["value"] or 0) + 1
+        LessonCheck.objects.create(
+            lesson=lesson,
+            after_block=after_block,
+            question_version=question_version,
+            order=next_order,
+        )
+        messages.success(request, "Practice question added.")
+        return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=practice')
+    return render_student_page(
+        request,
+        "instructor_portal/lesson_practice_question_form.html",
+        {"lesson": lesson, "form": form, "heading": "Add practice question"},
+    )
+
+
+@login_required
+@transaction.atomic
+def lesson_practice_edit(request, lesson_id, check_id):
+    _require_instructor(request.user)
+    lesson = get_object_or_404(Lesson, pk=lesson_id, module__programme_version__status="draft")
+    check = get_object_or_404(
+        LessonCheck.objects.select_related("question_version").prefetch_related("question_version__options"),
+        pk=check_id,
+        lesson=lesson,
+    )
+    form = LessonCheckEditForm(check.question_version, request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Practice question updated.")
+        return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=practice')
+    return render_student_page(
+        request,
+        "instructor_portal/lesson_practice_question_form.html",
+        {"lesson": lesson, "form": form, "heading": "Edit practice question", "check": check},
+    )
+
+
+@login_required
+@require_POST
+def lesson_practice_delete(request, lesson_id, check_id):
+    _require_instructor(request.user)
+    lesson = get_object_or_404(Lesson, pk=lesson_id, module__programme_version__status="draft")
+    check = get_object_or_404(LessonCheck, pk=check_id, lesson=lesson)
+    check.delete()
+    messages.success(request, "Practice question removed.")
+    return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=practice')
 
 
 @login_required

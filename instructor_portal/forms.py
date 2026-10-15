@@ -10,6 +10,12 @@ from onboarding.models import ProgrammeVersion
 
 class CourseCreateForm(forms.Form):
     name = forms.CharField(max_length=150, label="Course name")
+    description = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Short description",
+        help_text="Briefly describe what learners will gain from this course.",
+    )
 
 
 class ModuleCreateForm(forms.Form):
@@ -32,7 +38,7 @@ class LessonCreateForm(forms.Form):
     key_terms = forms.CharField(
         required=False, widget=forms.Textarea(attrs={"rows": 3}),
         label="Key terms (one per line: Term :: definition)",
-        help_text="Shown in the lesson sidebar.",
+        help_text="Shown within the lesson content.",
     )
     concept_heading = forms.CharField(max_length=180, initial="Key concept")
     concept_body = forms.CharField(widget=forms.Textarea(attrs={"rows": 7}), label="Teaching content")
@@ -92,6 +98,49 @@ class PublishCourseForm(forms.Form):
 
 class CourseEditForm(forms.Form):
     name = forms.CharField(max_length=150, label="Course name")
+    description = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 4}),
+        label="Short description",
+        help_text="Shown on the learner Course Overview page below the course title.",
+    )
+    cover_image = forms.ImageField(
+        required=False,
+        label="Cover image",
+        help_text="Displayed in the course overview hero. Recommended: 1200 × 600 px. Leave empty to keep the current image.",
+    )
+    clear_cover_image = forms.BooleanField(
+        required=False,
+        label="Remove current cover image",
+    )
+    learning_outcomes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 8, "placeholder": "Explain the purpose of a conformity certificate\nIdentify GSA-regulated product categories\nDescribe the opt-in/out procedure for applicable goods"}),
+        label="Learning outcomes (one per line)",
+        help_text="Each line becomes one outcome bullet on the learner overview.",
+    )
+    difficulty = forms.ChoiceField(
+        required=False,
+        choices=[("", "— Select difficulty —")] + [
+            (value, label)
+            for value, label in [
+                ("beginner", "Beginner"),
+                ("beginner-intermediate", "Beginner to Intermediate"),
+                ("intermediate", "Intermediate"),
+                ("intermediate-advanced", "Intermediate to Advanced"),
+                ("advanced", "Advanced"),
+            ]
+        ],
+        label="Difficulty level",
+        help_text="Shown as a badge on the learner course overview.",
+    )
+    estimated_weeks = forms.IntegerField(
+        required=False,
+        min_value=1,
+        max_value=52,
+        label="Estimated weeks to complete",
+        help_text="Leave empty if self-paced with no fixed duration.",
+    )
 
 
 class ModuleEditForm(forms.Form):
@@ -147,7 +196,7 @@ class LessonEditForm(forms.Form):
     key_terms = forms.CharField(
         required=False, widget=forms.Textarea(attrs={"rows": 3}),
         label="Key terms (one per line: Term :: definition)",
-        help_text="Shown in the lesson sidebar.",
+        help_text="Shown within the lesson content.",
     )
 
 
@@ -160,7 +209,7 @@ BlockFormSet = forms.modelformset_factory(
 
 
 class LessonCheckEditForm(forms.Form):
-    """Edits the single knowledge check attached to a lesson: its prompt,
+    """Edits one knowledge check attached to a lesson: its prompt,
     explanation, answer labels, and which answer is correct."""
 
     def __init__(self, question_version, *args, **kwargs):

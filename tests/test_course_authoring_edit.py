@@ -151,6 +151,50 @@ def test_lesson_edit_requires_correct_option_choice(client, instructor, draft_co
 
 
 @pytest.mark.django_db
+def test_instructor_can_add_edit_and_remove_additional_practice_questions(client, instructor, draft_course):
+    lesson = draft_course["lesson"]
+    client.force_login(instructor)
+    add_url = reverse("lesson-practice-add", args=[lesson.pk])
+    response = client.post(
+        add_url,
+        {
+            "prompt": "Additional practice question?",
+            "points": "1",
+            "explanation": "Additional explanation.",
+            "option_1": "Yes",
+            "option_2": "No",
+            "correct_position": "1",
+        },
+    )
+    assert response.status_code == 302
+    checks = list(lesson.knowledge_checks.order_by("order", "id"))
+    assert len(checks) == 2
+    assert [check.order for check in checks] == [1, 2]
+    added = checks[1]
+    assert added.question_version.prompt == "Additional practice question?"
+
+    options = list(added.question_version.options.order_by("order"))
+    response = client.post(
+        reverse("lesson-practice-edit", args=[lesson.pk, added.pk]),
+        {
+            "prompt": "Updated additional question?",
+            "explanation": "Updated explanation.",
+            "option_1": "Updated yes",
+            "option_2": "Updated no",
+            "correct_option": str(options[1].pk),
+        },
+    )
+    assert response.status_code == 302
+    added.question_version.refresh_from_db()
+    assert added.question_version.prompt == "Updated additional question?"
+    assert added.question_version.options.get(pk=options[1].pk).is_correct is True
+
+    response = client.post(reverse("lesson-practice-delete", args=[lesson.pk, added.pk]))
+    assert response.status_code == 302
+    assert list(lesson.knowledge_checks.values_list("order", flat=True)) == [1]
+
+
+@pytest.mark.django_db
 def test_practical_edit_updates_content_and_states(client, instructor, draft_course):
     scenario = Scenario.objects.create(code="editable-practical", title="Editable Practical", area="import")
     practical = ScenarioVersion.objects.create(

@@ -10,7 +10,13 @@
         tab.tabIndex = active ? 0 : -1;
         if (active && focus) tab.focus();
       });
-      panels.forEach((panel) => { panel.hidden = panel.dataset.authoringPanel !== name; });
+      panels.forEach((panel) => {
+        if (panel.dataset.authoringPanel === name) {
+          panel.removeAttribute('hidden');
+        } else {
+          panel.setAttribute('hidden', '');
+        }
+      });
     };
     tabs.forEach((tab, index) => {
       tab.addEventListener('click', () => activate(tab.dataset.authoringTab));
@@ -21,6 +27,12 @@
         activate(tabs[next].dataset.authoringTab, true);
       });
     });
+    // Activate the correct tab on page load: honour ?tab= param, then the
+    // aria-selected="true" tab, then the first tab as a final fallback.
+    const params = new URLSearchParams(location.search);
+    const initial = params.get('tab')
+      || (tabs.find((t) => t.getAttribute('aria-selected') === 'true') || tabs[0])?.dataset.authoringTab;
+    if (initial) activate(initial);
   });
   document.querySelectorAll('.authoring-section-nav [data-authoring-tab]').forEach((shortcut) => {
     shortcut.addEventListener('click', () => {

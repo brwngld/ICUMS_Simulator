@@ -1,6 +1,122 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}Edit {{ module.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit module{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261014-1">{% endblock %}
-{% block content %}<div class="authoring"><header class="authoring-head"><div><p class="authoring-eyebrow">{{ module.programme_version.programme.name }} · Module {{ module.order }}</p><h1>{{ module.title }}</h1><p>Manage the module summary, prerequisites, ordered lessons and assessment configuration.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'course-builder-detail' module.programme_version_id %}">Back to modules</a></div></header>
-<nav class="authoring-tabs"><a class="active" href="#summary">Summary</a><a href="{% url 'course-builder-detail' module.programme_version_id %}#modules">Lessons</a>{% for assessment in module.assessments.all %}<a href="{% url 'assessment-edit' assessment.pk %}">Assessment</a>{% endfor %}</nav>
-<div class="authoring-layout"><form method="post" class="authoring-card authoring-form" id="summary">{% csrf_token %}<div class="authoring-editor-header"><div><h2>Module information</h2><p>These fields feed the learner’s Module Overview and access rules.</p></div><span class="authoring-status">Draft</span></div>{{ form.title.as_field_group }}{{ form.description.as_field_group }}{{ form.prerequisite.as_field_group }}<div class="authoring-sticky-actions"><a class="authoring-secondary" href="{% url 'course-builder-detail' module.programme_version_id %}">Cancel</a><button class="authoring-primary" type="submit">Save module</button></div></form><aside class="authoring-aside"><section class="authoring-card"><h2>Module content</h2><dl class="authoring-facts"><div><dt>Order</dt><dd>{{ module.order }}</dd></div><div><dt>Lessons</dt><dd>{{ module.lessons.count }}</dd></div><div><dt>Assessment</dt><dd>{% if module.assessments.exists %}Configured{% else %}Missing{% endif %}</dd></div><div><dt>Visibility</dt><dd>Draft</dd></div></dl><a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a></section></aside></div></div>{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-2">{% endblock %}
+{% block content %}<div class="authoring">
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">{{ module.programme_version.programme.name }} · Module {{ module.order }}</p>
+      <h1>{{ module.title }}</h1>
+      <p>Manage the module summary, prerequisites, ordered lessons and assessment configuration.</p>
+    </div>
+    <div class="authoring-actions">
+      <a class="authoring-secondary" href="{% url 'course-builder-detail' module.programme_version_id %}">Back to course</a>
+      <a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a>
+    </div>
+  </header>
+
+  <div class="authoring-progress">
+    <span class="complete">1 Create course</span>
+    <span class="current">2 Add modules</span>
+    <span class="{% if module.lessons.exists %}complete{% endif %}">3 Create lessons</span>
+    <span>4 Add sections</span>
+    <span>5 Configure assessment</span>
+    <span>6 Review and publish</span>
+  </div>
+
+  <nav class="authoring-tabs" role="tablist" aria-label="Module editor" data-authoring-tabs>
+    <button type="button" role="tab" aria-selected="true"  data-authoring-tab="summary">Summary</button>
+    <button type="button" role="tab" aria-selected="false" data-authoring-tab="lessons" tabindex="-1">Lessons <span class="authoring-tab-count">{{ module.lessons.count }}</span></button>
+    {% for assessment in module.assessments.all %}<a href="{% url 'assessment-edit' assessment.pk %}">Assessment</a>{% endfor %}
+  </nav>
+
+  {# ── Tab 1: Summary ───────────────────────────────────────────────────── #}
+  <section class="authoring-panel" data-authoring-panel="summary">
+    <div class="authoring-layout">
+      <form method="post" class="authoring-card authoring-form">
+        {% csrf_token %}
+        <div class="authoring-editor-header">
+          <div><h2>Module information</h2><p>These fields feed the learner's Module Overview and access rules.</p></div>
+          <span class="authoring-status">Draft</span>
+        </div>
+        {{ form.title.as_field_group }}
+        {{ form.description.as_field_group }}
+        {{ form.prerequisite.as_field_group }}
+        <div class="authoring-sticky-actions">
+          <a class="authoring-secondary" href="{% url 'course-builder-detail' module.programme_version_id %}">Cancel</a>
+          <button class="authoring-primary" type="submit">Save module</button>
+        </div>
+      </form>
+      <aside class="authoring-aside">
+        <section class="authoring-card">
+          <h2>Module content</h2>
+          <dl class="authoring-facts">
+            <div><dt>Order</dt><dd>{{ module.order }}</dd></div>
+            <div><dt>Lessons</dt><dd>{{ module.lessons.count }}</dd></div>
+            <div><dt>Assessment</dt><dd>{% if module.assessments.exists %}<span style="color:var(--au-accent)">Configured</span>{% else %}<span style="color:#b91c1c">Missing</span>{% endif %}</dd></div>
+            <div><dt>Visibility</dt><dd>Draft</dd></div>
+          </dl>
+          <a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a>
+        </section>
+        {% if not module.assessments.exists %}
+        <section class="authoring-card">
+          <h2>Assessment</h2>
+          <p>Students complete this module by passing its assessment.</p>
+          <a class="authoring-secondary" href="{% url 'module-assessment-create' module.pk %}">Add module assessment</a>
+        </section>
+        {% endif %}
+      </aside>
+    </div>
+  </section>
+
+  {# ── Tab 2: Lessons ───────────────────────────────────────────────────── #}
+  <section class="authoring-panel" data-authoring-panel="lessons" hidden>
+    <div class="authoring-layout">
+      <div>
+        <div class="authoring-head" style="margin-bottom:.75rem">
+          <div><h2 style="margin:0;font-size:1rem">Module lessons</h2><p style="margin:.2rem 0 0;font-size:.72rem;color:var(--au-muted)">Lessons are presented to learners in the order shown. Use the arrows to reorder.</p></div>
+          <a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a>
+        </div>
+        <div class="authoring-module-list">
+          {% for lesson in module.lessons.all %}
+          <article class="authoring-module">
+            <span class="authoring-module-number">{{ forloop.counter }}</span>
+            <div>
+              <h3>{{ lesson.title }}</h3>
+              <p>{{ lesson.summary|default:"No summary yet." }} · {{ lesson.blocks.count }} content section{{ lesson.blocks.count|pluralize }}</p>
+            </div>
+            <div class="authoring-module-tools">
+              <a class="authoring-secondary" href="{% url 'lesson-preview' lesson.pk %}">Preview</a>
+              <a class="authoring-secondary" href="{% url 'lesson-edit' lesson.pk %}">Edit</a>
+              <form method="post" action="{% url 'lesson-move' lesson.pk %}" class="authoring-table-actions">
+                {% csrf_token %}
+                <input type="hidden" name="direction" value="up">
+                <button class="authoring-secondary" type="submit" aria-label="Move {{ lesson.title }} up">↑</button>
+              </form>
+              <form method="post" action="{% url 'lesson-move' lesson.pk %}" class="authoring-table-actions">
+                {% csrf_token %}
+                <input type="hidden" name="direction" value="down">
+                <button class="authoring-secondary" type="submit" aria-label="Move {{ lesson.title }} down">↓</button>
+              </form>
+            </div>
+          </article>
+          {% empty %}
+          <div class="authoring-card authoring-empty">No lessons yet. Add the first lesson to this module.</div>
+          {% endfor %}
+        </div>
+      </div>
+      <aside class="authoring-aside">
+        <section class="authoring-card">
+          <h2>Lesson requirements</h2>
+          <dl class="authoring-facts">
+            <div><dt>Published lessons</dt><dd>{{ module.lessons.count }}</dd></div>
+            <div><dt>Sections per lesson</dt><dd>5 (fixed)</dd></div>
+            <div><dt>Knowledge check</dt><dd>Required</dd></div>
+          </dl>
+          <p>Each lesson must have five sections and at least one knowledge-check question before the course can be published.</p>
+        </section>
+      </aside>
+    </div>
+  </section>
+</div>
+<script src="{% static 'js/instructor-theory-builder.js' %}?v=20261014-2"></script>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}{{ version.programme.name }} · ICUMS Simulator{% endblock %}{% block workspace_name %}{{ version.programme.name }}{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-2">{% endblock %}
+{% block content %}<div class="authoring">
+  <a class="authoring-back-link" href="{% url 'course-builder' %}">← All courses</a>
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">{{ version.get_status_display }} course · Version {{ version.version }}</p>
+      <h1>{{ version.programme.name }}</h1>
+      <p>This course is {{ version.get_status_display|lower }}. Enrolled students have access to this version. To make changes, create a new draft.</p>
+    </div>
+    <div class="authoring-actions">
+      <a class="authoring-secondary" href="{% url 'course-builder' %}">All courses</a>
+      <form method="post" action="{% url 'course-new-draft' version.pk %}">
+        {% csrf_token %}
+        <button class="authoring-primary" type="submit">Create new draft version</button>
+      </form>
+    </div>
+  </header>
+
+  <div class="authoring-layout">
+    <main>
+      {# ── Course summary ──────────────────────────────────────────────── #}
+      <section class="authoring-card" style="margin-bottom:.8rem">
+        <div class="authoring-editor-header">
+          <div><h2>Course overview</h2><p>Read-only view — editing requires creating a new draft version.</p></div>
+          <span class="authoring-status authoring-status--{{ version.status }}">{{ version.get_status_display }}</span>
+        </div>
+        <dl class="authoring-facts">
+          {% if version.programme.description %}<div style="flex-direction:column;align-items:flex-start"><dt>Description</dt><dd style="margin-top:.25rem">{{ version.programme.description }}</dd></div>{% endif %}
+          {% if version.programme.difficulty %}<div><dt>Difficulty</dt><dd><span class="authoring-difficulty-badge authoring-difficulty-badge--{{ version.programme.difficulty }}">{{ version.programme.get_difficulty_display }}</span></dd></div>{% endif %}
+          {% if version.programme.estimated_weeks %}<div><dt>Duration</dt><dd>~{{ version.programme.estimated_weeks }} week{{ version.programme.estimated_weeks|pluralize }}</dd></div>{% endif %}
+          <div><dt>Published</dt><dd>{{ version.published_at|date:"j N Y"|default:"—" }}</dd></div>
+          <div><dt>Enrolled students</dt><dd>{{ enrolment_count }}</dd></div>
+        </dl>
+        {% if version.programme.learning_outcomes %}
+        <div style="margin-top:.75rem">
+          <p style="font-size:.7rem;font-weight:700;margin:0 0 .35rem">Learning outcomes</p>
+          <ol class="authoring-outcome-preview">
+            {% for outcome in version.programme.get_outcomes_list %}<li>{{ outcome }}</li>{% endfor %}
+          </ol>
+        </div>
+        {% endif %}
+      </section>
+
+      {# ── Module list ─────────────────────────────────────────────────── #}
+      <div class="authoring-head" style="margin-bottom:.6rem">
+        <div><h2 style="margin:0;font-size:1rem">Course modules</h2></div>
+      </div>
+      <div class="authoring-module-list">
+        {% for module in version.modules.all %}
+        <article class="authoring-module">
+          <span class="authoring-module-number">{{ module.order }}</span>
+          <div>
+            <h3>{{ module.title }}</h3>
+            <p>{{ module.description|default:"No description." }} · {{ module.lessons.count }} lesson{{ module.lessons.count|pluralize }}</p>
+          </div>
+          <div class="authoring-module-tools">
+            {% for assessment in module.assessments.all %}
+            {% if assessment.assessment_type == 'module' %}
+            <span class="authoring-status">Assessment: {{ assessment.items.count }} question{{ assessment.items.count|pluralize }}</span>
+            {% endif %}
+            {% endfor %}
+          </div>
+          <div class="authoring-lesson-list">
+            {% for lesson in module.lessons.all %}
+            <div class="authoring-lesson">
+              <span><strong>{{ forloop.counter }}. {{ lesson.title }}</strong> · {{ lesson.blocks.count }} section{{ lesson.blocks.count|pluralize }}</span>
+            </div>
+            {% empty %}
+            <p class="authoring-empty">No lessons.</p>
+            {% endfor %}
+          </div>
+        </article>
+        {% empty %}
+        <div class="authoring-card authoring-empty">No modules in this course version.</div>
+        {% endfor %}
+      </div>
+    </main>
+
+    <aside class="authoring-aside">
+      <section class="authoring-card">
+        <h2>Version summary</h2>
+        <dl class="authoring-facts">
+          <div><dt>Version</dt><dd>{{ version.version }}</dd></div>
+          <div><dt>Status</dt><dd>{{ version.get_status_display }}</dd></div>
+          <div><dt>Modules</dt><dd>{{ version.modules.count }}</dd></div>
+          <div><dt>Final exam</dt><dd>{% if final_exam %}Configured{% else %}None{% endif %}</dd></div>
+          <div><dt>Enrolments</dt><dd>{{ enrolment_count }}</dd></div>
+        </dl>
+      </section>
+      <section class="authoring-card">
+        <h2>Make changes</h2>
+        <p>Creating a new draft copies the course metadata into a fresh version. Module and lesson content is not duplicated — add it fresh in the new draft.</p>
+        <form method="post" action="{% url 'course-new-draft' version.pk %}">
+          {% csrf_token %}
+          <button class="authoring-primary" type="submit" style="width:100%;margin-top:.5rem">Create new draft version</button>
+        </form>
+      </section>
+      {% if enrolment_count %}
+      <section class="authoring-card">
+        <h2>Active enrolments</h2>
+        <p>{{ enrolment_count }} student{{ enrolment_count|pluralize }} enrolled in this version. They keep access while you work on a new draft.</p>
+      </section>
+      {% endif %}
+    </aside>
+  </div>
+</div>{% endblock %}

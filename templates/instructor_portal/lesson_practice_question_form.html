@@ -1,0 +1,13 @@
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}{{ heading }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Practice question{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-2">{% endblock %}
+{% block content %}<div class="authoring">
+  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ lesson.module.title }} · {{ lesson.title }}</p><h1>{{ heading }}</h1><p>Configure one question, its answer options and the feedback learners receive.</p></div></header>
+  <form method="post" class="authoring-form">{% csrf_token %}
+    <section class="authoring-card">
+      {% for field in form.visible_fields %}{{ field.as_field_group }}{% endfor %}
+      {% for error in form.non_field_errors %}<p class="errornote">{{ error }}</p>{% endfor %}
+    </section>
+    <div class="authoring-sticky-actions"><a class="authoring-secondary" href="{% url 'lesson-edit' lesson.pk %}?tab=practice">Cancel</a><button class="authoring-primary" type="submit">Save question</button></div>
+  </form>
+</div>{% endblock %}

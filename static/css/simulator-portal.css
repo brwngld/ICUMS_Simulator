@@ -151,6 +151,7 @@ th { color: var(--muted); white-space: normal; overflow-wrap: anywhere; word-bre
   .cargo-option, .cargo-reference-option { grid-column: 1; grid-template-columns: 1fr; border: 1px solid var(--line); border-bottom: 0; }
   .cargo-option:last-child { border-bottom: 1px solid var(--line); }
   .boe-search-grid { grid-template-columns: 1fr; }
+  .reference-parts { grid-template-columns: auto minmax(0, 1fr); }
 }
 @media (max-width: 34rem) {
   .portal-header, .portal-header-actions, .portal-footer { align-items: stretch; flex-direction: column; }
@@ -310,7 +311,7 @@ tbody tr:last-child td { border-bottom: 0; }
   .navigation-open .navigation-scrim { display: block; position: fixed; inset: 0; z-index: 30; border: 0; background: #17213a66; backdrop-filter: blur(2px); }
   .portal-header-actions { align-self: start; }
   .portal-top-nav { flex-wrap: nowrap; overflow-x: auto; padding-bottom: .5rem; }
-  .shortcut-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .shortcut-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 /* One readable control scale across simulator pages. Keep headings and captions distinct. */

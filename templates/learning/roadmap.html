@@ -1,18 +1,18 @@
 {% extends "core/base_student.html" %}
 {% load static %}
 {% block title %}Course Overview · ICUMS Simulator{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/course-overview.css' %}?v=20261014-2">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/course-overview.css' %}?v=20261015-1">{% endblock %}
 {% block content %}
 <div class="course-overview">
   <div class="course-overview-layout">
     <main class="course-main">
       <section class="course-hero">
-        <img class="course-hero-image" src="{% static 'image/gsa-course.png' %}" alt="Ghana Standards Authority course illustration">
+        <img class="course-hero-image" src="{% if programme.cover_image %}{{ programme.cover_image.url }}{% else %}{% static 'image/gsa-course.png' %}{% endif %}" alt="{{ programme.name }} course illustration">
         <div class="course-hero-copy">
           <span class="course-badge">▣ Theoretical Training</span>
           <h1>{{ enrolment.programme_version.programme.name }}</h1>
-          <p>This course develops the theory needed to understand standards, customs-clearance decisions and the systems that support safe, compliant international trade.</p>
-          <div class="course-meta" aria-label="Course information"><span>▤ {{ module_summaries|length }} module{{ module_summaries|length|pluralize }}</span><span>☷ {{ total_lessons }} lesson{{ total_lessons|pluralize }}</span><span>◷ Self-paced</span><span class="course-level">◇ Beginner to Intermediate</span></div>
+          <p>{% if programme.description %}{{ programme.description }}{% else %}This course develops the theory needed to understand standards, customs-clearance decisions and the systems that support safe, compliant international trade.{% endif %}</p>
+          <div class="course-meta" aria-label="Course information"><span>▤ {{ module_summaries|length }} module{{ module_summaries|length|pluralize }}</span><span>☷ {{ total_lessons }} lesson{{ total_lessons|pluralize }}</span><span>◷ {% if programme.estimated_weeks %}~{{ programme.estimated_weeks }} week{{ programme.estimated_weeks|pluralize }}{% else %}Self-paced{% endif %}</span>{% if programme.difficulty %}<span class="course-level">◇ {{ programme.get_difficulty_display }}</span>{% endif %}</div>
         </div>
       </section>
 

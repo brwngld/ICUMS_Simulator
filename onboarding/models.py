@@ -5,10 +5,45 @@ from django.db import models
 
 
 class Programme(models.Model):
+    class Difficulty(models.TextChoices):
+        BEGINNER = "beginner", "Beginner"
+        BEGINNER_INTERMEDIATE = "beginner-intermediate", "Beginner to Intermediate"
+        INTERMEDIATE = "intermediate", "Intermediate"
+        INTERMEDIATE_ADVANCED = "intermediate-advanced", "Intermediate to Advanced"
+        ADVANCED = "advanced", "Advanced"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=150)
     code = models.SlugField(max_length=50, unique=True)
     is_active = models.BooleanField(default=True)
+    description = models.TextField(
+        blank=True,
+        help_text="Shown on the learner Course Overview page below the course title.",
+    )
+    learning_outcomes = models.TextField(
+        blank=True,
+        help_text="One outcome per line. Shown on the Learning outcomes tab and the Overview feature cards.",
+    )
+    difficulty = models.CharField(
+        max_length=30,
+        choices=Difficulty.choices,
+        blank=True,
+        help_text="Shown as a badge on the learner course overview.",
+    )
+    estimated_weeks = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        help_text="Approximate number of weeks to complete. Displayed alongside module and lesson counts.",
+    )
+    cover_image = models.ImageField(
+        upload_to="course_covers/",
+        blank=True,
+        help_text="Displayed in the learner course overview hero. Recommended size: 1200 × 600 px.",
+    )
+
+    def get_outcomes_list(self):
+        """Return learning outcomes as a list of non-empty strings."""
+        return [line.strip() for line in self.learning_outcomes.splitlines() if line.strip()]
 
     def __str__(self):
         return self.name

@@ -1,6 +1,256 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}Edit course · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit course{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261014-1">{% endblock %}
-{% block content %}<div class="authoring"><header class="authoring-head"><div><p class="authoring-eyebrow">Draft course · Version {{ version.version }}</p><h1>Edit Course</h1><p>Update the course information supported by the existing course record.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}">Back to course</a><a class="authoring-primary" href="{% url 'course-review' version.pk %}">Review course</a></div></header>
-<nav class="authoring-tabs"><a class="active" href="#basic">Basic information</a><a href="{% url 'course-builder-detail' version.pk %}#modules">Structure</a><a href="{% url 'course-review' version.pk %}">Review</a></nav>
-<div class="authoring-layout"><form method="post" class="authoring-card authoring-form" id="basic">{% csrf_token %}<div class="authoring-editor-header"><div><h2>Basic information</h2><p>The course name appears in the learner Course Overview and navigation.</p></div><span class="authoring-status">Draft</span></div>{{ form.name.as_field_group }}<div class="authoring-sticky-actions"><a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}">Cancel</a><button class="authoring-primary" type="submit">Save changes</button></div></form><aside class="authoring-aside"><section class="authoring-card"><h2>Stored course data</h2><dl class="authoring-facts"><div><dt>Version</dt><dd>{{ version.version }}</dd></div><div><dt>Status</dt><dd>{{ version.get_status_display }}</dd></div><div><dt>Modules</dt><dd>{{ version.modules.count }}</dd></div></dl><p>Additional course metadata is not stored by the current model and has not been fabricated in this editor.</p></section></aside></div></div>{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-2">{% endblock %}
+{% block content %}<div class="authoring">
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">{{ version.programme.name }} · Version {{ version.version }}</p>
+      <h1>Edit Course</h1>
+      <p>Configure the course name, description, learning outcomes and settings. Changes are saved per section.</p>
+    </div>
+    <div class="authoring-actions">
+      <a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}">Back to course</a>
+      <a class="authoring-primary" href="{% url 'course-review' version.pk %}">Review course</a>
+    </div>
+  </header>
+
+  <div class="authoring-progress">
+    <span class="complete">1 Create course</span>
+    <span class="{% if version.modules.exists %}complete{% else %}current{% endif %}">2 Add modules</span>
+    <span class="{% if version.modules.first.lessons.exists %}complete{% endif %}">3 Create lessons</span>
+    <span>4 Add sections</span>
+    <span>5 Configure assessment</span>
+    <span>6 Review and publish</span>
+  </div>
+
+  <nav class="authoring-tabs" role="tablist" aria-label="Course editor sections" data-authoring-tabs>
+    <button type="button" role="tab" aria-selected="true"  data-authoring-tab="basic">Basic information</button>
+    <button type="button" role="tab" aria-selected="false" data-authoring-tab="outcomes" tabindex="-1">Learning outcomes</button>
+    <button type="button" role="tab" aria-selected="false" data-authoring-tab="settings" tabindex="-1">Course settings</button>
+    <a href="{% url 'course-builder-detail' version.pk %}#modules">Structure</a>
+    <a href="{% url 'course-review' version.pk %}">Review</a>
+  </nav>
+
+  {# ── Tab 1: Basic information ─────────────────────────────────────────── #}
+  <section class="authoring-panel" data-authoring-panel="basic">
+    <div class="authoring-layout">
+      <form method="post" action="?tab=basic" enctype="multipart/form-data" class="authoring-card authoring-form">
+        {% csrf_token %}<input type="hidden" name="tab" value="basic">
+        <div class="authoring-editor-header">
+          <div><h2>Basic information</h2><p>The course name and description appear throughout the learner experience.</p></div>
+          <span class="authoring-status">Draft</span>
+        </div>
+        {{ form.name.as_field_group }}
+        {{ form.description.as_field_group }}
+
+        <div class="authoring-field-group">
+          <label>Cover image</label>
+          {% if version.programme.cover_image %}
+          <div class="authoring-image-preview">
+            <img src="{{ version.programme.cover_image.url }}" alt="Current cover image">
+            <div class="authoring-image-actions">
+              <label class="authoring-secondary authoring-upload-label">
+                Change image <input type="file" name="cover_image" accept="image/*" style="display:none">
+              </label>
+              <label class="authoring-image-remove">
+                <input type="checkbox" name="clear_cover_image"> Remove
+              </label>
+            </div>
+          </div>
+          {% else %}
+          <div class="authoring-image-upload">
+            <span>◼</span>
+            <p>No cover image yet</p>
+            <label class="authoring-secondary authoring-upload-label">
+              Choose image <input type="file" name="cover_image" accept="image/*" style="display:none">
+            </label>
+            <small>Recommended: 1200 × 600 px. JPG or PNG.</small>
+          </div>
+          {% endif %}
+          <p class="helptext">Displayed in the learner course overview hero. Leave empty to use the default.</p>
+        </div>
+
+        <div class="authoring-sticky-actions">
+          <a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}">Cancel</a>
+          <button class="authoring-primary" type="submit">Save basic information</button>
+        </div>
+      </form>
+      <aside class="authoring-aside">
+        <section class="authoring-card">
+          <h2>Stored course data</h2>
+          <dl class="authoring-facts">
+            <div><dt>Version</dt><dd>{{ version.version }}</dd></div>
+            <div><dt>Status</dt><dd>{{ version.get_status_display }}</dd></div>
+            <div><dt>Modules</dt><dd>{{ version.modules.count }}</dd></div>
+          </dl>
+          <p>The course name appears in the learner navigation sidebar, course overview hero, and all breadcrumbs.</p>
+        </section>
+        <section class="authoring-card">
+          <h2>Learner preview</h2>
+          <div class="authoring-preview">
+            {% if version.programme.cover_image %}
+            <img class="authoring-preview-cover" src="{{ version.programme.cover_image.url }}" alt="Cover preview">
+            {% endif %}
+            <span class="authoring-status">Course overview</span>
+            <h3>{{ version.programme.name }}</h3>
+            <p>{{ version.programme.description|default:"Your description will appear here." }}</p>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  {# ── Tab 2: Learning outcomes ─────────────────────────────────────────── #}
+  <section class="authoring-panel" data-authoring-panel="outcomes" hidden>
+    <div class="authoring-layout">
+      <form method="post" action="?tab=outcomes" class="authoring-card authoring-form">
+        {% csrf_token %}<input type="hidden" name="tab" value="outcomes">
+        <div class="authoring-editor-header">
+          <div><h2>Learning outcomes</h2><p>Enter one outcome per line. Each line becomes a bullet on the learner course overview.</p></div>
+          <span class="authoring-status">Draft</span>
+        </div>
+        {{ form.learning_outcomes.as_field_group }}
+        <div class="authoring-sticky-actions">
+          <a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}">Cancel</a>
+          <button class="authoring-primary" type="submit">Save outcomes</button>
+        </div>
+      </form>
+      <aside class="authoring-aside">
+        <section class="authoring-card">
+          <h2>Outcome guidance</h2>
+          <p>Good outcomes describe what learners will <strong>be able to do</strong> after completing the course, not what topics are covered.</p>
+          <ul class="authoring-guidance-list">
+            <li>Start each outcome with an action verb (Explain, Identify, Apply, Describe…)</li>
+            <li>Be specific — tie the outcome to a task or decision a practitioner makes</li>
+            <li>Aim for 4–8 outcomes for a standard theory course</li>
+          </ul>
+        </section>
+        <section class="authoring-card">
+          <h2>Current outcomes</h2>
+          {% with outcomes=version.programme.get_outcomes_list %}
+          {% if outcomes %}
+          <ol class="authoring-outcome-preview">
+            {% for outcome in outcomes %}<li>{{ outcome }}</li>{% endfor %}
+          </ol>
+          {% else %}
+          <p class="authoring-empty">No outcomes saved yet.</p>
+          {% endif %}
+          {% endwith %}
+        </section>
+      </aside>
+    </div>
+  </section>
+
+  {# ── Tab 3: Course settings ───────────────────────────────────────────── #}
+  <section class="authoring-panel" data-authoring-panel="settings" hidden>
+    <div class="authoring-layout">
+      <form method="post" action="?tab=settings" class="authoring-card authoring-form">
+        {% csrf_token %}<input type="hidden" name="tab" value="settings">
+        <div class="authoring-editor-header">
+          <div><h2>Course settings</h2><p>Difficulty level and estimated duration are shown as metadata on the learner course overview.</p></div>
+          <span class="authoring-status">Draft</span>
+        </div>
+        {{ form.difficulty.as_field_group }}
+        {{ form.estimated_weeks.as_field_group }}
+        <div class="authoring-sticky-actions">
+          <a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}">Cancel</a>
+          <button class="authoring-primary" type="submit">Save settings</button>
+        </div>
+      </form>
+      <aside class="authoring-aside">
+        <section class="authoring-card">
+          <h2>Settings preview</h2>
+          <dl class="authoring-facts">
+            <div>
+              <dt>Difficulty</dt>
+              <dd>
+                {% if version.programme.difficulty %}
+                  <span class="authoring-difficulty-badge authoring-difficulty-badge--{{ version.programme.difficulty }}">{{ version.programme.get_difficulty_display }}</span>
+                {% else %}
+                  <span class="authoring-status">Not set</span>
+                {% endif %}
+              </dd>
+            </div>
+            <div>
+              <dt>Duration</dt>
+              <dd>{% if version.programme.estimated_weeks %}~{{ version.programme.estimated_weeks }} week{{ version.programme.estimated_weeks|pluralize }}{% else %}Self-paced{% endif %}</dd>
+            </div>
+            <div><dt>Modules</dt><dd>{{ version.modules.count }}</dd></div>
+          </dl>
+          <p>These values feed the metadata strip on the learner course overview hero.</p>
+        </section>
+      </aside>
+    </div>
+  </section>
+</div>
+<script src="{% static 'js/instructor-theory-builder.js' %}?v=20261014-2"></script>
+<script>
+// Live image preview before the form is submitted. The file input is never
+// removed from the DOM so the chosen file survives until save.
+(function () {
+  function wirePreview(input) {
+    if (!input) return;
+    input.addEventListener('change', function () {
+      const file = this.files && this.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const dataUrl = e.target.result;
+        const zone = document.querySelector('.authoring-image-upload');
+        const preview = document.querySelector('.authoring-image-preview');
+
+        function ensureNote(parent, insertBeforeLabel) {
+          let note = parent.querySelector('.authoring-image-live-note');
+          if (!note) {
+            note = document.createElement('p');
+            note.className = 'authoring-image-live-note';
+            note.style.cssText = 'margin:0;color:var(--au-muted);font-size:.68rem';
+            if (insertBeforeLabel) parent.prepend(note);
+            else parent.append(note);
+          }
+          note.textContent = file.name + ' selected — save to apply';
+          return note;
+        }
+
+        if (zone) {
+          let live = zone.querySelector('.authoring-image-live');
+          if (!live) {
+            live = document.createElement('img');
+            live.className = 'authoring-image-live';
+            live.alt = 'Selected image';
+            live.style.cssText = 'width:100%;max-height:14rem;object-fit:cover;border-radius:.55rem;display:block';
+            zone.insertBefore(live, zone.firstChild);
+            const icon = zone.querySelector(':scope > span');
+            const placeholder = zone.querySelector(':scope > p');
+            if (icon) icon.style.display = 'none';
+            if (placeholder) placeholder.style.display = 'none';
+          }
+          live.src = dataUrl;
+          ensureNote(zone, false);
+        } else if (preview) {
+          const img = preview.querySelector('img');
+          if (img) img.src = dataUrl;
+          ensureNote(preview.querySelector('.authoring-image-actions'), true);
+        }
+
+        const asideImg = document.querySelector('.authoring-preview-cover');
+        if (asideImg) {
+          asideImg.src = dataUrl;
+        } else {
+          const asidePreview = document.querySelector('.authoring-preview');
+          if (asidePreview) {
+            const newImg = document.createElement('img');
+            newImg.className = 'authoring-preview-cover';
+            newImg.src = dataUrl;
+            newImg.alt = 'Cover preview';
+            asidePreview.insertBefore(newImg, asidePreview.firstChild);
+          }
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  wirePreview(document.querySelector('input[name="cover_image"]'));
+})();
+</script>
+{% endblock %}

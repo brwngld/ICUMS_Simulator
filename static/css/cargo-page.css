@@ -359,7 +359,7 @@ html[data-theme="dark"] .app-confirm-detail-table td { color: #e2e8f0; backgroun
   #app-tab-item .cargo-actions { gap: .3rem; }
   #app-tab-item .cargo-actions button { min-height: 1.9rem; padding: .3rem .48rem; font-size: .68rem; }
   #app-tab-item .app-items-table { min-width: 100%; }
-  #app-tab-item .app-items-table th, #app-tab-item .app-items-table td { padding: .34rem .3rem; font-size: clamp(.6rem, 1.15vw, .74rem); line-height: 1.25; }
+  #app-tab-item .app-items-table th, #app-tab-item .app-items-table td { padding: .34rem .3rem; font-size: clamp(.68rem, 1.15vw, .74rem); line-height: 1.25; }
   .cargo-table-wrap > table, .ucr-search-table { min-width: 100%; }
   .cargo-table-wrap > table th, .ucr-search-table th { padding-inline: .35rem; }
 }
@@ -420,3 +420,9 @@ td > .boe-box { width: 100%; box-sizing: border-box; }
 .dialog-pagination { display: flex; align-items: center; gap: .4rem; margin-top: .5rem; }
 .dialog-page-indicator { margin-left: auto; color: #64748b; font-size: .74rem; }
 html[data-theme="dark"] .dialog-page-indicator { color: #aab4ca; }
+
+/* Phone relief: let ordinary results tables fit the viewport; only genuinely
+   wide ones scroll inside .cargo-table-wrap. */
+@media (max-width: 40rem) {
+  .cargo-panel table { min-width: 100%; }
+}

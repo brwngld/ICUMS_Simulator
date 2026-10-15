@@ -249,9 +249,13 @@ def roadmap(request):
         "next_lesson": next_lesson,
         "next_assessment": next_assessment,
         "current_module": current_module,
-        "learning_outcomes": outcomes[:4],
+        # Prefer course-level outcomes set by the instructor; fall back to
+        # outcomes aggregated from published lesson objectives.
+        "learning_outcomes": enrolment.programme_version.programme.get_outcomes_list() or outcomes[:8],
         "course_resources": resources[:4],
         "resource_categories": resource_categories,
+        # Pass programme metadata so the learner overview can display them.
+        "programme": enrolment.programme_version.programme,
     })
 
 
@@ -276,7 +280,11 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
     progress, _ = LessonProgress.objects.get_or_create(enrolment=enrolment, lesson=lesson)
     ModuleProgress.objects.get_or_create(enrolment=enrolment, module=module, defaults={"status": ModuleProgress.Status.IN_PROGRESS})
     blocks = list(lesson.blocks.all())
-    check = lesson.knowledge_checks.select_related("question_version").prefetch_related("question_version__options").first()
+    checks = list(
+        lesson.knowledge_checks.select_related("question_version")
+        .prefetch_related("question_version__options")
+        .order_by("order", "id")
+    )
     objectives = [line.strip() for line in (lesson.objectives or "").splitlines() if line.strip()]
     key_terms = []
     for line in (lesson.key_terms or "").splitlines():
@@ -303,7 +311,11 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
 
     if request.method == "POST":
         action = request.POST.get("action", "continue")
-        if action == "answer_check" and check is not None:
+        if action == "answer_check":
+            check = next((item for item in checks if str(item.pk) == request.POST.get("check_id")), None)
+            if check is None:
+                messages.error(request, "This practice question is no longer available.")
+                return redirect(section_url("practice") + "#feedback")
             selected = check.question_version.options.filter(pk=request.POST.get("option")).first()
             if selected is None:
                 messages.error(request, "Choose an answer before checking your response.")
@@ -327,8 +339,6 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
 
     _annotate_sections(sections, section_url, progress, current_index)
     word_count = sum(len(block.body.split()) for block in blocks)
-    module_assessment = module.assessments.filter(is_published=True).first()
-    module_lessons_complete = module_lessons_completed(enrolment, module)
     lessons_in_module = list(module.lessons.filter(is_published=True).order_by("order", "title"))
     lesson_position = next((index + 1 for index, item in enumerate(lessons_in_module) if item.pk == lesson.pk), 1)
     return render_student_page(
@@ -342,19 +352,18 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
             "sections": sections,
             "current_index": current_index,
             "current_section": sections[current_index],
+            "concepts_url": section_url("concepts"),
             "overview_mode": overview_mode,
             "prev_section": sections[current_index - 1] if current_index > 0 else None,
             "next_section": sections[current_index + 1] if current_index < len(sections) - 1 else None,
             "concept_block": concept_block,
             "example_block": example_block,
             "notice_block": notice_block,
-            "check": check,
+            "checks": checks,
             "objectives": objectives,
             "key_terms": key_terms,
             "lessons_in_module": lessons_in_module,
             "lesson_position": lesson_position,
-            "module_assessment": module_assessment,
-            "module_lessons_complete": module_lessons_complete,
             "reading_minutes": max(1, round(word_count / 200)),
             "completed_section_count": len(sections) if progress.completed_at else min(progress.last_position, len(sections)),
             "section_progress_percentage": 100 if progress.completed_at else round(min(progress.last_position, len(sections)) / len(sections) * 100),

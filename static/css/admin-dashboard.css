@@ -132,3 +132,19 @@ html.dark .dash-pill.is-warn, html[data-theme="dark"] .dash-pill.is-warn { color
   .dash-head, .dash-card, .dash-panel, .dash-donut, .dash-legend li, .dash-bar-fill, .dash-attention li { animation: none; }
   .dash-card, .dash-panel, .dash-card-icon .ui-icon, .dash-attention li, .dash-table tbody tr { transition: none; }
 }
+
+@media (max-width: 48rem) {
+  .dash-table { display: block; overflow-x: auto; white-space: nowrap; }
+}
+
+@media (max-width: 40rem) {
+  .dash-head p { font-size: .84rem; }
+  .dash-panel-head { flex-wrap: wrap; }
+  .dash-panel-head p { font-size: .75rem; }
+  .dash-pill { font-size: .7rem; }
+  .dash-donut-wrap { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .dash-bars li { grid-template-columns: minmax(5.5rem, 9rem) 1fr 2.5rem; gap: .5rem; font-size: .75rem; }
+  .dash-attention li { flex-wrap: wrap; }
+  .dash-attention a { white-space: normal; }
+  .dash-table small, .dash-attention small, .dash-log small { font-size: .72rem; }
+}

@@ -90,6 +90,57 @@ def test_lesson_base_url_resumes_first_unfinished_section(client, theory_setup):
 
 
 @pytest.mark.django_db
+def test_lesson_resources_card_only_appears_when_resources_exist(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    client.force_login(theory_setup["user"])
+    url = reverse("lesson-section", args=(theory_setup["module"].code, theory_setup["lesson"].slug, "objectives"))
+
+    with_resource = client.get(url).content.decode()
+    assert "Lesson Resources" in with_resource
+    assert "Review Lesson One" in with_resource
+    assert with_resource.index("Lesson progress") < with_resource.index("Lesson Resources")
+
+    resource = Resource.objects.get(title="Review Lesson One")
+    resource.lessons.remove(theory_setup["lesson"])
+    without_resource = client.get(url).content.decode()
+    assert "Lesson Resources" not in without_resource
+
+
+@pytest.mark.django_db
+def test_sidebar_summarizes_current_section_and_refresher_is_contextual(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    client.force_login(theory_setup["user"])
+    LessonProgress.objects.create(
+        enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"], last_position=1,
+    )
+    concepts_url = reverse(
+        "lesson-section",
+        args=(theory_setup["module"].code, theory_setup["lesson"].slug, "concepts"),
+    )
+    concepts_page = client.get(concepts_url)
+    concepts_html = concepts_page.content.decode()
+    progress_card = concepts_html.split('class="lrn-card lrn-progress-card"', 1)[1].split(
+        'class="lrn-card lrn-resources-card"', 1
+    )[0]
+    assert "Current section" in progress_card
+    assert "Key concepts" in progress_card
+    assert "lrn-nav-item" not in progress_card
+    assert "Need a refresher?" not in concepts_html
+
+    progress = LessonProgress.objects.get(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"])
+    progress.last_position = 2
+    progress.save(update_fields=("last_position", "updated_at"))
+    example_url = reverse(
+        "lesson-section",
+        args=(theory_setup["module"].code, theory_setup["lesson"].slug, "example"),
+    )
+    example_html = client.get(example_url).content.decode()
+    assert "Need a refresher?" in example_html
+    assert f'href="{concepts_url}"' in example_html
+    assert "Review key concepts →" in example_html
+
+
+@pytest.mark.django_db
 def test_module_overview_uses_real_lesson_and_assessment_state(client, theory_setup):
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
     client.force_login(theory_setup["user"])
@@ -236,6 +287,59 @@ def test_lesson_position_and_embedded_check_are_saved(client, theory_setup):
     progress = LessonProgress.objects.get(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"])
     assert progress.completed_at is not None
     assert second_block.order == 2
+
+
+@pytest.mark.django_db
+def test_practice_page_renders_and_answers_multiple_questions_independently(client, theory_setup):
+    block = theory_setup["lesson"].blocks.get()
+    first_check = LessonCheck.objects.create(
+        lesson=theory_setup["lesson"], after_block=block,
+        question_version=theory_setup["question"], order=1,
+    )
+    second_question = Question.objects.create(code="question-two")
+    second_version = QuestionVersion.objects.create(
+        question=second_question, version=1, prompt="Choose the second response.",
+        explanation="Second explanation.", points=1, is_published=True,
+    )
+    second_correct = AnswerOption.objects.create(
+        question_version=second_version, label="Second correct", is_correct=True, order=1,
+    )
+    AnswerOption.objects.create(
+        question_version=second_version, label="Second wrong", is_correct=False, order=2,
+    )
+    second_check = LessonCheck.objects.create(
+        lesson=theory_setup["lesson"], after_block=block,
+        question_version=second_version, order=2,
+    )
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"], last_position=4)
+    client.force_login(theory_setup["user"])
+    url = reverse("lesson-section", args=(theory_setup["module"].code, theory_setup["lesson"].slug, "practice"))
+
+    page = client.get(url)
+    html = page.content.decode()
+    assert html.index("Choose the correct response.") < html.index("Choose the second response.")
+    assert "Question 1 of 2" in html
+    assert "Question 2 of 2" in html
+    assert "Theory assessment" not in html
+
+    answered = client.post(
+        url,
+        {"action": "answer_check", "check_id": str(second_check.pk), "option": str(second_correct.pk)},
+    )
+    assert answered.status_code == 302
+    assert LessonCheckResponse.objects.filter(
+        enrolment=theory_setup["enrolment"], lesson_check=second_check, is_correct=True,
+    ).count() == 1
+    assert not LessonCheckResponse.objects.filter(lesson_check=first_check).exists()
+
+    invalid = client.post(
+        url,
+        {"action": "answer_check", "check_id": "not-a-question", "option": str(theory_setup["correct"].pk)},
+    )
+    assert invalid.status_code == 302
+    assert invalid.url.endswith("/practice/#feedback")
+    assert LessonCheckResponse.objects.count() == 1
 
 
 @pytest.mark.django_db
