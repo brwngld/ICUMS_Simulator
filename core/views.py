@@ -96,9 +96,9 @@ def permission_denied(request, exception=None):
     return django_views.permission_denied(request, exception)
 
 
-# Course covers are public artwork, but every other upload (simulator attachments
-# and the like) shares MEDIA_ROOT, so those need a signed-in session.
-PUBLIC_MEDIA_PREFIXES = ("course_covers/",)
+# Course and module covers are public artwork, but every other upload (simulator
+# attachments and the like) shares MEDIA_ROOT, so those need a signed-in session.
+PUBLIC_MEDIA_PREFIXES = ("course_covers/", "module_covers/")
 
 
 def media_file(request, path):

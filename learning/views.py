@@ -294,9 +294,12 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
             key_terms.append((term.strip(), definition.strip()))
 
     # The lesson's section list, in teaching order.
-    concept_block = next((b for b in blocks if b.kind == "text"), None)
-    example_block = next((b for b in blocks if b.kind == "example"), None)
-    notice_block = next((b for b in blocks if b.kind == "notice"), None)
+    concept_blocks = [b for b in blocks if b.kind == "text"]
+    example_blocks = [b for b in blocks if b.kind == "example"]
+    notice_blocks = [b for b in blocks if b.kind == "notice"]
+    concept_block = concept_blocks[0] if concept_blocks else None
+    example_block = example_blocks[0] if example_blocks else None
+    notice_block = notice_blocks[0] if notice_blocks else None
     sections = _lesson_sections()
 
     def section_url(slug):
@@ -359,6 +362,9 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
             "concept_block": concept_block,
             "example_block": example_block,
             "notice_block": notice_block,
+            "concept_blocks": concept_blocks,
+            "example_blocks": example_blocks,
+            "notice_blocks": notice_blocks,
             "checks": checks,
             "objectives": objectives,
             "key_terms": key_terms,

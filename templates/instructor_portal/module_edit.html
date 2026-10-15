@@ -1,6 +1,6 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}Edit {{ module.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit module{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-2">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-6">{% endblock %}
 {% block content %}<div class="authoring">
   <header class="authoring-head">
     <div>
@@ -32,7 +32,7 @@
   {# ── Tab 1: Summary ───────────────────────────────────────────────────── #}
   <section class="authoring-panel" data-authoring-panel="summary">
     <div class="authoring-layout">
-      <form method="post" class="authoring-card authoring-form">
+      <form method="post" enctype="multipart/form-data" class="authoring-card authoring-form">
         {% csrf_token %}
         <div class="authoring-editor-header">
           <div><h2>Module information</h2><p>These fields feed the learner's Module Overview and access rules.</p></div>
@@ -40,6 +40,35 @@
         </div>
         {{ form.title.as_field_group }}
         {{ form.description.as_field_group }}
+
+        <div class="authoring-field-group">
+          <label>Cover image</label>
+          {% if module.cover_image %}
+          <div class="authoring-image-preview">
+            <img src="{{ module.cover_image.url }}" alt="Current module cover image">
+            <div class="authoring-image-actions">
+              <label class="authoring-secondary authoring-upload-label">
+                Change image <input type="file" name="cover_image" accept="image/*" style="display:none">
+              </label>
+              <label class="authoring-image-remove">
+                <input type="checkbox" name="clear_cover_image"> Remove
+              </label>
+            </div>
+          </div>
+          {% else %}
+          <div class="authoring-image-upload">
+            <span>◼</span>
+            <p>No cover image yet</p>
+            <label class="authoring-secondary authoring-upload-label">
+              Choose image <input type="file" name="cover_image" accept="image/*" style="display:none">
+            </label>
+            <small>Recommended: 1200 × 400 px. JPG or PNG.</small>
+          </div>
+          {% endif %}
+          <p class="helptext">Optional. Shown on the learner module overview and as a thumbnail on the course overview. Leave empty to keep the current image.</p>
+        </div>
+
+        {{ form.difficulty.as_field_group }}
         {{ form.prerequisite.as_field_group }}
         <div class="authoring-sticky-actions">
           <a class="authoring-secondary" href="{% url 'course-builder-detail' module.programme_version_id %}">Cancel</a>
@@ -118,5 +147,5 @@
     </div>
   </section>
 </div>
-<script src="{% static 'js/instructor-theory-builder.js' %}?v=20261014-2"></script>
+<script src="{% static 'js/instructor-theory-builder.js' %}?v=20261015-5"></script>
 {% endblock %}

@@ -1,7 +1,7 @@
 {% extends "core/base_student.html" %}
 {% load static %}
 {% block title %}Course Overview · ICUMS Simulator{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/course-overview.css' %}?v=20261015-1">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/course-overview.css' %}?v=20261015-2">{% endblock %}
 {% block content %}
 <div class="course-overview">
   <div class="course-overview-layout">
@@ -27,14 +27,14 @@
 
       <section class="course-tab-panel" id="course-panel-overview" role="tabpanel" aria-labelledby="course-tab-overview" data-course-panel="overview">
         <div class="course-feature-grid">
-          <article class="course-feature"><span class="course-feature-icon blue">◎</span><div><h2>What you’ll learn</h2><p>{% if learning_outcomes %}{{ learning_outcomes.0 }}{% else %}Understand the theory that supports customs-clearance work and compliant trade.{% endif %}</p></div></article>
-          <article class="course-feature"><span class="course-feature-icon violet">♙</span><div><h2>Who is this for?</h2><p>Customs practitioners, clearing agents, importers, exporters and learners preparing for simulator practice.</p></div></article>
+          <article class="course-feature"><span class="course-feature-icon blue">◎</span><div><h2>What you’ll learn</h2><p>{% if programme.overview_summary %}{{ programme.overview_summary }}{% elif learning_outcomes %}{{ learning_outcomes.0 }}{% else %}Understand the theory that supports customs-clearance work and compliant trade.{% endif %}</p></div></article>
+          <article class="course-feature"><span class="course-feature-icon violet">♙</span><div><h2>Who is this for?</h2><p>{{ programme.target_audience|default:"Customs practitioners, clearing agents, importers, exporters and learners preparing for simulator practice." }}</p></div></article>
           <article class="course-feature"><span class="course-feature-icon green">▥</span><div><h2>Skills you’ll build</h2><ul>{% for outcome in learning_outcomes|slice:":3" %}<li>{{ outcome }}</li>{% empty %}<li>Recognise relevant procedures</li><li>Apply theory to practical scenarios</li>{% endfor %}</ul></div></article>
-          <article class="course-feature"><span class="course-feature-icon amber">▤</span><div><h2>How you’ll learn</h2><ul><li>Read structured lessons</li><li>Study worked examples</li><li>Take module assessments</li><li>Apply knowledge in the simulator</li></ul></div></article>
+          <article class="course-feature"><span class="course-feature-icon amber">▤</span><div><h2>How you’ll learn</h2><ul>{% for method in programme.get_learning_approach_list %}<li>{{ method }}</li>{% empty %}<li>Read structured lessons</li><li>Study worked examples</li><li>Take module assessments</li><li>Apply knowledge in the simulator</li>{% endfor %}</ul></div></article>
         </div>
         <section class="course-compact-modules">
           <div class="course-section-heading"><div><h2>Course modules</h2><p>Complete the modules in their required learning order.</p></div><button type="button" class="course-outline-button" data-open-tab="structure">View full roadmap</button></div>
-          {% for item in module_summaries %}<article><span class="course-module-number">{{ forloop.counter }}</span><div><strong>{{ item.module.title }}</strong><small>{{ item.lesson_count }} lesson{{ item.lesson_count|pluralize }} · ~{{ item.minutes }} min</small></div><progress value="{{ item.completed_count }}" max="{{ item.lesson_count|default:1 }}">{{ item.percentage }}%</progress><small>{{ item.completed_count }} of {{ item.lesson_count }} completed</small></article>{% empty %}<p class="course-empty">No published theory modules are available.</p>{% endfor %}
+          {% for item in module_summaries %}<article>{% if item.module.cover_image %}<img class="course-module-thumb" src="{{ item.module.cover_image.url }}" alt="{{ item.module.title }} illustration">{% else %}<span class="course-module-number">{{ forloop.counter }}</span>{% endif %}<div><strong>{{ item.module.title }}</strong><small>{{ item.lesson_count }} lesson{{ item.lesson_count|pluralize }} · ~{{ item.minutes }} min</small>{% if item.module.difficulty %}<span class="course-level">◇ {{ item.module.get_difficulty_display }}</span>{% endif %}</div><progress value="{{ item.completed_count }}" max="{{ item.lesson_count|default:1 }}">{{ item.percentage }}%</progress><small>{{ item.completed_count }} of {{ item.lesson_count }} completed</small></article>{% empty %}<p class="course-empty">No published theory modules are available.</p>{% endfor %}
         </section>
       </section>
 

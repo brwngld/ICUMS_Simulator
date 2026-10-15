@@ -54,4 +54,134 @@
   };
   search?.addEventListener('input', filterRows);
   status?.addEventListener('change', filterRows);
+
+  document.querySelectorAll('[data-structured-field]').forEach((field) => {
+    const source = field.querySelector('.authoring-source-field textarea');
+    const list = field.querySelector('[data-structured-list]');
+    const addButton = field.querySelector('[data-add-structured-row]');
+    if (!source || !list || !addButton) return;
+    const type = field.dataset.structuredField;
+    const rowPlaceholder = field.dataset.rowPlaceholder || 'Learning objective';
+    const values = source.value.split(/\r?\n/).filter((line) => line.trim());
+    const rows = values.map((line) => {
+      if (type !== 'key-terms') return { value: line.trim() };
+      const separator = line.indexOf('::');
+      return separator < 0
+        ? { term: line.trim(), definition: '' }
+        : { term: line.slice(0, separator).trim(), definition: line.slice(separator + 2).trim() };
+    });
+
+    const sync = () => {
+      source.value = rows.map((row) => type === 'key-terms'
+        ? `${row.term.trim()} :: ${row.definition.trim()}`
+        : row.value.trim()).filter((line) => line.replace('::', '').trim()).join('\n');
+    };
+    const render = () => {
+      list.replaceChildren();
+      rows.forEach((row, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = `authoring-structured-row authoring-structured-row--${type}`;
+        const marker = document.createElement('span');
+        marker.className = 'authoring-structured-number';
+        marker.textContent = index + 1;
+        wrapper.append(marker);
+        const addInput = (value, placeholder, key) => {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = value;
+          input.placeholder = placeholder;
+          input.setAttribute('aria-label', placeholder);
+          input.addEventListener('input', () => { row[key] = input.value; sync(); });
+          wrapper.append(input);
+        };
+        if (type === 'key-terms') {
+          addInput(row.term, 'Term', 'term');
+          addInput(row.definition, 'Definition', 'definition');
+        } else {
+          addInput(row.value, rowPlaceholder, 'value');
+        }
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'authoring-structured-remove';
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => { rows.splice(index, 1); sync(); render(); });
+        wrapper.append(remove);
+        list.append(wrapper);
+      });
+    };
+    source.hidden = true;
+    field.classList.add('is-enhanced');
+    addButton.addEventListener('click', () => {
+      rows.push(type === 'key-terms' ? { term: '', definition: '' } : { value: '' });
+      render();
+      list.querySelector('.authoring-structured-row:last-child input')?.focus();
+    });
+    render();
+  });
+})();
+
+// Live cover preview before the form is submitted. The file input is never
+// removed from the DOM so the chosen file survives until save.
+(function () {
+  const input = document.querySelector('input[name="cover_image"]');
+  if (!input) return;
+  input.addEventListener('change', function () {
+    const file = this.files && this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const dataUrl = e.target.result;
+      const zone = document.querySelector('.authoring-image-upload');
+      const preview = document.querySelector('.authoring-image-preview');
+
+      function ensureNote(parent, insertBeforeLabel) {
+        let note = parent.querySelector('.authoring-image-live-note');
+        if (!note) {
+          note = document.createElement('p');
+          note.className = 'authoring-image-live-note';
+          note.style.cssText = 'margin:0;color:var(--au-muted);font-size:.68rem';
+          if (insertBeforeLabel) parent.prepend(note);
+          else parent.append(note);
+        }
+        note.textContent = file.name + ' selected — save to apply';
+        return note;
+      }
+
+      if (zone) {
+        let live = zone.querySelector('.authoring-image-live');
+        if (!live) {
+          live = document.createElement('img');
+          live.className = 'authoring-image-live';
+          live.alt = 'Selected image';
+          live.style.cssText = 'width:100%;max-height:14rem;object-fit:cover;border-radius:.55rem;display:block';
+          zone.insertBefore(live, zone.firstChild);
+          const icon = zone.querySelector(':scope > span');
+          const placeholder = zone.querySelector(':scope > p');
+          if (icon) icon.style.display = 'none';
+          if (placeholder) placeholder.style.display = 'none';
+        }
+        live.src = dataUrl;
+        ensureNote(zone, false);
+      } else if (preview) {
+        const img = preview.querySelector('img');
+        if (img) img.src = dataUrl;
+        ensureNote(preview.querySelector('.authoring-image-actions'), true);
+      }
+
+      const asideImg = document.querySelector('.authoring-preview-cover');
+      if (asideImg) {
+        asideImg.src = dataUrl;
+      } else {
+        const asidePreview = document.querySelector('.authoring-preview');
+        if (asidePreview) {
+          const newImg = document.createElement('img');
+          newImg.className = 'authoring-preview-cover';
+          newImg.src = dataUrl;
+          newImg.alt = 'Cover preview';
+          asidePreview.insertBefore(newImg, asidePreview.firstChild);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  });
 })();

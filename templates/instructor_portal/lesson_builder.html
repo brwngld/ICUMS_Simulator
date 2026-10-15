@@ -1,6 +1,6 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}New lesson · {{ module.title }}{% endblock %}{% block workspace_name %}Lesson builder{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-2">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-6">{% endblock %}
 {% block content %}<div class="authoring">
   <header class="authoring-head"><div><p class="authoring-eyebrow">{{ module.programme_version.programme.name }} · {{ module.title }}</p><h1>Create Lesson Sections</h1><p>Author the five teaching sections in the same sequence the learner will experience them.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'course-builder-detail' module.programme_version.pk %}">Back to lessons</a></div></header>
   <div class="authoring-progress"><span class="complete">1 Create course</span><span class="complete">2 Add modules</span><span class="current">3 Create lessons</span><span class="current">4 Add sections</span><span>5 Configure assessment</span><span>6 Review and publish</span></div>
@@ -19,4 +19,4 @@
     </div>
     <div class="authoring-sticky-actions"><a class="authoring-secondary" href="{% url 'course-builder-detail' module.programme_version.pk %}">Cancel</a><button class="authoring-primary" type="submit">Save complete draft lesson</button></div>
   </form>
-</div><script src="{% static 'js/instructor-theory-builder.js' %}?v=20261014-2"></script>{% endblock %}
+</div><script src="{% static 'js/instructor-theory-builder.js' %}?v=20261015-5"></script>{% endblock %}

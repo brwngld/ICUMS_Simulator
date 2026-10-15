@@ -1,6 +1,6 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}{{ version.programme.name }} · ICUMS Simulator{% endblock %}{% block workspace_name %}{{ version.programme.name }}{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-2">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-6">{% endblock %}
 {% block content %}<div class="authoring">
   <a class="authoring-back-link" href="{% url 'course-builder' %}">← All courses</a>
   <header class="authoring-head">
@@ -28,6 +28,7 @@
         </div>
         <dl class="authoring-facts">
           {% if version.programme.description %}<div style="flex-direction:column;align-items:flex-start"><dt>Description</dt><dd style="margin-top:.25rem">{{ version.programme.description }}</dd></div>{% endif %}
+          {% if version.programme.target_audience %}<div style="flex-direction:column;align-items:flex-start"><dt>Target audience</dt><dd style="margin-top:.25rem">{{ version.programme.target_audience }}</dd></div>{% endif %}
           {% if version.programme.difficulty %}<div><dt>Difficulty</dt><dd><span class="authoring-difficulty-badge authoring-difficulty-badge--{{ version.programme.difficulty }}">{{ version.programme.get_difficulty_display }}</span></dd></div>{% endif %}
           {% if version.programme.estimated_weeks %}<div><dt>Duration</dt><dd>~{{ version.programme.estimated_weeks }} week{{ version.programme.estimated_weeks|pluralize }}</dd></div>{% endif %}
           <div><dt>Published</dt><dd>{{ version.published_at|date:"j N Y"|default:"—" }}</dd></div>
@@ -39,6 +40,14 @@
           <ol class="authoring-outcome-preview">
             {% for outcome in version.programme.get_outcomes_list %}<li>{{ outcome }}</li>{% endfor %}
           </ol>
+        </div>
+        {% endif %}
+        {% if version.programme.learning_approach %}
+        <div style="margin-top:.75rem">
+          <p style="font-size:.7rem;font-weight:700;margin:0 0 .35rem">Learning approach</p>
+          <ul class="authoring-guidance-list">
+            {% for method in version.programme.get_learning_approach_list %}<li>{{ method }}</li>{% endfor %}
+          </ul>
         </div>
         {% endif %}
       </section>

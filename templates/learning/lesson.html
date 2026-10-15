@@ -118,22 +118,19 @@
         {% elif current_section.slug == "concepts" %}
         <section class="lrn-enter">
           <h2><small>{{ current_section.stage }}</small>Key concepts</h2>
-          {% if concept_block.heading %}<h3 class="lrn-content-heading">{{ concept_block.heading }}</h3>{% endif %}
-          {% if concept_block %}<div class="lrn-copy">{{ concept_block.body|linebreaks }}</div>{% else %}<p class="lrn-empty">Key concepts for this lesson have not been published yet.</p>{% endif %}
+          {% for block in concept_blocks %}{% if block.heading %}<h3 class="lrn-content-heading">{{ block.heading }}</h3>{% endif %}<div class="lrn-copy">{{ block.body|linebreaks }}</div>{% empty %}<p class="lrn-empty">Key concepts for this lesson have not been published yet.</p>{% endfor %}
         </section>
 
         {% elif current_section.slug == "example" %}
         <section class="lrn-enter">
           <h2><small>{{ current_section.stage }}</small>Worked example</h2>
-          {% if example_block.heading %}<h3 class="lrn-content-heading">{{ example_block.heading }}</h3>{% endif %}
-          {% if example_block %}<div class="lrn-copy lrn-scenario">{{ example_block.body|linebreaks }}</div>{% else %}<p class="lrn-empty">A worked example for this lesson has not been published yet.</p>{% endif %}
+          {% for block in example_blocks %}{% if block.heading %}<h3 class="lrn-content-heading">{{ block.heading }}</h3>{% endif %}<div class="lrn-copy lrn-scenario">{{ block.body|linebreaks }}</div>{% empty %}<p class="lrn-empty">A worked example for this lesson has not been published yet.</p>{% endfor %}
         </section>
 
         {% elif current_section.slug == "note" %}
         <section class="lrn-enter">
           <h2><small>{{ current_section.stage }}</small>Important note</h2>
-          {% if notice_block.heading %}<h3 class="lrn-content-heading">{{ notice_block.heading }}</h3>{% endif %}
-          {% if notice_block %}<div class="lrn-key">{{ notice_block.body|linebreaks }}</div>{% else %}<p class="lrn-empty">There are no additional notes for this lesson yet.</p>{% endif %}
+          {% for block in notice_blocks %}{% if block.heading %}<h3 class="lrn-content-heading">{{ block.heading }}</h3>{% endif %}<div class="lrn-key">{{ block.body|linebreaks }}</div>{% empty %}<p class="lrn-empty">There are no additional notes for this lesson yet.</p>{% endfor %}
         </section>
 
         {% elif current_section.slug == "practice" %}

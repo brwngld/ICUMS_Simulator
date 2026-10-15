@@ -6,6 +6,7 @@
 <div class="dash">
 <header class="dash-head"><div><p class="dash-eyebrow">{{ assessment.title }}</p><h1>{{ heading }}</h1><p>The first completed answer is not automatically correct — choose the correct answer below.</p></div></header>
 <form method="post">
+{% csrf_token %}
 <section class="dash-panel form-section">
   {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
   {{ form.prompt.as_field_group }}

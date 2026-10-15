@@ -1,12 +1,13 @@
 {% extends "core/base_student.html" %}
 {% load static %}
 {% block title %}{{ module.title }} · ICUMS Simulator{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/module-overview.css' %}?v=20261015-1">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/module-overview.css' %}?v=20261015-2">{% endblock %}
 {% block content %}
 <div class="mod-overview learning-workspace-page">
   <header class="mod-hero">
     <a class="mod-back-link" href="{% url 'roadmap' %}">← Course overview</a>
-    <div><span class="mod-badge">Module {{ module.order }}</span><h1>{{ module.title }}</h1><p>{{ module.description|default:"Build the knowledge and skills covered by this part of the course." }}</p><div class="mod-meta"><span>▤ {{ lesson_items|length }} lesson{{ lesson_items|length|pluralize }}</span><span>☷ {% if assessment %}1 assessment{% else %}No assessment{% endif %}</span><span>◷ ~{{ total_minutes }} min</span></div></div>
+    {% if module.cover_image %}<img class="mod-hero-image" src="{{ module.cover_image.url }}" alt="{{ module.title }} module illustration">{% endif %}
+    <div><span class="mod-badge">Module {{ module.order }}</span><h1>{{ module.title }}</h1><p>{{ module.description|default:"Build the knowledge and skills covered by this part of the course." }}</p><div class="mod-meta">{% if module.difficulty %}<span>◇ {{ module.get_difficulty_display }}</span>{% endif %}<span>▤ {{ lesson_items|length }} lesson{{ lesson_items|length|pluralize }}</span><span>☷ {% if assessment %}1 assessment{% else %}No assessment{% endif %}</span><span>◷ ~{{ total_minutes }} min</span></div></div>
   </header>
 
   <nav class="mod-tabs" aria-label="Module overview sections"><a href="#overview">Overview</a><a href="#lessons">Lessons</a><a href="#assessment">Assessment</a><a href="#resources">Resources</a><a href="#next">Next steps</a></nav>

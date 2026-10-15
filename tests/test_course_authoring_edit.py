@@ -41,10 +41,48 @@ def draft_course(db):
 @pytest.mark.django_db
 def test_course_edit_renames_draft_course(client, instructor, draft_course):
     client.force_login(instructor)
-    response = client.post(reverse("course-edit", args=[draft_course["version"].pk]), {"name": "Renamed Programme"})
-    assert response.status_code == 302
+    basic_response = client.post(
+        reverse("course-edit", args=[draft_course["version"].pk]),
+        {"tab": "basic", "name": "Renamed Programme", "description": "Updated course description."},
+    )
+    assert basic_response.status_code == 302
+    overview_response = client.post(
+        reverse("course-edit", args=[draft_course["version"].pk]),
+        {
+            "tab": "overview",
+            "name": "Renamed Programme",
+            "overview_summary": "Understand the complete standards process.",
+            "target_audience": "Customs officers and trade practitioners.",
+            "learning_outcomes": "Interpret standards\nApply conformity rules",
+            "learning_approach": "Read guided lessons\nComplete practical examples",
+        },
+    )
+    assert overview_response.status_code == 302
     draft_course["version"].refresh_from_db()
-    assert draft_course["version"].programme.name == "Renamed Programme"
+    programme = draft_course["version"].programme
+    programme.refresh_from_db()
+    assert programme.name == "Renamed Programme"
+    assert programme.overview_summary == "Understand the complete standards process."
+    assert programme.target_audience == "Customs officers and trade practitioners."
+    assert programme.get_outcomes_list() == ["Interpret standards", "Apply conformity rules"]
+    assert programme.get_learning_approach_list() == ["Read guided lessons", "Complete practical examples"]
+
+
+@pytest.mark.django_db
+def test_course_editor_exposes_all_four_overview_cards(client, instructor, draft_course):
+    client.force_login(instructor)
+
+    response = client.get(reverse("course-edit", args=[draft_course["version"].pk]))
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert 'data-authoring-panel="overview"' in content
+    assert 'data-structured-field="lines"' in content
+    assert "What you’ll learn" in content
+    assert "Who is this for?" in content
+    assert "Skills you’ll build" in content
+    assert "How you’ll learn" in content
+    assert "Overview readiness" in content
 
 
 @pytest.mark.django_db
@@ -64,13 +102,43 @@ def test_module_edit_updates_fields_and_prerequisite(client, instructor, draft_c
     client.force_login(instructor)
     response = client.post(
         reverse("module-edit", args=[module_b.pk]),
-        {"title": "Module B renamed", "description": "New description", "prerequisite": str(draft_course["module_a"].pk)},
+        {
+            "title": "Module B renamed",
+            "description": "New description",
+            "difficulty": "beginner-intermediate",
+            "prerequisite": str(draft_course["module_a"].pk),
+        },
     )
     assert response.status_code == 302
     module_b.refresh_from_db()
     assert module_b.title == "Module B renamed"
     assert module_b.description == "New description"
+    assert module_b.difficulty == "beginner-intermediate"
     assert module_b.prerequisite_id == draft_course["module_a"].pk
+
+
+@pytest.mark.django_db
+def test_module_editor_offers_the_five_course_difficulty_levels(client, instructor, draft_course):
+    client.force_login(instructor)
+    response = client.get(reverse("module-edit", args=[draft_course["module_a"].pk]))
+    page = response.content.decode()
+    for value, label in Programme.Difficulty.choices:
+        assert f'value="{value}"' in page
+        assert label in page
+    assert 'value="advanced"' in page
+    assert page.count('name="difficulty"') == 1
+
+
+@pytest.mark.django_db
+def test_module_difficulty_is_optional_and_blankable(client, instructor, draft_course):
+    module = draft_course["module_a"]
+    module.difficulty = Programme.Difficulty.ADVANCED
+    module.save(update_fields=("difficulty",))
+    client.force_login(instructor)
+    response = client.post(reverse("module-edit", args=[module.pk]), {"title": module.title, "description": "", "difficulty": ""})
+    assert response.status_code == 302
+    module.refresh_from_db()
+    assert module.difficulty == ""
 
 
 @pytest.mark.django_db
@@ -87,6 +155,87 @@ def test_module_edit_rejects_prerequisite_cycle(client, instructor, draft_course
     module_a.refresh_from_db()
     assert module_a.prerequisite_id is None
     assert "cycle" in response.content.decode().lower()
+
+
+@pytest.mark.django_db
+def test_lesson_editor_renders_structured_details_workspace(client, instructor, draft_course):
+    lesson = draft_course["lesson"]
+    lesson.objectives = "Identify the document.\nExplain its purpose."
+    lesson.key_terms = "Manifest :: A list of cargo.\nDeclaration :: A customs submission."
+    lesson.save(update_fields=("objectives", "key_terms"))
+    client.force_login(instructor)
+
+    response = client.get(reverse("lesson-edit", args=[lesson.pk]))
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert 'class="authoring-tabs authoring-assessment-tabs authoring-lesson-tabs"' in content
+    assert 'data-structured-field="objectives"' in content
+    assert 'data-structured-field="key-terms"' in content
+    assert "Lesson readiness" in content
+    assert "2 objectives" in content
+    assert "2 terms" in content
+
+
+@pytest.mark.django_db
+def test_lesson_sections_support_multiple_blocks_per_type(client, instructor, draft_course):
+    lesson = draft_course["lesson"]
+    client.force_login(instructor)
+
+    for kind in ("text", "text", "example", "example", "notice", "notice"):
+        response = client.post(reverse("lesson-section-add", args=[lesson.pk]), {"kind": kind})
+        assert response.status_code == 302
+
+    assert lesson.blocks.filter(kind="text").count() == 3
+    assert lesson.blocks.filter(kind="example").count() == 2
+    assert lesson.blocks.filter(kind="notice").count() == 2
+
+    page = client.get(reverse("lesson-edit", args=[lesson.pk]))
+    assert page.status_code == 200
+    assert page.content.decode().count("+ Key concept") == 1
+    assert "7 sections" in page.content.decode()
+
+
+@pytest.mark.django_db
+def test_lesson_section_move_and_delete_preserve_practice_question(client, instructor, draft_course):
+    lesson = draft_course["lesson"]
+    original = draft_course["block"]
+    check = LessonCheck.objects.get(lesson=lesson)
+    second = ContentBlock.objects.create(
+        lesson=lesson, kind="text", heading="Second concept", body="Second concept body.", order=2,
+    )
+    client.force_login(instructor)
+
+    response = client.post(
+        reverse("lesson-section-move", args=[lesson.pk, second.pk]),
+        {"direction": "up"},
+    )
+    assert response.status_code == 302
+    original.refresh_from_db()
+    second.refresh_from_db()
+    assert second.order < original.order
+
+    response = client.post(reverse("lesson-section-delete", args=[lesson.pk, original.pk]))
+    assert response.status_code == 302
+    assert not ContentBlock.objects.filter(pk=original.pk).exists()
+    check.refresh_from_db()
+    assert check.after_block_id == second.pk
+
+
+@pytest.mark.django_db
+def test_lesson_preview_renders_every_block_in_a_section(client, instructor, draft_course):
+    lesson = draft_course["lesson"]
+    ContentBlock.objects.create(
+        lesson=lesson, kind="text", heading="Second concept", body="Additional concept body.", order=2,
+    )
+    client.force_login(instructor)
+
+    response = client.get(reverse("lesson-preview", args=[lesson.pk]) + "?section=concepts")
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert "Original body." in content
+    assert "Additional concept body." in content
 
 
 @pytest.mark.django_db

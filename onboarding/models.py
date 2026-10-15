@@ -24,6 +24,18 @@ class Programme(models.Model):
         blank=True,
         help_text="One outcome per line. Shown on the Learning outcomes tab and the Overview feature cards.",
     )
+    overview_summary = models.TextField(
+        blank=True,
+        help_text="A concise summary shown in the What you’ll learn course overview card.",
+    )
+    target_audience = models.TextField(
+        blank=True,
+        help_text="Who this course is designed for. Shown on the learner course overview.",
+    )
+    learning_approach = models.TextField(
+        blank=True,
+        help_text="One learning method per line. Shown in the How you’ll learn overview card.",
+    )
     difficulty = models.CharField(
         max_length=30,
         choices=Difficulty.choices,
@@ -44,6 +56,10 @@ class Programme(models.Model):
     def get_outcomes_list(self):
         """Return learning outcomes as a list of non-empty strings."""
         return [line.strip() for line in self.learning_outcomes.splitlines() if line.strip()]
+
+    def get_learning_approach_list(self):
+        """Return configured learning methods as a list of non-empty strings."""
+        return [line.strip() for line in self.learning_approach.splitlines() if line.strip()]
 
     def __str__(self):
         return self.name

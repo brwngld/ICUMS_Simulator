@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from assessments.models import AnswerOption, AssessmentItem, Question, QuestionVersion
 from learning.models import ContentBlock, Module
 from scenarios.models import ScenarioState
-from onboarding.models import ProgrammeVersion
+from onboarding.models import Programme, ProgrammeVersion
 
 
 class CourseCreateForm(forms.Form):
@@ -104,6 +104,24 @@ class CourseEditForm(forms.Form):
         label="Short description",
         help_text="Shown on the learner Course Overview page below the course title.",
     )
+    overview_summary = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="What you’ll learn",
+        help_text="Give learners a concise summary of the knowledge they will gain from this course.",
+    )
+    target_audience = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label="Target audience",
+        help_text="Describe who this course is designed for. This fills the Who is this for? overview card.",
+    )
+    learning_approach = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 5}),
+        label="Learning approach (one method per line)",
+        help_text="Each line becomes an item in the How you’ll learn overview card.",
+    )
     cover_image = forms.ImageField(
         required=False,
         label="Cover image",
@@ -116,8 +134,8 @@ class CourseEditForm(forms.Form):
     learning_outcomes = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={"rows": 8, "placeholder": "Explain the purpose of a conformity certificate\nIdentify GSA-regulated product categories\nDescribe the opt-in/out procedure for applicable goods"}),
-        label="Learning outcomes (one per line)",
-        help_text="Each line becomes one outcome bullet on the learner overview.",
+        label="Skills you’ll build (one per line)",
+        help_text="Each line becomes one skill in the Skills you’ll build overview card and Learning outcomes tab.",
     )
     difficulty = forms.ChoiceField(
         required=False,
@@ -150,6 +168,21 @@ class ModuleEditForm(forms.Form):
         widget=forms.Textarea(attrs={"rows": 3}),
         help_text="Briefly describe what learners will be able to do after this module.",
     )
+    cover_image = forms.ImageField(
+        required=False,
+        label="Cover image",
+        help_text="Shown on the learner module overview and as a thumbnail on the course overview. Recommended: 1200 × 400 px. Leave empty to keep the current image.",
+    )
+    clear_cover_image = forms.BooleanField(
+        required=False,
+        label="Remove current cover image",
+    )
+    difficulty = forms.ChoiceField(
+        required=False,
+        choices=[("", "— Select difficulty —")] + list(Programme.Difficulty.choices),
+        label="Difficulty level",
+        help_text="Optional badge shown on the learner module overview and course overview.",
+    )
     prerequisite = forms.ModelChoiceField(
         queryset=Module.objects.none(),
         required=False,
@@ -165,6 +198,7 @@ class ModuleEditForm(forms.Form):
         ).exclude(pk=module.pk).order_by("order")
         self.fields["title"].initial = module.title
         self.fields["description"].initial = module.description
+        self.fields["difficulty"].initial = module.difficulty
         self.fields["prerequisite"].initial = module.prerequisite_id
 
     def clean_prerequisite(self):

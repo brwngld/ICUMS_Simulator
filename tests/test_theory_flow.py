@@ -171,6 +171,11 @@ def test_section_completion_is_explicit_and_idempotent(client, theory_setup):
 @pytest.mark.django_db
 def test_course_overview_uses_real_progress_modules_and_assessments(client, theory_setup):
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    programme = theory_setup["enrolment"].programme_version.programme
+    programme.overview_summary = "Understand standards and conformity requirements."
+    programme.target_audience = "Customs officers learning the standards process."
+    programme.learning_approach = "Read guided lessons\nApply knowledge in the simulator"
+    programme.save(update_fields=("overview_summary", "target_audience", "learning_approach"))
     client.force_login(theory_setup["user"])
     response = client.get(reverse("roadmap"))
     assert response.status_code == 200
@@ -180,6 +185,10 @@ def test_course_overview_uses_real_progress_modules_and_assessments(client, theo
     assert "Module One" in html
     assert "Lesson One" in html
     assert "Module assessments" in html
+    assert "Understand standards and conformity requirements." in html
+    assert "Customs officers learning the standards process." in html
+    assert "Read guided lessons" in html
+    assert "Apply knowledge in the simulator" in html
     assert response.context["total_lessons"] == 1
     assert response.context["course_percentage"] == 0
     assert response.context["next_lesson"] == theory_setup["lesson"]
@@ -393,3 +402,22 @@ def test_instructor_portal_rejects_student_and_allows_instructor(client, theory_
     response = client.get(reverse("instructor-dashboard"))
     assert response.status_code == 200
     assert b"learner" in response.content
+
+
+@pytest.mark.django_db
+def test_module_difficulty_badge_appears_only_when_set(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    client.force_login(theory_setup["user"])
+    module = theory_setup["module"]
+
+    without = client.get(reverse("module-overview", args=[module.code]))
+    assert "◇ Intermediate".encode() not in without.content
+    assert "◇ Intermediate".encode() not in client.get(reverse("roadmap")).content
+
+    module.difficulty = "intermediate"
+    module.save(update_fields=("difficulty",))
+    module_page = client.get(reverse("module-overview", args=[module.code]))
+    assert "◇ Intermediate".encode() in module_page.content
+    course_page = client.get(reverse("roadmap"))
+    assert b"course-level" in course_page.content
+    assert "◇ Intermediate".encode() in course_page.content

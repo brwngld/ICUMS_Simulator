@@ -5,8 +5,11 @@ their questions in draft courses only. Student scoring and progression are
 unchanged: passing a module assessment completes the module, passing the
 final exam unlocks orientation and practicals.
 """
+import re
+
 import pytest
 from django.contrib.auth.models import Group
+from django.test import Client
 from django.urls import reverse
 
 from accounts.models import User
@@ -63,6 +66,27 @@ def _question_payload(prompt="What is a Bill of Lading?", correct="A receipt for
     }
     payload.update(overrides)
     return payload
+
+
+@pytest.mark.django_db
+def test_add_question_form_posts_with_csrf_enforcement(instructor, draft_course):
+    assessment = Assessment.objects.create(
+        programme_version=draft_course["version"], module=draft_course["module"],
+        title="CSRF Assessment", assessment_type=Assessment.Type.MODULE,
+    )
+    csrf_client = Client(enforce_csrf_checks=True)
+    csrf_client.force_login(instructor)
+    url = reverse("assessment-question-add", args=[assessment.pk])
+    page = csrf_client.get(url)
+    match = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', page.content.decode())
+    assert match is not None
+    payload = _question_payload(prompt="CSRF protected question?")
+    payload["csrfmiddlewaretoken"] = match.group(1)
+
+    response = csrf_client.post(url, payload)
+
+    assert response.status_code == 302
+    assert assessment.items.filter(question_version__prompt="CSRF protected question?").exists()
 
 
 @pytest.mark.django_db
@@ -124,6 +148,30 @@ def test_edit_assessment_settings(client, instructor, draft_course):
     assert assessment.title == "Renamed assessment"
     assert str(assessment.pass_percentage) == "85.00"
     assert assessment.maximum_attempts == 2
+
+
+@pytest.mark.django_db
+def test_assessment_editor_renders_structured_question_navigation(client, instructor, draft_course):
+    assessment = Assessment.objects.create(
+        programme_version=draft_course["version"], module=draft_course["module"],
+        title="Structured assessment", assessment_type=Assessment.Type.MODULE,
+    )
+    client.force_login(instructor)
+    client.post(
+        reverse("assessment-question-add", args=[assessment.pk]),
+        _question_payload(prompt="Which document records the shipment?"),
+    )
+
+    response = client.get(reverse("assessment-edit", args=[assessment.pk]))
+    content = response.content.decode()
+
+    assert response.status_code == 200
+    assert 'class="authoring-tabs authoring-assessment-tabs"' in content
+    assert 'class="authoring-tab-count">1</span>' in content
+    assert 'class="authoring-assessment-question"' in content
+    assert "Which document records the shipment?" in content
+    assert "Correct answer" in content
+    assert "Feedback included" in content
 
 
 @pytest.mark.django_db

@@ -1,11 +1,13 @@
 ﻿from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.contrib import messages
-from django.db import transaction
+from django.core.files.base import ContentFile
+from django.db import models, transaction
 from django.db.models import Count, Max, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
+from uuid import uuid4
 
 from core.admin_dashboard import render_student_page
 from .ordering import move_lesson as move_lesson_order, move_module as move_module_order
@@ -19,6 +21,7 @@ from onboarding.models import Enrolment, Programme, ProgrammeVersion
 from progress.models import LessonProgress
 
 from evaluations.models import Rubric, RubricCriterion, RubricVersion
+from reports.models import CompletionPolicy
 from scenarios.models import Scenario, ScenarioActionDefinition, ScenarioState, ScenarioVersion
 from accounts.models import SimulatorCredential
 
@@ -148,40 +151,74 @@ def course_builder_detail(request, version_id):
     )
 
 
-def _course_issues(version):
+def _lesson_issues(lesson):
+    """What a single lesson still needs before a learner can study it."""
     issues = []
-    modules = version.modules.prefetch_related("lessons__blocks", "lessons__knowledge_checks__question_version__options", "assessments__items")
-    if not modules.exists():
-        issues.append("Add at least one module.")
+    if not lesson.blocks.exists():
+        issues.append(f'Add teaching content to “{lesson.title}”.')
+    if not lesson.knowledge_checks.exists():
+        issues.append(f'Add a knowledge check to “{lesson.title}”.')
+    for check in lesson.knowledge_checks.all():
+        if check.question_version.options.filter(is_correct=True).count() != 1:
+            issues.append(f'The knowledge check in “{lesson.title}” must have exactly one correct answer.')
+    return issues
+
+
+def _module_blockers(module):
+    """Module-level requirements — without these the module cannot be published at all."""
+    issues = []
+    # A module is completed by passing its module assessment; without one
+    # the module — and therefore the final exam, orientation, and every
+    # practical — stays out of reach for its students.
+    module_assessments = [a for a in module.assessments.all() if a.assessment_type == Assessment.Type.MODULE]
+    if not module_assessments:
+        issues.append(f'Add a module assessment to “{module.title}” — students complete a module by passing its assessment.')
+    elif not any(assessment.items.exists() for assessment in module_assessments):
+        issues.append(f'The module assessment for “{module.title}” must include at least one question.')
+    for assessment in module_assessments:
+        for item in assessment.items.select_related("question_version"):
+            options = item.question_version.options.all()
+            if options.count() < 2:
+                issues.append(f'A question in the module assessment for “{module.title}” needs at least two answer options.')
+            if options.filter(is_correct=True).count() != 1:
+                issues.append(f'A question in the module assessment for “{module.title}” must have exactly one correct answer.')
+    for practical in module.guided_practicals.all():
+        if practical.states.count() < 2 or not practical.action_definitions.exists():
+            issues.append(f'Complete the simulated flow for “{practical.scenario.title}”.')
+    return issues
+
+
+def _module_issues(module):
+    """Everything still outstanding on one module, finished lessons included."""
+    issues = []
+    if not module.lessons.exists():
+        issues.append(f'Add at least one lesson to “{module.title}”.')
+    issues.extend(_module_blockers(module))
+    for lesson in module.lessons.all():
+        issues.extend(_lesson_issues(lesson))
+    return issues
+
+
+def _publishable_modules(version):
+    """Modules whose own requirements are met, mapped to their finished lessons."""
+    modules = version.modules.prefetch_related(
+        "lessons__blocks",
+        "lessons__knowledge_checks__question_version__options",
+        "assessments__items__question_version__options",
+        "guided_practicals__states",
+        "guided_practicals__action_definitions",
+    )
+    ready = {}
     for module in modules:
-        if not module.lessons.exists():
-            issues.append(f'Add at least one lesson to “{module.title}”.')
-        # A module is completed by passing its module assessment; without one
-        # the module — and therefore the final exam, orientation, and every
-        # practical — stays out of reach for its students.
-        module_assessments = [a for a in module.assessments.all() if a.assessment_type == Assessment.Type.MODULE]
-        if not module_assessments:
-            issues.append(f'Add a module assessment to “{module.title}” — students complete a module by passing its assessment.')
-        elif not any(assessment.items.exists() for assessment in module_assessments):
-            issues.append(f'The module assessment for “{module.title}” must include at least one question.')
-        for lesson in module.lessons.all():
-            if not lesson.blocks.exists():
-                issues.append(f'Add teaching content to “{lesson.title}”.')
-            if not lesson.knowledge_checks.exists():
-                issues.append(f'Add a knowledge check to “{lesson.title}”.')
-            for check in lesson.knowledge_checks.all():
-                if check.question_version.options.filter(is_correct=True).count() != 1:
-                    issues.append(f'The knowledge check in “{lesson.title}” must have exactly one correct answer.')
-        for assessment in module_assessments:
-            for item in assessment.items.select_related("question_version"):
-                options = item.question_version.options.all()
-                if options.count() < 2:
-                    issues.append(f'A question in the module assessment for “{module.title}” needs at least two answer options.')
-                if options.filter(is_correct=True).count() != 1:
-                    issues.append(f'A question in the module assessment for “{module.title}” must have exactly one correct answer.')
-        for practical in module.guided_practicals.all():
-            if practical.states.count() < 2 or not practical.action_definitions.exists():
-                issues.append(f'Complete the simulated flow for “{practical.scenario.title}”.')
+        blockers = _module_blockers(module)
+        lessons = [lesson for lesson in module.lessons.all() if not _lesson_issues(lesson)]
+        if lessons and not blockers:
+            ready[module] = lessons
+    return ready
+
+
+def _final_exam_issues(version):
+    issues = []
     # Passing the final theory examination is what unlocks orientation and
     # every practical; a course without a valid final exam strands its
     # students after the modules.
@@ -203,6 +240,17 @@ def _course_issues(version):
     return issues
 
 
+def _course_issues(version):
+    issues = []
+    modules = version.modules.prefetch_related("lessons__blocks", "lessons__knowledge_checks__question_version__options", "assessments__items")
+    if not modules.exists():
+        issues.append("Add at least one module.")
+    for module in modules:
+        issues.extend(_module_issues(module))
+    issues.extend(_final_exam_issues(version))
+    return issues
+
+
 @login_required
 def course_review(request, version_id):
     _require_instructor(request.user)
@@ -218,7 +266,29 @@ def course_review(request, version_id):
         pk=version_id,
         status="draft",
     )
-    return render_student_page(request, "instructor_portal/course_review.html", {"version": version, "issues": _course_issues(version)})
+    publishable = _publishable_modules(version)
+    return render_student_page(request, "instructor_portal/course_review.html", {
+        "version": version,
+        "issues": _course_issues(version),
+        "publishable_modules": publishable,
+        "pending_modules": [(module, _module_issues(module)) for module in version.modules.all() if module not in publishable],
+        "publish_blockers": _publish_blockers(version, publishable),
+    })
+
+
+def _publish_blockers(version, publishable=None):
+    """Issues that stop the course from going live at all.
+
+    An unfinished module is no longer a blocker on its own — it simply stays
+    hidden — but the course needs at least one module learners can complete and
+    a valid final examination to unlock the practical side.
+    """
+    ready = _publishable_modules(version) if publishable is None else publishable
+    blockers = []
+    if not ready:
+        blockers.append("Finish at least one module — no module is ready for learners yet.")
+    blockers.extend(_final_exam_issues(version))
+    return blockers
 
 
 @login_required
@@ -228,26 +298,33 @@ def course_publish(request, version_id):
     version = get_object_or_404(ProgrammeVersion, pk=version_id, status="draft")
     if request.method != "POST":
         return redirect("course-review", version_id=version.pk)
-    issues = _course_issues(version)
-    if issues:
-        messages.error(request, "The course still has items to resolve before publishing.")
+    publishable = _publishable_modules(version)
+    blockers = _publish_blockers(version, publishable)
+    if blockers:
+        messages.error(request, blockers[0] if len(blockers) == 1 else "The course still has items to resolve before publishing.")
         return redirect("course-review", version_id=version.pk)
-    lessons = Lesson.objects.filter(module__programme_version=version)
-    question_versions = QuestionVersion.objects.filter(
-        Q(lesson_checks__lesson__module__programme_version=version)
-        | Q(assessment_items__assessment__programme_version=version)
-    ).distinct()
-    version.modules.update(is_published=True)
-    lessons.update(is_published=True)
-    question_versions.update(is_published=True)
-    version.assessments.update(is_published=True)
-    practicals = ScenarioVersion.objects.filter(module__programme_version=version)
+    ready_modules = list(publishable)
+    ready_lessons = [lesson for lessons in publishable.values() for lesson in lessons]
+    Module.objects.filter(pk__in=[module.pk for module in ready_modules]).update(is_published=True)
+    Lesson.objects.filter(pk__in=[lesson.pk for lesson in ready_lessons]).update(is_published=True)
+    assessments = Assessment.objects.filter(
+        Q(module__in=ready_modules) | Q(module__isnull=True, assessment_type=Assessment.Type.FINAL_THEORY)
+    )
+    QuestionVersion.objects.filter(
+        Q(lesson_checks__lesson__in=ready_lessons) | Q(assessment_items__assessment__in=assessments)
+    ).distinct().update(is_published=True)
+    assessments.update(is_published=True)
+    practicals = ScenarioVersion.objects.filter(module__in=ready_modules)
     practicals.update(status=ScenarioVersion.Status.PUBLISHED, published_at=timezone.now())
     RubricVersion.objects.filter(scenario_version__in=practicals).update(status=RubricVersion.Status.PUBLISHED, published_at=timezone.now())
     version.status = ProgrammeVersion.Status.PUBLISHED
     version.published_at = timezone.now()
     version.save(update_fields=("status", "published_at"))
-    messages.success(request, f'“{version.programme.name}” is now available to enrolled students.')
+    held_back = version.modules.count() - len(ready_modules)
+    summary = f'“{version.programme.name}” is now available to enrolled students.'
+    if held_back:
+        summary += f" {held_back} module{' is' if held_back == 1 else 's are'} still in draft and hidden from learners."
+    messages.success(request, summary)
     return redirect("instructor-dashboard")
 
 
@@ -272,6 +349,184 @@ def course_view_published(request, version_id):
         "final_exam": final_exam,
         "enrolment_count": enrolment_count,
     })
+
+
+class _CopiedRows:
+    """Which new row stands in for which source row while a draft is copied.
+
+    Keyed by model and key because one row can be reachable through two parents
+    — a knowledge check belongs to a lesson and follows one of its sections —
+    and each row may only be copied once.
+    """
+
+    def __init__(self):
+        self._targets = {}
+
+    def remember(self, source, target):
+        self._targets[(type(source), source.pk)] = target.pk
+
+    def target(self, model, source_pk):
+        if source_pk is None:
+            return None
+        return self._targets.get((model, source_pk))
+
+
+def _repoint(instance, copies):
+    """Move `instance`'s foreign keys onto their copied parents; reports whether anything moved."""
+    changed = False
+    for field in instance._meta.concrete_fields:
+        # A one-to-one field is also a single foreign key column, but Django does
+        # not flag it as many-to-one.
+        if field.many_to_one or field.one_to_one:
+            replacement = copies.target(field.related_model, getattr(instance, field.attname))
+            if replacement is not None and replacement != getattr(instance, field.attname):
+                setattr(instance, field.attname, replacement)
+                changed = True
+    return changed
+
+
+def _copy_row(instance, copies, **overrides):
+    """An unsaved copy of `instance`, hanging off the copies of its parents."""
+    values = {
+        field.attname: getattr(instance, field.attname)
+        for field in instance._meta.concrete_fields
+        if not field.primary_key
+    }
+    copy = instance._meta.model(**values)
+    _repoint(copy, copies)
+    for name, value in overrides.items():
+        setattr(copy, name, value)
+    return copy
+
+
+def _next_version_number(model, **filters):
+    return (model.objects.filter(**filters).aggregate(highest=Max("version"))["highest"] or 0) + 1
+
+
+def _clone_cascade_rows(source, target, copies):
+    """Copy everything Django would delete together with `source`.
+
+    Following CASCADE alone keeps learner attempts and other shared rows out of
+    the draft and picks up child models as they are added. All children are
+    saved before any is re-pointed because one can refer to a sibling.
+    """
+    copies.remember(source, target)
+    pairs = []
+    for link in source._meta.related_objects:
+        if not (link.one_to_many and link.on_delete is models.CASCADE and link.get_accessor_name()):
+            continue
+        for child in getattr(source, link.get_accessor_name()).all():
+            if copies.target(type(child), child.pk) is not None:
+                continue
+            child_copy = _copy_row(child, copies)
+            child_copy.save()
+            copies.remember(child, child_copy)
+            pairs.append((child, child_copy))
+    for child, child_copy in pairs:
+        if _repoint(child_copy, copies):
+            child_copy.save()
+    for child, child_copy in pairs:
+        _clone_cascade_rows(child, child_copy, copies)
+
+
+def _clone_question_versions(source_version, copies):
+    """Give the draft its own questions, so editing it cannot change the live course."""
+    for question_version in QuestionVersion.objects.filter(
+        Q(lesson_checks__lesson__module__programme_version=source_version)
+        | Q(assessment_items__assessment__programme_version=source_version)
+    ).distinct():
+        question = Question.objects.create(code=f"{question_version.question.code[:60]}-{uuid4().hex[:8]}")
+        copy = _copy_row(question_version, copies, question=question, version=1, is_published=False)
+        copy.save()
+        copies.remember(question_version, copy)
+        _clone_cascade_rows(question_version, copy, copies)
+
+
+def _carry_completion_policy(source_version, new_version):
+    """Keep the edition's completion settings for the new draft.
+
+    Only Django admin sets these, and a version without a policy quietly stops
+    recording completions and issuing certificates.
+    """
+    policy = getattr(source_version, "completion_policy", None)
+    if policy is None:
+        return
+    CompletionPolicy.objects.create(
+        programme_version=new_version,
+        requires_instructor_approval=policy.requires_instructor_approval,
+        certificate_template_version=policy.certificate_template_version,
+        is_active=policy.is_active,
+    )
+
+
+def _clone_course_content(source_version, new_version):
+    """Carry a course's authoring content into a fresh draft version."""
+    copies = _CopiedRows()
+    copies.remember(source_version, new_version)
+    _clone_question_versions(source_version, copies)
+    _carry_completion_policy(source_version, new_version)
+
+    modules = []
+    for module in source_version.modules.all():
+        copy = _copy_row(module, copies, prerequisite=None, is_published=False)
+        if module.cover_image:
+            # The file is copied rather than shared: removing the draft's cover
+            # must not take the published course's with it.
+            copy.cover_image = ContentFile(
+                module.cover_image.read(), name=module.cover_image.name.rsplit("/", 1)[-1]
+            )
+        copy.save()
+        copies.remember(module, copy)
+        modules.append((module, copy))
+        for lesson in module.lessons.all():
+            lesson_copy = _copy_row(lesson, copies, is_published=False)
+            lesson_copy.save()
+            # Resources are a shared library, so only the links to them are copied.
+            lesson_copy.resources.set(lesson.resources.all())
+            _clone_cascade_rows(lesson, lesson_copy, copies)
+        for assessment in module.assessments.all():
+            assessment_copy = _copy_row(assessment, copies, is_published=False)
+            assessment_copy.save()
+            _clone_cascade_rows(assessment, assessment_copy, copies)
+        for practical in module.guided_practicals.all():
+            _clone_scenario_version(practical, copies)
+
+    # A module can depend on one copied after it, so prerequisites link in a second pass.
+    for module, copy in modules:
+        if module.prerequisite_id:
+            copy.prerequisite_id = copies.target(Module, module.prerequisite_id)
+            copy.save(update_fields=("prerequisite",))
+
+    for assessment in source_version.assessments.filter(module__isnull=True):
+        assessment_copy = _copy_row(assessment, copies, is_published=False)
+        assessment_copy.save()
+        _clone_cascade_rows(assessment, assessment_copy, copies)
+
+
+def _clone_scenario_version(practical, copies):
+    """Copy a guided practical and its rubric onto their own draft version."""
+    copy = _copy_row(
+        practical,
+        copies,
+        version=_next_version_number(ScenarioVersion, scenario=practical.scenario),
+        status=ScenarioVersion.Status.DRAFT,
+        published_at=None,
+    )
+    copy.save()
+    copies.remember(practical, copy)
+    _clone_cascade_rows(practical, copy, copies)
+
+    rubric_version = getattr(practical, "rubric_version", None)
+    if rubric_version is not None:
+        rubric_copy = _copy_row(
+            rubric_version,
+            copies,
+            version=_next_version_number(RubricVersion, rubric=rubric_version.rubric),
+            status=RubricVersion.Status.DRAFT,
+            published_at=None,
+        )
+        rubric_copy.save()
+        _clone_cascade_rows(rubric_version, rubric_copy, copies)
 
 
 @login_required
@@ -299,9 +554,10 @@ def course_revert_to_draft(request, version_id):
         version=next_ver,
         status=ProgrammeVersion.Status.DRAFT,
     )
+    _clone_course_content(version, new_version)
     messages.success(
         request,
-        "Draft v" + str(new_version.version) + ' of "' + version.programme.name + '" created. '
+        "Draft v" + str(new_version.version) + ' of "' + version.programme.name + '" created with a copy of its modules, lessons and assessments. '
         "The published version remains active for enrolled students.",
     )
     return redirect("course-builder-detail", version_id=new_version.pk)
@@ -632,9 +888,12 @@ def _lesson_section_context(lesson):
         if "::" in line:
             term, definition = line.split("::", 1)
             key_terms.append((term.strip(), definition.strip()))
-    concept_block = next((b for b in blocks if b.kind == "text"), None)
-    example_block = next((b for b in blocks if b.kind == "example"), None)
-    notice_block = next((b for b in blocks if b.kind == "notice"), None)
+    concept_blocks = [b for b in blocks if b.kind == "text"]
+    example_blocks = [b for b in blocks if b.kind == "example"]
+    notice_blocks = [b for b in blocks if b.kind == "notice"]
+    concept_block = concept_blocks[0] if concept_blocks else None
+    example_block = example_blocks[0] if example_blocks else None
+    notice_block = notice_blocks[0] if notice_blocks else None
     sections = []
     if objectives:
         sections.append({"slug": "objectives", "title": "Objectives", "stage": "Orient"})
@@ -657,6 +916,9 @@ def _lesson_section_context(lesson):
         "concept_block": concept_block,
         "example_block": example_block,
         "notice_block": notice_block,
+        "concept_blocks": concept_blocks,
+        "example_blocks": example_blocks,
+        "notice_blocks": notice_blocks,
         "sections": sections,
         "lessons_in_module": list(lesson.module.lessons.order_by("order", "title")),
         "reading_minutes": max(1, round(word_count / 200)),
@@ -734,6 +996,24 @@ def practical_preview(request, scenario_version_id):
     )
 
 
+def _apply_cover(instance, form):
+    """Assign or clear a cover image; returns the name of a replaced file."""
+    previous = instance.cover_image.name if instance.cover_image else ""
+    if form.cleaned_data.get("clear_cover_image") and previous:
+        instance.cover_image.delete(save=False)
+        instance.cover_image = None
+        return ""
+    elif form.cleaned_data.get("cover_image"):
+        instance.cover_image = form.cleaned_data["cover_image"]
+    return previous if previous and previous != instance.cover_image.name else ""
+
+
+def _delete_replaced_cover(instance, replaced_name):
+    # The new file is only written on save(), so the old one goes afterwards.
+    if replaced_name:
+        instance.cover_image.storage.delete(replaced_name)
+
+
 @login_required
 def course_edit(request, version_id):
     _require_instructor(request.user)
@@ -745,6 +1025,9 @@ def course_edit(request, version_id):
         initial={
             "name": programme.name,
             "description": programme.description,
+            "overview_summary": programme.overview_summary,
+            "target_audience": programme.target_audience,
+            "learning_approach": programme.learning_approach,
             "learning_outcomes": programme.learning_outcomes,
             "difficulty": programme.difficulty,
             "estimated_weeks": programme.estimated_weeks,
@@ -755,36 +1038,48 @@ def course_edit(request, version_id):
         if tab == "basic":
             programme.name = form.cleaned_data["name"]
             programme.description = form.cleaned_data.get("description", "")
-            if form.cleaned_data.get("clear_cover_image") and programme.cover_image:
-                programme.cover_image.delete(save=False)
-                programme.cover_image = None
-            elif form.cleaned_data.get("cover_image"):
-                programme.cover_image = form.cleaned_data["cover_image"]
+            replaced = _apply_cover(programme, form)
             programme.save(update_fields=("name", "description", "cover_image"))
+            _delete_replaced_cover(programme, replaced)
             messages.success(request, "Basic information saved.")
-        elif tab == "outcomes":
+        elif tab == "overview":
+            programme.overview_summary = form.cleaned_data.get("overview_summary", "")
+            programme.target_audience = form.cleaned_data.get("target_audience", "")
             programme.learning_outcomes = form.cleaned_data.get("learning_outcomes", "")
-            programme.save(update_fields=("learning_outcomes",))
-            messages.success(request, "Learning outcomes saved.")
+            programme.learning_approach = form.cleaned_data.get("learning_approach", "")
+            programme.save(update_fields=("overview_summary", "target_audience", "learning_outcomes", "learning_approach"))
+            messages.success(request, "Course overview saved.")
         elif tab == "settings":
             programme.difficulty = form.cleaned_data.get("difficulty", "")
             programme.estimated_weeks = form.cleaned_data.get("estimated_weeks") or None
             programme.save(update_fields=("difficulty", "estimated_weeks"))
             messages.success(request, "Course settings saved.")
         return redirect(f'{reverse("course-edit", args=[version.pk])}?tab={tab}')
-    return render_student_page(request, "instructor_portal/course_edit.html", {"version": version, "form": form})
+    return render_student_page(
+        request,
+        "instructor_portal/course_edit.html",
+        {
+            "version": version,
+            "form": form,
+            "skill_count": len([line for line in (form["learning_outcomes"].value() or "").splitlines() if line.strip()]),
+            "method_count": len([line for line in (form["learning_approach"].value() or "").splitlines() if line.strip()]),
+        },
+    )
 
 
 @login_required
 def module_edit(request, module_id):
     _require_instructor(request.user)
     module = get_object_or_404(Module.objects.select_related("programme_version__programme"), pk=module_id, programme_version__status="draft")
-    form = ModuleEditForm(module, request.POST or None)
+    form = ModuleEditForm(module, request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         module.title = form.cleaned_data["title"]
         module.description = form.cleaned_data["description"]
+        module.difficulty = form.cleaned_data["difficulty"]
         module.prerequisite = form.cleaned_data["prerequisite"]
-        module.save(update_fields=("title", "description", "prerequisite"))
+        replaced = _apply_cover(module, form)
+        module.save(update_fields=("title", "description", "difficulty", "prerequisite", "cover_image"))
+        _delete_replaced_cover(module, replaced)
         messages.success(request, "Module updated.")
         return redirect("course-builder-detail", version_id=module.programme_version_id)
     return render_student_page(request, "instructor_portal/module_edit.html", {"module": module, "form": form})
@@ -813,8 +1108,82 @@ def lesson_edit(request, lesson_id):
     return render_student_page(
         request,
         "instructor_portal/lesson_edit.html",
-        {"lesson": lesson, "lesson_form": lesson_form, "block_formset": block_formset, "check_form": check_form, "checks": checks, "block_count": lesson.blocks.count()},
+        {
+            "lesson": lesson,
+            "lesson_form": lesson_form,
+            "block_formset": block_formset,
+            "check_form": check_form,
+            "checks": checks,
+            "block_count": lesson.blocks.count(),
+            "objective_count": len([line for line in (lesson_form["objectives"].value() or "").splitlines() if line.strip()]),
+            "key_term_count": len([line for line in (lesson_form["key_terms"].value() or "").splitlines() if line.strip()]),
+        },
     )
+
+
+def _draft_lesson(lesson_id):
+    return get_object_or_404(
+        Lesson.objects.select_related("module__programme_version"),
+        pk=lesson_id,
+        module__programme_version__status="draft",
+    )
+
+
+@login_required
+@require_POST
+def lesson_section_add(request, lesson_id):
+    _require_instructor(request.user)
+    lesson = _draft_lesson(lesson_id)
+    kind = request.POST.get("kind")
+    headings = {
+        ContentBlock.Kind.TEXT: "Key concept",
+        ContentBlock.Kind.EXAMPLE: "Worked example",
+        ContentBlock.Kind.NOTICE: "Important note",
+    }
+    if kind not in headings:
+        messages.error(request, "Choose a valid lesson section type.")
+        return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=sections')
+    next_order = (lesson.blocks.aggregate(value=Max("order"))["value"] or 0) + 1
+    ContentBlock.objects.create(lesson=lesson, kind=kind, heading=headings[kind], body="", order=next_order)
+    messages.success(request, "Lesson section added.")
+    return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=sections')
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def lesson_section_move(request, lesson_id, block_id):
+    _require_instructor(request.user)
+    lesson = _draft_lesson(lesson_id)
+    block = get_object_or_404(ContentBlock, pk=block_id, lesson=lesson)
+    direction = request.POST.get("direction")
+    siblings = list(lesson.blocks.filter(kind=block.kind).order_by("order", "id"))
+    index = next(i for i, item in enumerate(siblings) if item.pk == block.pk)
+    neighbour_index = index - 1 if direction == "up" else index + 1 if direction == "down" else None
+    if neighbour_index is not None and 0 <= neighbour_index < len(siblings):
+        neighbour = siblings[neighbour_index]
+        block.order, neighbour.order = neighbour.order, block.order
+        block.save(update_fields=("order",))
+        neighbour.save(update_fields=("order",))
+        messages.success(request, "Lesson section moved.")
+    return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=sections')
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def lesson_section_delete(request, lesson_id, block_id):
+    _require_instructor(request.user)
+    lesson = _draft_lesson(lesson_id)
+    block = get_object_or_404(ContentBlock, pk=block_id, lesson=lesson)
+    replacement = lesson.blocks.exclude(pk=block.pk).order_by("order", "id").first()
+    if replacement is None:
+        messages.error(request, "A lesson must retain at least one content section.")
+    else:
+        block.knowledge_checks.update(after_block=replacement)
+        block.delete()
+        messages.success(request, "Lesson section removed.")
+    return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=sections')
 
 
 @login_required

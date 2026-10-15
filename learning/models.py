@@ -2,7 +2,7 @@ import uuid
 
 from django.db import models
 
-from onboarding.models import ProgrammeVersion
+from onboarding.models import Programme, ProgrammeVersion
 
 
 class Module(models.Model):
@@ -11,8 +11,19 @@ class Module(models.Model):
     code = models.SlugField(max_length=60)
     title = models.CharField(max_length=180)
     description = models.TextField(blank=True)
+    difficulty = models.CharField(
+        max_length=30,
+        choices=Programme.Difficulty.choices,
+        blank=True,
+        help_text="Optional level for this module. Shown as a badge on the learner module and course overviews. Uses the same five levels as the course.",
+    )
     order = models.PositiveIntegerField(default=1)
     is_published = models.BooleanField(default=False)
+    cover_image = models.ImageField(
+        upload_to="module_covers/",
+        blank=True,
+        help_text="Optional illustration for this module. Shown on the learner module overview and as a thumbnail on the course overview.",
+    )
     prerequisite = models.ForeignKey("self", blank=True, null=True, on_delete=models.PROTECT, related_name="unlocks")
 
     class Meta:

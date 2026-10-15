@@ -1,6 +1,6 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}Edit course · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit course{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-2">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-6">{% endblock %}
 {% block content %}<div class="authoring">
   <header class="authoring-head">
     <div>
@@ -23,12 +23,12 @@
     <span>6 Review and publish</span>
   </div>
 
-  <nav class="authoring-tabs" role="tablist" aria-label="Course editor sections" data-authoring-tabs>
-    <button type="button" role="tab" aria-selected="true"  data-authoring-tab="basic">Basic information</button>
-    <button type="button" role="tab" aria-selected="false" data-authoring-tab="outcomes" tabindex="-1">Learning outcomes</button>
-    <button type="button" role="tab" aria-selected="false" data-authoring-tab="settings" tabindex="-1">Course settings</button>
-    <a href="{% url 'course-builder-detail' version.pk %}#modules">Structure</a>
-    <a href="{% url 'course-review' version.pk %}">Review</a>
+  <nav class="authoring-tabs authoring-assessment-tabs authoring-course-tabs" role="tablist" aria-label="Course editor sections" data-authoring-tabs>
+    <button type="button" role="tab" aria-selected="true" data-authoring-tab="basic"><span class="authoring-tab-number">1</span><span>Basic information</span></button>
+    <button type="button" role="tab" aria-selected="false" data-authoring-tab="overview" tabindex="-1"><span class="authoring-tab-number">2</span><span>Course overview</span></button>
+    <button type="button" role="tab" aria-selected="false" data-authoring-tab="settings" tabindex="-1"><span class="authoring-tab-number">3</span><span>Course settings</span></button>
+    <a href="{% url 'course-builder-detail' version.pk %}#modules"><span class="authoring-tab-number">4</span><span>Structure</span></a>
+    <a href="{% url 'course-review' version.pk %}"><span class="authoring-tab-number">5</span><span>Review</span></a>
   </nav>
 
   {# ── Tab 1: Basic information ─────────────────────────────────────────── #}
@@ -42,7 +42,6 @@
         </div>
         {{ form.name.as_field_group }}
         {{ form.description.as_field_group }}
-
         <div class="authoring-field-group">
           <label>Cover image</label>
           {% if version.programme.cover_image %}
@@ -100,52 +99,28 @@
     </div>
   </section>
 
-  {# ── Tab 2: Learning outcomes ─────────────────────────────────────────── #}
-  <section class="authoring-panel" data-authoring-panel="outcomes" hidden>
-    <div class="authoring-layout">
-      <form method="post" action="?tab=outcomes" class="authoring-card authoring-form">
-        {% csrf_token %}<input type="hidden" name="tab" value="outcomes">
-        <div class="authoring-editor-header">
-          <div><h2>Learning outcomes</h2><p>Enter one outcome per line. Each line becomes a bullet on the learner course overview.</p></div>
-          <span class="authoring-status">Draft</span>
-        </div>
-        {{ form.learning_outcomes.as_field_group }}
-        <div class="authoring-sticky-actions">
-          <a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}">Cancel</a>
-          <button class="authoring-primary" type="submit">Save outcomes</button>
-        </div>
-      </form>
-      <aside class="authoring-aside">
-        <section class="authoring-card">
-          <h2>Outcome guidance</h2>
-          <p>Good outcomes describe what learners will <strong>be able to do</strong> after completing the course, not what topics are covered.</p>
-          <ul class="authoring-guidance-list">
-            <li>Start each outcome with an action verb (Explain, Identify, Apply, Describe…)</li>
-            <li>Be specific — tie the outcome to a task or decision a practitioner makes</li>
-            <li>Aim for 4–8 outcomes for a standard theory course</li>
-          </ul>
-        </section>
-        <section class="authoring-card">
-          <h2>Current outcomes</h2>
-          {% with outcomes=version.programme.get_outcomes_list %}
-          {% if outcomes %}
-          <ol class="authoring-outcome-preview">
-            {% for outcome in outcomes %}<li>{{ outcome }}</li>{% endfor %}
-          </ol>
-          {% else %}
-          <p class="authoring-empty">No outcomes saved yet.</p>
-          {% endif %}
-          {% endwith %}
-        </section>
-      </aside>
-    </div>
+  {# ── Tab 2: Course overview ───────────────────────────────────────────── #}
+  <section class="authoring-panel" data-authoring-panel="overview" hidden>
+    <form method="post" action="?tab=overview" class="authoring-form">
+      {% csrf_token %}<input type="hidden" name="tab" value="overview"><input type="hidden" name="name" value="{{ version.programme.name }}">
+      <div class="authoring-layout authoring-course-overview-layout">
+        <main class="authoring-course-overview-fields">
+          <section class="authoring-card"><div class="authoring-editor-header"><div><h2>What you’ll learn</h2><p>Summarise the knowledge learners will gain from this course.</p></div><span class="authoring-status">Draft</span></div>{{ form.overview_summary.as_field_group }}</section>
+          <section class="authoring-card"><div class="authoring-editor-header"><div><h2>Who is this for?</h2><p>Describe the intended audience for the course.</p></div></div>{{ form.target_audience.as_field_group }}</section>
+          <section class="authoring-card authoring-structured-field" data-structured-field="lines" data-row-placeholder="Skill"><div class="authoring-editor-header"><div><h2>Skills you’ll build</h2><p>Add each course-level skill separately.</p></div><span class="authoring-status">{{ skill_count }} skill{{ skill_count|pluralize }}</span></div>{{ form.learning_outcomes.errors }}<div class="authoring-source-field">{{ form.learning_outcomes }}</div><span class="helptext">{{ form.learning_outcomes.help_text }}</span><div class="authoring-structured-list" data-structured-list></div><button class="authoring-secondary authoring-add-row" type="button" data-add-structured-row>+ Add skill</button></section>
+          <section class="authoring-card authoring-structured-field" data-structured-field="lines" data-row-placeholder="Learning method"><div class="authoring-editor-header"><div><h2>How you’ll learn</h2><p>Add each learning method separately.</p></div><span class="authoring-status">{{ method_count }} method{{ method_count|pluralize }}</span></div>{{ form.learning_approach.errors }}<div class="authoring-source-field">{{ form.learning_approach }}</div><span class="helptext">{{ form.learning_approach.help_text }}</span><div class="authoring-structured-list" data-structured-list></div><button class="authoring-secondary authoring-add-row" type="button" data-add-structured-row>+ Add learning method</button></section>
+        </main>
+        <aside class="authoring-aside"><section class="authoring-card"><div class="authoring-editor-header"><div><h2>Overview readiness</h2><p>Content shown in the four learner overview cards.</p></div></div><div class="authoring-readiness-list"><div><span class="authoring-readiness-marker{% if form.overview_summary.value %} complete{% endif %}">{% if form.overview_summary.value %}✓{% else %}•{% endif %}</span><span><strong>What you’ll learn</strong><small>{% if form.overview_summary.value %}Summary added{% else %}Summary missing{% endif %}</small></span></div><div><span class="authoring-readiness-marker{% if form.target_audience.value %} complete{% endif %}">{% if form.target_audience.value %}✓{% else %}•{% endif %}</span><span><strong>Who is this for?</strong><small>{% if form.target_audience.value %}Audience added{% else %}Audience missing{% endif %}</small></span></div><div><span class="authoring-readiness-marker{% if skill_count %} complete{% endif %}">{% if skill_count %}✓{% else %}•{% endif %}</span><span><strong>Skills you’ll build</strong><small>{{ skill_count }} configured</small></span></div><div><span class="authoring-readiness-marker{% if method_count %} complete{% endif %}">{% if method_count %}✓{% else %}•{% endif %}</span><span><strong>How you’ll learn</strong><small>{{ method_count }} configured</small></span></div></div></section></aside>
+      </div>
+      <div class="authoring-sticky-actions"><a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}">Cancel</a><button class="authoring-primary" type="submit">Save course overview</button></div>
+    </form>
   </section>
 
   {# ── Tab 3: Course settings ───────────────────────────────────────────── #}
   <section class="authoring-panel" data-authoring-panel="settings" hidden>
     <div class="authoring-layout">
       <form method="post" action="?tab=settings" class="authoring-card authoring-form">
-        {% csrf_token %}<input type="hidden" name="tab" value="settings">
+        {% csrf_token %}<input type="hidden" name="tab" value="settings"><input type="hidden" name="name" value="{{ version.programme.name }}">
         <div class="authoring-editor-header">
           <div><h2>Course settings</h2><p>Difficulty level and estimated duration are shown as metadata on the learner course overview.</p></div>
           <span class="authoring-status">Draft</span>
@@ -183,74 +158,5 @@
     </div>
   </section>
 </div>
-<script src="{% static 'js/instructor-theory-builder.js' %}?v=20261014-2"></script>
-<script>
-// Live image preview before the form is submitted. The file input is never
-// removed from the DOM so the chosen file survives until save.
-(function () {
-  function wirePreview(input) {
-    if (!input) return;
-    input.addEventListener('change', function () {
-      const file = this.files && this.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const dataUrl = e.target.result;
-        const zone = document.querySelector('.authoring-image-upload');
-        const preview = document.querySelector('.authoring-image-preview');
-
-        function ensureNote(parent, insertBeforeLabel) {
-          let note = parent.querySelector('.authoring-image-live-note');
-          if (!note) {
-            note = document.createElement('p');
-            note.className = 'authoring-image-live-note';
-            note.style.cssText = 'margin:0;color:var(--au-muted);font-size:.68rem';
-            if (insertBeforeLabel) parent.prepend(note);
-            else parent.append(note);
-          }
-          note.textContent = file.name + ' selected — save to apply';
-          return note;
-        }
-
-        if (zone) {
-          let live = zone.querySelector('.authoring-image-live');
-          if (!live) {
-            live = document.createElement('img');
-            live.className = 'authoring-image-live';
-            live.alt = 'Selected image';
-            live.style.cssText = 'width:100%;max-height:14rem;object-fit:cover;border-radius:.55rem;display:block';
-            zone.insertBefore(live, zone.firstChild);
-            const icon = zone.querySelector(':scope > span');
-            const placeholder = zone.querySelector(':scope > p');
-            if (icon) icon.style.display = 'none';
-            if (placeholder) placeholder.style.display = 'none';
-          }
-          live.src = dataUrl;
-          ensureNote(zone, false);
-        } else if (preview) {
-          const img = preview.querySelector('img');
-          if (img) img.src = dataUrl;
-          ensureNote(preview.querySelector('.authoring-image-actions'), true);
-        }
-
-        const asideImg = document.querySelector('.authoring-preview-cover');
-        if (asideImg) {
-          asideImg.src = dataUrl;
-        } else {
-          const asidePreview = document.querySelector('.authoring-preview');
-          if (asidePreview) {
-            const newImg = document.createElement('img');
-            newImg.className = 'authoring-preview-cover';
-            newImg.src = dataUrl;
-            newImg.alt = 'Cover preview';
-            asidePreview.insertBefore(newImg, asidePreview.firstChild);
-          }
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-  wirePreview(document.querySelector('input[name="cover_image"]'));
-})();
-</script>
+<script src="{% static 'js/instructor-theory-builder.js' %}?v=20261015-5"></script>
 {% endblock %}
