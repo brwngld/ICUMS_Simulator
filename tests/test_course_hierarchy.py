@@ -125,6 +125,14 @@ def _pass(enrolment, assessment, correct):
     return attempt
 
 
+def _read(enrolment, module):
+    """Mark every lesson in the module complete, as finishing them does."""
+    for lesson in module.lessons.all():
+        LessonProgress.objects.update_or_create(
+            enrolment=enrolment, lesson=lesson, defaults={"completed_at": timezone.now()}
+        )
+
+
 def _beginner_pair(db, code="ladder"):
     """One level, two courses, each with a module and a passing assessment."""
     programme, version = _programme(db, code)
@@ -368,6 +376,69 @@ def test_roadmap_locks_future_levels_without_lesson_content(client, db):
     # A locked level names its course but never links its course page or modules.
     assert reverse("course-overview", args=[advanced.code]) not in html
     assert reverse("module-overview", args=[advanced_module.code]) not in html
+
+
+@pytest.mark.django_db
+def test_dashboard_locks_a_levelled_module_that_is_not_open_yet(client, db):
+    """The dashboard tracks the whole programme, so a levelled learner still
+    sees real progress and the locked modules that explain it."""
+    programme, version = _programme(db, "dashladder")
+    learner, enrolment = _student(db, version, "dashladder-learner")
+    beginner = _course(version, 1, "beginner")
+    beginner_module = _module(version, 1, beginner)
+    advanced = _course(version, 2, "advanced")
+    advanced_module = _module(version, 2, advanced)
+    _read(enrolment, beginner_module)
+    _pass(enrolment, *_assessment(version, beginner_module, 1))
+
+    client.force_login(learner)
+    response = client.get(reverse("dashboard"))
+    assert response.status_code == 200
+    assert response.context["total_modules"] == 2
+    assert response.context["completed_modules"] == 1
+    html = response.content.decode()
+    assert "Your programme has no published modules yet." not in html
+    assert reverse("module-overview", args=[advanced_module.code]) not in html
+
+
+@pytest.mark.django_db
+def test_assessment_behind_a_locked_level_is_not_the_next_action(client, db):
+    """Lesson progress recorded before content was levelled must not offer a
+    locked module's assessment as the learner's next step."""
+    programme, version = _programme(db, "dashlock")
+    learner, enrolment = _student(db, version, "dashlock-learner")
+
+    beginner = _course(version, 1, "beginner")
+    beginner_module = _module(version, 1, beginner)
+    _read(enrolment, beginner_module)
+    _pass(enrolment, *_assessment(version, beginner_module, 1))
+
+    # Nothing sits at the levels in between, so "advanced" stays locked even
+    # though its lessons were already read.
+    advanced = _course(version, 9, "advanced")
+    advanced_module = _module(version, 9, advanced)
+    advanced_assessment, _options = _assessment(version, advanced_module, 9)
+    _read(enrolment, advanced_module)
+
+    client.force_login(learner)
+    response = client.get(reverse("dashboard"))
+    assert response.status_code == 200
+    assert response.context["primary_action"] is None
+    assert reverse("assessment-take", args=[advanced_assessment.pk]) not in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_sidebar_links_only_assessments_the_learner_can_open(client, db):
+    """A locked course keeps its assessment out of the global sidebar too."""
+    _programme_, version, learner, _enrolment, cards = _beginner_pair(db, "dashnav")
+    advanced = _course(version, 8, "advanced")
+    advanced_module = _module(version, 8, advanced)
+    advanced_assessment, _options = _assessment(version, advanced_module, 8)
+    client.force_login(learner)
+    response = client.get(reverse("dashboard"))
+    html = response.content.decode()
+    assert reverse("assessment-take", args=[cards[0]["assessment"].pk]) in html
+    assert reverse("assessment-take", args=[advanced_assessment.pk]) not in html
 
 
 # ── §8 migration safety ─────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ from accounts.models import User
 from assessments.models import Question, TheoryAttempt
 from evaluations.models import PracticalEvaluation
 from learning.models import Lesson, Module
+from learning.services import module_is_locked
 from onboarding.models import Enrolment, Programme
 from reports.models import Certificate
 from scenarios.models import (
@@ -263,6 +264,10 @@ def _student_navigation(request):
             .order_by("order", "title")
         )
         for index, module in enumerate(modules, start=1):
+            # Skip anything the learner cannot open yet: a module inside a
+            # draft course, or one still behind a difficulty level.
+            if module_is_locked(enrolment, module):
+                continue
             assessment = module.assessments.filter(is_published=True).first()
             if assessment:
                 assessment_items.append(

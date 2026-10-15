@@ -340,8 +340,10 @@ def roadmap_context(version, enrolment, course=None):
         })
     total_lessons = sum(counts.values())
     course_percentage = round(counts["completed"] / total_lessons * 100) if total_lessons else 0
+    # An assessment behind a locked difficulty level is never the next action,
+    # even when its lessons were completed before the content was levelled.
     next_assessment = next(
-        (item["assessment"] for item in module_cards if item["assessment_state"] in ("available", "attempted")),
+        (item["assessment"] for item in module_cards if item["unlocked"] and item["assessment_state"] in ("available", "attempted")),
         None,
     )
     current_module = next(
@@ -383,6 +385,13 @@ def roadmap_context(version, enrolment, course=None):
         "show_levels": show_levels,
         "roadmap_url": reverse("roadmap"),
         "module_summaries": [item for item in module_cards if item["inline"]],
+        # The dashboard tracks the whole programme, so it lists every published
+        # module — including the ones still behind a difficulty level, which it
+        # renders as locked. Listing only the inline cards would report "0 of
+        # 0 modules" for a levelled programme.
+        "dashboard_modules": [
+            item for item in module_cards if module_is_available(enrolment, item["module"])
+        ],
         "theory_completed": programme_theory_completed(enrolment) if enrolment else False,
         "final_assessment": final_assessment,
         "final_assessment_url": _assessment_url(final_assessment, preview) if final_assessment else None,
