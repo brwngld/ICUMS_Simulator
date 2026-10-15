@@ -18,7 +18,7 @@
         <div class="authoring-module-tools">
           <a class="authoring-primary" href="{% url 'programme-course-edit' group.course.pk %}">Edit course</a>
           <a class="authoring-secondary" href="{% url 'course-content-preview' group.course.pk %}">Student view</a>
-          <form method="post" action="{% url 'programme-course-move' group.course.pk %}" class="authoring-table-actions">{% csrf_token %}<input type="hidden" name="direction" value="up"><button class="authoring-secondary" type="submit" aria-label="Move {{ group.course.title }} up">↑</button><button class="authoring-secondary" type="submit" aria-label="Move {{ group.course.title }} down">↓</button></form>
+          <form method="post" action="{% url 'programme-course-move' group.course.pk %}" class="authoring-table-actions">{% csrf_token %}<button class="authoring-secondary" type="submit" name="direction" value="up" aria-label="Move {{ group.course.title }} up">↑</button><button class="authoring-secondary" type="submit" name="direction" value="down" aria-label="Move {{ group.course.title }} down">↓</button></form>
           <form method="post" action="{% url 'programme-course-delete' group.course.pk %}" class="authoring-table-actions">{% csrf_token %}<button class="authoring-secondary" type="submit">Remove</button></form>
         </div>
         <div class="authoring-lesson-list">

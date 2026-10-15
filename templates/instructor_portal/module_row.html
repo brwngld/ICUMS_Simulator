@@ -10,7 +10,7 @@
     <a class="authoring-secondary" href="{% url 'module-edit' module.pk %}">Edit module</a>
     {% for assessment in module.assessments.all %}{% if assessment.assessment_type == 'module' %}<a class="authoring-secondary" href="{% url 'assessment-edit' assessment.pk %}">Assessment</a>{% endif %}{% empty %}<a class="authoring-secondary" href="{% url 'module-assessment-create' module.pk %}">Add assessment</a>{% endfor %}
     <form method="post" action="{% url 'module-move' module.pk %}" class="authoring-table-actions">
-      {% csrf_token %}<input type="hidden" name="direction" value="up"><button class="authoring-secondary" type="submit" aria-label="Move {{ module.title }} up">↑</button><button class="authoring-secondary" type="submit" aria-label="Move {{ module.title }} down">↓</button>
+      {% csrf_token %}<button class="authoring-secondary" type="submit" name="direction" value="up" aria-label="Move {{ module.title }} up">↑</button><button class="authoring-secondary" type="submit" name="direction" value="down" aria-label="Move {{ module.title }} down">↓</button>
     </form>
   </div>
   <div class="authoring-lesson-list">
@@ -19,7 +19,7 @@
       <span><strong>{{ forloop.counter }}. {{ lesson.title }}</strong> · {{ lesson.blocks.count }} content section{{ lesson.blocks.count|pluralize }}</span>
       <div>
         <a href="{% url 'lesson-preview' lesson.pk %}">Preview</a><a href="{% url 'lesson-edit' lesson.pk %}">Edit</a>
-        <form method="post" action="{% url 'lesson-move' lesson.pk %}" class="authoring-table-actions">{% csrf_token %}<input type="hidden" name="direction" value="up"><button type="submit" aria-label="Move {{ lesson.title }} up">↑</button><button type="submit" aria-label="Move {{ lesson.title }} down">↓</button></form>
+        <form method="post" action="{% url 'lesson-move' lesson.pk %}" class="authoring-table-actions">{% csrf_token %}<button type="submit" name="direction" value="up" aria-label="Move {{ lesson.title }} up">↑</button><button type="submit" name="direction" value="down" aria-label="Move {{ lesson.title }} down">↓</button></form>
       </div>
     </div>
     {% empty %}

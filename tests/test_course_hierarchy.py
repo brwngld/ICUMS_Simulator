@@ -379,6 +379,25 @@ def test_roadmap_locks_future_levels_without_lesson_content(client, db):
 
 
 @pytest.mark.django_db
+def test_ladder_row_counts_two_required_courses(client, db):
+    _programme_, version, learner, _enrolment, _cards = _beginner_pair(db, "laddercount2")
+    client.force_login(learner)
+    assert "0 of 2 required courses complete." in client.get(reverse("roadmap")).content.decode()
+
+
+@pytest.mark.django_db
+def test_ladder_row_counts_one_required_course_in_the_singular(client, db):
+    _programme_, version = _programme(db, "laddercount1")
+    only = _course(version, 1, "beginner")
+    _module(version, 1, only)
+    learner, _enrolment = _student(db, version, "laddercount1-learner")
+    client.force_login(learner)
+    html = client.get(reverse("roadmap")).content.decode()
+    assert "0 of 1 required course complete." in html
+    assert "0 of  required course" not in html
+
+
+@pytest.mark.django_db
 def test_dashboard_locks_a_levelled_module_that_is_not_open_yet(client, db):
     """The dashboard tracks the whole programme, so a levelled learner still
     sees real progress and the locked modules that explain it."""
@@ -667,6 +686,25 @@ def test_builder_page_groups_modules_under_their_course(client, db):
     assert [item.pk for item in response.context["loose_modules"]] == [version.modules.get(code="builder-m2").pk]
     assert "Modules without a course" in html
     assert reverse("programme-course-edit", args=[course.pk]) in html
+
+
+@pytest.mark.django_db
+def test_builder_course_rows_offer_both_move_directions(client, db):
+    """Both arrows on a course row have to post their own direction, or the
+    ladder can never move a course down."""
+    instructor = _instructor(db, "coursemove-instructor")
+    _programme_, version = _programme(db, "coursemove", status=ProgrammeVersion.Status.DRAFT)
+    first = _course(version, 1, "beginner")
+    second = _course(version, 2, "beginner")
+    client.force_login(instructor)
+
+    html = client.get(reverse("course-builder-detail", args=[version.pk])).content.decode()
+    assert 'name="direction" value="up"' in html
+    assert 'name="direction" value="down"' in html
+
+    response = client.post(reverse("programme-course-move", args=[first.pk]), {"direction": "down"})
+    assert response.status_code == 302
+    assert [item.pk for item in version.courses.order_by("order")] == [second.pk, first.pk]
 
 
 # ── §4 sidebar ──────────────────────────────────────────────────────────────

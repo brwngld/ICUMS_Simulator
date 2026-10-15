@@ -56,7 +56,7 @@
           <details class="course-module{% if level.locked %} locked{% endif %}"{% if level.expanded %} open{% endif %}>
             <summary>
               <span class="course-module-number">{{ forloop.counter }}</span>
-              <span class="course-module-title"><strong>{{ level.label }}</strong><small>{% if level.locked %}Complete the required courses in the level before it to open this one.{% else %}{{ level.state_label }} · {{ level.completed_count }} of {{ level.required_count|default:level.courses|length }} required course{{ level.required_count|default:level.courses|length|pluralize }} complete.{% endif %}</small></span>
+              <span class="course-module-title"><strong>{{ level.label }}</strong><small>{% if level.locked %}Complete the required courses in the level before it to open this one.{% else %}{{ level.state_label }} · {{ level.completed_count }} of {{ level.required_count }} required course{{ level.required_count|pluralize }} complete.{% endif %}</small></span>
               <span class="course-module-stat">▤ {{ level.courses|length }} course{{ level.courses|length|pluralize }}</span>
               <span class="course-module-stat">◈ {{ level.required_count }} required</span>
               <span class="course-module-progress"><progress value="{{ level.completed_count }}" max="{{ level.required_count|default:1 }}">{{ level.completed_count }}/{{ level.required_count }}</progress><small>{{ level.state_label }}</small></span>
