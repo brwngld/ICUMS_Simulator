@@ -74,7 +74,16 @@ set -a; source .env; set +a
 sudo systemctl restart icums
 ```
 
-Deploying new code always needs the same trio: `git pull`, `collectstatic` (as above) when static files changed, and `systemctl restart icums` when Python code changed — then a hard refresh in the browser, since pages and scripts may be cached.
+Deploying new code always needs the same steps: `git pull`, then
+`.venv/bin/python -m pip install -r requirements.txt` when `requirements.txt`
+changed (a dependency that is missing fails before `migrate` can even start,
+with a `ModuleNotFoundError` traceback out of `apps.populate()`), then
+`collectstatic` (as above) when static files changed, then `migrate` when
+migrations changed, and finally `systemctl restart icums` when Python code
+changed — then a hard refresh in the browser, since pages and scripts may be
+cached. A running Waitress process also keeps the templates and the static
+manifest it read at startup, so a new `static/` file or a template edit only
+shows up after that restart.
 
 ## Tests and checks
 
