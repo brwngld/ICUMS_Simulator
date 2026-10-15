@@ -18,7 +18,7 @@ from assessments.models import Assessment
 from audit.models import AuditEvent
 from reports.models import CompletionRecord
 from learning.views import roadmap_context
-from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
+from onboarding.services import active_enrolment_for, current_enrolment, needs_disclaimer_acceptance
 from progress.models import ProgrammeProgress
 from accounts.models import SimulatorCredential
 from .admin_dashboard import dashboard_callback, render_student_page
@@ -28,7 +28,7 @@ from .admin_dashboard import dashboard_callback, render_student_page
 def dashboard(request):
     if needs_disclaimer_acceptance(request.user):
         return redirect("disclaimer")
-    enrolment = request.user.enrolments.filter(status="active").select_related("programme_version__programme").first()
+    enrolment = current_enrolment(request.user)
     learning = None
     if enrolment:
         learning = roadmap_context(enrolment.programme_version, enrolment)
