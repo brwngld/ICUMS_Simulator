@@ -32,7 +32,7 @@ def dashboard(request):
     learning = None
     if enrolment:
         learning = roadmap_context(enrolment.programme_version, enrolment)
-    summaries = learning["dashboard_modules"] if learning else []
+    summaries = learning["visible_modules"] if learning else []
     final_assessment = Assessment.objects.filter(programme_version=enrolment.programme_version, assessment_type=Assessment.Type.FINAL_THEORY, is_published=True).first() if enrolment else None
     programme_progress = ProgrammeProgress.objects.filter(enrolment=enrolment).first() if enrolment else None
     completion_record = CompletionRecord.objects.filter(enrolment=enrolment).first() if enrolment else None

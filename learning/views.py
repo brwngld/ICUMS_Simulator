@@ -314,7 +314,7 @@ def roadmap_context(version, enrolment, course=None):
         best = best_attempts.get(assessment.pk) if assessment else None
         lessons_complete = bool(lessons) and completed == len(lessons)
         assessment_state = (
-            "locked" if not assessment or not lessons_complete
+            "locked" if not assessment or not unlocked or not lessons_complete
             else "passed" if best and best.outcome == TheoryAttempt.Outcome.PASS
             else "attempted" if best
             else "available"
@@ -377,6 +377,13 @@ def roadmap_context(version, enrolment, course=None):
                 "courses": _course_cards(item["courses"], cards_by_module, enrolment),
                 "expanded": index == current_index,
             })
+    # Everything a learner can be shown: published modules inside a published
+    # course, including those still behind a difficulty level. The dashboard
+    # and the roadmap's counters work from this list, because a programme whose
+    # modules all sit on courses has no inline cards at all.
+    visible_modules = [
+        item for item in module_cards if module_is_available(enrolment, item["module"])
+    ]
     return {
         "enrolment": enrolment,
         "version": version,
@@ -385,13 +392,8 @@ def roadmap_context(version, enrolment, course=None):
         "show_levels": show_levels,
         "roadmap_url": reverse("roadmap"),
         "module_summaries": [item for item in module_cards if item["inline"]],
-        # The dashboard tracks the whole programme, so it lists every published
-        # module — including the ones still behind a difficulty level, which it
-        # renders as locked. Listing only the inline cards would report "0 of
-        # 0 modules" for a levelled programme.
-        "dashboard_modules": [
-            item for item in module_cards if module_is_available(enrolment, item["module"])
-        ],
+        "visible_modules": visible_modules,
+        "module_total": len(visible_modules),
         "theory_completed": programme_theory_completed(enrolment) if enrolment else False,
         "final_assessment": final_assessment,
         "final_assessment_url": _assessment_url(final_assessment, preview) if final_assessment else None,

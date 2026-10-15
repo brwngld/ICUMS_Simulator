@@ -716,10 +716,17 @@ def test_roadmap_handles_sixty_modules_grouped_into_courses(client, db):
     html = response.content.decode()
     assert response.status_code == 200
     assert version.modules.count() == 60
-    # Levelled modules are reached through their course card, never listed flat.
+    # Levelled modules are reached through their course card, never linked flat.
     assert response.context["module_summaries"] == []
     assert sum(len(item["courses"]) for item in response.context["levels"]) == 6
-    assert "Module 60" not in html
+    assert reverse("module-overview", args=["scale-m60"]) not in html
+    # The hero, the summary strip and the assessment tab report the whole
+    # programme; only the module listings themselves move onto the ladder.
+    assert response.context["module_total"] == 60
+    assert len(response.context["visible_modules"]) == 60
+    assert "▤ 60 modules" in html
+    assert "No published theory modules are available." not in html
+    assert "No assessments published" not in html
 
     first_course = version.courses.get(code="scale-course-1")
     response = client.get(reverse("course-overview", args=[first_course.code]))
