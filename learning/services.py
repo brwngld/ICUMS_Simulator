@@ -247,3 +247,15 @@ def locked_course_message(course):
 
 def locked_module_message(module):
     return locked_course_message(module.course)
+
+
+def part_window(total, requested=1):
+    """Which part of a section holding several blocks is showing.
+
+    A section with one block is not paged at all, so it reports the whole thing
+    as a single page and the template leaves it exactly as it was.
+    """
+    if total <= 1:
+        return {"paged": False, "index": 1, "total": max(total, 0), "percentage": 100}
+    index = min(max(requested or 1, 1), total)
+    return {"paged": True, "index": index, "total": total, "percentage": round(index / total * 100)}

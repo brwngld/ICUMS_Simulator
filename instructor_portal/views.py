@@ -21,7 +21,7 @@ from django.utils.text import slugify
 
 from assessments.models import AnswerOption, Assessment, AssessmentItem, LessonCheck, Question, QuestionVersion
 from learning.models import ContentBlock, Course, Lesson, Module
-from learning.services import DIFFICULTY_LEVELS
+from learning.services import DIFFICULTY_LEVELS, part_window
 from learning.rich_text import count_words, plain_text
 from learning.rich_text_images import (
     clone_lesson_images,
@@ -1199,6 +1199,22 @@ def lesson_preview(request, lesson_id):
         item["url"] = reverse("lesson-preview", args=[lesson.pk]) + f"?section={item['slug']}"
         item["index"] = i
         item["state"] = "done" if i < index else ("current" if i == index else "todo")
+    step_slug = sections[index]["slug"]
+    step_blocks = {
+        "concepts": context["concept_blocks"],
+        "example": context["example_blocks"],
+        "note": context["notice_blocks"],
+    }.get(step_slug, [])
+    try:
+        requested_part = int(request.GET.get("part", 1))
+    except (TypeError, ValueError):
+        requested_part = 1
+    parts = part_window(len(step_blocks), requested_part)
+    preview_base = reverse("lesson-preview", args=[lesson.pk])
+
+    def preview_part_url(number):
+        return f"{preview_base}?section={step_slug}&part={number}"
+
     context.update(
         {
             "lesson": lesson,
@@ -1209,6 +1225,10 @@ def lesson_preview(request, lesson_id):
             "concepts_url": next((item["url"] for item in sections if item["slug"] == "concepts"), ""),
             "prev_section": sections[index - 1] if index > 0 else None,
             "next_section": sections[index + 1] if index < len(sections) - 1 else None,
+            "parts": parts,
+            "part_blocks": [step_blocks[parts["index"] - 1]] if parts["paged"] else step_blocks,
+            "prev_part_url": preview_part_url(parts["index"] - 1) if parts["paged"] and parts["index"] > 1 else None,
+            "next_part_url": preview_part_url(parts["index"] + 1) if parts["paged"] and parts["index"] < parts["total"] else None,
             "progress": LessonProgress(lesson=lesson),
         }
     )

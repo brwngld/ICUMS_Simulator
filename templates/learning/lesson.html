@@ -6,7 +6,7 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261016-1">
+  <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261016-3">
 {% endblock %}
 
 {% block content %}
@@ -103,19 +103,19 @@
         {% elif current_section.slug == "concepts" %}
         <section class="lrn-enter">
           <h2><small>{{ current_section.stage }}</small>Key concepts</h2>
-          {% for block in concept_blocks %}{% if block.heading %}<h3 class="lrn-content-heading">{{ block.heading }}</h3>{% endif %}<div class="lrn-copy">{{ block.body|rich_content }}</div>{% empty %}<p class="lrn-empty">Key concepts for this lesson have not been published yet.</p>{% endfor %}
+          {% include "learning/_lesson_blocks.html" with blocks=part_blocks copy_class="lrn-copy" empty_message="Key concepts for this lesson have not been published yet." %}
         </section>
 
         {% elif current_section.slug == "example" %}
         <section class="lrn-enter">
           <h2><small>{{ current_section.stage }}</small>Worked example</h2>
-          {% for block in example_blocks %}{% if block.heading %}<h3 class="lrn-content-heading">{{ block.heading }}</h3>{% endif %}<div class="lrn-copy lrn-scenario">{{ block.body|rich_content }}</div>{% empty %}<p class="lrn-empty">A worked example for this lesson has not been published yet.</p>{% endfor %}
+          {% include "learning/_lesson_blocks.html" with blocks=part_blocks copy_class="lrn-copy lrn-scenario" empty_message="A worked example for this lesson has not been published yet." %}
         </section>
 
         {% elif current_section.slug == "note" %}
         <section class="lrn-enter">
           <h2><small>{{ current_section.stage }}</small>Important note</h2>
-          {% for block in notice_blocks %}{% if block.heading %}<h3 class="lrn-content-heading">{{ block.heading }}</h3>{% endif %}<div class="lrn-key">{{ block.body|rich_content }}</div>{% empty %}<p class="lrn-empty">There are no additional notes for this lesson yet.</p>{% endfor %}
+          {% include "learning/_lesson_blocks.html" with blocks=part_blocks copy_class="lrn-key" empty_message="There are no additional notes for this lesson yet." %}
         </section>
 
         {% elif current_section.slug == "practice" %}

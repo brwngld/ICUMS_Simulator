@@ -232,3 +232,97 @@ def test_ordered_lists_are_preserved_for_learner_rendering():
 
     assert rendered == "<ol><li>Planning</li><li>Implementation</li></ol>"
 
+
+def test_a_single_block_section_is_not_paged():
+    from learning.services import part_window
+
+    assert part_window(0) == {"paged": False, "index": 1, "total": 0, "percentage": 100}
+    assert part_window(1) == {"paged": False, "index": 1, "total": 1, "percentage": 100}
+
+
+def test_a_multi_block_section_reports_the_requested_part():
+    from learning.services import part_window
+
+    assert part_window(10, 3) == {"paged": True, "index": 3, "total": 10, "percentage": 30}
+    assert part_window(10, 99)["index"] == 10
+    for requested in (0, -2, None):
+        assert part_window(10, requested)["index"] == 1
+
+
+@pytest.fixture
+def long_lesson(course):
+    """The same lesson with three concepts, one example and one note."""
+    for order, heading in ((1, "Everyday logistics"), (2, "Meaning of logistics"), (3, "Major activities")):
+        ContentBlock.objects.create(lesson=course["lesson"], kind="text", heading=heading, body=f"<p>{heading} body.</p>", order=order)
+    ContentBlock.objects.create(lesson=course["lesson"], kind="example", heading="Supermarket run", body="<p>Eight steps.</p>", order=4)
+    ContentBlock.objects.create(lesson=course["lesson"], kind="notice", heading="More than transport", body="<p>Coordination.</p>", order=5)
+    return course
+
+
+@pytest.mark.django_db
+def test_a_part_page_shows_one_block_and_the_part_rail(client, long_lesson):
+    _learner_on_concepts(client, long_lesson)
+    args = [long_lesson["module"].code, long_lesson["lesson"].slug, "concepts"]
+    html = client.get(reverse("lesson-part", args=[*args, 2])).content.decode()
+    assert "Part 2 of 3" in html
+    assert "<p>Meaning of logistics body.</p>" in html
+    for other in ("Everyday logistics body", "Major activities body"):
+        assert other not in html
+    assert reverse("lesson-part", args=[*args, 1]) in html
+    assert reverse("lesson-part", args=[*args, 3]) in html
+
+
+@pytest.mark.django_db
+def test_the_first_and_last_parts_only_offer_one_direction(client, long_lesson):
+    _learner_on_concepts(client, long_lesson)
+    first = client.get(reverse("lesson-part", args=[long_lesson["module"].code, long_lesson["lesson"].slug, "concepts", 1])).content.decode()
+    assert "← Previous" not in first and "Next →" in first
+    last = client.get(reverse("lesson-part", args=[long_lesson["module"].code, long_lesson["lesson"].slug, "concepts", 3])).content.decode()
+    assert "Previous" in last and "Next →" not in last
+
+
+@pytest.mark.django_db
+def test_a_part_number_past_the_end_lands_on_the_part_that_exists(client, long_lesson):
+    _learner_on_concepts(client, long_lesson)
+    beyond = client.get(reverse("lesson-part", args=[long_lesson["module"].code, long_lesson["lesson"].slug, "concepts", 99]))
+    assert beyond.status_code == 302
+    assert beyond["Location"] == reverse("lesson-part", args=[long_lesson["module"].code, long_lesson["lesson"].slug, "concepts", 3])
+    assert "Part 3 of 3" in client.get(beyond["Location"]).content.decode()
+
+
+@pytest.mark.django_db
+def test_a_part_of_a_one_block_section_falls_back_to_the_section(client, course):
+    ContentBlock.objects.create(lesson=course["lesson"], kind="text", heading="Concept", body="<p>Only one.</p>", order=1)
+    _learner_on_concepts(client, course)
+    response = client.get(reverse("lesson-part", args=[course["module"].code, course["lesson"].slug, "concepts", 4]))
+    assert response.status_code == 302
+    assert response["Location"] == reverse("lesson-section", args=[course["module"].code, course["lesson"].slug, "concepts"])
+
+
+@pytest.mark.django_db
+def test_continue_from_a_part_page_still_walks_the_sections(client, long_lesson):
+    """Paging reads blocks; it never moves the completion frontier on its own."""
+    from progress.models import LessonProgress
+
+    _learner_on_concepts(client, long_lesson)
+    part_two = reverse("lesson-part", args=[long_lesson["module"].code, long_lesson["lesson"].slug, "concepts", 2])
+    response = client.post(part_two, {"action": "continue"})
+    assert response.status_code == 302
+    assert response["Location"] == reverse("lesson-section", args=[long_lesson["module"].code, long_lesson["lesson"].slug, "example"])
+    progress = LessonProgress.objects.get(lesson=long_lesson["lesson"], enrolment__student=long_lesson["learner"])
+    assert progress.last_position == 2 and progress.completed_at is None
+
+
+@pytest.mark.django_db
+def test_the_instructor_preview_pages_the_same_parts(client, long_lesson):
+    part_url = reverse("lesson-part", args=[long_lesson["module"].code, long_lesson["lesson"].slug, "concepts", 2])
+    _learner_on_concepts(client, long_lesson)
+    learner_html = client.get(part_url).content.decode()
+    client.force_login(long_lesson["instructor"])
+    preview = client.get(reverse("lesson-preview", args=[long_lesson["lesson"].pk]), {"section": "concepts", "part": 2}).content.decode()
+    assert "Part 2 of 3" in preview and "<p>Meaning of logistics body.</p>" in preview
+    assert "Major activities body" not in preview
+    assert _lesson_markup(learner_html) == _lesson_markup(preview)
+    assert _lesson_markup(learner_html), "the concepts part should render a content block"
+
+

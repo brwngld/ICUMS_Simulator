@@ -27,6 +27,7 @@ from .services import (
     module_is_available,
     module_is_locked,
     module_is_unlocked,
+    part_window,
     programme_theory_completed,
 )
 
@@ -508,14 +509,15 @@ def course_overview(request, course_code):
 
 @login_required
 @require_http_methods(["GET", "POST"])
-def lesson_detail(request, module_code, lesson_slug, section=None):
+def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
     """The staged lesson: every section is its own page.
 
     Sections follow the teaching order - Objectives, Key concepts,
     Worked example, Important note, Practice - and each has a dedicated
-    route. Completing the Practice section (or its Continue control)
-    completes the lesson; all module, assessment, and exam gates are
-    unchanged and enforced server-side.
+    route. A section holding several blocks is read one block at a time
+    through its ``part`` route. Completing the Practice section (or its
+    Continue control) completes the lesson; all module, assessment, and exam
+    gates are unchanged and enforced server-side.
     """
     if response := _guard_onboarding(request):
         return response
@@ -554,6 +556,9 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
     def section_url(slug):
         return programme_href(reverse("lesson-section", args=(module.code, lesson.slug, slug)), enrolment)
 
+    def part_url(slug, number):
+        return programme_href(reverse("lesson-part", args=(module.code, lesson.slug, slug, number)), enrolment)
+
     overview_mode = False
     current_index, should_redirect = _resolve_current_section(sections, progress, section)
     if should_redirect and request.method == "GET":
@@ -590,6 +595,15 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
         return redirect(programme_href(reverse("module-overview", args=[module.code]), enrolment))
 
     _annotate_sections(sections, section_url, progress, current_index)
+    step_slug = sections[current_index]["slug"]
+    step_blocks = {"concepts": concept_blocks, "example": example_blocks, "note": notice_blocks}.get(step_slug, [])
+    parts = part_window(len(step_blocks), part)
+    if part is not None and parts["index"] != part:
+        # A part number past the end of the section lands on the part that exists.
+        return redirect(section_url(step_slug) if parts["index"] == 1 else part_url(step_slug, parts["index"]))
+    part_blocks = [step_blocks[parts["index"] - 1]] if parts["paged"] else step_blocks
+    prev_part_url = part_url(step_slug, parts["index"] - 1) if parts["paged"] and parts["index"] > 1 else None
+    next_part_url = part_url(step_slug, parts["index"] + 1) if parts["paged"] and parts["index"] < parts["total"] else None
     word_count = sum(count_words(block.body) for block in blocks)
     lessons_in_module = list(module.lessons.filter(is_published=True).order_by("order", "title"))
     lesson_position = next((index + 1 for index, item in enumerate(lessons_in_module) if item.pk == lesson.pk), 1)
@@ -614,6 +628,10 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
             "concept_blocks": concept_blocks,
             "example_blocks": example_blocks,
             "notice_blocks": notice_blocks,
+            "parts": parts,
+            "part_blocks": part_blocks,
+            "prev_part_url": prev_part_url,
+            "next_part_url": next_part_url,
             "checks": checks,
             "objectives": objectives,
             "key_terms": key_terms,

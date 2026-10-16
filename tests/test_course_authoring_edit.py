@@ -260,19 +260,22 @@ def test_lesson_section_move_and_delete_preserve_practice_question(client, instr
 
 
 @pytest.mark.django_db
-def test_lesson_preview_renders_every_block_in_a_section(client, instructor, draft_course):
+def test_lesson_preview_pages_every_block_in_a_section(client, instructor, draft_course):
     lesson = draft_course["lesson"]
     ContentBlock.objects.create(
         lesson=lesson, kind="text", heading="Second concept", body="Additional concept body.", order=2,
     )
     client.force_login(instructor)
+    preview = reverse("lesson-preview", args=[lesson.pk]) + "?section=concepts"
 
-    response = client.get(reverse("lesson-preview", args=[lesson.pk]) + "?section=concepts")
-    content = response.content.decode()
+    first = client.get(preview)
+    second = client.get(preview + "&part=2")
 
-    assert response.status_code == 200
-    assert "Original body." in content
-    assert "Additional concept body." in content
+    assert first.status_code == second.status_code == 200
+    first, second = first.content.decode(), second.content.decode()
+    assert "Original body." in first and "Additional concept body." not in first
+    assert "Additional concept body." in second and "Part 2 of 2" in second
+    assert "Original body." not in second
 
 
 @pytest.mark.django_db
