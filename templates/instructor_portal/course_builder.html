@@ -2,7 +2,7 @@
 {% block title %}Course builder · ICUMS Simulator{% endblock %}{% block workspace_name %}Course builder{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-8">{% endblock %}
 {% block content %}<div class="authoring">
-  <header class="authoring-head"><div><p class="authoring-eyebrow">Instructor · Theory content</p><h1>Manage Courses</h1><p>Create and configure theory courses, then organise their modules, lessons, sections and assessments.</p></div><div class="authoring-actions"><button class="authoring-primary" type="button" onclick="document.getElementById('create-course').open=true;document.getElementById('id_name').focus()">+ Create Course</button></div></header>
+  <header class="authoring-head"><div><p class="authoring-eyebrow">Instructor · Theory content</p><h1>Manage Courses</h1><p>Create and configure theory courses, then organise their modules, lessons, sections and assessments.</p></div><div class="authoring-actions"><button class="authoring-primary" type="button" data-open-course-modal>+ Create Course</button></div></header>
   <div class="authoring-toolbar">
     <label class="sr-only" for="course-search">Search courses</label>
     <input id="course-search" type="search" placeholder="Search courses…" data-course-search>
@@ -49,6 +49,10 @@
               <a class="authoring-primary" href="{% url 'course-builder-detail' version.pk %}">Edit</a>
               <a class="authoring-secondary" href="{% url 'course-builder-detail' version.pk %}#modules">Modules</a>
               <a class="authoring-secondary" href="{% url 'course-review' version.pk %}">Review</a>
+              <form method="post" action="{% url 'course-delete' version.pk %}" data-delete-course-form data-course-name="{{ version.programme.name }}">
+                {% csrf_token %}
+                <button class="authoring-secondary authoring-danger" type="submit">Delete</button>
+              </form>
             {% else %}
               <a class="authoring-secondary" href="{% url 'course-view-published' version.pk %}">View</a>
               <form method="post" action="{% url 'course-new-draft' version.pk %}">
@@ -64,15 +68,15 @@
       {% endfor %}
     </tbody>
   </table>
-  <details class="authoring-card authoring-create" id="create-course"{% if form.errors %} open{% endif %}>
-    <summary>Create a new draft course</summary>
+  <dialog class="authoring-course-modal" id="create-course"{% if form.errors %} open{% endif %}>
+    <div class="authoring-modal-head"><h2>Create a new draft course</h2><button type="button" class="authoring-modal-close" data-close-course-modal aria-label="Close">×</button></div>
     <form method="post" action="{% url 'course-create' %}" class="authoring-form">
       {% csrf_token %}
       {{ form.name.as_field_group }}
       {{ form.description.as_field_group }}
       <button class="authoring-primary" type="submit">Create draft course</button>
     </form>
-  </details>
+  </dialog>
 </div>
 <script src="{% static 'js/instructor-theory-builder.js' %}?v=20261015-5"></script>
 {% endblock %}

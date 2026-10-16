@@ -336,6 +336,7 @@ def _student_navigation(request):
                 "title": "Instructor",
                 "items": [
                     {"title": "Instructor", "icon": "users", "icon_template": "core/nav_icons/instructor.html", "link": reverse("instructor-dashboard")},
+                    {"title": "Students", "icon": "group", "link": reverse("instructor-student-list")},
                     {"title": "Theory builder", "icon": "edit_note", "icon_template": "core/nav_icons/theory_builder.html", "link": reverse("course-builder") + "?path=theory"},
                     {"title": "Practical/Theory builder", "icon": "layers", "icon_template": "core/nav_icons/practical_builder.html", "link": reverse("practical-builder-index")},
                 ],
@@ -439,6 +440,12 @@ _BREADCRUMB_BUILDERS = {
     "instructor-student-detail": lambda ctx: [
         _instructor_crumb(),
         _crumb(ctx["enrolment"].student),
+    ],
+    "instructor-student-list": lambda ctx: [_instructor_crumb(), _crumb("Students")],
+    "instructor-student-profile": lambda ctx: [
+        _instructor_crumb(),
+        _crumb("Students", "/instructor/students/"),
+        _crumb(ctx["student"]),
     ],
     "course-builder": lambda ctx: [
         _instructor_crumb(),

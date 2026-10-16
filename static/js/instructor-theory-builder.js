@@ -55,6 +55,21 @@
   search?.addEventListener('input', filterRows);
   status?.addEventListener('change', filterRows);
 
+  const courseModal = document.getElementById('create-course');
+  document.querySelector('[data-open-course-modal]')?.addEventListener('click', () => {
+    courseModal?.showModal();
+    courseModal?.querySelector('input')?.focus();
+  });
+  document.querySelector('[data-close-course-modal]')?.addEventListener('click', () => courseModal?.close());
+  courseModal?.addEventListener('click', (event) => {
+    if (event.target === courseModal) courseModal.close();
+  });
+  document.querySelectorAll('[data-delete-course-form]').forEach((form) => {
+    form.addEventListener('submit', (event) => {
+      if (!window.confirm(`Delete the draft course “${form.dataset.courseName}” and all of its draft content? This cannot be undone.`)) event.preventDefault();
+    });
+  });
+
   document.querySelectorAll('[data-structured-field]').forEach((field) => {
     const source = field.querySelector('.authoring-source-field textarea');
     const list = field.querySelector('[data-structured-list]');

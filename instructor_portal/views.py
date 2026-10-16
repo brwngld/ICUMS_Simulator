@@ -66,7 +66,7 @@ def _require_instructor(user):
 @login_required
 def dashboard(request):
     _require_instructor(request.user)
-    enrolments = Enrolment.objects.select_related("student", "student__simulator_credential", "programme_version__programme").prefetch_related("lesson_progress", "theory_attempts")
+    enrolments = _instructor_enrolments(request.user).select_related("student__simulator_credential").prefetch_related("lesson_progress", "theory_attempts")
     return render_student_page(request, "instructor_portal/dashboard.html", {"enrolments": enrolments})
 
 
@@ -134,8 +134,13 @@ def course_create(request):
         return redirect("course-builder")
     form = CourseCreateForm(request.POST)
     if not form.is_valid():
-        drafts = ProgrammeVersion.objects.filter(status="draft").select_related("programme").prefetch_related("modules__lessons")
-        return render_student_page(request, "instructor_portal/course_builder.html", {"drafts": drafts, "form": form}, status=400)
+        versions = ProgrammeVersion.objects.select_related("programme").prefetch_related("modules__lessons").order_by("programme__name", "version")
+        return render_student_page(request, "instructor_portal/course_builder.html", {
+            "versions": versions,
+            "form": form,
+            "learning_path": "theory",
+            "status_filter": "all",
+        }, status=400)
     name = form.cleaned_data["name"]
     code = _unique_slug(Programme, "code", name)
     programme = Programme.objects.create(
@@ -146,6 +151,52 @@ def course_create(request):
     version = ProgrammeVersion.objects.create(programme=programme, version=1, status="draft")
     messages.success(request, "Draft course created. Add its first module next.")
     return redirect("course-builder-detail", version_id=version.pk)
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def course_delete(request, version_id):
+    """Delete one unused draft and its authoring-only content tree."""
+    _require_instructor(request.user)
+    version = get_object_or_404(
+        ProgrammeVersion.objects.select_for_update().select_related("programme"),
+        pk=version_id,
+        status=ProgrammeVersion.Status.DRAFT,
+    )
+    if version.enrolments.exists():
+        messages.error(request, "This draft cannot be deleted because it already has learner activity.")
+        return redirect(f'{reverse("course-builder")}?path=theory')
+
+    assessments = Assessment.objects.filter(programme_version=version)
+    practicals = ScenarioVersion.objects.filter(module__programme_version=version)
+    if assessments.filter(attempts__isnull=False).exists() or practicals.filter(attempts__isnull=False).exists():
+        messages.error(request, "This draft cannot be deleted because it already has learner activity.")
+        return redirect(f'{reverse("course-builder")}?path=theory')
+
+    # Remove protected authoring descendants from the leaves upwards.
+    from evaluations.models import RubricVersion
+    from reports.models import CompletionPolicy
+
+    CompletionPolicy.objects.filter(programme_version=version).delete()
+    assessments.delete()
+    RubricVersion.objects.filter(scenario_version__in=practicals).delete()
+    # Actions must go first because ``to_state`` deliberately protects its
+    # destination state, even though both records belong to the same draft.
+    ScenarioActionDefinition.objects.filter(scenario_version__in=practicals).delete()
+    practicals.delete()
+    modules = Module.objects.filter(programme_version=version)
+    modules.update(prerequisite=None)
+    Lesson.objects.filter(module__in=modules).delete()
+    modules.delete()
+    Course.objects.filter(programme_version=version).delete()
+    programme = version.programme
+    name = programme.name
+    version.delete()
+    if not programme.versions.exists():
+        programme.delete()
+    messages.success(request, f'Draft course “{name}” deleted.')
+    return redirect(f'{reverse("course-builder")}?path=theory')
 
 
 @login_required
@@ -1659,7 +1710,7 @@ def practical_edit(request, scenario_version_id):
 def student_detail(request, enrolment_id):
     _require_instructor(request.user)
     enrolment = get_object_or_404(
-        Enrolment.objects.select_related("student", "programme_version__programme").prefetch_related(
+        _instructor_enrolments(request.user).prefetch_related(
             "lesson_progress__lesson__module",
             "module_progress__module",
             "theory_attempts__assessment",
@@ -1668,3 +1719,54 @@ def student_detail(request, enrolment_id):
         pk=enrolment_id,
     )
     return render_student_page(request, "instructor_portal/student_detail.html", {"enrolment": enrolment})
+
+
+def _instructor_enrolments(user):
+    queryset = Enrolment.objects.select_related("student", "programme_version__programme", "enrolled_by")
+    if user.is_superuser or user.groups.filter(name="Administrator").exists():
+        return queryset
+    return queryset.filter(enrolled_by=user)
+
+
+@login_required
+def student_list(request):
+    _require_instructor(request.user)
+    enrolments = list(_instructor_enrolments(request.user).order_by("student__first_name", "student__last_name", "-enrolled_at"))
+    students = {}
+    for enrolment in enrolments:
+        item = students.setdefault(enrolment.student_id, {"student": enrolment.student, "enrolments": []})
+        item["enrolments"].append(enrolment)
+    return render_student_page(request, "instructor_portal/student_list.html", {
+        "students": list(students.values()),
+        "enrolment_count": len(enrolments),
+    })
+
+
+@login_required
+def student_profile(request, user_id):
+    _require_instructor(request.user)
+    enrolments = _instructor_enrolments(request.user).filter(student_id=user_id).prefetch_related(
+        "lesson_progress", "module_progress", "theory_attempts", "scenario_attempts"
+    ).order_by("-enrolled_at")
+    enrolments = list(enrolments)
+    if not enrolments:
+        raise PermissionDenied("This student is not assigned to you.")
+    return render_student_page(request, "instructor_portal/student_profile.html", {
+        "student": enrolments[0].student,
+        "enrolments": enrolments,
+    })
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def enrolment_withdraw(request, enrolment_id):
+    _require_instructor(request.user)
+    enrolment = get_object_or_404(_instructor_enrolments(request.user).select_for_update(), pk=enrolment_id)
+    if enrolment.status == Enrolment.Status.ACTIVE:
+        enrolment.status = Enrolment.Status.WITHDRAWN
+        enrolment.save(update_fields=("status",))
+        messages.success(request, f"{enrolment.student} has been unenrolled from {enrolment.programme_version.programme.name}.")
+    else:
+        messages.info(request, "This enrolment is no longer active.")
+    return redirect("instructor-student-profile", user_id=enrolment.student_id)

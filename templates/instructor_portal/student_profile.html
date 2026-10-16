@@ -1,0 +1,14 @@
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}{{ student }} · Students{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/instructor-portal.css' %}?v=20261016-1">
+<div class="dash portal-main">
+  <header class="dash-head"><div><p class="dash-eyebrow">Student record</p><h1>{{ student }}</h1><p>{{ student.email }} · {{ student.student_id|default:"Student ID not assigned" }}</p></div><div><a class="dash-secondary" href="{% url 'instructor-student-list' %}">Back to students</a></div></header>
+  <section class="dash-panel"><div class="dash-panel-head"><div><h2>Programme enrolments</h2><p>Unenrolling preserves the student's training history.</p></div></div>
+    <table class="dash-table"><thead><tr><th>Programme</th><th>Version</th><th>Status</th><th>Enrolled</th><th>Progress</th><th></th></tr></thead><tbody>
+      {% for enrolment in enrolments %}<tr><td>{{ enrolment.programme_version.programme.name }}</td><td>v{{ enrolment.programme_version.version }}</td><td>{{ enrolment.get_status_display }}</td><td>{{ enrolment.enrolled_at|date:"j M Y, H:i" }}</td><td>{{ enrolment.lesson_progress.count }} lessons<br>{{ enrolment.theory_attempts.count }} assessment attempts<br>{{ enrolment.scenario_attempts.count }} practical attempts</td><td><a href="{% url 'instructor-student-detail' enrolment.pk %}">Training details</a>{% if enrolment.status == 'active' %}<form method="post" action="{% url 'instructor-enrolment-withdraw' enrolment.pk %}" onsubmit="return confirm('Unenrol this student from this programme? Their training history will be preserved.');">{% csrf_token %}<button class="dash-secondary" type="submit">Unenrol</button></form>{% endif %}</td></tr>
+      {% endfor %}
+    </tbody></table>
+  </section>
+</div>
+{% endblock %}

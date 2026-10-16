@@ -6,6 +6,7 @@ urlpatterns = [
     path("", views.dashboard, name="instructor-dashboard"),
     path("courses/", views.course_builder, name="course-builder"),
     path("courses/create/", views.course_create, name="course-create"),
+    path("courses/<uuid:version_id>/delete/", views.course_delete, name="course-delete"),
     path("courses/<uuid:version_id>/", views.course_builder_detail, name="course-builder-detail"),
     path("courses/<uuid:version_id>/review/", views.course_review, name="course-review"),
     path("courses/<uuid:version_id>/student-view/", views.course_preview, name="course-preview"),
@@ -46,6 +47,9 @@ urlpatterns = [
     path("practicals/<uuid:scenario_version_id>/edit/", views.practical_edit, name="practical-edit"),
     path("practicals/<uuid:scenario_version_id>/preview/", views.practical_preview, name="practical-preview"),
     path("modules/<uuid:module_id>/practicals/create/", views.practical_create, name="practical-create"),
+    path("students/", views.student_list, name="instructor-student-list"),
+    path("students/profile/<uuid:user_id>/", views.student_profile, name="instructor-student-profile"),
+    path("students/enrolments/<uuid:enrolment_id>/withdraw/", views.enrolment_withdraw, name="instructor-enrolment-withdraw"),
     path("students/<uuid:enrolment_id>/", views.student_detail, name="instructor-student-detail"),
     path("students/<uuid:user_id>/simulator-credential/issue/", views.simulator_credential_issue, name="simulator-credential-issue"),
 ]
