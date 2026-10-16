@@ -1,3 +1,5 @@
+import re
+
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -27,6 +29,47 @@ from .services import (
     module_is_unlocked,
     programme_theory_completed,
 )
+
+
+_OUTCOME_STOP_WORDS = {
+    "able", "about", "after", "also", "and", "are", "can", "course", "define",
+    "describe", "explain", "for", "from", "how", "identify", "its", "name", "of",
+    "the", "their", "this", "through", "to", "understand", "what", "why", "with",
+}
+
+
+def _outcome_cards(outcomes, module_cards):
+    """Attach honest lesson/module evidence to authored course outcomes."""
+    lesson_entries = [
+        (item["lesson"], card["module"])
+        for card in module_cards
+        for item in card["lessons"]
+    ]
+    total_lessons = len(lesson_entries)
+    cards = []
+    for outcome in outcomes:
+        terms = {
+            token for token in re.findall(r"[a-z0-9]+", outcome.lower())
+            if len(token) > 2 and token not in _OUTCOME_STOP_WORDS
+        }
+        matches = []
+        for lesson, module in lesson_entries:
+            searchable = " ".join((module.title, module.description, lesson.title, lesson.summary, lesson.objectives)).lower()
+            score = sum(1 for term in terms if term in searchable)
+            if score:
+                matches.append((score, lesson, module))
+        matches.sort(key=lambda item: (-item[0], item[2].order, item[1].order))
+        if matches:
+            best_score = matches[0][0]
+            best = [item for item in matches if item[0] == best_score][:2]
+            if len(best) == 1:
+                description = f'Developed through “{best[0][1].title}” in {best[0][2].title}.'
+            else:
+                description = f'Developed through “{best[0][1].title}” and “{best[1][1].title}”.'
+        else:
+            description = f'Supported across {len(module_cards)} module{"s" if len(module_cards) != 1 else ""} and {total_lessons} lesson{"s" if total_lessons != 1 else ""} in this course.'
+        cards.append({"title": outcome, "description": description})
+    return cards
 
 
 def _guard_onboarding(request):
@@ -101,6 +144,7 @@ def module_overview_context(module, enrolment=None):
     )
     lesson_items = []
     objectives = []
+    objective_groups = []
     resources = []
     resource_ids = set()
     next_lesson = None
@@ -123,8 +167,10 @@ def module_overview_context(module, enrolment=None):
         })
         if next_lesson is None and status != "completed":
             next_lesson, next_lesson_url = lesson, lesson_url
-        for line in (lesson.objectives or "").splitlines():
-            value = line.strip()
+        lesson_objectives = [line.strip() for line in (lesson.objectives or "").splitlines() if line.strip()]
+        if lesson_objectives:
+            objective_groups.append({"lesson": lesson, "objectives": lesson_objectives})
+        for value in lesson_objectives:
             if value and value not in objectives:
                 objectives.append(value)
         for resource in lesson.resources.all():
@@ -159,6 +205,9 @@ def module_overview_context(module, enrolment=None):
         "version": module.programme_version,
         "lesson_items": lesson_items,
         "objectives": objectives,
+        "objective_preview": objectives[:6],
+        "objective_groups": objective_groups,
+        "objective_count": sum(len(group["objectives"]) for group in objective_groups),
         "resources": resources,
         "assessment": assessment,
         "best_attempt": best_attempt,
@@ -392,6 +441,7 @@ def roadmap_context(version, enrolment, course=None):
     visible_modules = [
         item for item in module_cards if module_is_available(enrolment, item["module"])
     ]
+    learning_outcomes = version.programme.get_outcomes_list() or outcomes[:8]
     return {
         "enrolment": enrolment,
         "version": version,
@@ -416,7 +466,8 @@ def roadmap_context(version, enrolment, course=None):
         "current_module": current_module,
         # Prefer course-level outcomes set by the instructor; fall back to
         # outcomes aggregated from published lesson objectives.
-        "learning_outcomes": version.programme.get_outcomes_list() or outcomes[:8],
+        "learning_outcomes": learning_outcomes,
+        "learning_outcome_cards": _outcome_cards(learning_outcomes, module_cards),
         "course_resources": resources[:4],
         "resource_categories": resource_categories,
         # Pass programme metadata so the learner overview can display them.

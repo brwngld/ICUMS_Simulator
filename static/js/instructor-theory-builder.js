@@ -70,6 +70,18 @@
     });
   });
 
+  const lessonModal = document.getElementById('add-lesson');
+  const openLessonModal = () => {
+    if (!lessonModal?.open) lessonModal?.showModal();
+    lessonModal?.querySelector('input')?.focus();
+  };
+  document.querySelectorAll('[data-open-lesson-modal]').forEach((button) => button.addEventListener('click', openLessonModal));
+  document.querySelector('[data-close-lesson-modal]')?.addEventListener('click', () => lessonModal?.close());
+  lessonModal?.addEventListener('click', (event) => {
+    if (event.target === lessonModal) lessonModal.close();
+  });
+  if (new URLSearchParams(location.search).get('add') === 'lesson') openLessonModal();
+
   document.querySelectorAll('[data-structured-field]').forEach((field) => {
     const source = field.querySelector('.authoring-source-field textarea');
     const list = field.querySelector('[data-structured-list]');

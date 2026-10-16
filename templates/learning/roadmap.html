@@ -1,7 +1,7 @@
 {% extends "core/base_student.html" %}
 {% load static %}
 {% block title %}Course Overview · ICUMS Simulator{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/course-overview.css' %}?v=20261015-2">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/course-overview.css' %}?v=20261016-1">{% endblock %}
 {% block content %}
 {% if preview_mode %}<div class="dash-notice">Preview — this is how enrolled students will see the course. Nothing you do here is saved. <a href="{% url 'course-review' version.pk %}">Back to review →</a></div>{% endif %}
 <div class="course-overview">
@@ -44,7 +44,7 @@
 
       <section class="course-tab-panel" id="course-panel-outcomes" role="tabpanel" aria-labelledby="course-tab-outcomes" data-course-panel="outcomes" hidden>
         <header class="course-panel-heading"><span>◎</span><div><h2>Your learning outcomes</h2><p>By the end of this course, you should be able to demonstrate the following knowledge and skills.</p></div></header>
-        <div class="course-outcome-list">{% for outcome in learning_outcomes %}<article><span>{{ forloop.counter|stringformat:"02d" }}</span><div><h3>{{ outcome }}</h3><p>This outcome is defined in the published course content and developed through its related lessons and activities.</p></div></article>{% empty %}<div class="course-empty-state"><h3>Learning outcomes are being prepared</h3><p>Your instructor has not published course-level outcomes yet.</p></div>{% endfor %}</div>
+        <div class="course-outcome-list">{% for outcome in learning_outcome_cards %}<article><span>{{ forloop.counter|stringformat:"02d" }}</span><div><h3>{{ outcome.title }}</h3><p>{{ outcome.description }}</p></div></article>{% empty %}<div class="course-empty-state"><h3>Learning outcomes are being prepared</h3><p>Your instructor has not published course-level outcomes yet.</p></div>{% endfor %}</div>
       </section>
 
       <section class="course-tab-panel" id="course-panel-structure" role="tabpanel" aria-labelledby="course-tab-structure" data-course-panel="structure" hidden>

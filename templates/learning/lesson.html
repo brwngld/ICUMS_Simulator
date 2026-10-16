@@ -6,7 +6,7 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261015-7">
+  <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261016-1">
 {% endblock %}
 
 {% block content %}
@@ -73,16 +73,7 @@
 
         <section class="lrn-enter lrn-overview-section lrn-objectives-panel">
           <div class="lrn-objectives-heading"><span class="lrn-target" aria-hidden="true">◎</span><div><h2>What you'll learn</h2><p>By the end of this lesson, you should be able to:</p></div></div>
-          {% if objectives %}
-          <div class="lrn-objective-list">
-            {% for objective in objectives %}
-            <div class="lrn-objective">
-              <span class="lrn-objective-icon" aria-hidden="true">✓</span>
-              <p>{{ objective }}</p>
-            </div>
-            {% endfor %}
-          </div>
-          {% else %}<p class="lrn-empty">Learning objectives for this lesson have not been published yet.</p>{% endif %}
+          {% include "learning/_lesson_objective_list.html" %}
         </section>
 
         <section class="lrn-enter lrn-overview-section">
@@ -106,14 +97,7 @@
         <section class="lrn-enter">
           <h2><small>{{ current_section.stage }}</small>Why this lesson matters</h2>
           <div class="lrn-introduction"><p>{% if lesson.summary %}{{ lesson.summary }}{% else %}This lesson introduces the key ideas, practical context and decisions you will need to understand this part of the programme.{% endif %}</p></div>
-          <div class="lrn-objectives-panel lrn-objectives-inline"><h3>What you'll learn</h3><div class="lrn-objective-list">
-            {% for objective in objectives %}
-            <div class="lrn-objective">
-              <span class="lrn-objective-icon" aria-hidden="true">✓</span>
-              <p>{{ objective }}</p>
-            </div>
-            {% endfor %}
-          </div></div>
+          <div class="lrn-objectives-panel lrn-objectives-inline"><h3>What you'll learn</h3>{% include "learning/_lesson_objective_list.html" %}</div>
         </section>
 
         {% elif current_section.slug == "concepts" %}
@@ -175,9 +159,14 @@
         <div class="lrn-supporting">
           <section class="lrn-card lrn-glossary">
             <h4>Key terms</h4>
-            <dl>
-              {% for term, definition in key_terms %}<div><dt>{{ term }}</dt><dd>{{ definition }}</dd></div>{% endfor %}
-            </dl>
+            <div class="lrn-glossary-list">
+              {% for term, definition in key_terms %}
+              <details name="lesson-key-terms">
+                <summary><span class="lrn-glossary-icon" aria-hidden="true">▤</span><span class="lrn-glossary-term">{{ term }}</span><span class="lrn-glossary-toggle" aria-hidden="true">＋</span></summary>
+                <p>{{ definition }}</p>
+              </details>
+              {% endfor %}
+            </div>
           </section>
         </div>
         {% endif %}

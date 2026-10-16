@@ -10,7 +10,7 @@
     </div>
     <div class="authoring-actions">
       <a class="authoring-secondary" href="{% url 'course-builder-detail' module.programme_version_id %}">Back to course</a>
-      <a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a>
+      <button class="authoring-primary" type="button" data-open-lesson-modal>+ Add lesson</button>
     </div>
   </header>
 
@@ -85,7 +85,7 @@
             <div><dt>Assessment</dt><dd>{% if module.assessments.exists %}<span style="color:var(--au-accent)">Configured</span>{% else %}<span style="color:#b91c1c">Missing</span>{% endif %}</dd></div>
             <div><dt>Visibility</dt><dd>Draft</dd></div>
           </dl>
-          <a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a>
+          <button class="authoring-primary" type="button" data-open-lesson-modal>+ Add lesson</button>
         </section>
         {% if not module.assessments.exists %}
         <section class="authoring-card">
@@ -104,7 +104,7 @@
       <div>
         <div class="authoring-head" style="margin-bottom:.75rem">
           <div><h2 style="margin:0;font-size:1rem">Module lessons</h2><p style="margin:.2rem 0 0;font-size:.72rem;color:var(--au-muted)">Lessons are presented to learners in the order shown. Use the arrows to reorder.</p></div>
-          <a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a>
+          <button class="authoring-primary" type="button" data-open-lesson-modal>+ Add lesson</button>
         </div>
         <div class="authoring-module-list">
           {% for lesson in module.lessons.all %}
@@ -117,6 +117,9 @@
             <div class="authoring-module-tools">
               <a class="authoring-secondary" href="{% url 'lesson-preview' lesson.pk %}">Preview</a>
               <a class="authoring-secondary" href="{% url 'lesson-edit' lesson.pk %}">Edit</a>
+              <form method="post" action="{% url 'lesson-delete' lesson.pk %}" onsubmit="return confirm('Delete this lesson and all of its draft sections and practice questions? This cannot be undone.');">
+                {% csrf_token %}<button class="authoring-secondary authoring-danger" type="submit">Delete</button>
+              </form>
               <form method="post" action="{% url 'lesson-move' lesson.pk %}" class="authoring-table-actions">
                 {% csrf_token %}
                 <input type="hidden" name="direction" value="up">
@@ -133,6 +136,17 @@
           <div class="authoring-card authoring-empty">No lessons yet. Add the first lesson to this module.</div>
           {% endfor %}
         </div>
+        <dialog id="add-lesson" class="authoring-course-modal">
+          <div class="authoring-modal-head"><div><h2>Add lesson</h2><p>Create the lesson here, then open it from the list to add sections and practice questions.</p></div><button type="button" class="authoring-modal-close" data-close-lesson-modal aria-label="Close">×</button></div>
+          <form method="post" action="{% url 'lesson-create' module.pk %}" class="authoring-form">
+            {% csrf_token %}
+            {{ lesson_form.title.as_field_group }}
+            {{ lesson_form.summary.as_field_group }}
+            {{ lesson_form.objectives.as_field_group }}
+            {{ lesson_form.key_terms.as_field_group }}
+            <button class="authoring-primary" type="submit">Create lesson</button>
+          </form>
+        </dialog>
       </div>
       <aside class="authoring-aside">
         <section class="authoring-card">

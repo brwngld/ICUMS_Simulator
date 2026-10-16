@@ -74,7 +74,7 @@
               <p>{{ module.description|default:"No module description yet." }} · {{ module.lessons.count }} lesson{{ module.lessons.count|pluralize }}</p>
             </div>
             <div class="authoring-module-tools">
-              <a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a>
+              <a class="authoring-primary" href="{% url 'module-edit' module.pk %}?tab=lessons&amp;add=lesson">+ Add lesson</a>
               <a class="authoring-secondary" href="{% url 'module-edit' module.pk %}">Edit module</a>
             </div>
           </article>

@@ -11,6 +11,7 @@ class Programme(models.Model):
         INTERMEDIATE = "intermediate", "Intermediate"
         INTERMEDIATE_ADVANCED = "intermediate-advanced", "Intermediate to Advanced"
         ADVANCED = "advanced", "Advanced"
+        BEGINNER_ADVANCED = "beginner-advanced", "Beginner to Advanced"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=150)

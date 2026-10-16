@@ -25,7 +25,7 @@
           {% for module in group.modules %}
           <div class="authoring-lesson">
             <span><strong>{{ forloop.counter }}. {{ module.title }}</strong> · {{ module.lessons.count }} lesson{{ module.lessons.count|pluralize }}</span>
-            <div><a href="{% url 'module-edit' module.pk %}">Edit module</a><a href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a><a href="{% url 'course-content-preview' group.course.pk %}">Preview</a></div>
+            <div><a href="{% url 'module-edit' module.pk %}">Edit module</a><a href="{% url 'module-edit' module.pk %}?tab=lessons&amp;add=lesson">+ Add lesson</a><a href="{% url 'course-content-preview' group.course.pk %}">Preview</a></div>
           </div>
           {% empty %}
           <p class="authoring-empty">No modules in this course yet. Move one in from the list below.</p>

@@ -1,7 +1,7 @@
 {% extends "core/base_student.html" %}
 {% load static %}
 {% block title %}{{ module.title }} · ICUMS Simulator{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/module-overview.css' %}?v=20261015-2">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/module-overview.css' %}?v=20261016-1">{% endblock %}
 {% block content %}
 {% if preview_mode %}<div class="dash-notice">Preview — this is how enrolled students will see the course. Nothing you do here is saved.</div>{% endif %}
 <div class="mod-overview learning-workspace-page">
@@ -15,7 +15,25 @@
 
   <div class="mod-layout">
     <main>
-      <section class="mod-card" id="overview"><div class="mod-title"><span>▣</span><div><h2>Learning objectives</h2><p>Complete this module to develop the following knowledge and skills.</p></div></div><div class="mod-objectives">{% for objective in objectives %}<div><span>✓</span><p>{{ objective }}</p></div>{% empty %}<p class="mod-empty">Module learning objectives have not been published yet.</p>{% endfor %}</div></section>
+      <section class="mod-card" id="overview">
+        <div class="mod-title"><span>▣</span><div><h2>Learning objectives</h2><p>What you should be able to do after completing this module.</p></div></div>
+        <div class="mod-objectives mod-objective-preview">
+          {% for objective in objective_preview %}<div><span aria-hidden="true">○</span><p>{{ objective }}</p></div>{% empty %}<p class="mod-empty">Module learning objectives have not been published yet.</p>{% endfor %}
+        </div>
+        {% if objective_count > 6 %}
+        <details class="mod-objective-details">
+          <summary>View all {{ objective_count }} learning objectives <span aria-hidden="true">⌄</span></summary>
+          <div class="mod-objective-groups">
+            {% for group in objective_groups %}
+            <details>
+              <summary><span>{{ forloop.counter|stringformat:"02d" }}</span><strong>{{ group.lesson.title }}</strong><small>{{ group.objectives|length }} objective{{ group.objectives|length|pluralize }}</small><i aria-hidden="true">⌄</i></summary>
+              <div class="mod-objectives">{% for objective in group.objectives %}<div><span aria-hidden="true">○</span><p>{{ objective }}</p></div>{% endfor %}</div>
+            </details>
+            {% endfor %}
+          </div>
+        </details>
+        {% endif %}
+      </section>
 
       <section id="lessons" class="mod-lessons"><div class="mod-section-head"><div><h2>Lessons in this module</h2><p>Complete the lessons in order. Finished lessons remain available for revision.</p></div></div>{% for item in lesson_items %}<article class="{{ item.status }}"><span class="mod-lesson-state">{% if item.status == 'completed' %}✓{% elif item.status == 'in_progress' %}▶{% else %}{{ forloop.counter }}{% endif %}</span><div><strong>{{ forloop.counter }}. {{ item.lesson.title }}</strong><small>{{ item.lesson.summary|default:"Structured learning content and guided practice." }}</small></div><span class="mod-lesson-time">{{ item.minutes }} min</span><span class="mod-status">{% if item.status == 'completed' %}Completed{% elif item.status == 'in_progress' %}Continue{% else %}Not started{% endif %}</span><a href="{{ item.url }}">{% if item.status == 'not_started' %}Start{% else %}Open{% endif %}<span class="sr-only"> {{ item.lesson.title }}</span> →</a></article>{% empty %}<p class="mod-empty">No published lessons are available in this module.</p>{% endfor %}</section>
     </main>

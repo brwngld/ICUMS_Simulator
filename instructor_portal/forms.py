@@ -148,16 +148,7 @@ class CourseEditForm(forms.Form):
     )
     difficulty = forms.ChoiceField(
         required=False,
-        choices=[("", "— Select difficulty —")] + [
-            (value, label)
-            for value, label in [
-                ("beginner", "Beginner"),
-                ("beginner-intermediate", "Beginner to Intermediate"),
-                ("intermediate", "Intermediate"),
-                ("intermediate-advanced", "Intermediate to Advanced"),
-                ("advanced", "Advanced"),
-            ]
-        ],
+        choices=[("", "— Select difficulty —")] + list(Programme.Difficulty.choices),
         label="Difficulty level",
         help_text="Shown as a badge on the learner course overview.",
     )

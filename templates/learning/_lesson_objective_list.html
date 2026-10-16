@@ -1,0 +1,13 @@
+{% if objectives %}
+<div class="lrn-objective-list lrn-objective-preview">
+  {% for objective in objectives|slice:":4" %}<div class="lrn-objective"><span class="lrn-objective-icon" aria-hidden="true">○</span><p>{{ objective }}</p></div>{% endfor %}
+</div>
+{% if objectives|length > 4 %}
+<details class="lrn-objective-details">
+  <summary>View all {{ objectives|length }} learning objectives <span aria-hidden="true">⌄</span></summary>
+  <div class="lrn-objective-list lrn-objective-more">
+    {% for objective in objectives|slice:"4:" %}<div class="lrn-objective"><span class="lrn-objective-icon" aria-hidden="true">○</span><p>{{ objective }}</p></div>{% endfor %}
+  </div>
+</details>
+{% endif %}
+{% else %}<p class="lrn-empty">Learning objectives for this lesson have not been published yet.</p>{% endif %}

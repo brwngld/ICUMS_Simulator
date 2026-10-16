@@ -848,7 +848,43 @@ def lesson_create(request, module_id):
         order=module.lessons.count() + 1,
     )
     messages.success(request, "Lesson created.")
-    return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=details')
+    return redirect(f'{reverse("module-edit", args=[module.pk])}?tab=lessons')
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def lesson_delete(request, lesson_id):
+    _require_instructor(request.user)
+    lesson = get_object_or_404(
+        Lesson.objects.select_for_update().select_related("module__programme_version"),
+        pk=lesson_id,
+        module__programme_version__status=ProgrammeVersion.Status.DRAFT,
+    )
+    checks = lesson.knowledge_checks.all()
+    if lesson.progress_records.exists() or checks.filter(responses__isnull=False).exists():
+        messages.error(request, "This lesson cannot be deleted because it already has learner activity.")
+        return redirect(f'{reverse("module-edit", args=[lesson.module_id])}?tab=lessons')
+
+    question_versions = list(QuestionVersion.objects.filter(lesson_checks__lesson=lesson).select_related("question").distinct())
+    AssessmentItem.objects.filter(question_version__in=question_versions).delete()
+    checks.delete()
+    module_id = lesson.module_id
+    title = lesson.title
+    lesson.delete()
+    for question_version in question_versions:
+        if not (
+            question_version.assessment_items.exists()
+            or question_version.attempt_items.exists()
+            or question_version.responses.exists()
+            or question_version.lesson_checks.exists()
+        ):
+            question = question_version.question
+            question_version.delete()
+            if not question.versions.exists():
+                question.delete()
+    messages.success(request, f'Lesson “{title}” deleted.')
+    return redirect(f'{reverse("module-edit", args=[module_id])}?tab=lessons')
 
 
 @login_required
@@ -1346,7 +1382,11 @@ def module_edit(request, module_id):
         _delete_replaced_cover(module, replaced)
         messages.success(request, "Module updated.")
         return redirect("course-builder-detail", version_id=module.programme_version_id)
-    return render_student_page(request, "instructor_portal/module_edit.html", {"module": module, "form": form})
+    return render_student_page(request, "instructor_portal/module_edit.html", {
+        "module": module,
+        "form": form,
+        "lesson_form": LessonEditForm(),
+    })
 
 
 def _annotate_section_numbers(block_formset):
@@ -1384,7 +1424,7 @@ def lesson_edit(request, lesson_id):
         if check_form:
             check_form.save()
         messages.success(request, "Lesson updated.")
-        return redirect("course-builder-detail", version_id=lesson.module.programme_version_id)
+        return redirect(f'{reverse("module-edit", args=[lesson.module_id])}?tab=lessons')
     return render_student_page(
         request,
         "instructor_portal/lesson_edit.html",

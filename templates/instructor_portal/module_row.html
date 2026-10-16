@@ -6,7 +6,7 @@
     <p>{{ module.description|default:"No module description yet." }} · {{ module.lessons.count }} lesson{{ module.lessons.count|pluralize }}</p>
   </div>
   <div class="authoring-module-tools">
-    <a class="authoring-primary" href="{% url 'lesson-builder' module.pk %}">+ Add lesson</a>
+    <a class="authoring-primary" href="{% url 'module-edit' module.pk %}?tab=lessons&amp;add=lesson">+ Add lesson</a>
     <a class="authoring-secondary" href="{% url 'module-edit' module.pk %}">Edit module</a>
     {% for assessment in module.assessments.all %}{% if assessment.assessment_type == 'module' %}<a class="authoring-secondary" href="{% url 'assessment-edit' assessment.pk %}">Assessment</a>{% endif %}{% empty %}<a class="authoring-secondary" href="{% url 'module-assessment-create' module.pk %}">Add assessment</a>{% endfor %}
     <form method="post" action="{% url 'module-move' module.pk %}" class="authoring-table-actions">
