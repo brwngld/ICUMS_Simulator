@@ -301,16 +301,89 @@ def test_a_part_of_a_one_block_section_falls_back_to_the_section(client, course)
 
 @pytest.mark.django_db
 def test_continue_from_a_part_page_still_walks_the_sections(client, long_lesson):
-    """Paging reads blocks; it never moves the completion frontier on its own."""
+    """Only the section's last part may finish it; a middle part steps one block."""
     from progress.models import LessonProgress
 
     _learner_on_concepts(client, long_lesson)
-    part_two = reverse("lesson-part", args=[long_lesson["module"].code, long_lesson["lesson"].slug, "concepts", 2])
+    args = [long_lesson["module"].code, long_lesson["lesson"].slug, "concepts"]
+    part_two = reverse("lesson-part", args=[*args, 2])
     response = client.post(part_two, {"action": "continue"})
     assert response.status_code == 302
-    assert response["Location"] == reverse("lesson-section", args=[long_lesson["module"].code, long_lesson["lesson"].slug, "example"])
+    assert response["Location"] == reverse("lesson-part", args=[*args, 3])
     progress = LessonProgress.objects.get(lesson=long_lesson["lesson"], enrolment__student=long_lesson["learner"])
-    assert progress.last_position == 2 and progress.completed_at is None
+    assert progress.last_position == 1 and progress.last_part == 3 and progress.completed_at is None
+
+
+@pytest.mark.django_db
+def test_a_middle_part_links_to_the_next_one_instead_of_completing(client, long_lesson):
+    _learner_on_concepts(client, long_lesson)
+    args = [long_lesson["module"].code, long_lesson["lesson"].slug, "concepts"]
+    html = client.get(reverse("lesson-part", args=[*args, 2])).content.decode()
+    assert f'href="{reverse("lesson-part", args=[*args, 3])}"' in html
+    assert "data-completion-form" not in html and "Mark Complete" not in html
+
+
+@pytest.mark.django_db
+def test_repeated_continues_from_the_section_root_walk_the_parts(client, long_lesson):
+    """Continuing from the section root walks its parts and only then finishes it."""
+    args = [long_lesson["module"].code, long_lesson["lesson"].slug, "concepts"]
+    _learner_on_concepts(client, long_lesson)
+    root = reverse("lesson-section", args=args)
+    assert client.post(root, {"action": "continue"})["Location"] == reverse("lesson-part", args=[*args, 2])
+    assert client.post(root, {"action": "continue"})["Location"] == reverse("lesson-part", args=[*args, 3])
+    assert client.post(root, {"action": "continue"})["Location"] == reverse("lesson-section", args=[*args[:-1], "example"])
+
+
+@pytest.mark.django_db
+def test_the_last_part_keeps_the_complete_and_continue_control(client, long_lesson):
+    from progress.models import LessonProgress
+
+    _learner_on_concepts(client, long_lesson)
+    args = [long_lesson["module"].code, long_lesson["lesson"].slug, "concepts"]
+    part_three = reverse("lesson-part", args=[*args, 3])
+    client.get(part_three)
+    html = client.get(part_three).content.decode()
+    assert "Mark Complete" in html
+    response = client.post(part_three, {"action": "continue"})
+    assert response["Location"] == reverse("lesson-section", args=[*args[:-1], "example"])
+    progress = LessonProgress.objects.get(lesson=long_lesson["lesson"], enrolment__student=long_lesson["learner"])
+    assert progress.last_position == 2 and progress.last_part == 1
+
+
+@pytest.mark.django_db
+def test_a_returning_learner_resumes_at_the_part_they_read_up_to(client, long_lesson):
+    args = [long_lesson["module"].code, long_lesson["lesson"].slug, "concepts"]
+    _learner_on_concepts(client, long_lesson)
+    client.get(reverse("lesson-part", args=[*args, 2]))
+    resumed = client.get(reverse("lesson-section", args=args))
+    assert resumed.status_code == 302
+    assert resumed["Location"] == reverse("lesson-part", args=[*args, 2])
+    assert "Part 2 of 3" in client.get(resumed["Location"]).content.decode()
+
+
+@pytest.mark.django_db
+def test_rereading_an_earlier_part_keeps_the_resume_point(client, long_lesson):
+    from progress.models import LessonProgress
+
+    args = [long_lesson["module"].code, long_lesson["lesson"].slug, "concepts"]
+    _learner_on_concepts(client, long_lesson)
+    client.get(reverse("lesson-part", args=[*args, 3]))
+    client.get(reverse("lesson-part", args=[*args, 1]))
+    progress = LessonProgress.objects.get(lesson=long_lesson["lesson"], enrolment__student=long_lesson["learner"])
+    assert progress.last_part == 3
+    assert client.get(reverse("lesson-section", args=args))["Location"] == reverse("lesson-part", args=[*args, 3])
+
+
+@pytest.mark.django_db
+def test_the_instructor_preview_redirects_a_part_number_that_is_not_there(client, long_lesson):
+    client.force_login(long_lesson["instructor"])
+    preview = reverse("lesson-preview", args=[long_lesson["lesson"].pk])
+    beyond = client.get(preview, {"section": "concepts", "part": 99})
+    assert beyond.status_code == 302
+    assert beyond["Location"] == preview + "?section=concepts&part=3"
+    single_block = client.get(preview, {"section": "example", "part": 4})
+    assert single_block["Location"] == preview + "?section=example"
+    assert "Part 3 of 3" in client.get(beyond["Location"]).content.decode()
 
 
 @pytest.mark.django_db

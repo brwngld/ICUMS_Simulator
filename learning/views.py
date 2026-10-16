@@ -515,7 +515,8 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
     Sections follow the teaching order - Objectives, Key concepts,
     Worked example, Important note, Practice - and each has a dedicated
     route. A section holding several blocks is read one block at a time
-    through its ``part`` route. Completing the Practice section (or its
+    through its ``part`` route, and only a Continue on its last part completes
+    the section. Completing the Practice section (or its
     Continue control) completes the lesson; all module, assessment, and exam
     gates are unchanged and enforced server-side.
     """
@@ -566,6 +567,13 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
         # cannot bypass sequential completion.
         return redirect(section_url(sections[current_index]["slug"]))
 
+    step_slug = sections[current_index]["slug"]
+    step_blocks = {"concepts": concept_blocks, "example": example_blocks, "note": notice_blocks}.get(step_slug, [])
+    # Only the unfinished section being worked through remembers a part; any
+    # other section starts again at its first block.
+    resume_part = progress.last_part if not progress.completed_at and current_index == progress.last_position else 1
+    parts = part_window(len(step_blocks), part if part is not None else resume_part)
+
     if request.method == "POST":
         action = request.POST.get("action", "continue")
         if action == "answer_check":
@@ -583,24 +591,39 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
             return redirect(section_url("practice") + "#feedback")
         # Explicit, idempotent completion. Revisiting and continuing from an
         # already completed section never advances the persisted frontier.
+        if parts["paged"] and parts["index"] < parts["total"]:
+            # A part is one block of a section, so continuing it reads the next
+            # block instead of finishing the section.
+            if not progress.completed_at and current_index == progress.last_position:
+                progress.last_part = parts["index"] + 1
+                progress.save(update_fields=("last_part", "updated_at"))
+            return redirect(part_url(step_slug, parts["index"] + 1))
         if current_index < len(sections) - 1:
             if current_index == progress.last_position:
                 progress.last_position = current_index + 1
-                progress.save(update_fields=("last_position", "updated_at"))
+                progress.last_part = 1
+                progress.save(update_fields=("last_position", "last_part", "updated_at"))
             next_index = min(current_index + 1, progress.last_position)
             return redirect(section_url(sections[next_index]["slug"]))
         progress.last_position = len(sections)
+        progress.last_part = 1
         progress.completed_at = progress.completed_at or timezone.now()
-        progress.save(update_fields=("last_position", "completed_at", "updated_at"))
+        progress.save(update_fields=("last_position", "last_part", "completed_at", "updated_at"))
         return redirect(programme_href(reverse("module-overview", args=[module.code]), enrolment))
 
     _annotate_sections(sections, section_url, progress, current_index)
-    step_slug = sections[current_index]["slug"]
-    step_blocks = {"concepts": concept_blocks, "example": example_blocks, "note": notice_blocks}.get(step_slug, [])
-    parts = part_window(len(step_blocks), part)
+    if part is None and parts["paged"] and parts["index"] > 1:
+        # Resume inside the section at the part the learner read up to, with the
+        # URL showing where that is.
+        return redirect(part_url(step_slug, parts["index"]))
     if part is not None and parts["index"] != part:
         # A part number past the end of the section lands on the part that exists.
         return redirect(section_url(step_slug) if parts["index"] == 1 else part_url(step_slug, parts["index"]))
+    if parts["paged"] and parts["index"] > progress.last_part and current_index == progress.last_position and not progress.completed_at:
+        # Reading is what moves the part pointer, and it never walks backwards,
+        # so rereading an earlier part keeps the learner's place.
+        progress.last_part = parts["index"]
+        progress.save(update_fields=("last_part", "updated_at"))
     part_blocks = [step_blocks[parts["index"] - 1]] if parts["paged"] else step_blocks
     prev_part_url = part_url(step_slug, parts["index"] - 1) if parts["paged"] and parts["index"] > 1 else None
     next_part_url = part_url(step_slug, parts["index"] + 1) if parts["paged"] and parts["index"] < parts["total"] else None

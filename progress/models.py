@@ -11,6 +11,7 @@ class LessonProgress(models.Model):
     enrolment = models.ForeignKey(Enrolment, on_delete=models.CASCADE, related_name="lesson_progress")
     lesson = models.ForeignKey(Lesson, on_delete=models.PROTECT, related_name="progress_records")
     last_position = models.PositiveIntegerField(default=0)
+    last_part = models.PositiveIntegerField(default=1)
     completed_at = models.DateTimeField(blank=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -1215,6 +1215,11 @@ def lesson_preview(request, lesson_id):
     def preview_part_url(number):
         return f"{preview_base}?section={step_slug}&part={number}"
 
+    if requested_part != parts["index"]:
+        # The preview answers a bad part number the same way the learner route
+        # does: it shows the part that exists.
+        return redirect((preview_base + f"?section={step_slug}") if parts["index"] == 1 else preview_part_url(parts["index"]))
+
     context.update(
         {
             "lesson": lesson,

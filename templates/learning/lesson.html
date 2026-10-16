@@ -176,11 +176,15 @@
           <a href="{% if preview_mode %}{% url 'lesson-edit' lesson.pk %}{% else %}{% url 'module-overview' module.code %}{% endif %}">{% if preview_mode %}Back to lesson editor{% else %}Return to module overview{% endif %}</a>
           <div class="lrn-pager">
             {% if prev_section %}<a class="lrn-button is-ghost" href="{{ prev_section.url }}">← {{ prev_section.title }}</a>{% endif %}
+            {% if next_part_url %}
+            <a class="lrn-button" href="{{ next_part_url }}">Next →</a>
+            {% else %}
             <form method="post" data-completion-form>
               {% csrf_token %}
               <input type="hidden" name="action" value="continue">
               <button class="lrn-button" type="submit">{% if progress.completed_at %}{% if next_section %}Next: {{ next_section.title }} →{% else %}Return to module →{% endif %}{% elif next_section %}Mark Complete &amp; Continue →{% else %}Complete Lesson →{% endif %}</button>
             </form>
+            {% endif %}
           </div>
         </div>
         {% endif %}
