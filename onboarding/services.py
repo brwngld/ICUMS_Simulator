@@ -1,29 +1,73 @@
+from urllib.parse import urlencode
+
 from django.core.exceptions import PermissionDenied
 
 from .models import DisclaimerAcceptance, DisclaimerVersion, Enrolment
 
 
-def current_enrolment(user):
-    """The single enrolment a student surface should read, or ``None``.
+def active_enrolments(user):
+    """Every enrolment a learner may open, oldest first.
 
-    A learner may hold several active enrolments but the portal has no way to
-    choose between them yet, so every surface must resolve the same one:
-    oldest first, with ``pk`` breaking ties because ``enrolled_at`` is not
-    unique and an unordered query can disagree page to page.
+    ``pk`` breaks ties because ``enrolled_at`` is not unique and an unordered
+    query can pick a different row page to page.
     """
     return (
         Enrolment.objects.select_related("programme_version__programme")
         .filter(student=user, status=Enrolment.Status.ACTIVE)
         .order_by("enrolled_at", "pk")
-        .first()
     )
 
 
-def active_enrolment_for(user):
-    enrolment = current_enrolment(user)
+def requested_enrolment(request):
+    """The enrolment ``?programme=<code>`` selects, or ``None``.
+
+    With no parameter it falls back to the oldest active enrolment, so every
+    existing link and bookmark keeps working. Two enrolments for the same
+    programme (different versions) resolve to the oldest, because the parameter
+    names a programme.
+    """
+    code = request.GET.get("programme")
+    if not code:
+        return active_enrolments(request.user).first()
+    return active_enrolments(request.user).filter(programme_version__programme__code=code).first()
+
+
+def enrolment_for_request(request):
+    """The enrolment a student page renders on, or a 403 for a page that needs one."""
+    enrolment = requested_enrolment(request)
     if enrolment is None:
-        raise PermissionDenied("No active programme enrolment was found.")
+        raise PermissionDenied(
+            "You are not enrolled in that programme." if request.GET.get("programme")
+            else "No active programme enrolment was found."
+        )
     return enrolment
+
+
+def programme_href(url, enrolment):
+    """Keep a generated link on the programme the learner is working through.
+
+    The parameter only appears once a learner has more than one active
+    enrolment to choose between, so a single-programme learner keeps the plain
+    URLs the portal has always produced. The answer is cached on the enrolment
+    instance because a page builds many links.
+    """
+    code = _switchable_programme_code(enrolment)
+    if not code:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}{urlencode({'programme': code})}"
+
+
+def _switchable_programme_code(enrolment):
+    if enrolment is None:
+        return ""
+    if not hasattr(enrolment, "_programme_switchable"):
+        enrolment._programme_switchable = (
+            Enrolment.objects.filter(
+                student_id=enrolment.student_id, status=Enrolment.Status.ACTIVE
+            ).count() > 1
+        )
+    return enrolment.programme_version.programme.code if enrolment._programme_switchable else ""
 
 
 def current_disclaimer():

@@ -1,4 +1,7 @@
+from django.urls import reverse
+
 from onboarding.models import Programme
+from onboarding.services import active_enrolments, programme_href
 from progress.models import LessonProgress, ModuleProgress
 
 from .models import Lesson
@@ -54,14 +57,41 @@ def module_lessons_completed(enrolment, module):
     ).count() == lesson_count
 
 
-def programme_theory_completed(enrolment):
+def module_completion(enrolment):
+    """How many published modules this enrolment has, and how many are passed."""
     modules = enrolment.programme_version.modules.filter(is_published=True)
-    module_count = modules.count()
-    return module_count > 0 and ModuleProgress.objects.filter(
+    total = modules.count()
+    completed = ModuleProgress.objects.filter(
         enrolment=enrolment,
         module__in=modules,
         status=ModuleProgress.Status.COMPLETED,
-    ).count() == module_count
+    ).count()
+    return {"completed_count": completed, "module_count": total}
+
+
+def programme_rows(user):
+    """One row per active enrolment: the programme, its progress and its roadmap.
+
+    A row for a learner who holds several enrolments links to that programme by
+    code, so choosing a row opens it rather than whichever enrolment is oldest.
+    """
+    rows = []
+    for enrolment in active_enrolments(user):
+        counts = module_completion(enrolment)
+        rows.append({
+            "enrolment": enrolment,
+            "programme": enrolment.programme_version.programme,
+            "version": enrolment.programme_version,
+            **counts,
+            "percentage": round(counts["completed_count"] / counts["module_count"] * 100) if counts["module_count"] else 0,
+            "url": programme_href(reverse("roadmap"), enrolment),
+        })
+    return rows
+
+
+def programme_theory_completed(enrolment):
+    counts = module_completion(enrolment)
+    return counts["module_count"] > 0 and counts["completed_count"] == counts["module_count"]
 
 
 def course_modules(course, enrolment=None):

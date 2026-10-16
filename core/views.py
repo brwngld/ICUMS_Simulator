@@ -17,8 +17,9 @@ from accounts.context_processors import role_context
 from assessments.models import Assessment
 from audit.models import AuditEvent
 from reports.models import CompletionRecord
+from learning.services import programme_rows
 from learning.views import roadmap_context
-from onboarding.services import active_enrolment_for, current_enrolment, needs_disclaimer_acceptance
+from onboarding.services import enrolment_for_request, needs_disclaimer_acceptance, programme_href, requested_enrolment
 from progress.models import ProgrammeProgress
 from accounts.models import SimulatorCredential
 from .admin_dashboard import dashboard_callback, render_student_page
@@ -28,7 +29,7 @@ from .admin_dashboard import dashboard_callback, render_student_page
 def dashboard(request):
     if needs_disclaimer_acceptance(request.user):
         return redirect("disclaimer")
-    enrolment = current_enrolment(request.user)
+    enrolment = requested_enrolment(request)
     learning = None
     if enrolment:
         learning = roadmap_context(enrolment.programme_version, enrolment)
@@ -49,7 +50,7 @@ def dashboard(request):
                 "title": "Continue your guided simulator training",
                 "description": "Your theory training and simulator orientation are complete. Continue with the available practical activities.",
                 "label": "Continue practical training",
-                "url": reverse("scenario-list"),
+                "url": programme_href(reverse("scenario-list"), enrolment),
             }
         elif programme_progress and programme_progress.orientation_unlocked_at:
             primary_action = {
@@ -57,7 +58,7 @@ def dashboard(request):
                 "title": "Complete your simulator orientation",
                 "description": "Your theory requirements are complete. Finish orientation to unlock practical training.",
                 "label": "Continue to orientation",
-                "url": reverse("orientation"),
+                "url": programme_href(reverse("orientation"), enrolment),
             }
         elif learning["theory_completed"] and final_assessment:
             primary_action = {
@@ -101,6 +102,10 @@ def dashboard(request):
         "completed_modules": completed_modules,
         "total_modules": total_modules,
         "module_completion_percentage": module_completion_percentage,
+        # The switcher list. Every row links to its own programme's roadmap, so
+        # a learner enrolled on two programmes can reach the second one.
+        "programmes": programme_rows(request.user),
+        "roadmap_url": programme_href(reverse("roadmap"), enrolment),
     }
     # Presentation context only: the student/tutor home renders the shared
     # Unfold shell with its role-appropriate navigation. This supplies the
@@ -111,11 +116,23 @@ def dashboard(request):
 
 
 @login_required
+def my_programmes(request):
+    """Every programme the learner is enrolled in, each linking to its own roadmap.
+
+    Without this page the others stay unreachable: a request resolves one
+    enrolment, and every row here names the programme it wants.
+    """
+    if needs_disclaimer_acceptance(request.user):
+        return redirect("disclaimer")
+    return render_student_page(request, "core/my_programmes.html", {"programmes": programme_rows(request.user)})
+
+
+@login_required
 @require_http_methods(["GET", "POST"])
 def orientation(request):
     if needs_disclaimer_acceptance(request.user):
         return redirect("disclaimer")
-    enrolment = active_enrolment_for(request.user)
+    enrolment = enrolment_for_request(request)
     programme_progress = ProgrammeProgress.objects.filter(enrolment=enrolment, orientation_unlocked_at__isnull=False).first()
     if programme_progress is None:
         raise PermissionDenied("Pass the final theory examination before starting orientation.")

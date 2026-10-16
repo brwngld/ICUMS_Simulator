@@ -1,10 +1,12 @@
-"""Multi-enrolment consistency.
+"""Learners enrolled on more than one programme.
 
-A learner can hold several active enrolments while the portal has no way to
-choose between them, so every student surface must resolve the *same* one: the
-oldest active enrolment, with the primary key breaking ties because
-``enrolled_at`` is not unique and an unordered query can pick a different row
-per page.
+Without a choice, every student surface resolves the *same* enrolment: the oldest
+active one, with the primary key breaking ties because ``enrolled_at`` is not
+unique and an unordered query can pick a different row per page.
+
+The choice itself is the ``?programme=<code>`` parameter. Every link the portal
+generates carries it, `/programmes/` lists the enrolments to choose between, and
+a parameter for a programme the learner is not enrolled in is refused.
 """
 import pytest
 from django.contrib.auth.models import Group
@@ -15,7 +17,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from assessments.models import AnswerOption, Assessment, AssessmentItem, Question, QuestionVersion
-from learning.models import Module
+from learning.models import Lesson, Module
 from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
 
 
@@ -33,6 +35,7 @@ def _enrolment(learner, code, module_code, assessment_title, enrolled_at=None):
     version = ProgrammeVersion.objects.create(programme=programme, version=1, status=ProgrammeVersion.Status.PUBLISHED)
     enrolment = Enrolment.objects.create(student=learner, programme_version=version)
     module = Module.objects.create(programme_version=version, code=module_code, title=f"Module {code}", order=1, is_published=True)
+    Lesson.objects.create(module=module, slug=f"lesson-{code}", title=f"Lesson {code}", order=1, is_published=True)
     question_version = QuestionVersion.objects.create(question=Question.objects.create(code=f"q-{code}"), version=1, prompt="Pick one", points=1, is_published=True)
     AnswerOption.objects.create(question_version=question_version, label="Right", is_correct=True, order=1)
     assessment = Assessment.objects.create(programme_version=version, module=module, title=assessment_title, pass_percentage=50, is_published=True)
@@ -41,6 +44,13 @@ def _enrolment(learner, code, module_code, assessment_title, enrolled_at=None):
         Enrolment.objects.filter(pk=enrolment.pk).update(enrolled_at=enrolled_at)
         enrolment.refresh_from_db()
     return enrolment
+
+
+def _two_programmes(db, username, first_at, second_at):
+    learner = _learner(db, username)
+    first = _enrolment(learner, f"{username}-a", f"{username}-a-m", "First assessment", enrolled_at=first_at)
+    second = _enrolment(learner, f"{username}-b", f"{username}-b-m", "Second assessment", enrolled_at=second_at)
+    return learner, first, second
 
 
 @pytest.mark.django_db
@@ -83,3 +93,115 @@ def test_sidebar_assessment_link_comes_from_the_chosen_enrolment(client, db):
     assert reverse("assessment-take", args=[assessment.pk]) in html
     other = Assessment.objects.get(programme_version__programme__code="nav-b")
     assert reverse("assessment-take", args=[other.pk]) not in html
+
+
+@pytest.mark.django_db
+def test_the_programme_parameter_opens_the_other_roadmap(client, db):
+    learner, _, second = _two_programmes(
+        db, "switch-prog", timezone.datetime(2026, 5, 1, tzinfo=UTC), timezone.datetime(2026, 5, 2, tzinfo=UTC)
+    )
+    client.force_login(learner)
+
+    response = client.get(reverse("roadmap"), {"programme": second.programme_version.programme.code})
+    assert response.context["enrolment"].pk == second.pk
+    html = response.content.decode()
+    assert "Module switch-prog-b" in html
+    assert "Module switch-prog-a" not in html
+
+
+@pytest.mark.django_db
+def test_a_module_of_the_other_programme_opens_once_it_is_chosen(client, db):
+    learner, _, second = _two_programmes(
+        db, "deep-link", timezone.datetime(2026, 6, 1, tzinfo=UTC), timezone.datetime(2026, 6, 2, tzinfo=UTC)
+    )
+    client.force_login(learner)
+    url = reverse("module-overview", args=[second.programme_version.modules.first().code])
+
+    assert client.get(url).status_code == 404
+    chosen = client.get(url, {"programme": second.programme_version.programme.code})
+    assert chosen.status_code == 200
+    assert chosen.context["enrolment"].pk == second.pk
+
+
+@pytest.mark.django_db
+def test_links_from_a_programme_page_stay_on_that_programme(client, db):
+    learner, _, second = _two_programmes(
+        db, "sticky", timezone.datetime(2026, 7, 1, tzinfo=UTC), timezone.datetime(2026, 7, 2, tzinfo=UTC)
+    )
+    client.force_login(learner)
+    code = second.programme_version.programme.code
+
+    html = client.get(reverse("roadmap"), {"programme": code}).content.decode()
+    page_links = [
+        link for link in _html_links(html)
+        if link.startswith(reverse("roadmap")) and link != reverse("roadmap")
+    ]
+    assert page_links, "the roadmap should link into its own module and lesson pages"
+    assert all(f"programme={code}" in link for link in page_links)
+
+
+@pytest.mark.django_db
+def test_the_programmes_page_lists_every_enrolment(client, db):
+    learner = _learner(db, "listed")
+    _enrolment(learner, "listed-a", "listed-a-m", "Listed A assessment", enrolled_at=timezone.datetime(2026, 8, 1, tzinfo=UTC))
+    _enrolment(learner, "listed-b", "listed-b-m", "Listed B assessment", enrolled_at=timezone.datetime(2026, 8, 2, tzinfo=UTC))
+    client.force_login(learner)
+
+    html = client.get(reverse("my-programmes")).content.decode()
+    assert "Programme listed-a" in html
+    assert "Programme listed-b" in html
+    assert "0 of 1 modules complete" in html
+    assert f"{reverse('roadmap')}?programme=listed-b" in html
+
+
+@pytest.mark.django_db
+def test_the_dashboard_only_lists_programmes_when_there_is_a_choice(client, db):
+    learner = _learner(db, "chosen")
+    _enrolment(learner, "chosen-a", "chosen-a-m", "Chosen A assessment", enrolled_at=timezone.datetime(2026, 9, 1, tzinfo=UTC))
+    client.force_login(learner)
+    assert "My programmes" not in client.get(reverse("dashboard")).content.decode()
+
+    _enrolment(learner, "chosen-b", "chosen-b-m", "Chosen B assessment", enrolled_at=timezone.datetime(2026, 9, 2, tzinfo=UTC))
+    html = client.get(reverse("dashboard")).content.decode()
+    assert "My programmes" in html
+    assert "Programme chosen-b" in html
+
+
+@pytest.mark.django_db
+def test_the_sidebar_offers_the_programmes_page_with_a_second_enrolment(client, db):
+    learner = _learner(db, "nav-multi")
+    _enrolment(learner, "nav-multi-a", "nav-multi-a-m", "Nav multi A assessment", enrolled_at=timezone.datetime(2026, 10, 1, tzinfo=UTC))
+    client.force_login(learner)
+    assert reverse("my-programmes") not in client.get(reverse("dashboard")).content.decode()
+
+    _enrolment(learner, "nav-multi-b", "nav-multi-b-m", "Nav multi B assessment", enrolled_at=timezone.datetime(2026, 10, 2, tzinfo=UTC))
+    assert reverse("my-programmes") in client.get(reverse("dashboard")).content.decode()
+
+
+@pytest.mark.django_db
+def test_a_programme_the_learner_is_not_enrolled_on_is_refused(client, db):
+    learner = _learner(db, "only-one")
+    _enrolment(learner, "only-one-a", "only-one-a-m", "Only one assessment")
+    client.force_login(learner)
+
+    response = client.get(reverse("roadmap"), {"programme": "someone-else"})
+    assert response.status_code == 302
+    assert response.headers["location"] == reverse("dashboard")
+
+
+def _html_links(html):
+    """Every href in a rendered page, in document order."""
+    from html.parser import HTMLParser
+
+    class Collector(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.hrefs = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "a":
+                self.hrefs += [value for name, value in attrs if name == "href" and value]
+
+    parser = Collector()
+    parser.feed(html)
+    return parser.hrefs

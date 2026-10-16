@@ -52,10 +52,28 @@
         </section>
       </div>
 
+      {% if programmes|length > 1 %}
+        <section class="dash-panel student-roadmap">
+          <div class="dash-panel-head">
+            <div><h2><a href="{% url 'my-programmes' %}">My programmes</a></h2></div>
+          </div>
+          <ol class="student-module-list">
+            {% for row in programmes %}
+              <li{% if row.percentage == 100 %} class="is-complete"{% endif %}>
+                <span class="student-module-state" aria-hidden="true">{% if row.percentage == 100 %}✓{% else %}○{% endif %}</span>
+                <a href="{{ row.url }}">{{ row.programme.name }}</a>
+                <span class="student-module-track"><span style="width: {{ row.percentage }}%"></span></span>
+                <strong>{{ row.completed_count }}/{{ row.module_count }}</strong>
+              </li>
+            {% endfor %}
+          </ol>
+        </section>
+      {% endif %}
+
       <section class="dash-panel student-roadmap">
         <div class="dash-panel-head">
           <div><h2>Your learning roadmap</h2></div>
-          <a href="{% url 'roadmap' %}">{{ total_modules }} module{{ total_modules|pluralize }}</a>
+          <a href="{{ roadmap_url }}">{{ total_modules }} module{{ total_modules|pluralize }}</a>
         </div>
         <ol class="student-module-list">
           {% for item in module_summaries %}

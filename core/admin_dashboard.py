@@ -15,6 +15,7 @@ from evaluations.models import PracticalEvaluation
 from learning.models import Lesson, Module
 from learning.services import module_is_locked
 from onboarding.models import Enrolment, Programme
+from onboarding.services import active_enrolments, programme_href, requested_enrolment
 from reports.models import Certificate
 from scenarios.models import (
     BoeDeclaration,
@@ -247,13 +248,9 @@ def _student_navigation(request):
     from django.urls import reverse
 
     roles = role_context(request)
-    roadmap_url = reverse("roadmap")
     assessment_items = []
-    enrolment = (
-        request.user.enrolments.filter(status="active")
-        .select_related("programme_version")
-        .first()
-    )
+    enrolment = requested_enrolment(request)
+    roadmap_url = programme_href(reverse("roadmap"), enrolment)
     if enrolment:
         # The roadmap page carries the module and lesson navigation itself, so the
         # sidebar only needs one entry here — individual courses, modules and
@@ -273,52 +270,60 @@ def _student_navigation(request):
                 assessment_items.append(
                     {
                         "title": f"Module {index} assessment",
-                        "link": reverse("assessment-take", args=(assessment.pk,)),
+                        "link": programme_href(reverse("assessment-take", args=(assessment.pk,)), enrolment),
                     }
                 )
+
+    learning_items = [
+        {
+            "title": "Theoretical Training",
+            "icon": "menu_book",
+            "icon_template": "core/nav_icons/theory.html",
+            "link": roadmap_url,
+            "submenu": True,
+            "active": request.path.startswith(("/theory/", "/assessments/")),
+            "items": [{"title": "Learning Roadmap", "link": roadmap_url if enrolment else "#"}],
+        },
+        {
+            "title": "Simulator",
+            "icon": "box",
+            "icon_template": "core/nav_icons/sandbox.html",
+            "link": reverse("simulator-portal"),
+            "submenu": True,
+            "items": [{"title": "Simulator Sandbox", "link": reverse("simulator-portal")}],
+        },
+        {
+            "title": "Practical",
+            "icon": "layers",
+            "icon_template": "core/nav_icons/practical.html",
+            "link": reverse("scenario-list"),
+            "submenu": True,
+            "items": [{"title": "Theory & Practical", "link": reverse("scenario-list")}],
+        },
+        {
+            "title": "Assessments",
+            "icon": "assignment",
+            "link": assessment_items[0]["link"] if assessment_items else (roadmap_url if enrolment else "#"),
+            "submenu": bool(assessment_items),
+            "items": assessment_items,
+        },
+    ]
+    # A learner on one programme has nothing to switch between, so the entry
+    # only appears once a second enrolment exists.
+    if active_enrolments(request.user).count() > 1:
+        learning_items.insert(1, {
+            "title": "My programmes",
+            "icon": "school",
+            "link": reverse("my-programmes"),
+            "active": request.path.startswith("/programmes/"),
+        })
 
     groups = [
         {
             "title": "",
             "items": [{"title": "Dashboard", "icon": "dashboard", "icon_template": "core/nav_icons/dashboard.html", "link": reverse("dashboard")}],
         },
-        {
-            "title": "My Learning",
-            "items": [
-                {
-                    "title": "Theoretical Training",
-                    "icon": "menu_book",
-                    "icon_template": "core/nav_icons/theory.html",
-                    "link": roadmap_url,
-                    "submenu": True,
-                    "active": request.path.startswith(("/theory/", "/assessments/")),
-                    "items": [{"title": "Learning Roadmap", "link": roadmap_url if enrolment else "#"}],
-                },
-                {
-                    "title": "Simulator",
-                    "icon": "box",
-                    "icon_template": "core/nav_icons/sandbox.html",
-                    "link": reverse("simulator-portal"),
-                    "submenu": True,
-                    "items": [{"title": "Simulator Sandbox", "link": reverse("simulator-portal")}],
-                },
-                {
-                    "title": "Practical",
-                    "icon": "layers",
-                    "icon_template": "core/nav_icons/practical.html",
-                    "link": reverse("scenario-list"),
-                    "submenu": True,
-                    "items": [{"title": "Theory & Practical", "link": reverse("scenario-list")}],
-                },
-                {
-                    "title": "Assessments",
-                    "icon": "assignment",
-                    "link": assessment_items[0]["link"] if assessment_items else (roadmap_url if enrolment else "#"),
-                    "submenu": bool(assessment_items),
-                    "items": assessment_items,
-                },
-            ],
-        },
+        {"title": "My Learning", "items": learning_items},
     ]
 
     if roles["can_access_instructor_portal"]:
@@ -341,6 +346,20 @@ def _crumb(title, link=""):
     return {"title": str(title), "link": link or ""}
 
 
+def _crumb_enrolment(ctx):
+    """The enrolment a page's context knows about, if any."""
+    return ctx.get("enrolment") or getattr(ctx.get("attempt"), "enrolment", None)
+
+
+def _theory_href(ctx, url="/theory/"):
+    """Keep a learner's trail on the programme they are actually reading.
+
+    A bare `/theory/` resolves to the oldest active enrolment, so a learner on
+    two programmes would be bounced back to the wrong one by any crumb.
+    """
+    return programme_href(url, _crumb_enrolment(ctx))
+
+
 def _instructor_crumb():
     return _crumb("Instructor", "/instructor/")
 
@@ -361,25 +380,25 @@ def _course_crumb(ctx):
     link = (
         f"/instructor/learner-courses/{course.pk}/student-view/"
         if ctx.get("preview_mode")
-        else f"/theory/courses/{course.code}/"
+        else _theory_href(ctx, f"/theory/courses/{course.code}/")
     )
     return _crumb(course.title, link)
 
 
 def _lesson_crumbs(ctx):
-    crumbs = [_crumb("Home", "/"), _crumb("Theoretical Training", "/theory/")]
+    crumbs = [_crumb("Home", "/"), _crumb("Theoretical Training", _theory_href(ctx))]
     course = _course_crumb(ctx)
     if course:
         crumbs.append(course)
     crumbs += [
-        _crumb(f"Module {ctx['module'].order}", reverse("module-overview", args=(ctx["module"].code,))),
+        _crumb(f"Module {ctx['module'].order}", _theory_href(ctx, reverse("module-overview", args=(ctx["module"].code,)))),
         _crumb(f"Lesson {ctx.get('lesson_position', 1)}"),
     ]
     return crumbs
 
 
 def _module_crumbs(ctx):
-    crumbs = [_crumb("Home", "/"), _crumb("Theoretical Training", "/theory/")]
+    crumbs = [_crumb("Home", "/"), _crumb("Theoretical Training", _theory_href(ctx))]
     course = _course_crumb(ctx)
     if course:
         crumbs.append(course)
@@ -389,9 +408,9 @@ def _module_crumbs(ctx):
 
 def _assessment_crumbs(ctx):
     assessment = ctx.get("assessment") or ctx["attempt"].assessment
-    crumbs = [_crumb("Home", "/"), _crumb("Theoretical Training", "/theory/")]
+    crumbs = [_crumb("Home", "/"), _crumb("Theoretical Training", _theory_href(ctx))]
     if assessment.module_id:
-        crumbs.append(_crumb(f"Module {assessment.module.order}", "/theory/"))
+        crumbs.append(_crumb(f"Module {assessment.module.order}", _theory_href(ctx)))
     crumbs.append(_crumb("Assessment"))
     return crumbs
 
@@ -403,14 +422,14 @@ def _assessment_crumbs(ctx):
 _BREADCRUMB_BUILDERS = {
     "roadmap": lambda ctx: [
         _crumb("Home", "/"),
-        _crumb("Theoretical Training", "/theory/"),
+        _crumb("Theoretical Training", _theory_href(ctx)),
         _crumb("Course Overview"),
     ],
     "module-overview": _module_crumbs,
     "course-overview": lambda ctx: [
         _crumb("Home", "/"),
-        _crumb("Theoretical Training", "/theory/"),
-        _crumb("Course Overview", "/theory/"),
+        _crumb("Theoretical Training", _theory_href(ctx)),
+        _crumb("Course Overview", _theory_href(ctx)),
         _crumb(ctx["course"].title),
     ],
     "instructor-student-detail": lambda ctx: [

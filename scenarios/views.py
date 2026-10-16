@@ -25,7 +25,7 @@ def _q2(value):
 from datetime import date, timedelta
 import json
 
-from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
+from onboarding.services import enrolment_for_request, needs_disclaimer_acceptance
 
 from .country_codes import COUNTRY_CODES, COUNTRY_CODE_SET
 
@@ -2836,7 +2836,7 @@ def single_window_reference_page(request, page_key):
 def _enrolment_with_access(request):
     if needs_disclaimer_acceptance(request.user):
         return None, redirect("disclaimer")
-    enrolment = active_enrolment_for(request.user)
+    enrolment = enrolment_for_request(request)
     if not practical_is_unlocked(enrolment):
         raise PermissionDenied("Complete simulator orientation before beginning practical training.")
     return enrolment, None

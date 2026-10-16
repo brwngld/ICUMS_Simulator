@@ -1,0 +1,25 @@
+{% extends "core/base_student.html" %}
+
+{% block title %}My programmes · ICUMS Simulator{% endblock %}
+
+{% block content %}
+  <div class="dash">
+    <header class="dash-head">
+      <div>
+        <h1>My programmes</h1>
+        <p>Every programme you are enrolled in, with where you left off.</p>
+      </div>
+    </header>
+
+    <div class="dash-module-grid">
+      {% for row in programmes %}
+        <article class="dash-panel dash-module">
+          <div class="dash-module-top"><span class="dash-module-icon" aria-hidden="true">{% include "components/icon.html" with name="menu_book" %}</span><span class="dash-pill is-info">{{ row.completed_count }} of {{ row.module_count }} modules complete</span></div>
+          <strong>{{ row.programme.name }}</strong>
+          <small class="dash-muted">{{ row.version }}</small>
+          <a class="dash-module-link" href="{{ row.url }}">Open roadmap →</a>
+        </article>
+      {% empty %}<section class="dash-panel"><p class="dash-empty">You are not enrolled in a programme yet.</p></section>{% endfor %}
+    </div>
+  </div>
+{% endblock %}

@@ -16,18 +16,20 @@ from learning.services import (
     module_lessons_completed,
     programme_theory_completed,
 )
-from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
+from onboarding.services import enrolment_for_request, needs_disclaimer_acceptance, programme_href, requested_enrolment
 
 from .models import Assessment, TheoryAttempt
 from progress.models import LessonProgress
 from .services import get_or_start_attempt, save_attempt_answers, submit_attempt
 
 
-def _safe_return_to(request):
+def _safe_return_to(request, enrolment=None):
     value = request.POST.get("return_to") or request.GET.get("return_to")
     if value and url_has_allowed_host_and_scheme(value, {request.get_host()}, require_https=request.is_secure()):
         return value
-    return reverse("roadmap")
+    if enrolment is None:
+        enrolment = requested_enrolment(request)
+    return programme_href(reverse("roadmap"), enrolment)
 
 
 @login_required
@@ -35,7 +37,7 @@ def _safe_return_to(request):
 def assessment_take(request, assessment_id):
     if needs_disclaimer_acceptance(request.user):
         return redirect("disclaimer")
-    enrolment = active_enrolment_for(request.user)
+    enrolment = enrolment_for_request(request)
     assessment = get_object_or_404(Assessment.objects.prefetch_related("items__question_version__options"), pk=assessment_id, is_published=True)
     if assessment.programme_version_id != enrolment.programme_version_id:
         raise PermissionDenied("This assessment is not available.")
@@ -49,7 +51,7 @@ def assessment_take(request, assessment_id):
     if assessment.assessment_type == Assessment.Type.FINAL_THEORY and not programme_theory_completed(enrolment):
         raise PermissionDenied("Complete all theory modules before starting the final theory examination.")
     attempt = get_or_start_attempt(enrolment, assessment)
-    return_to = _safe_return_to(request)
+    return_to = _safe_return_to(request, enrolment)
     remaining_attempts = (
         max(assessment.maximum_attempts - attempt.attempt_number, 0)
         if assessment.maximum_attempts is not None else None
@@ -90,7 +92,7 @@ def assessment_take(request, assessment_id):
 @login_required
 def assessment_result(request, attempt_id):
     attempt = get_object_or_404(
-        TheoryAttempt.objects.select_related("assessment", "enrolment__programme_version", "enrolment").prefetch_related("responses__question_version__remediation_resource", "items__question_version__options"),
+        TheoryAttempt.objects.select_related("assessment", "enrolment__programme_version__programme", "enrolment").prefetch_related("responses__question_version__remediation_resource", "items__question_version__options"),
         pk=attempt_id,
         enrolment__student=request.user,
     )
@@ -101,23 +103,23 @@ def assessment_result(request, attempt_id):
         max(assessment.maximum_attempts - attempt.attempt_number, 0)
         if assessment.maximum_attempts is not None else None
     )
-    return_to = _safe_return_to(request)
+    return_to = _safe_return_to(request, attempt.enrolment)
 
     # Where "continue" goes after a pass: the next unfinished lesson, the
     # module's later content, orientation after the final exam, or the roadmap.
-    continue_url = reverse("roadmap")
+    continue_url = programme_href(reverse("roadmap"), attempt.enrolment)
     continue_label = "Return to roadmap"
     if passed:
         enrolment = attempt.enrolment
         if assessment.assessment_type == Assessment.Type.FINAL_THEORY:
-            continue_url = reverse("orientation")
+            continue_url = programme_href(reverse("orientation"), enrolment)
             continue_label = "Continue to simulator orientation"
         elif assessment.module:
             module = assessment.module
             lessons = list(module.lessons.filter(is_published=True).order_by("order", "title"))
             next_lesson = next((lesson for lesson in lessons if not LessonProgress.objects.filter(enrolment=enrolment, lesson=lesson, completed_at__isnull=False).exists()), None)
             if next_lesson:
-                continue_url = reverse("lesson-detail", args=(module.code, next_lesson.slug))
+                continue_url = programme_href(reverse("lesson-detail", args=(module.code, next_lesson.slug)), enrolment)
                 continue_label = "Continue to the next lesson"
 
     # Per-question review aligned with the attempt's frozen question order.

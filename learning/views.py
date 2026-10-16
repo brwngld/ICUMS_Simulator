@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from core.admin_dashboard import render_student_page
-from onboarding.services import active_enrolment_for, needs_disclaimer_acceptance
+from onboarding.services import enrolment_for_request, needs_disclaimer_acceptance, programme_href
 from progress.models import LessonProgress, ModuleProgress
 from assessments.models import Assessment, LessonCheck, LessonCheckResponse, TheoryAttempt
 
@@ -73,14 +73,16 @@ def _lesson_minutes(lesson):
     return max(1, round(sum(count_words(block.body) for block in lesson.blocks.all()) / 200))
 
 
-def _lesson_url(module, lesson, preview):
-    return (reverse("lesson-preview", args=[lesson.pk]) if preview
-            else reverse("lesson-detail", args=[module.code, lesson.slug]))
+def _lesson_url(module, lesson, preview, enrolment=None):
+    url = (reverse("lesson-preview", args=[lesson.pk]) if preview
+           else reverse("lesson-detail", args=[module.code, lesson.slug]))
+    return programme_href(url, enrolment)
 
 
-def _assessment_url(assessment, preview):
-    return (reverse("assessment-preview", args=[assessment.pk]) if preview
-            else reverse("assessment-take", args=[assessment.pk]))
+def _assessment_url(assessment, preview, enrolment=None):
+    url = (reverse("assessment-preview", args=[assessment.pk]) if preview
+           else reverse("assessment-take", args=[assessment.pk]))
+    return programme_href(url, enrolment)
 
 
 def module_overview_context(module, enrolment=None):
@@ -111,7 +113,7 @@ def module_overview_context(module, enrolment=None):
         completed_count += status == "completed"
         minutes = _lesson_minutes(lesson)
         total_minutes += minutes
-        lesson_url = _lesson_url(module, lesson, preview)
+        lesson_url = _lesson_url(module, lesson, preview, enrolment)
         lesson_items.append({
             "lesson": lesson,
             "progress": progress,
@@ -145,10 +147,11 @@ def module_overview_context(module, enrolment=None):
     progress_percentage = round(completed_count / len(lessons) * 100) if lessons else 0
     module_course = module.course
     course_page = module_course if module_course and (preview or module_course.is_published) else None
-    course_url = (
-        reverse("course-content-preview", args=[course_page.pk]) if preview
-        else reverse("course-overview", args=[course_page.code])
-    ) if course_page else None
+    course_url = None
+    if course_page:
+        url = (reverse("course-content-preview", args=[course_page.pk]) if preview
+               else reverse("course-overview", args=[course_page.code]))
+        course_url = programme_href(url, enrolment)
 
     return {
         "enrolment": enrolment,
@@ -172,9 +175,10 @@ def module_overview_context(module, enrolment=None):
         "course": course_page,
         "course_url": course_url,
         "back_url": course_url or (
-            reverse("course-preview", args=[module.programme_version_id]) if preview else reverse("roadmap")
+            reverse("course-preview", args=[module.programme_version_id]) if preview
+            else programme_href(reverse("roadmap"), enrolment)
         ),
-        "assessment_take_url": _assessment_url(assessment, preview) if assessment else None,
+        "assessment_take_url": _assessment_url(assessment, preview, enrolment) if assessment else None,
         "assessment_result_url": None if preview else (
             reverse("assessment-result", args=[best_attempt.pk]) if best_attempt else None),
     }
@@ -184,7 +188,7 @@ def module_overview_context(module, enrolment=None):
 def module_overview(request, module_code):
     if response := _guard_onboarding(request):
         return response
-    enrolment = active_enrolment_for(request.user)
+    enrolment = enrolment_for_request(request)
     module = get_object_or_404(
         Module.objects.select_related("programme_version__programme", "course").prefetch_related(
             "lessons__blocks", "lessons__resources", "assessments"
@@ -229,7 +233,7 @@ def _course_cards(courses, cards_by_module, enrolment):
             "url": (
                 reverse("course-content-preview", args=[course.pk])
                 if enrolment is None
-                else reverse("course-overview", args=[course.code])
+                else programme_href(reverse("course-overview", args=[course.code]), enrolment)
             ),
         })
     return cards
@@ -298,7 +302,7 @@ def roadmap_context(version, enrolment, course=None):
             completed += status == "completed"
             minutes = _lesson_minutes(lesson)
             module_minutes += minutes
-            lesson_url = _lesson_url(module, lesson, preview)
+            lesson_url = _lesson_url(module, lesson, preview, enrolment)
             lesson_cards.append({"lesson": lesson, "status": status, "minutes": minutes, "url": lesson_url})
             if next_lesson is None and unlocked and status != "completed":
                 next_lesson, next_lesson_url = lesson, lesson_url
@@ -333,10 +337,14 @@ def roadmap_context(version, enrolment, course=None):
             "percentage": round(completed / len(lessons) * 100) if lessons else 0,
             "minutes": module_minutes,
             "assessment": assessment,
-            "assessment_url": _assessment_url(assessment, preview) if assessment else None,
+            "assessment_url": _assessment_url(assessment, preview, enrolment) if assessment else None,
             "assessment_state": assessment_state,
             "best_attempt": best,
-            "url": reverse("module-preview", args=[module.pk]) if preview else reverse("module-overview", args=[module.code]),
+            "url": programme_href(
+                reverse("module-preview", args=[module.pk]) if preview
+                else reverse("module-overview", args=[module.code]),
+                enrolment,
+            ),
         })
     total_lessons = sum(counts.values())
     course_percentage = round(counts["completed"] / total_lessons * 100) if total_lessons else 0
@@ -390,13 +398,13 @@ def roadmap_context(version, enrolment, course=None):
         "course": course,
         "levels": roadmap_levels,
         "show_levels": show_levels,
-        "roadmap_url": reverse("roadmap"),
+        "roadmap_url": programme_href(reverse("roadmap"), enrolment),
         "module_summaries": [item for item in module_cards if item["inline"]],
         "visible_modules": visible_modules,
         "module_total": len(visible_modules),
         "theory_completed": programme_theory_completed(enrolment) if enrolment else False,
         "final_assessment": final_assessment,
-        "final_assessment_url": _assessment_url(final_assessment, preview) if final_assessment else None,
+        "final_assessment_url": _assessment_url(final_assessment, preview, enrolment) if final_assessment else None,
         "lesson_counts": counts,
         "total_lessons": total_lessons,
         "course_percentage": course_percentage,
@@ -404,7 +412,7 @@ def roadmap_context(version, enrolment, course=None):
         "next_lesson": next_lesson,
         "next_lesson_url": next_lesson_url,
         "next_assessment": next_assessment,
-        "next_assessment_url": _assessment_url(next_assessment, preview) if next_assessment else None,
+        "next_assessment_url": _assessment_url(next_assessment, preview, enrolment) if next_assessment else None,
         "current_module": current_module,
         # Prefer course-level outcomes set by the instructor; fall back to
         # outcomes aggregated from published lesson objectives.
@@ -424,7 +432,7 @@ def roadmap(request):
         request.user.is_superuser or request.user.groups.filter(name__in=("Instructor", "Administrator")).exists()
     ):
         return redirect(f'{reverse("course-builder")}?path=theory')
-    enrolment = active_enrolment_for(request.user)
+    enrolment = enrolment_for_request(request)
     return render_student_page(request, "learning/roadmap.html", roadmap_context(enrolment.programme_version, enrolment))
 
 
@@ -433,7 +441,7 @@ def course_overview(request, course_code):
     """One course: its overview, outcomes, modules, assessments and resources."""
     if response := _guard_onboarding(request):
         return response
-    enrolment = active_enrolment_for(request.user)
+    enrolment = enrolment_for_request(request)
     course = get_object_or_404(
         Course.objects.select_related("programme_version__programme"),
         programme_version=enrolment.programme_version,
@@ -460,7 +468,7 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
     """
     if response := _guard_onboarding(request):
         return response
-    enrolment = active_enrolment_for(request.user)
+    enrolment = enrolment_for_request(request)
     module = get_object_or_404(Module, programme_version=enrolment.programme_version, code=module_code, is_published=True)
     if not module_is_unlocked(enrolment, module):
         raise PermissionDenied("Complete the prerequisite module first.")
@@ -493,7 +501,7 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
     sections = _lesson_sections()
 
     def section_url(slug):
-        return reverse("lesson-section", args=(module.code, lesson.slug, slug))
+        return programme_href(reverse("lesson-section", args=(module.code, lesson.slug, slug)), enrolment)
 
     overview_mode = False
     current_index, should_redirect = _resolve_current_section(sections, progress, section)
@@ -528,7 +536,7 @@ def lesson_detail(request, module_code, lesson_slug, section=None):
         progress.last_position = len(sections)
         progress.completed_at = progress.completed_at or timezone.now()
         progress.save(update_fields=("last_position", "completed_at", "updated_at"))
-        return redirect("module-overview", module_code=module.code)
+        return redirect(programme_href(reverse("module-overview", args=[module.code]), enrolment))
 
     _annotate_sections(sections, section_url, progress, current_index)
     word_count = sum(count_words(block.body) for block in blocks)
