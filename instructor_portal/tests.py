@@ -34,7 +34,7 @@ class CourseBuilderTests(TestCase):
         self.assertEqual(module.code, "customs-procedure-codes")
         self.assertFalse(module.is_published)
 
-    def test_complete_lesson_form_creates_blocks_check_question_and_assessment(self):
+    def test_lesson_is_created_as_a_draft_and_then_built_in_the_editor(self):
         self.client.post(reverse("course-create"), {"name": "Trade Theory"})
         version = ProgrammeVersion.objects.get(programme__name="Trade Theory")
         self.client.post(reverse("course-builder-module-create", args=[version.pk]), {"title": "CPC", "description": ""})
@@ -44,30 +44,62 @@ class CourseBuilderTests(TestCase):
             {
                 "title": "Understanding CPCs",
                 "summary": "Recognise the structure and purpose of a CPC.",
-                "concept_heading": "What a CPC means",
-                "concept_body": "The first two digits identify the requested regime.",
-                "example_heading": "Example",
-                "example_body": "70X00 is used for warehousing.",
-                "notice_heading": "Why it matters",
-                "notice_body": "The CPC affects duty and risk decisions.",
-                "question_prompt": "What do the first two digits represent?",
-                "correct_answer": "The requested regime",
-                "incorrect_answer_1": "The previous regime",
-                "incorrect_answer_2": "The risk channel",
-                "incorrect_answer_3": "The importer TIN",
+                "objectives": "Read the first two digits of a CPC.",
+                "key_terms": "CPC :: Customs Procedure Code.",
+            },
+        )
+        lesson = Lesson.objects.get(module=module)
+        self.assertRedirects(response, f'{reverse("lesson-edit", args=[lesson.pk])}?tab=details')
+        self.assertEqual(lesson.blocks.count(), 0)
+        self.assertEqual(lesson.knowledge_checks.count(), 0)
+
+        self.client.post(reverse("lesson-section-add", args=[lesson.pk]), {"kind": "text"})
+        block = lesson.blocks.get()
+        self.client.post(
+            reverse("lesson-edit", args=[lesson.pk]),
+            {
+                "title": "Understanding CPCs",
+                "summary": "Recognise the structure and purpose of a CPC.",
+                "objectives": "Read the first two digits of a CPC.",
+                "key_terms": "CPC :: Customs Procedure Code.",
+                "form-TOTAL_FORMS": "1",
+                "form-INITIAL_FORMS": "1",
+                "form-MIN_NUM_FORMS": "0",
+                "form-MAX_NUM_FORMS": "1000",
+                "form-0-id": str(block.pk),
+                "form-0-heading": "What a CPC means",
+                "form-0-body": "The first two digits identify the requested regime.",
+            },
+        )
+        block.refresh_from_db()
+        self.assertEqual(block.body, "<p>The first two digits identify the requested regime.</p>")
+
+        self.client.post(
+            reverse("lesson-practice-add", args=[lesson.pk]),
+            {
+                "prompt": "What do the first two digits represent?",
+                "points": "1",
                 "explanation": "They identify the current requested regime.",
+                "option_1": "The requested regime",
+                "option_2": "The previous regime",
+                "option_3": "The risk channel",
+                "option_4": "The importer TIN",
+                "correct_position": "1",
                 "add_to_assessment": "on",
             },
         )
-        self.assertRedirects(response, reverse("course-builder-detail", args=[version.pk]))
-        lesson = Lesson.objects.get(module=module)
-        self.assertEqual(lesson.blocks.count(), 3)
-        self.assertEqual(lesson.knowledge_checks.count(), 1)
-        question_version = QuestionVersion.objects.get(question__code="cpc-understanding-cpcs")
+        lesson.refresh_from_db()
+        self.assertEqual(lesson.blocks.count(), 1)
+        check = lesson.knowledge_checks.get()
+        self.assertEqual(check.after_block_id, lesson.blocks.get().pk)
+        question_version = check.question_version
+        self.assertEqual(question_version.prompt, "What do the first two digits represent?")
         self.assertEqual(question_version.options.count(), 4)
         self.assertEqual(question_version.options.filter(is_correct=True).count(), 1)
+        self.assertEqual(question_version.options.get(is_correct=True).label, "The requested regime")
         assessment = Assessment.objects.get(module=module)
         self.assertEqual(assessment.items.count(), 1)
+        self.assertEqual(assessment.items.get().question_version, question_version)
         self.assertFalse(lesson.is_published)
         self.assertFalse(question_version.is_published)
         self.assertFalse(assessment.is_published)
@@ -92,8 +124,27 @@ class CourseBuilderTests(TestCase):
         self.assertRedirects(response, f'{reverse("course-builder")}?path=theory')
 
     def test_complete_course_can_be_published_from_review(self):
-        self.test_complete_lesson_form_creates_blocks_check_question_and_assessment()
+        self.test_lesson_is_created_as_a_draft_and_then_built_in_the_editor()
         version = ProgrammeVersion.objects.get(programme__name="Trade Theory")
+        module = version.modules.get()
+        self.client.post(
+            reverse("final-exam-create", args=[version.pk]),
+            {"title": "Trade Theory final examination", "pass_percentage": "70", "maximum_attempts": "3"},
+        )
+        final_exam = Assessment.objects.get(programme_version=version, assessment_type=Assessment.Type.FINAL_THEORY)
+        self.client.post(
+            reverse("assessment-question-add", args=[final_exam.pk]),
+            {
+                "prompt": "Which CPC digits record the requested regime?",
+                "points": "1",
+                "explanation": "The first two digits of a CPC record the requested regime.",
+                "option_1": "The first two digits",
+                "option_2": "The last two digits",
+                "option_3": "The importer TIN",
+                "option_4": "The border post code",
+                "correct_position": "1",
+            },
+        )
         response = self.client.get(reverse("course-review", args=[version.pk]))
         self.assertContains(response, "Ready to publish")
         response = self.client.post(reverse("course-publish", args=[version.pk]))
@@ -102,8 +153,11 @@ class CourseBuilderTests(TestCase):
         self.assertEqual(version.status, ProgrammeVersion.Status.PUBLISHED)
         self.assertTrue(version.modules.get().is_published)
         self.assertTrue(version.modules.get().lessons.get().is_published)
-        self.assertTrue(QuestionVersion.objects.get(question__code="cpc-understanding-cpcs").is_published)
-        self.assertTrue(Assessment.objects.get(module__programme_version=version).is_published)
+        self.assertTrue(QuestionVersion.objects.get(prompt="What do the first two digits represent?").is_published)
+        self.assertTrue(QuestionVersion.objects.get(prompt="Which CPC digits record the requested regime?").is_published)
+        self.assertTrue(Assessment.objects.get(module=module).is_published)
+        final_exam.refresh_from_db()
+        self.assertTrue(final_exam.is_published)
 
     def test_guided_practical_builder_creates_an_isolated_linear_flow(self):
         self.client.post(reverse("course-create"), {"name": "Unified Customs Training"})
