@@ -249,8 +249,12 @@ def _student_navigation(request):
 
     roles = role_context(request)
     assessment_items = []
-    enrolment = requested_enrolment(request)
+    # A practical page knows which programme it is on even when its own url does
+    # not say, and it records that on the request; everywhere else the request
+    # decides.
+    enrolment = getattr(request, "page_enrolment", None) or requested_enrolment(request)
     roadmap_url = programme_href(reverse("roadmap"), enrolment)
+    practical_url = programme_href(reverse("scenario-list"), enrolment)
     if enrolment:
         # The roadmap page carries the module and lesson navigation itself, so the
         # sidebar only needs one entry here — individual courses, modules and
@@ -296,9 +300,9 @@ def _student_navigation(request):
             "title": "Practical",
             "icon": "layers",
             "icon_template": "core/nav_icons/practical.html",
-            "link": reverse("scenario-list"),
+            "link": practical_url,
             "submenu": True,
-            "items": [{"title": "Theory & Practical", "link": reverse("scenario-list")}],
+            "items": [{"title": "Theory & Practical", "link": practical_url}],
         },
         {
             "title": "Assessments",

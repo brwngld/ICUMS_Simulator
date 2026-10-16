@@ -24,6 +24,13 @@ before, and §"Still open" what it still does not do.
   once keeps you in it through the roadmap, its courses, lessons, assessments and
   the trail back. Redirects (lesson section, module overview after a completion)
   re-attach it too.
+- The practical portal needs the parameter on two links only — the scenario list's
+  "View scenario" and the briefing's start form — because from the workspace on
+  every page is keyed by the attempt, and the attempt already knows its enrolment.
+  `scenario_detail` and `scenario_start` resolve that enrolment from the scenario
+  version's own programme rather than from the request, so a lost parameter cannot
+  attach an attempt to the learner's other programme. Those pages record the choice
+  on `request.page_enrolment`, which is what the sidebar and the trail then read.
 - `/programmes/` (`core.views.my_programmes`) lists each active enrolment with its
   module progress, and the dashboard gains the same list as a compact panel. Both
   appear only when a learner actually has a choice: with one active enrolment the
@@ -81,10 +88,5 @@ page* — invisible state, and a bookmarked link can disagree with the session.
   the same programme (different versions — `brwngld`'s development account has GSA
   v1 and v2) produce two rows that both open the older version. A per-version key
   would fix it; the agreed URL shape was `?programme=<code>`.
-- **The practical portal does not carry the parameter through its own pages.**
-  `/practical/` honours `?programme=` when it arrives, and the dashboard's
-  practical and orientation links set it, but links inside the scenario list do
-  not, so a scenario opened from there resolves the oldest enrolment. Orientation
-  remains per enrolment, as decided.
 - **`PermissionDenied` strings are user-facing.** "You are not enrolled in that
   programme." reaches the learner as a warning toast through `handler403`.

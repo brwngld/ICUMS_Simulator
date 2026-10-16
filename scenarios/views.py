@@ -25,7 +25,7 @@ def _q2(value):
 from datetime import date, timedelta
 import json
 
-from onboarding.services import enrolment_for_request, needs_disclaimer_acceptance
+from onboarding.services import active_enrolments, enrolment_for_request, needs_disclaimer_acceptance, programme_param
 
 from .country_codes import COUNTRY_CODES, COUNTRY_CODE_SET
 
@@ -2833,13 +2833,36 @@ def single_window_reference_page(request, page_key):
     return render_student_page(request, "scenarios/single_window_reference_page.html", {"page": page, "page_key": page_key})
 
 
-def _enrolment_with_access(request):
+def _enrolment_with_access(request, version=None):
+    """The enrolment a practical page runs on, and whether it is allowed to.
+
+    A scenario belongs to one programme version, so opening it uses that
+    programme's enrolment rather than whichever one the request happens to
+    resolve: a bookmarked or stale link has no programme parameter to lose, and
+    an attempt must never land on the learner's other programme. The page then
+    records the choice on the request so the navigation built around it agrees
+    with what is actually rendering.
+    """
     if needs_disclaimer_acceptance(request.user):
         return None, redirect("disclaimer")
-    enrolment = enrolment_for_request(request)
+    enrolment = _owning_enrolment(request, version) if version is not None else None
+    if enrolment is None:
+        enrolment = enrolment_for_request(request)
     if not practical_is_unlocked(enrolment):
         raise PermissionDenied("Complete simulator orientation before beginning practical training.")
+    request.page_enrolment = enrolment
     return enrolment, None
+
+
+def _owning_enrolment(request, version):
+    """The learner's active enrolment on the programme that owns ``version``.
+
+    Scenarios with no module belong to no programme, so they keep following the
+    request.
+    """
+    if version.module_id is None:
+        return None
+    return active_enrolments(request.user).filter(programme_version_id=version.module.programme_version_id).first()
 
 
 @login_required
@@ -2852,28 +2875,28 @@ def scenario_list(request):
         Q(module__programme_version=enrolment.programme_version) | Q(module__isnull=True)
     ).select_related("scenario", "module")
     attempts = {attempt.scenario_version_id: attempt for attempt in ScenarioAttempt.objects.filter(enrolment=enrolment, status=ScenarioAttempt.Status.IN_PROGRESS)}
-    return render_student_page(request, "scenarios/list.html", {"scenario_versions": versions, "attempts": attempts})
+    return render_student_page(request, "scenarios/list.html", {"scenario_versions": versions, "attempts": attempts, "programme_param": programme_param(enrolment)})
 
 
 @login_required
 @simulator_access_required
 def scenario_detail(request, version_id):
-    enrolment, response = _enrolment_with_access(request)
+    version = get_object_or_404(ScenarioVersion.objects.select_related("scenario", "module"), pk=version_id, status=ScenarioVersion.Status.PUBLISHED)
+    enrolment, response = _enrolment_with_access(request, version)
     if response:
         return response
-    version = get_object_or_404(ScenarioVersion.objects.select_related("scenario"), pk=version_id, status=ScenarioVersion.Status.PUBLISHED)
     active_attempt = ScenarioAttempt.objects.filter(enrolment=enrolment, scenario_version=version, status=ScenarioAttempt.Status.IN_PROGRESS).first()
-    return render_student_page(request, "scenarios/detail.html", {"scenario_version": version, "active_attempt": active_attempt})
+    return render_student_page(request, "scenarios/detail.html", {"scenario_version": version, "active_attempt": active_attempt, "programme_param": programme_param(enrolment)})
 
 
 @login_required
 @simulator_access_required
 @require_POST
 def scenario_start(request, version_id):
-    enrolment, response = _enrolment_with_access(request)
+    version = get_object_or_404(ScenarioVersion.objects.select_related("module"), pk=version_id, status=ScenarioVersion.Status.PUBLISHED)
+    enrolment, response = _enrolment_with_access(request, version)
     if response:
         return response
-    version = get_object_or_404(ScenarioVersion, pk=version_id, status=ScenarioVersion.Status.PUBLISHED)
     attempt, created = start_or_resume_attempt(enrolment, version)
     messages.success(request, "Scenario started." if created else "Your saved scenario has been resumed.")
     return redirect("scenario-workspace", attempt_id=attempt.pk)
@@ -2883,10 +2906,14 @@ def scenario_start(request, version_id):
 @simulator_access_required
 def scenario_workspace(request, attempt_id):
     attempt = get_object_or_404(
-        ScenarioAttempt.objects.select_related("enrolment", "scenario_version__scenario", "current_state").prefetch_related("scenario_version__documents", "scenario_version__bills_of_lading__cargo_items", "scenario_version__commercial_documents__line_items", "actions"),
+        ScenarioAttempt.objects.select_related("enrolment__programme_version__programme", "scenario_version__scenario", "current_state").prefetch_related("scenario_version__documents", "scenario_version__bills_of_lading__cargo_items", "scenario_version__commercial_documents__line_items", "actions"),
         pk=attempt_id,
         enrolment__student=request.user,
     )
+    # The attempt says which programme this learner is working through, and its
+    # url carries no parameter of its own, so the navigation around the page has
+    # to be told rather than guessed.
+    request.page_enrolment = attempt.enrolment
     return render_student_page(request, "scenarios/workspace.html", {
         "attempt": attempt,
         "available_actions": available_actions(attempt),

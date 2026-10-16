@@ -20,7 +20,7 @@
           <strong>{{ version.scenario.title }}</strong>
           <small>{{ version.learning_objective }}</small>
           <small class="dash-muted">Structure: {{ version.get_reference_status_display }}</small>
-          <a class="dash-module-link" href="{% url 'scenario-detail' version.pk %}">View scenario →</a>
+          <a class="dash-module-link" href="{% url 'scenario-detail' version.pk %}{{ programme_param }}">View scenario →</a>
         </article>
       {% empty %}<section class="dash-panel"><p class="dash-empty">No practical scenarios are published yet.</p></section>{% endfor %}
     </div>

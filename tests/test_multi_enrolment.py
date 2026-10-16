@@ -15,10 +15,12 @@ from datetime import UTC
 
 from django.utils import timezone
 
-from accounts.models import User
+from accounts.models import SimulatorCredential, User, allocate_student_id
 from assessments.models import AnswerOption, Assessment, AssessmentItem, Question, QuestionVersion
 from learning.models import Lesson, Module
 from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
+from progress.models import ProgrammeProgress
+from scenarios.models import Scenario, ScenarioAttempt, ScenarioState, ScenarioVersion
 
 
 def _learner(db, username):
@@ -187,6 +189,124 @@ def test_a_programme_the_learner_is_not_enrolled_on_is_refused(client, db):
     response = client.get(reverse("roadmap"), {"programme": "someone-else"})
     assert response.status_code == 302
     assert response.headers["location"] == reverse("dashboard")
+
+
+@pytest.mark.django_db
+def test_practical_training_opens_on_the_programme_that_was_oriented(client, db):
+    """The gate is per enrolment, so the programme chosen is the one checked."""
+    learner, _, second = _two_programmes(
+        db, "practical-gate", timezone.datetime(2026, 11, 1, tzinfo=UTC), timezone.datetime(2026, 11, 2, tzinfo=UTC)
+    )
+    _oriented(second)
+    _simulator_client(client, learner)
+
+    assert client.get(reverse("scenario-list")).status_code == 302
+    chosen = client.get(reverse("scenario-list"), {"programme": second.programme_version.programme.code})
+    assert chosen.status_code == 200
+
+
+@pytest.mark.django_db
+def test_a_scenario_starts_on_the_programme_that_owns_it(client, db):
+    """Losing the parameter must not attach the attempt to the oldest enrolment.
+
+    The scenario names its own programme, so the practical pages read the
+    enrolment from it rather than from whichever one the request resolves.
+    """
+    learner, first, second = _two_programmes(
+        db, "owning", timezone.datetime(2026, 12, 1, tzinfo=UTC), timezone.datetime(2026, 12, 2, tzinfo=UTC)
+    )
+    _oriented(first)
+    _oriented(second)
+    version = _scenario(second, "owning-scenario")
+    _simulator_client(client, learner)
+
+    started = client.post(reverse("scenario-start", args=[version.pk]))
+    assert started.status_code == 302
+    assert ScenarioAttempt.objects.get().enrolment_id == second.pk
+
+
+@pytest.mark.django_db
+def test_practical_links_carry_the_chosen_programme(client, db):
+    learner, _, second = _two_programmes(
+        db, "sticky-practical", timezone.datetime(2027, 1, 1, tzinfo=UTC), timezone.datetime(2027, 1, 2, tzinfo=UTC)
+    )
+    _oriented(second)
+    version = _scenario(second, "sticky-practical-scenario")
+    _simulator_client(client, learner)
+    code = second.programme_version.programme.code
+    query = {"programme": code}
+
+    listing = client.get(reverse("scenario-list"), query).content.decode()
+    assert f"{reverse('scenario-detail', args=[version.pk])}?programme={code}" in listing
+    detail = client.get(reverse("scenario-detail", args=[version.pk]), query).content.decode()
+    assert f"{reverse('scenario-start', args=[version.pk])}?programme={code}" in detail
+
+
+@pytest.mark.django_db
+def test_a_scenario_page_keeps_its_navigation_on_that_programme(client, db):
+    """The workspace url carries no parameter, so the page has to say the programme."""
+    learner, _, second = _two_programmes(
+        db, "mid-scenario", timezone.datetime(2027, 2, 1, tzinfo=UTC), timezone.datetime(2027, 2, 2, tzinfo=UTC)
+    )
+    _oriented(second)
+    version = _scenario(second, "mid-scenario-scenario")
+    _simulator_client(client, learner)
+    client.post(reverse("scenario-start", args=[version.pk]))
+
+    html = client.get(reverse("scenario-workspace", args=[ScenarioAttempt.objects.get().pk])).content.decode()
+    assert f"{reverse('scenario-list')}?programme={second.programme_version.programme.code}" in html
+
+
+@pytest.mark.django_db
+def test_a_single_programme_learner_keeps_plain_practical_links(client, db):
+    learner = _learner(db, "solo-practical")
+    enrolment = _enrolment(learner, "solo-a", "solo-a-m", "Solo assessment")
+    _oriented(enrolment)
+    version = _scenario(enrolment, "solo-scenario")
+    _simulator_client(client, learner)
+
+    html = client.get(reverse("scenario-list")).content.decode()
+    assert reverse("scenario-detail", args=[version.pk]) in html
+    assert "programme=" not in html
+
+
+def _oriented(enrolment):
+    """Walk the progression the practical pages demand: passed theory, done orientation."""
+    ProgrammeProgress.objects.create(
+        enrolment=enrolment,
+        theory_completed_at=timezone.now(),
+        orientation_unlocked_at=timezone.now(),
+        orientation_completed_at=timezone.now(),
+    )
+
+
+def _scenario(enrolment, code):
+    module = enrolment.programme_version.modules.first()
+    version = ScenarioVersion.objects.create(
+        scenario=Scenario.objects.create(code=code, title=f"Scenario {code}", area=Scenario.Area.IMPORT),
+        module=module,
+        version=1,
+        status=ScenarioVersion.Status.PUBLISHED,
+        assistance_mode=ScenarioVersion.AssistanceMode.BEGINNER,
+        reference_status=ScenarioVersion.ReferenceStatus.CONCEPTUAL,
+        briefing="Fictional scenario.",
+        learning_objective="Open the programme that owns this scenario.",
+    )
+    ScenarioState.objects.create(scenario_version=version, key="start", label="Start", order=1, is_initial=True)
+    return version
+
+
+def _simulator_client(client, learner):
+    """A logged-in learner who also holds the current simulator credentials."""
+    if not learner.student_id:
+        learner.student_id = allocate_student_id(learner.first_name or learner.username)
+        learner.save(update_fields=("student_id",))
+    credential, _ = SimulatorCredential.objects.get_or_create(user=learner)
+    credential.issue()
+    client.force_login(learner)
+    session = client.session
+    session["simulator_user_id"] = str(learner.pk)
+    session.save()
 
 
 def _html_links(html):

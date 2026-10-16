@@ -58,6 +58,18 @@ def programme_href(url, enrolment):
     return f"{url}{separator}{urlencode({'programme': code})}"
 
 
+def programme_param(enrolment):
+    """The ``?programme=<code>`` suffix for a link a template builds itself.
+
+    Practical pages write their hrefs with a url tag rather than in python, so
+    they need the piece instead of a whole url. It is empty for a learner with
+    nothing to choose between and only ever lands on paths that carry no query
+    string of their own.
+    """
+    code = _switchable_programme_code(enrolment)
+    return f"?{urlencode({'programme': code})}" if code else ""
+
+
 def _switchable_programme_code(enrolment):
     if enrolment is None:
         return ""

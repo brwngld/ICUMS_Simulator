@@ -23,7 +23,7 @@
         {% if scenario_version.maximum_attempts %}<p><strong>Attempt limit:</strong> {{ scenario_version.maximum_attempts }}</p>{% endif %}
       </div>
       <div class="dash-actions">
-        <form method="post" action="{% url 'scenario-start' scenario_version.pk %}">{% csrf_token %}<button class="dash-primary" type="submit">{% if active_attempt %}Resume saved attempt{% else %}Start scenario{% endif %}</button></form>
+        <form method="post" action="{% url 'scenario-start' scenario_version.pk %}{{ programme_param }}">{% csrf_token %}<button class="dash-primary" type="submit">{% if active_attempt %}Resume saved attempt{% else %}Start scenario{% endif %}</button></form>
       </div>
     </section>
   </div>
