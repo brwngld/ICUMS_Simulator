@@ -1,7 +1,7 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}Edit {{ practical.scenario.title }} · ICUMS Simulator{% endblock %}
 {% block workspace_name %}Edit guided practical{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-8"><link rel="stylesheet" href="{% static 'css/instructor-practical-builder.css' %}?v=20261015-1">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/instructor-practical-builder.css' %}?v=20261015-1">{% endblock %}
 {% block content %}
 <div class="authoring">
   <header class="authoring-head"><div><p class="authoring-eyebrow">{{ practical.module.programme_version.programme.name }} · {{ practical.module.title }}</p><h1>{{ practical.scenario.title }}</h1><p>Build the guided task, connect each stage to the simulator, and define the evidence students must produce.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'practical-builder-index' %}">All practicals</a><a class="authoring-secondary" href="{% url 'practical-preview' practical.pk %}">Student preview</a><button class="authoring-primary" type="submit" form="practical-form">Save exercise</button></div></header>

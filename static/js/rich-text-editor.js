@@ -170,6 +170,28 @@
     });
   }
 
+  /* Chrome nests an indented item as a list sitting directly inside its parent list.
+     That renders, but the learner stylesheet expects the inner list inside the item,
+     so move it where the browser will keep it. */
+  function hoistNestedLists(root) {
+    root.querySelectorAll("ul ul, ol ol, ul ol, ol ul").forEach((inner) => {
+      const outer = inner.parentElement;
+      if (outer.tagName !== "UL" && outer.tagName !== "OL") return;
+      const previous = inner.previousElementSibling;
+      if (previous && previous.tagName === "LI") previous.append(inner);
+    });
+  }
+
+  /* Chrome's Outdent removes the inner list but leaves its item sitting inside the
+     item it just escaped, which is markup no list style can render. Lift it back out. */
+  function liftStrayItems(root) {
+    let stray = root.querySelector("li > li");
+    while (stray) {
+      stray.parentElement.after(stray);
+      stray = root.querySelector("li > li");
+    }
+  }
+
   function serialise(editor) {
     const clone = editor.cloneNode(true);
     breakNewlines(clone);
@@ -177,6 +199,8 @@
     hoistBlocks(clone);
     dropEmptyListItems(clone);
     mergeAdjacentLists(clone);
+    liftStrayItems(clone);
+    hoistNestedLists(clone);
     stripUnsafe(clone);
     return clone.innerHTML.trim();
   }
@@ -309,25 +333,109 @@
     sync(editor);
   }
 
+  /* The block the caret is actually in, which is what the toolbar has to report on. */
+  function activeBlock(editor) {
+    const range = selectionInside(editor);
+    if (!range) return null;
+    let node = range.commonAncestorContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    return node ? node.closest("p, h3, h4, blockquote, li, th, td, caption, figcaption") : null;
+  }
+
+  /* Choosing "Paragraph" while the caret sits in a list item has to break the item
+     out of the list: formatBlock inside an <li> is ignored, so the item leaves the
+     list entirely and the list splits around the gap it leaves behind. */
+  function breakItemOut(item) {
+    const list = item.parentElement;
+    const tail = document.createElement(list.tagName);
+    let past = false;
+    [...list.children].forEach((sibling) => {
+      if (past) tail.append(sibling);
+      else if (sibling === item) past = true;
+    });
+    const paragraph = document.createElement("P");
+    paragraph.append(...item.childNodes);
+    item.remove();
+    list.after(tail);
+    list.after(paragraph);
+    return paragraph;
+  }
+
+  /* Every block the selection touches, which is what "clear formatting" has to walk:
+     a range spanning two paragraphs affects both, not just the one holding the caret. */
+  function touchedBlocks(editor, range) {
+    if (!range) return [];
+    if (range.collapsed) {
+      let node = range.startContainer;
+      if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+      const block = node && node.closest("p, h3, h4, blockquote, li");
+      return block && editor.contains(block) ? [block] : [];
+    }
+    return [...editor.querySelectorAll("p, h3, h4, blockquote, li")].filter((block) => range.intersectsNode(block));
+  }
+
   function applyFormat(editor, value) {
     editor.focus();
     if (!selectionInside(editor)) {
       const range = document.createRange();
       range.selectNodeContents(editor.lastElementChild || editor);
       range.collapse(false);
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
+      setSelection(range);
+    }
+    const block = activeBlock(editor);
+    const item = block && block.closest("li");
+    if (item && editor.contains(item)) {
+      const converted = rename(breakItemOut(item), value.toUpperCase());
+      selectForReplacement(converted);
+      sync(editor);
+      return;
     }
     document.execCommand("formatBlock", false, `<${value}>`);
     sync(editor);
+  }
+
+  /* Chrome's removeFormat clears emphasis but leaves a link standing, and an indent
+     on a paragraph becomes a blockquote, so clearing has to undo both as well. */
+  function clearFormatting(editor) {
+    const blocks = touchedBlocks(editor, selectionInside(editor));
+    document.execCommand("removeFormat");
+    blocks.forEach((block) => {
+      if (!editor.contains(block)) return;
+      block.querySelectorAll("a, strong, em").forEach((inline) => inline.replaceWith(...inline.childNodes));
+      if (block.tagName === "BLOCKQUOTE") block.replaceWith(...block.childNodes);
+      else if (block.tagName === "H3" || block.tagName === "H4") rename(block, "P");
+    });
+  }
+
+  /* Keeps the toolbar honest about the caret: pressed for the styles in force, and
+     Indent and Outdent off where they have nothing to act on. */
+  function refreshToolbar(bar, editor, format) {
+    const inside = Boolean(selectionInside(editor));
+    bar.querySelectorAll("[data-state]").forEach((tool) => {
+      let on = false;
+      if (inside) {
+        try {
+          on = document.queryCommandState(tool.dataset.state);
+        } catch (error) {
+          on = false;
+        }
+      }
+      tool.setAttribute("aria-pressed", String(Boolean(on)));
+    });
+    const block = activeBlock(editor);
+    const nestable = Boolean(block && block.closest("li, th, td"));
+    bar.querySelectorAll('[data-action="indent"], [data-action="outdent"]').forEach((tool) => {
+      tool.disabled = !nestable;
+    });
+    const styles = { P: "p", H3: "h3", H4: "h4", BLOCKQUOTE: "blockquote" };
+    if (block && styles[block.tagName]) format.value = styles[block.tagName];
   }
 
   function sync(editor) {
     editor.dispatchEvent(new CustomEvent("au-editor:sync"));
   }
 
-  function button(label, action, title) {
+  function button(label, action, title, state) {
     const node = document.createElement("button");
     node.type = "button";
     node.className = "au-editor-tool";
@@ -335,6 +443,10 @@
     node.textContent = label;
     node.setAttribute("aria-label", title || label);
     node.title = title || label;
+    if (state) {
+      node.dataset.state = state;
+      node.setAttribute("aria-pressed", "false");
+    }
     return node;
   }
 
@@ -387,8 +499,12 @@
     });
     bar.append(
       format,
-      button("• List", "insertUnorderedList"),
-      button("1. List", "insertOrderedList"),
+      button("Bold", "bold", "", "bold"),
+      button("Italic", "italic", "", "italic"),
+      button("• List", "insertUnorderedList", "", "insertUnorderedList"),
+      button("1. List", "insertOrderedList", "", "insertOrderedList"),
+      button("Indent", "indent"),
+      button("Outdent", "outdent"),
       button("Link", "link"),
       button("Unlink", "unlink"),
       button("Table", "table"),
@@ -397,6 +513,7 @@
       button("Col +", "add-column", "Add table column"),
       button("Col −", "remove-column", "Remove table column"),
       button("Image", "image"),
+      button("Clear formatting", "clear"),
     );
 
     const editor = document.createElement("div");
@@ -441,9 +558,17 @@
     });
     host.closest("form")?.addEventListener("submit", () => sync(editor));
 
+    /* The toolbar describes the caret, so it has to follow every cursor move. */
+    const refresh = () => {
+      const anchor = window.getSelection()?.anchorNode;
+      if (anchor && editor.contains(anchor)) refreshToolbar(bar, editor, format);
+    };
+    document.addEventListener("selectionchange", refresh);
+    editor.addEventListener("focus", refresh);
+
     format.addEventListener("change", () => {
       applyFormat(editor, format.value);
-      format.value = "p";
+      refreshToolbar(bar, editor, format);
     });
 
     // Toolbar buttons must not steal the editor selection before a list or
@@ -477,8 +602,15 @@
         createLink(editor, status);
         return;
       }
+      if (action === "clear") {
+        clearFormatting(editor);
+        sync(editor);
+        refreshToolbar(bar, editor, format);
+        return;
+      }
       document.execCommand(action);
       sync(editor);
+      refreshToolbar(bar, editor, format);
     });
   }
 

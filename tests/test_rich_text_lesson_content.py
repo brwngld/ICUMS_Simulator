@@ -224,3 +224,11 @@ def test_a_written_section_clears_the_teaching_content_blocker(client, draft_les
     review = client.get(reverse("course-review", args=[draft_lesson["version"].pk])).content.decode()
     assert "Add teaching content to" not in review
 
+
+def test_ordered_lists_are_preserved_for_learner_rendering():
+    from learning.rich_text import to_safe_html
+
+    rendered = to_safe_html("<ol><li>Planning</li><li>Implementation</li></ol>")
+
+    assert rendered == "<ol><li>Planning</li><li>Implementation</li></ol>"
+
