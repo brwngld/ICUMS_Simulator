@@ -41,7 +41,8 @@ from .pdfs import build_bill_of_lading_pdf, build_commercial_document_pdf, build
 from assessment.service import compute_tax_preview
 from .services import available_actions, perform_action, practical_is_unlocked, record_hint, start_or_resume_attempt
 from .bindings import SIMULATOR_BINDING_ROUTES
-from .verification import record_step_open, verify_step
+from . import guides
+from .verification import mark_step_verified, record_step_open, verify_step
 from accounts.models import SimulatorCredential
 from django.utils.http import url_has_allowed_host_and_scheme
 
@@ -2952,6 +2953,16 @@ def scenario_check_step(request, attempt_id):
         return redirect("scenario-workspace", attempt_id=attempt.pk)
     result = verify_step(attempt, attempt.current_state)
     if result.passed:
+        # A pass is remembered against the step, and the step holds its actions
+        # until this record says it was earned.
+        mark_step_verified(attempt, attempt.current_state)
+    notice = guides.GuideNotice(kind="check", message=result.message, passed=result.passed)
+    if guides.wants_fragment(request):
+        return guides.fragment_response(request, attempt, notice)
+    if guides.came_from_panel(request):
+        guides.store_notice(request, attempt, kind=notice.kind, message=notice.message, passed=notice.passed)
+        return redirect(guides.return_url(attempt))
+    if result.passed:
         messages.success(request, result.message)
     else:
         messages.error(request, result.message)
@@ -2962,8 +2973,17 @@ def scenario_check_step(request, attempt_id):
 @simulator_access_required
 @require_POST
 def scenario_action(request, attempt_id, action_id):
-    attempt = get_object_or_404(ScenarioAttempt, pk=attempt_id, enrolment__student=request.user)
+    attempt = get_object_or_404(ScenarioAttempt.objects.select_related("current_state"), pk=attempt_id, enrolment__student=request.user)
     action = get_object_or_404(ScenarioActionDefinition, pk=action_id)
+    from_panel = guides.came_from_panel(request)
+    if guides.verification_outstanding(attempt):
+        # Asked of every request, not only the panel's: hiding a button is not
+        # enforcement, and the workspace posts to this same endpoint.
+        if from_panel:
+            guides.store_notice(request, attempt, kind="locked", message=guides.VERIFICATION_PENDING, passed=False)
+            return redirect(guides.return_url(attempt))
+        messages.error(request, guides.VERIFICATION_PENDING)
+        return redirect("scenario-workspace", attempt_id=attempt.pk)
     try:
         updated = perform_action(attempt, action)
     except ValidationError as exc:
@@ -2973,6 +2993,10 @@ def scenario_action(request, attempt_id, action_id):
         messages.success(request, action.success_feedback)
     if updated.status == ScenarioAttempt.Status.COMPLETED and hasattr(updated, "evaluation"):
         return redirect("practical-evaluation", evaluation_id=updated.evaluation.pk)
+    if from_panel:
+        # Keep the student on the simulator: the step they have just completed
+        # hands them the page for the next one, and the panel follows.
+        return redirect(guides.return_url(updated))
     return redirect("scenario-workspace", attempt_id=updated.pk)
 
 
@@ -2982,6 +3006,11 @@ def scenario_action(request, attempt_id, action_id):
 def scenario_hint(request, attempt_id):
     attempt = get_object_or_404(ScenarioAttempt.objects.select_related("current_state", "scenario_version"), pk=attempt_id, enrolment__student=request.user)
     hint = record_hint(attempt)
+    if guides.wants_fragment(request):
+        return guides.fragment_response(request, attempt, guides.GuideNotice(kind="hint", message=hint))
+    if guides.came_from_panel(request):
+        guides.store_notice(request, attempt, kind="hint", message=hint)
+        return redirect(guides.return_url(attempt))
     messages.info(request, hint)
     return redirect("scenario-workspace", attempt_id=attempt.pk)
 

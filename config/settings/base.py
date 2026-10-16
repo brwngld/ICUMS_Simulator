@@ -52,6 +52,7 @@ MIDDLEWARE = [
     "core.middleware.AdminSuperuserGateMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "scenarios.middleware.GuidedStepOpenMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -67,6 +68,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "accounts.context_processors.role_context",
                 "accounts.context_processors.simulator_review",
+                "scenarios.context_processors.guided_practical",
             ],
         },
     },

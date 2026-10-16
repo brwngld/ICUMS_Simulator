@@ -1,0 +1,45 @@
+{% comment %}
+The panel body: what the step asks for, and the engine's own answer to it.
+Replaced wholesale by the fetch in guide-panel.js, so it carries the result of
+the last check for that script to announce.
+{% endcomment %}
+<div class="guide-body" data-guide-body data-notice="{{ panel.notice.message }}" data-notice-tone="{{ panel.notice.tone }}">
+  <p class="dash-eyebrow">{{ panel.area }} · Guided practical</p>
+  <h2 class="guide-title">{{ panel.scenario_title }}</h2>
+  <p class="guide-step">Step {{ panel.step_number }} of {{ panel.step_total }} · {{ panel.state.label }}</p>
+  {% if panel.guidance %}<p class="guide-text">{{ panel.guidance }}</p>{% endif %}
+  {% if panel.task %}
+    <h3 class="guide-sub">Your task</h3>
+    <p class="guide-text">{{ panel.task }}</p>
+  {% endif %}
+  <div class="guide-actions">
+    <form method="post" action="{{ panel.check_url }}" data-guide-fetch>{% csrf_token %}
+      <input type="hidden" name="guide" value="1">
+      <button class="dash-primary" type="submit">Check my work</button>
+    </form>
+    {% if panel.shows_hint %}
+      <form method="post" action="{{ panel.hint_url }}" data-guide-fetch>{% csrf_token %}
+        <input type="hidden" name="guide" value="1">
+        <button class="dash-secondary" type="submit">Hint</button>
+      </form>
+    {% endif %}
+  </div>
+  {% if panel.verification_pending %}
+    <p class="guide-muted">The next step unlocks after a successful check.</p>
+  {% elif panel.actions %}
+    <h3 class="guide-sub">Available actions</h3>
+    <div class="guide-actions">
+      {% for action in panel.actions %}
+        <form method="post" action="{% url 'scenario-action' panel.attempt.pk action.pk %}">{% csrf_token %}
+          <input type="hidden" name="guide" value="1">
+          <button class="dash-primary" type="submit">{{ action.label }}</button>
+        </form>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <h3 class="guide-sub">Workflow</h3>
+  <ol class="dash-workflow-list">
+    {% for stage in panel.stages %}<li{% if stage.is_current %} aria-current="step"{% endif %}>{{ stage.label }}</li>{% endfor %}
+  </ol>
+  <p class="guide-foot"><a class="guide-link" href="{{ panel.workspace_url }}">Open the scenario workspace</a></p>
+</div>

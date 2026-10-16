@@ -16,6 +16,7 @@ the simulator stylesheets loaded below; the legacy simulator shell
   <script src="{% static 'js/theme.js' %}?v=20261015-1"></script>
   <link rel="stylesheet" href="{% static 'css/dash.css' %}?v=20261015-2">
   <link rel="stylesheet" href="{% static 'css/simulator-portal.css' %}?v=20261015-2">
+  <link rel="stylesheet" href="{% static 'css/guide-panel.css' %}?v=20261016-1">
   {% block page_css %}{% endblock %}
   <style>
     /* Keep the Unfold chrome's own colours and metrics where app.css and
@@ -67,9 +68,11 @@ the simulator stylesheets loaded below; the legacy simulator shell
   </nav>
   <div class="dash sim-page">
     <p class="dash-notice">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</p>
+    {% if guide_panel %}{% include "scenarios/_guide_panel.html" with panel=guide_panel %}{% endif %}
     {% if messages %}<div class="portal-messages" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
     <main id="main-content" class="portal-main" tabindex="-1">
       {% block simulator_content %}{% endblock %}
     </main>
   </div>
+  {% if guide_panel %}<script defer src="{% static 'js/guide-panel.js' %}?v=20261016-1"></script>{% endif %}
 {% endblock %}

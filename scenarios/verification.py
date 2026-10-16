@@ -9,7 +9,10 @@ opened the step (falling back to the attempt start), so unrelated
 pre-existing records cannot satisfy a new task.
 
 Verification reports pass/fail and feedback; it never advances the state
-machine — progression remains governed by the scenario's own actions.
+machine — progression remains governed by the scenario's own actions. What a
+successful check does leave behind is a timestamp, and a step that declares a
+task will not offer its actions until that timestamp exists, so the guided flow
+cannot be walked past the work it was set to test.
 """
 
 from dataclasses import dataclass
@@ -26,6 +29,9 @@ from .models import ScenarioAttempt
 #: checks by convention.
 STEP_OPEN_PREFIX = "_sim_open."
 
+#: Reserved namespace for the moment a step's task last verified successfully.
+STEP_VERIFIED_PREFIX = "_sim_verified."
+
 
 @dataclass
 class VerifyResult:
@@ -33,9 +39,18 @@ class VerifyResult:
     message: str
 
 
-def record_step_open(attempt, state):
-    """Store the moment the student opened this step's simulator page."""
-    key = f"{STEP_OPEN_PREFIX}{state.key}"
+def _moment_at(attempt, prefix, state):
+    raw = (attempt.state_data or {}).get(f"{prefix}{state.key}")
+    if not raw:
+        return None
+    try:
+        return timezone.datetime.fromisoformat(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _record_moment(attempt, prefix, state):
+    key = f"{prefix}{state.key}"
     with transaction.atomic():
         locked = ScenarioAttempt.objects.select_for_update().get(pk=attempt.pk)
         locked.state_data[key] = timezone.now().isoformat()
@@ -43,14 +58,32 @@ def record_step_open(attempt, state):
         attempt.state_data = dict(locked.state_data)
 
 
+def record_step_open(attempt, state):
+    """Store the moment the student opened this step's simulator page."""
+    _record_moment(attempt, STEP_OPEN_PREFIX, state)
+
+
 def step_opened_at(attempt, state):
-    raw = (attempt.state_data or {}).get(f"{STEP_OPEN_PREFIX}{state.key}")
-    if not raw:
-        return None
-    try:
-        return timezone.datetime.fromisoformat(raw)
-    except (TypeError, ValueError):
-        return None
+    return _moment_at(attempt, STEP_OPEN_PREFIX, state)
+
+
+def step_verification_required(state):
+    """Whether this step declares a simulator task worth gating progress on.
+
+    A step with no verification, or one an instructor has misconfigured, asks
+    for nothing: its own actions stay available so the scenario cannot stall.
+    """
+    spec = (state.binding if isinstance(state.binding, dict) else {}).get("verify")
+    return isinstance(spec, dict) and str(spec.get("record") or "") in VERIFY_RECORDS and bool(str(spec.get("status") or ""))
+
+
+def mark_step_verified(attempt, state):
+    """Store the moment this step's task last verified successfully."""
+    _record_moment(attempt, STEP_VERIFIED_PREFIX, state)
+
+
+def step_verified_at(attempt, state):
+    return _moment_at(attempt, STEP_VERIFIED_PREFIX, state)
 
 
 def _latest_activity(record):

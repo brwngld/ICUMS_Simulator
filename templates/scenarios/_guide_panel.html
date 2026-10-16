@@ -1,0 +1,16 @@
+{% comment %}
+The guided-practice step that travels with the student into the simulator.
+Rendered only when the student's own in-progress attempt points at this page:
+the workspace keeps its own, fuller layout and ordinary sandbox use shows
+nothing at all.
+{% endcomment %}
+<aside class="dash guide" aria-labelledby="guide-panel-title">
+  <details class="guide-shell" open>
+    <summary class="guide-bar">
+      <span class="guide-bar-label" id="guide-panel-title">Theory &amp; Guide</span>
+      <span class="guide-bar-step">{{ panel.collapsed_summary }}</span>
+    </summary>
+    <p class="guide-feedback" data-guide-feedback role="status" data-tone="{{ panel.notice.tone }}">{{ panel.notice.message }}</p>
+    {% include "scenarios/_guide_panel_body.html" with panel=panel %}
+  </details>
+</aside>

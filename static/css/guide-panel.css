@@ -1,0 +1,75 @@
+/*
+  Guide panel — the collapsible theory & practical step shown on the simulator
+  page a guided step points at.
+
+  Layout only. Every colour, font and radius comes from the dash tokens that
+  dash.css defines on .dash, so the panel follows the theme and its dark mode
+  without adding any of its own values.
+*/
+
+.guide {
+  position: sticky;
+  top: .75rem;
+  z-index: 30;
+  align-self: flex-end;
+  width: min(24rem, 100%);
+  margin: 0;
+}
+
+.guide-shell {
+  border: 1px solid var(--d-border);
+  border-radius: .75rem;
+  background: var(--d-card-bg);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .10);
+}
+
+.guide-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .7rem .9rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.guide-bar::-webkit-details-marker { display: none; }
+.guide-bar:focus-visible { outline: 2px solid var(--d-accent); outline-offset: 2px; border-radius: .5rem; }
+.guide-bar-label { color: var(--d-accent); font-size: .78rem; font-weight: 700; }
+.guide-bar-step { color: var(--d-muted); font-size: .72rem; }
+
+.guide-body {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: 0 .9rem .9rem;
+}
+
+.guide-title { margin: 0; font-size: .95rem; }
+.guide-step { margin: 0; color: var(--d-muted); font-size: .72rem; }
+.guide-text { margin: 0; font-size: .78rem; line-height: 1.55; }
+.guide-sub { margin: .5rem 0 0; color: var(--d-accent); font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.guide-muted { margin: 0; color: var(--d-muted); font-size: .72rem; }
+.guide-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0; }
+.guide-actions form { display: contents; }
+.guide-foot { margin: .5rem 0 0; padding-top: .5rem; border-top: 1px solid var(--d-border); }
+.guide-link { color: var(--d-accent); font-size: .74rem; font-weight: 650; }
+
+.guide-feedback {
+  margin: 0;
+  padding: .55rem .9rem;
+  font-size: .76rem;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--d-accent) 10%, transparent);
+}
+
+.guide-feedback[data-tone="pass"] { background: color-mix(in srgb, var(--color-success-600, #059669) 14%, transparent); }
+.guide-feedback[data-tone="fail"] { background: color-mix(in srgb, #dc2626 12%, transparent); }
+.guide-feedback:empty { display: none; }
+
+.guide .dash-workflow-list { padding-left: 1.1rem; }
+
+@media (max-width: 60rem) {
+  .guide { position: static; width: 100%; align-self: auto; }
+  .guide-actions .dash-primary, .guide-actions .dash-secondary { flex: 1 1 auto; }
+}
