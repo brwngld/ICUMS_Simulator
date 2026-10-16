@@ -49,7 +49,9 @@ class CourseBuilderTests(TestCase):
             },
         )
         lesson = Lesson.objects.get(module=module)
-        self.assertRedirects(response, f'{reverse("lesson-edit", args=[lesson.pk])}?tab=details')
+        # The popup creates the draft and returns to the module lessons list; the
+        # tabbed editor is opened from there.
+        self.assertRedirects(response, f'{reverse("module-edit", args=[module.pk])}?tab=lessons')
         self.assertEqual(lesson.blocks.count(), 0)
         self.assertEqual(lesson.knowledge_checks.count(), 0)
 
