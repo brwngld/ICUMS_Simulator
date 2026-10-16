@@ -51,7 +51,7 @@ class ProgrammeCourseForm(forms.Form):
     )
     difficulty = forms.ChoiceField(
         required=False,
-        choices=[("", "— Select difficulty —")] + list(Programme.Difficulty.choices),
+        choices=[("", "— Select difficulty —")] + list(Programme.Difficulty.ladder_choices()),
         label="Difficulty level",
         help_text="Places the course on the roadmap ladder. Learners reach it once the level below is finished; a course with no level stays open straight away.",
     )
@@ -185,7 +185,7 @@ class ModuleEditForm(forms.Form):
     )
     difficulty = forms.ChoiceField(
         required=False,
-        choices=[("", "— Select difficulty —")] + list(Programme.Difficulty.choices),
+        choices=[("", "— Select difficulty —")] + list(Programme.Difficulty.ladder_choices()),
         label="Difficulty level",
         help_text="Optional badge shown on the learner module overview and course overview.",
     )

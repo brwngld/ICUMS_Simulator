@@ -7,7 +7,7 @@ from progress.models import LessonProgress, ModuleProgress
 from .models import Lesson
 
 # The five levels in teaching order, straight from the shared choices list.
-DIFFICULTY_LEVELS = [value for value, _label in Programme.Difficulty.choices]
+DIFFICULTY_LEVELS = [value for value, _label in Programme.Difficulty.ladder_choices()]
 LEVEL_LABELS = dict(Programme.Difficulty.choices)
 # The four words a learner sees on a difficulty level; every one already
 # labels a progress or assessment state elsewhere in the product.

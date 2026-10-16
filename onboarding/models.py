@@ -13,6 +13,15 @@ class Programme(models.Model):
         ADVANCED = "advanced", "Advanced"
         BEGINNER_ADVANCED = "beginner-advanced", "Beginner to Advanced"
 
+        @classmethod
+        def ladder_choices(cls):
+            """The five levels a learner climbs, in order.
+
+            ``beginner-advanced`` describes a whole main course rather than one rung,
+            so it is left out here and stays available on the main-course badge.
+            """
+            return [choice for choice in cls.choices if choice[0] != cls.BEGINNER_ADVANCED]
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=150)
     code = models.SlugField(max_length=50, unique=True)

@@ -24,7 +24,7 @@ class Course(models.Model):
     )
     difficulty = models.CharField(
         max_length=30,
-        choices=Programme.Difficulty.choices,
+        choices=Programme.Difficulty.ladder_choices(),
         blank=True,
         help_text="One of the five levels. A level unlocks when every required course above it is complete; a course without a level stays available straight away.",
     )
@@ -59,7 +59,7 @@ class Module(models.Model):
     description = models.TextField(blank=True)
     difficulty = models.CharField(
         max_length=30,
-        choices=Programme.Difficulty.choices,
+        choices=Programme.Difficulty.ladder_choices(),
         blank=True,
         help_text="Optional level for this module. Shown as a badge on the learner module and course overviews. Uses the same five levels as the course.",
     )

@@ -122,10 +122,12 @@ def test_module_editor_offers_the_five_course_difficulty_levels(client, instruct
     client.force_login(instructor)
     response = client.get(reverse("module-edit", args=[draft_course["module_a"].pk]))
     page = response.content.decode()
-    for value, label in Programme.Difficulty.choices:
+    for value, label in Programme.Difficulty.ladder_choices():
         assert f'value="{value}"' in page
         assert label in page
     assert 'value="advanced"' in page
+    # "Beginner to Advanced" describes a whole main course, so it is not a ladder rung.
+    assert 'value="beginner-advanced"' not in page
     assert page.count('name="difficulty"') == 1
 
 
