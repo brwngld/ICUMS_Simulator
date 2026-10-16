@@ -54,6 +54,21 @@ used the ordered helper. SQLite agreed with the roadmap; PostgreSQL can return a
 different row, so the "Continue your learning" card could describe one programme
 while `/theory/` showed another.
 
+## Decided
+
+Four points stayed open while the architecture was frozen; these are the answers
+Bernard gave before the work started.
+
+- **How a request knows which programme is meant** — `?programme=<code>` on the
+  link, not a path segment and not session state.
+- **What the dashboard does** — keeps the next-action card and adds a compact
+  list of programmes underneath it.
+- **Orientation** — stays per enrolment, so a learner re-orients for each
+  programme they open.
+- **The new page** — "My programmes", subheading "Every programme you are
+  enrolled in, with where you left off.", one row per programme reading
+  "N of M modules complete" with an "Open roadmap →" link.
+
 ## Rejected
 
 *One active enrolment at a time* — contradicts how instructors actually use admin,
