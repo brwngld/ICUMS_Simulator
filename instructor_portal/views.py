@@ -36,7 +36,7 @@ from progress.models import LessonProgress
 
 from evaluations.models import Rubric, RubricCriterion, RubricVersion
 from reports.models import CompletionPolicy
-from scenarios.models import Scenario, ScenarioActionDefinition, ScenarioState, ScenarioVersion
+from scenarios.models import Scenario, ScenarioActionDefinition, ScenarioDocument, ScenarioState, ScenarioVersion
 from accounts.models import SimulatorCredential
 
 from .forms import (
@@ -53,6 +53,7 @@ from .forms import (
     PracticalCreateForm,
     PracticalEditForm,
     ProgrammeCourseForm,
+    ScenarioDocumentFormSet,
     ScenarioStateFormSet,
 )
 
@@ -836,6 +837,23 @@ def practical_builder(request, module_id):
 
 
 @login_required
+def practical_builder_index(request):
+    _require_instructor(request.user)
+    practicals = ScenarioVersion.objects.select_related(
+        "scenario", "module__programme_version__programme"
+    ).prefetch_related("states", "documents").order_by("-module__programme_version__version", "scenario__title")
+    draft_modules = Module.objects.select_related("programme_version__programme").filter(
+        programme_version__status=ProgrammeVersion.Status.DRAFT
+    ).order_by("programme_version__programme__name", "order", "title")
+    return render_student_page(request, "instructor_portal/practical_builder_index.html", {
+        "practicals": practicals,
+        "draft_modules": draft_modules,
+        "draft_count": practicals.filter(status=ScenarioVersion.Status.DRAFT).count(),
+        "published_count": practicals.filter(status=ScenarioVersion.Status.PUBLISHED).count(),
+    })
+
+
+@login_required
 @transaction.atomic
 def practical_create(request, module_id):
     _require_instructor(request.user)
@@ -880,8 +898,8 @@ def practical_create(request, module_id):
     rubric = Rubric.objects.create(code=_unique_slug(Rubric, "code", f"{scenario.code}-rubric"), title=f"{scenario.title} Completion Rubric")
     rubric_version = RubricVersion.objects.create(rubric=rubric, version=1, scenario_version=practical, pass_percentage=70, is_demonstration=True)
     RubricCriterion.objects.create(rubric_version=rubric_version, code="complete-flow", title="Complete the guided practical flow", dimension=RubricCriterion.Dimension.COMPLETION, maximum_points=100, mandatory=True, evaluation_rule={"type": "completion"}, order=1)
-    messages.success(request, "Guided practical flow created as a draft.")
-    return redirect("course-builder-detail", version_id=module.programme_version_id)
+    messages.success(request, "Guided practical flow created as a draft. Configure its stages and validation next.")
+    return redirect("practical-edit", scenario_version_id=practical.pk)
 
 
 @login_required
@@ -1530,26 +1548,108 @@ def practical_edit(request, scenario_version_id):
     practical_form = PracticalEditForm(
         request.POST or None,
         initial={
+            "title": practical.scenario.title,
+            "area": practical.scenario.area,
             "briefing": practical.briefing,
             "learning_objective": practical.learning_objective,
             "assistance_mode": practical.assistance_mode,
             "maximum_attempts": practical.maximum_attempts,
+            "purpose": practical.purpose,
+            "reference_status": practical.reference_status,
         },
     )
-    state_formset = ScenarioStateFormSet(request.POST or None, queryset=practical.states.order_by("order"))
-    if request.method == "POST" and practical_form.is_valid() and state_formset.is_valid():
+    state_formset = ScenarioStateFormSet(
+        request.POST or None,
+        queryset=practical.states.filter(is_terminal=False).order_by("order"),
+    )
+    documents_submitted = request.method == "POST" and "documents-TOTAL_FORMS" in request.POST
+    document_formset = ScenarioDocumentFormSet(
+        request.POST if documents_submitted else None,
+        queryset=practical.documents.order_by("order", "title"),
+        prefix="documents",
+    )
+    forms_valid = practical_form.is_valid() and state_formset.is_valid() and (
+        document_formset.is_valid() if documents_submitted else True
+    )
+    remaining_states = [
+        form for form in state_formset.forms
+        if form.cleaned_data and not form.cleaned_data.get("DELETE") and form.cleaned_data.get("label")
+    ] if state_formset.is_valid() else []
+    if request.method == "POST" and forms_valid and not remaining_states:
+        state_formset._non_form_errors = state_formset.error_class(["Add at least one practical stage."])
+        forms_valid = False
+    if request.method == "POST" and forms_valid:
+        practical.scenario.title = practical_form.cleaned_data.get("title") or practical.scenario.title
+        practical.scenario.area = practical_form.cleaned_data.get("area") or practical.scenario.area
+        practical.scenario.save(update_fields=("title", "area"))
         practical.briefing = practical_form.cleaned_data["briefing"]
         practical.learning_objective = practical_form.cleaned_data["learning_objective"]
         practical.assistance_mode = practical_form.cleaned_data["assistance_mode"]
         practical.maximum_attempts = practical_form.cleaned_data["maximum_attempts"]
-        practical.save(update_fields=("briefing", "learning_objective", "assistance_mode", "maximum_attempts"))
-        state_formset.save()
+        practical.purpose = practical_form.cleaned_data.get("purpose") or practical.purpose
+        practical.reference_status = practical_form.cleaned_data.get("reference_status") or practical.reference_status
+        practical.save(update_fields=("briefing", "learning_objective", "assistance_mode", "maximum_attempts", "purpose", "reference_status"))
+
+        # Rebuild the linear transition graph after stage additions, removals,
+        # or reordering so the learner always follows the instructor's order.
+        practical.action_definitions.all().delete()
+        state_formset.save(commit=False)
+        for deleted in state_formset.deleted_objects:
+            deleted.delete()
+        ordered_states = []
+        for form in sorted(remaining_states, key=lambda item: item.cleaned_data.get("ORDER") or 9999):
+            state = form.save(commit=False)
+            state.scenario_version = practical
+            state.order = len(ordered_states) + 1
+            state.is_initial = state.order == 1
+            state.is_terminal = False
+            if not state.key:
+                state.key = f"step-{uuid4().hex[:10]}"
+            state.save()
+            ordered_states.append(state)
+        practical.states.filter(is_terminal=False).exclude(pk__in=[state.pk for state in ordered_states]).delete()
+        terminal = practical.states.filter(is_terminal=True).first()
+        if terminal is None:
+            terminal = ScenarioState.objects.create(
+                scenario_version=practical, key="complete", label="Practical complete",
+                guidance="The guided flow is complete.", is_terminal=True,
+            )
+        terminal.order = len(ordered_states) + 1
+        terminal.save(update_fields=("order",))
+        for order, state in enumerate(ordered_states, start=1):
+            target = ordered_states[order] if order < len(ordered_states) else terminal
+            ScenarioActionDefinition.objects.create(
+                scenario_version=practical,
+                code=f"complete-step-{order}",
+                label=state.label,
+                from_state=state,
+                to_state=target,
+                effects={f"step_{order}_completed": True},
+                success_feedback=f"{state.label} completed in the training flow.",
+                beginner_hint=f"The next guided action is: {state.label}.",
+                order=order,
+            )
+
+        if documents_submitted:
+            documents = document_formset.save(commit=False)
+            for deleted in document_formset.deleted_objects:
+                deleted.delete()
+            for document in documents:
+                document.scenario_version = practical
+                document.order = document.pk and document.order or practical.documents.count() + 1
+                document.save()
         messages.success(request, "Guided practical updated.")
-        return redirect("course-builder-detail", version_id=practical.module.programme_version_id)
+        return redirect("practical-edit", scenario_version_id=practical.pk)
     return render_student_page(
         request,
         "instructor_portal/practical_edit.html",
-        {"practical": practical, "practical_form": practical_form, "state_formset": state_formset, "state_count": practical.states.count()},
+        {
+            "practical": practical,
+            "practical_form": practical_form,
+            "state_formset": state_formset,
+            "document_formset": document_formset,
+            "state_count": practical.states.filter(is_terminal=False).count(),
+        },
     )
 
 

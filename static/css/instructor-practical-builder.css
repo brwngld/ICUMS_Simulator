@@ -1,0 +1,11 @@
+.authoring-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.9rem;padding-bottom:.7rem;border-bottom:1px solid var(--au-border)}
+.authoring-card-head h2{margin:0}
+.authoring-card-head p{margin:.2rem 0 0;color:var(--au-muted);font-size:.67rem;line-height:1.5}
+.authoring-form>.authoring-card{margin-bottom:.8rem}
+.practical-stage-card{align-items:start}
+.practical-stage-fields{min-width:0}
+.practical-stage-fields>div{margin-bottom:.7rem}
+.authoring-assessment-tabs a{display:flex;align-items:center;justify-content:center;gap:.5rem}
+.authoring-aside .authoring-form{display:grid;gap:.45rem}
+.authoring-aside .authoring-form .authoring-secondary{justify-content:flex-start;text-align:left}
+@media(max-width:40rem){.authoring-card-head{align-items:flex-start;flex-direction:column}.practical-stage-fields{grid-column:2/-1}.authoring-form .form-columns{grid-template-columns:1fr}}

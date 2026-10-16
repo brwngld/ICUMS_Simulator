@@ -27,6 +27,7 @@ urlpatterns = [
     path("modules/<uuid:module_id>/lessons/new/", views.lesson_builder, name="lesson-builder"),
     path("modules/<uuid:module_id>/lessons/create/", views.lesson_create, name="lesson-create"),
     path("modules/<uuid:module_id>/practicals/new/", views.practical_builder, name="practical-builder"),
+    path("practicals/", views.practical_builder_index, name="practical-builder-index"),
     path("lessons/<uuid:lesson_id>/edit/", views.lesson_edit, name="lesson-edit"),
     path("lessons/<uuid:lesson_id>/sections/add/", views.lesson_section_add, name="lesson-section-add"),
     path("lessons/<uuid:lesson_id>/sections/<uuid:block_id>/move/", views.lesson_section_move, name="lesson-section-move"),

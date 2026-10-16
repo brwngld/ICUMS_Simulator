@@ -1,0 +1,50 @@
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}Practical/Theory builder · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Practical/Theory builder{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-8"><link rel="stylesheet" href="{% static 'css/instructor-practical-builder.css' %}?v=20261015-1">{% endblock %}
+{% block content %}
+<div class="authoring">
+  <header class="authoring-head">
+    <div><p class="authoring-eyebrow">Instructor · Practical training</p><h1>Practical/Theory Builder</h1><p>Create guided simulator exercises, bind their stages to ICUMS pages, and define the records students must produce.</p></div>
+    <div class="authoring-actions"><a class="authoring-secondary" href="{% url 'course-builder' %}?path=theory">Theory builder</a></div>
+  </header>
+
+  <div class="authoring-progress"><span class="complete">1 Create exercise</span><span>2 Configure stages</span><span>3 Add training documents</span><span>4 Bind simulator checks</span><span>5 Preview and publish</span></div>
+
+  <div class="authoring-layout">
+    <main>
+      <div class="authoring-head"><div><h2>Practical exercises</h2><p>Draft and published activities across your training courses.</p></div></div>
+      <div class="authoring-module-list">
+        {% for practical in practicals %}
+          <article class="authoring-module">
+            <span class="authoring-module-number">{{ forloop.counter }}</span>
+            <div>
+              <h3>{{ practical.scenario.title }}</h3>
+              <p>{{ practical.module.programme_version.programme.name }} · {{ practical.module.title }}</p>
+              <span class="authoring-status{% if practical.status == 'published' %} authoring-status--published{% endif %}">{{ practical.get_status_display }}</span>
+            </div>
+            <div class="authoring-module-tools">
+              {% if practical.module.programme_version.status == 'draft' %}<a class="authoring-primary" href="{% url 'practical-edit' practical.pk %}">Edit exercise</a>{% endif %}
+              <a class="authoring-secondary" href="{% url 'practical-preview' practical.pk %}">Student preview</a>
+            </div>
+            <div class="authoring-lesson-list">
+              <div class="authoring-lesson"><span><strong>{{ practical.states.count }} stages</strong> · {{ practical.documents.count }} training document{{ practical.documents.count|pluralize }}</span><div><span>{{ practical.get_assistance_mode_display }}</span></div></div>
+            </div>
+          </article>
+        {% empty %}
+          <div class="authoring-card authoring-empty">No practical exercises yet. Choose a draft module to create the first one.</div>
+        {% endfor %}
+      </div>
+    </main>
+
+    <aside class="authoring-aside">
+      <section class="authoring-card"><h2>Create an exercise</h2><p>Choose the theory module that this practical activity reinforces.</p>
+        <div class="authoring-form">
+          {% for module in draft_modules %}<a class="authoring-secondary" href="{% url 'practical-builder' module.pk %}">+ {{ module.programme_version.programme.name }} · {{ module.title }}</a>{% empty %}<p class="authoring-empty">Create a draft course and module before adding a practical exercise.</p>{% endfor %}
+        </div>
+      </section>
+      <section class="authoring-card"><h2>Builder summary</h2><dl class="authoring-facts"><div><dt>Drafts</dt><dd>{{ draft_count }}</dd></div><div><dt>Published</dt><dd>{{ published_count }}</dd></div><div><dt>Validation</dt><dd>Simulator records</dd></div></dl></section>
+    </aside>
+  </div>
+</div>
+{% endblock %}

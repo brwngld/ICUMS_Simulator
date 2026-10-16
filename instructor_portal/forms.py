@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 
 from assessments.models import AnswerOption, AssessmentItem, Question, QuestionVersion
 from learning.models import ContentBlock, Course, Module
-from scenarios.models import ScenarioState
+from scenarios.models import ScenarioDocument, ScenarioState, ScenarioVersion
 from onboarding.models import Programme, ProgrammeVersion
 
 
@@ -345,12 +345,16 @@ class LessonCheckEditForm(forms.Form):
 
 
 class PracticalEditForm(forms.Form):
+    title = forms.CharField(required=False, max_length=180, label="Practical title")
+    area = forms.ChoiceField(required=False, choices=(("import", "Import"), ("export", "Export"), ("transit", "Transit"), ("warehouse", "Warehouse")))
     briefing = forms.CharField(widget=forms.Textarea(attrs={"rows": 4}), help_text="Describe the fictional task and starting situation.")
     learning_objective = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
     assistance_mode = forms.ChoiceField(
         choices=(("beginner", "Beginner with guidance"), ("intermediate", "Intermediate with limited guidance"), ("advanced", "Advanced without hints"))
     )
     maximum_attempts = forms.IntegerField(required=False, min_value=1, initial=3)
+    purpose = forms.ChoiceField(required=False, choices=ScenarioVersion.Purpose.choices, label="Training mode")
+    reference_status = forms.ChoiceField(required=False, choices=ScenarioVersion.ReferenceStatus.choices, label="Reference confidence")
 
 
 class ScenarioStateForm(forms.ModelForm):
@@ -369,6 +373,12 @@ class ScenarioStateForm(forms.ModelForm):
         required=False,
         label="Verified record and status",
         help_text="What “Check my work” looks for in the student's simulator records.",
+    )
+    binding_expected_fields = forms.JSONField(
+        required=False,
+        label="Expected saved values",
+        help_text='Optional JSON object of model fields and required values, for example {"regime": "IM", "goods_description": "HOUSEHOLD GOODS"}.',
+        widget=forms.Textarea(attrs={"rows": 4, "placeholder": '{"field_name": "expected value"}'}),
     )
 
     class Meta:
@@ -389,6 +399,7 @@ class ScenarioStateForm(forms.ModelForm):
             verify = binding.get("verify") or {}
             if verify.get("record") and verify.get("status"):
                 self.fields["binding_verify"].initial = f"{verify['record']}:{verify['status']}"
+                self.fields["binding_expected_fields"].initial = verify.get("fields", {})
 
     def clean(self):
         cleaned = super().clean()
@@ -397,6 +408,7 @@ class ScenarioStateForm(forms.ModelForm):
         route = cleaned.get("binding_route") or ""
         task = (cleaned.get("binding_task") or "").strip()
         verify_value = cleaned.get("binding_verify") or ""
+        expected_fields = cleaned.get("binding_expected_fields") or {}
         if not route and not task and not verify_value:
             self._binding = {}
             return cleaned
@@ -404,6 +416,8 @@ class ScenarioStateForm(forms.ModelForm):
         if verify_value and ":" in verify_value:
             record, status = verify_value.split(":", 1)
             binding["verify"] = {"record": record, "status": status}
+            if expected_fields:
+                binding["verify"]["fields"] = expected_fields
         try:
             self._binding = validate_binding(binding)
         except ValidationError as exc:
@@ -423,7 +437,31 @@ class ScenarioStateForm(forms.ModelForm):
 ScenarioStateFormSet = forms.modelformset_factory(
     ScenarioState,
     form=ScenarioStateForm,
-    extra=0,
+    extra=1,
+    can_delete=True,
+    can_order=True,
+)
+
+
+class ScenarioDocumentForm(forms.ModelForm):
+    class Meta:
+        model = ScenarioDocument
+        fields = ("title", "document_type", "reference", "pdf_layout", "learner_data", "evaluator_data")
+        widgets = {
+            "learner_data": forms.Textarea(attrs={"rows": 5}),
+            "evaluator_data": forms.Textarea(attrs={"rows": 5}),
+        }
+        help_texts = {
+            "learner_data": "JSON data visible to the student in the generated training document.",
+            "evaluator_data": "JSON answer-key data reserved for validation and instructor review.",
+        }
+
+
+ScenarioDocumentFormSet = forms.modelformset_factory(
+    ScenarioDocument,
+    form=ScenarioDocumentForm,
+    extra=1,
+    can_delete=True,
 )
 
 

@@ -122,8 +122,8 @@ class CourseBuilderTests(TestCase):
                 "steps": "Review the documents\nCreate the BOE\nSubmit the declaration",
             },
         )
-        self.assertRedirects(response, reverse("course-builder-detail", args=[version.pk]))
         practical = ScenarioVersion.objects.get(module=module)
+        self.assertRedirects(response, reverse("practical-edit", args=[practical.pk]))
         self.assertEqual(practical.status, ScenarioVersion.Status.DRAFT)
         self.assertEqual(practical.states.count(), 4)
         self.assertEqual(practical.action_definitions.count(), 3)

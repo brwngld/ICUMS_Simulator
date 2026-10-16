@@ -337,7 +337,7 @@ def _student_navigation(request):
                 "items": [
                     {"title": "Instructor", "icon": "users", "icon_template": "core/nav_icons/instructor.html", "link": reverse("instructor-dashboard")},
                     {"title": "Theory builder", "icon": "edit_note", "icon_template": "core/nav_icons/theory_builder.html", "link": reverse("course-builder") + "?path=theory"},
-                    {"title": "Practical/Theory builder", "icon": "layers", "icon_template": "core/nav_icons/practical_builder.html", "link": reverse("course-builder") + "?path=combined"},
+                    {"title": "Practical/Theory builder", "icon": "layers", "icon_template": "core/nav_icons/practical_builder.html", "link": reverse("practical-builder-index")},
                 ],
             }
         )
@@ -463,9 +463,13 @@ _BREADCRUMB_BUILDERS = {
     ],
     "practical-builder": lambda ctx: [
         _instructor_crumb(),
-        _crumb("Course builder", "/instructor/courses/"),
+        _crumb("Practical/Theory builder", "/instructor/practicals/"),
         _crumb(ctx["module"].programme_version.programme.name, f"/instructor/courses/{ctx['module'].programme_version_id}/"),
         _crumb("Create a guided practical"),
+    ],
+    "practical-builder-index": lambda ctx: [
+        _instructor_crumb(),
+        _crumb("Practical/Theory builder"),
     ],
     "simulator-credential-issue": lambda ctx: [
         _instructor_crumb(),

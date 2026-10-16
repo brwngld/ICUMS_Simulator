@@ -99,6 +99,30 @@ def _submitted_ucr(owner, temp_no):
     )
 
 
+@pytest.mark.django_db
+def test_step_verification_can_require_exact_saved_values(guided):
+    state = guided.version.states.get(key="declare")
+    state.binding = validate_binding({
+        "route": "single-window-create-ucr",
+        "task": "Submit the assigned import UCR",
+        "verify": {
+            "record": "ucr",
+            "status": "submitted",
+            "fields": {"regime": "IM", "goods_description": "HOUSEHOLD GOODS"},
+        },
+    })
+    state.save(update_fields=("binding",))
+    record = _submitted_ucr(guided.user, "TEMPUCR2699000042")
+
+    mismatch = verify_step(guided.attempt, state)
+    assert mismatch.passed is False
+    assert "saved values" in mismatch.message
+
+    record.goods_description = "HOUSEHOLD GOODS"
+    record.save(update_fields=("goods_description", "updated_at"))
+    assert verify_step(guided.attempt, state).passed is True
+
+
 # --- binding validation ----------------------------------------------------
 
 

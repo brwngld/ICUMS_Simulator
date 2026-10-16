@@ -380,6 +380,36 @@ def test_practical_edit_updates_content_and_states(client, instructor, draft_cou
 
 
 @pytest.mark.django_db
+def test_practical_builder_has_its_own_instructor_workspace(client, instructor, draft_course):
+    scenario = Scenario.objects.create(code="workspace-practical", title="Create a UCR", area="import")
+    practical = ScenarioVersion.objects.create(
+        scenario=scenario,
+        module=draft_course["module_a"],
+        version=1,
+        assistance_mode="beginner",
+        briefing="Create a fictional UCR.",
+        learning_objective="Complete the UCR workflow.",
+    )
+    ScenarioState.objects.create(
+        scenario_version=practical,
+        key="step-1",
+        label="Save the UCR draft",
+        order=1,
+        is_initial=True,
+    )
+    client.force_login(instructor)
+
+    response = client.get(reverse("practical-builder-index"))
+    html = response.content.decode()
+
+    assert response.status_code == 200
+    assert "Practical/Theory Builder" in html
+    assert "Create a UCR" in html
+    assert reverse("practical-edit", args=[practical.pk]) in html
+    assert reverse("practical-builder", args=[draft_course["module_a"].pk]) in html
+
+
+@pytest.mark.django_db
 def test_edit_views_are_instructor_only(client, student_client_factory=None):
     from django.test import Client
 

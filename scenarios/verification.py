@@ -83,7 +83,8 @@ def verify_step(attempt, state):
     if not owned.exists():
         return VerifyResult(False, f"No {record_label} records exist for your account yet. Complete the task in the simulator, then check again.")
 
-    matching = owned.filter(status=required_status)
+    expected_fields = spec.get("fields") if isinstance(spec.get("fields"), dict) else {}
+    matching = owned.filter(status=required_status, **expected_fields)
     if matching.exists():
         fresh = [record for record in matching if (_latest_activity(record) or record.created_at) >= bound]
         if fresh:
@@ -93,6 +94,14 @@ def verify_step(attempt, state):
             False,
             f"Your {record_label} records with status “{required_display}” all predate this task. "
             "Complete the task now, then check again.",
+        )
+
+    status_matches = owned.filter(status=required_status)
+    if expected_fields and status_matches.exists():
+        return VerifyResult(
+            False,
+            f"Your {record_label} has the required status, but one or more saved values do not match this task. "
+            "Review the training data, correct the record, then check again.",
         )
 
     latest = owned.order_by("-created_at").first()

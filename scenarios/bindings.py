@@ -87,5 +87,19 @@ def validate_binding(binding):
         valid_statuses = {value for value, _display in _status_choices(model)}
         if status not in valid_statuses:
             raise ValidationError("Choose a valid status for the verified record.")
+        expected_fields = verify.get("fields") or {}
+        if not isinstance(expected_fields, dict):
+            raise ValidationError("Expected saved values must be a JSON object.")
+        allowed_fields = {
+            field.name for field in model._meta.fields
+            if not field.is_relation and field.name not in {"id", "status", "created_at", "updated_at", "submitted_at"}
+        }
+        unknown_fields = sorted(set(expected_fields) - allowed_fields)
+        if unknown_fields:
+            raise ValidationError("Unknown saved-value field(s): " + ", ".join(unknown_fields) + ".")
+        if any(isinstance(value, (dict, list)) for value in expected_fields.values()):
+            raise ValidationError("Expected saved values must contain only text, numbers, booleans, or null.")
         result["verify"] = {"record": record, "status": status}
+        if expected_fields:
+            result["verify"]["fields"] = expected_fields
     return result
