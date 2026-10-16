@@ -135,7 +135,7 @@ def test_complete_authoring_publish_and_progression_workflow(client, instructor,
     assert (module_one.order, module_two.order) == (1, 2)
 
     # ---- 5. add lessons to the correct modules -----------------------------------
-    def build_lesson(module, slug, title):
+    def build_lesson(module, title):
         new_lesson_url = reverse("lesson-builder", args=[module.pk])
         token = csrf_from(client.get(new_lesson_url))
         response = client.post(
@@ -144,22 +144,55 @@ def test_complete_authoring_publish_and_progression_workflow(client, instructor,
                 "csrfmiddlewaretoken": token,
                 "title": title,
                 "summary": f"{title} summary",
-                "concept_heading": "Key concept",
-                "concept_body": f"{title} teaching body",
-                "question_prompt": f"{title} check?",
-                "correct_answer": "Correct answer",
-                "incorrect_answer_1": "Wrong one",
-                "incorrect_answer_2": "Wrong two",
+                "objectives": f"{title} objective",
+                "key_terms": "Term :: definition",
+            },
+        )
+        assert response.status_code == 302
+        lesson = Lesson.objects.get(module=module, title=title)
+        # creation only opens the tabbed editor: the teaching section and the
+        # knowledge check are added there, the way an instructor now does it
+        client.post(reverse("lesson-section-add", args=[lesson.pk]), {"kind": "text"})
+        block = lesson.blocks.get()
+        response = client.post(
+            reverse("lesson-edit", args=[lesson.pk]),
+            {
+                "title": title,
+                "summary": f"{title} summary",
+                "objectives": f"{title} objective",
+                "key_terms": "Term :: definition",
+                "form-TOTAL_FORMS": "1",
+                "form-INITIAL_FORMS": "1",
+                "form-MIN_NUM_FORMS": "0",
+                "form-MAX_NUM_FORMS": "1000",
+                "form-0-id": str(block.pk),
+                "form-0-heading": "Key concept",
+                "form-0-body": f"{title} teaching body",
+            },
+        )
+        assert response.status_code == 302
+        practice_url = reverse("lesson-practice-add", args=[lesson.pk])
+        response = client.post(
+            practice_url,
+            {
+                "csrfmiddlewaretoken": csrf_from(client.get(practice_url)),
+                "prompt": f"{title} check?",
+                "points": "1",
                 "explanation": "Because.",
+                "option_1": "Correct answer",
+                "option_2": "Wrong one",
+                "option_3": "Wrong two",
+                "option_4": "",
+                "correct_position": "1",
                 # add_to_assessment unchecked: assessments are managed in stage 3
             },
         )
         assert response.status_code == 302
-        return Lesson.objects.get(module=module, slug=slug if False else Lesson.objects.filter(module=module, title=title).get().slug)
+        return lesson
 
-    lesson_one = build_lesson(module_one, "lesson-one", "Lesson One")
+    lesson_one = build_lesson(module_one, "Lesson One")
     assert lesson_one.module_id == module_one.pk
-    lesson_two = build_lesson(module_two, "lesson-two", "Lesson Two")
+    lesson_two = build_lesson(module_two, "Lesson Two")
     assert lesson_two.module_id == module_two.pk
 
     # ---- 6. edit lesson content, reading sections, and knowledge checks ----------
@@ -188,7 +221,7 @@ def test_complete_authoring_publish_and_progression_workflow(client, instructor,
     assert check.question_version.prompt == "Edited check?"
 
     # ---- 7. reorder lessons and confirm the saved order ---------------------------
-    extra_lesson = build_lesson(module_one, "lesson-one-b", "Lesson One B")
+    extra_lesson = build_lesson(module_one, "Lesson One B")
     client.post(reverse("lesson-move", args=[extra_lesson.pk]), {"direction": "up"})
     assert [lesson.title for lesson in module_one.lessons.order_by("order")] == ["Lesson One B", "Lesson One (edited)"]
     client.post(reverse("lesson-move", args=[extra_lesson.pk]), {"direction": "down"})
@@ -451,10 +484,22 @@ def test_failed_publish_leaves_a_consistent_draft(client, instructor, disclaimer
     token = csrf_from(client.get(lesson_url))
     client.post(reverse("lesson-create", args=[module.pk]), {
         "csrfmiddlewaretoken": token, "title": "SL", "summary": "s",
-        "concept_heading": "h", "concept_body": "b",
-        "question_prompt": "q?", "correct_answer": "c", "incorrect_answer_1": "w",
-        "incorrect_answer_2": "w2",
-        "explanation": "e",
+        "objectives": "o", "key_terms": "t",
+    })
+    lesson = module.lessons.get()
+    client.post(reverse("lesson-section-add", args=[lesson.pk]), {"kind": "text"})
+    block = lesson.blocks.get()
+    client.post(reverse("lesson-edit", args=[lesson.pk]), {
+        "title": "SL", "summary": "s",
+        "form-TOTAL_FORMS": "1", "form-INITIAL_FORMS": "1", "form-MIN_NUM_FORMS": "0", "form-MAX_NUM_FORMS": "1000",
+        "form-0-id": str(block.pk), "form-0-heading": "h", "form-0-body": "b",
+    })
+    practice_url = reverse("lesson-practice-add", args=[lesson.pk])
+    client.post(practice_url, {
+        "csrfmiddlewaretoken": csrf_from(client.get(practice_url)),
+        "prompt": "q?", "points": "1", "explanation": "e",
+        "option_1": "c", "option_2": "w", "option_3": "w2", "option_4": "",
+        "correct_position": "1",
     })
     client.post(reverse("assessment-question-add", args=[assessment.pk]), {
         "csrfmiddlewaretoken": csrf_from(client.get(reverse("assessment-question-add", args=[assessment.pk]))),
@@ -495,9 +540,7 @@ def test_authoring_endpoints_enforce_access_and_methods(client, instructor, disc
     token = csrf_from(client.get(new_lesson_url))
     client.post(reverse("lesson-create", args=[module.pk]), {
         "csrfmiddlewaretoken": token, "title": "Iso Lesson", "summary": "s",
-        "concept_heading": "h", "concept_body": "b", "question_prompt": "q?",
-        "correct_answer": "c", "incorrect_answer_1": "w", "incorrect_answer_2": "w2",
-        "explanation": "e",
+        "objectives": "o", "key_terms": "t",
     })
     lesson = module.lessons.get()
 

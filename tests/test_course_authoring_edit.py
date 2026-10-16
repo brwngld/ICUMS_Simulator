@@ -192,8 +192,43 @@ def test_lesson_sections_support_multiple_blocks_per_type(client, instructor, dr
 
     page = client.get(reverse("lesson-edit", args=[lesson.pk]))
     assert page.status_code == 200
-    assert page.content.decode().count("+ Key concept") == 1
-    assert "7 sections" in page.content.decode()
+    content = page.content.decode()
+    assert content.count("+ Key concept") == 1
+    assert "7 sections" in content
+    # each kind is numbered separately, in the order the learner meets it
+    assert "Key concept 3" in content
+    assert "Worked example 2" in content
+    assert "Important note 2" in content
+
+
+@pytest.mark.django_db
+def test_lesson_section_move_swaps_with_the_adjacent_section_across_kinds(client, instructor, draft_course):
+    """Moving a section swaps it with the section right beside it in the learner's
+    order — never a leap past other kinds — so two key concepts can be gathered."""
+    lesson = draft_course["lesson"]
+    original = draft_course["block"]  # text, order 1
+    example = ContentBlock.objects.create(lesson=lesson, kind="example", heading="Example", body="Example body.", order=2)
+    second_concept = ContentBlock.objects.create(lesson=lesson, kind="text", heading="Second concept", body="Second concept body.", order=3)
+    client.force_login(instructor)
+
+    response = client.post(
+        reverse("lesson-section-move", args=[lesson.pk, second_concept.pk]),
+        {"direction": "up"},
+    )
+    assert response.status_code == 302
+    original.refresh_from_db()
+    example.refresh_from_db()
+    second_concept.refresh_from_db()
+    assert (original.order, second_concept.order, example.order) == (1, 2, 3)
+
+    response = client.post(
+        reverse("lesson-section-move", args=[lesson.pk, second_concept.pk]),
+        {"direction": "down"},
+    )
+    assert response.status_code == 302
+    example.refresh_from_db()
+    second_concept.refresh_from_db()
+    assert (original.order, example.order, second_concept.order) == (1, 2, 3)
 
 
 @pytest.mark.django_db
@@ -341,6 +376,60 @@ def test_instructor_can_add_edit_and_remove_additional_practice_questions(client
     response = client.post(reverse("lesson-practice-delete", args=[lesson.pk, added.pk]))
     assert response.status_code == 302
     assert list(lesson.knowledge_checks.values_list("order", flat=True)) == [1]
+
+
+@pytest.mark.django_db
+def test_lesson_create_uses_the_tabbed_editor_flow(client, instructor, draft_course):
+    """The slim create only makes the draft and opens the tabbed editor; sections,
+    practice checks and the optional module-assessment link are added there."""
+    module = draft_course["module_a"]
+    client.force_login(instructor)
+
+    response = client.post(
+        reverse("lesson-create", args=[module.pk]),
+        {"title": "New Lesson", "summary": "New summary.", "objectives": "Do a thing.", "key_terms": "Term :: meaning."},
+    )
+    assert response.status_code == 302
+    lesson = module.lessons.get(title="New Lesson")
+    assert lesson.summary == "New summary."
+    assert lesson.blocks.count() == 0
+    assert lesson.knowledge_checks.count() == 0
+    assert response.url == f"{reverse('lesson-edit', args=[lesson.pk])}?tab=details"
+
+    client.post(reverse("lesson-section-add", args=[lesson.pk]), {"kind": "text"})
+    response = client.post(
+        reverse("lesson-practice-add", args=[lesson.pk]),
+        {
+            "prompt": "Practice check?",
+            "points": "1",
+            "explanation": "Because.",
+            "option_1": "Right",
+            "option_2": "Wrong",
+            "correct_position": "1",
+            "add_to_assessment": "on",
+        },
+    )
+    assert response.status_code == 302
+    check = lesson.knowledge_checks.get()
+    assert check.question_version.prompt == "Practice check?"
+    assessment = module.assessments.get(assessment_type=Assessment.Type.MODULE)
+    assert assessment.items.filter(question_version=check.question_version).exists()
+
+    # without the checkbox the check stays lesson-only
+    response = client.post(
+        reverse("lesson-practice-add", args=[lesson.pk]),
+        {
+            "prompt": "Second check?",
+            "points": "1",
+            "explanation": "",
+            "option_1": "Right",
+            "option_2": "Wrong",
+            "correct_position": "1",
+        },
+    )
+    assert response.status_code == 302
+    assert assessment.items.count() == 1
+    assert lesson.knowledge_checks.count() == 2
 
 
 @pytest.mark.django_db

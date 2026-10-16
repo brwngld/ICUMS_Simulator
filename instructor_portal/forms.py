@@ -71,41 +71,6 @@ class ProgrammeCourseForm(forms.Form):
             self.fields["is_required"].initial = course.is_required
 
 
-class LessonCreateForm(forms.Form):
-    title = forms.CharField(max_length=180, label="Lesson title")
-    summary = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}))
-    objectives = forms.CharField(
-        required=False, widget=forms.Textarea(attrs={"rows": 3}),
-        label="Learning objectives (one per line)",
-        help_text="Shown at the top of the lesson as the orientation box.",
-    )
-    key_terms = forms.CharField(
-        required=False, widget=forms.Textarea(attrs={"rows": 3}),
-        label="Key terms (one per line: Term :: definition)",
-        help_text="Shown within the lesson content.",
-    )
-    concept_heading = forms.CharField(max_length=180, initial="Key concept")
-    concept_body = forms.CharField(widget=forms.Textarea(attrs={"rows": 7}), label="Teaching content")
-    example_heading = forms.CharField(max_length=180, required=False)
-    example_body = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 5}))
-    notice_heading = forms.CharField(max_length=180, required=False, label="Important note heading")
-    notice_body = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 4}), label="Important note")
-    question_prompt = forms.CharField(widget=forms.Textarea(attrs={"rows": 3}), label="Knowledge-check question")
-    correct_answer = forms.CharField(max_length=300)
-    incorrect_answer_1 = forms.CharField(max_length=300)
-    incorrect_answer_2 = forms.CharField(max_length=300)
-    incorrect_answer_3 = forms.CharField(max_length=300, required=False)
-    explanation = forms.CharField(
-        widget=forms.Textarea(attrs={"rows": 3}),
-        help_text="Shown after the learner answers, so explain why the correct answer is right.",
-    )
-    add_to_assessment = forms.BooleanField(
-        required=False,
-        initial=True,
-        label="Also add this question to the module assessment",
-    )
-
-
 class PracticalCreateForm(forms.Form):
     title = forms.CharField(max_length=180, label="Practical title")
     area = forms.ChoiceField(choices=(("import", "Import"), ("export", "Export"), ("transit", "Transit"), ("warehouse", "Warehouse")))
@@ -541,3 +506,13 @@ class AssessmentQuestionForm(forms.Form):
                 is_correct=str(position) == data["correct_position"], order=order,
             )
         return question_version
+
+
+class LessonPracticeQuestionForm(AssessmentQuestionForm):
+    """Adds the lesson editor's option to also file the question on the module assessment."""
+
+    add_to_assessment = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Also add this question to the module assessment",
+    )

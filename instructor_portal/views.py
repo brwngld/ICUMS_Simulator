@@ -46,8 +46,8 @@ from .forms import (
     CourseCreateForm,
     CourseEditForm,
     LessonCheckEditForm,
-    LessonCreateForm,
     LessonEditForm,
+    LessonPracticeQuestionForm,
     ModuleCreateForm,
     ModuleEditForm,
     PracticalCreateForm,
@@ -772,7 +772,7 @@ def module_create(request, version_id):
 def lesson_builder(request, module_id):
     _require_instructor(request.user)
     module = get_object_or_404(Module.objects.select_related("programme_version__programme"), pk=module_id, programme_version__status="draft")
-    return render_student_page(request, "instructor_portal/lesson_builder.html", {"module": module, "form": LessonCreateForm()})
+    return render_student_page(request, "instructor_portal/lesson_create.html", {"module": module, "form": LessonEditForm()})
 
 
 @login_required
@@ -782,9 +782,9 @@ def lesson_create(request, module_id):
     module = get_object_or_404(Module.objects.select_related("programme_version__programme"), pk=module_id, programme_version__status="draft")
     if request.method != "POST":
         return redirect("lesson-builder", module_id=module.pk)
-    form = LessonCreateForm(request.POST)
+    form = LessonEditForm(request.POST)
     if not form.is_valid():
-        return render_student_page(request, "instructor_portal/lesson_builder.html", {"module": module, "form": form}, status=400)
+        return render_student_page(request, "instructor_portal/lesson_create.html", {"module": module, "form": form}, status=400)
 
     data = form.cleaned_data
     lesson = Lesson.objects.create(
@@ -796,37 +796,8 @@ def lesson_create(request, module_id):
         key_terms=data.get("key_terms", ""),
         order=module.lessons.count() + 1,
     )
-    blocks = [ContentBlock.objects.create(lesson=lesson, kind="text", heading=data["concept_heading"], body=data["concept_body"], order=1)]
-    if data["example_body"]:
-        blocks.append(ContentBlock.objects.create(lesson=lesson, kind="example", heading=data["example_heading"], body=data["example_body"], order=len(blocks) + 1))
-    if data["notice_body"]:
-        blocks.append(ContentBlock.objects.create(lesson=lesson, kind="notice", heading=data["notice_heading"], body=data["notice_body"], order=len(blocks) + 1))
-
-    question_code = _unique_slug(Question, "code", f"{module.code}-{lesson.slug}")
-    question = Question.objects.create(code=question_code)
-    question_version = QuestionVersion.objects.create(
-        question=question,
-        version=1,
-        prompt=data["question_prompt"],
-        explanation=data["explanation"],
-        points=1,
-    )
-    answers = [data["correct_answer"], data["incorrect_answer_1"], data["incorrect_answer_2"], data["incorrect_answer_3"]]
-    for order, answer in enumerate((answer for answer in answers if answer), start=1):
-        AnswerOption.objects.create(question_version=question_version, label=answer, is_correct=order == 1, order=order)
-    LessonCheck.objects.create(lesson=lesson, after_block=blocks[0], question_version=question_version, order=1)
-
-    if data["add_to_assessment"]:
-        assessment, _ = Assessment.objects.get_or_create(
-            programme_version=module.programme_version,
-            module=module,
-            assessment_type=Assessment.Type.MODULE,
-            defaults={"title": f"{module.title} Module Assessment", "pass_percentage": 70, "maximum_attempts": 3},
-        )
-        AssessmentItem.objects.get_or_create(assessment=assessment, question_version=question_version, defaults={"order": assessment.items.count() + 1})
-
-    messages.success(request, "Lesson, knowledge check, and assessment link created as drafts.")
-    return redirect("course-builder-detail", version_id=module.programme_version_id)
+    messages.success(request, "Lesson created.")
+    return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=details')
 
 
 @login_required
@@ -1327,12 +1298,27 @@ def module_edit(request, module_id):
     return render_student_page(request, "instructor_portal/module_edit.html", {"module": module, "form": form})
 
 
+def _annotate_section_numbers(block_formset):
+    """Give each section form its number within its own kind (Key concept 1, 2…).
+
+    The learner meets sections in one list, but authors think in kinds; the
+    per-kind number is what makes "move these two key concepts together"
+    legible on the page.
+    """
+    seen = {}
+    for block_form in block_formset:
+        kind = block_form.instance.kind
+        seen[kind] = seen.get(kind, 0) + 1
+        block_form.kind_index = seen[kind]
+
+
 @login_required
 def lesson_edit(request, lesson_id):
     _require_instructor(request.user)
     lesson = get_object_or_404(Lesson.objects.select_related("module__programme_version"), pk=lesson_id, module__programme_version__status="draft")
     lesson_form = LessonEditForm(request.POST or None, initial={"title": lesson.title, "summary": lesson.summary, "objectives": lesson.objectives, "key_terms": lesson.key_terms})
     block_formset = BlockFormSet(request.POST or None, queryset=lesson.blocks.order_by("order"))
+    _annotate_section_numbers(block_formset)
     checks = list(lesson.knowledge_checks.select_related("question_version").order_by("order", "id"))
     check = checks[0] if checks else None
     check_form = LessonCheckEditForm(check.question_version, request.POST or None) if check else None
@@ -1400,7 +1386,10 @@ def lesson_section_move(request, lesson_id, block_id):
     lesson = _draft_lesson(lesson_id)
     block = get_object_or_404(ContentBlock, pk=block_id, lesson=lesson)
     direction = request.POST.get("direction")
-    siblings = list(lesson.blocks.filter(kind=block.kind).order_by("order", "id"))
+    # Siblings are every section of the lesson, in the exact order the learner
+    # meets them: moving swaps with the adjacent section, so several sections
+    # of one kind can be gathered together instead of leaping past other kinds.
+    siblings = list(lesson.blocks.order_by("order", "id"))
     index = next(i for i, item in enumerate(siblings) if item.pk == block.pk)
     neighbour_index = index - 1 if direction == "up" else index + 1 if direction == "down" else None
     if neighbour_index is not None and 0 <= neighbour_index < len(siblings):
@@ -1461,7 +1450,7 @@ def lesson_practice_add(request, lesson_id):
         pk=lesson_id,
         module__programme_version__status="draft",
     )
-    form = AssessmentQuestionForm(request.POST or None)
+    form = LessonPracticeQuestionForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         after_block = lesson.blocks.order_by("order", "id").first()
         if after_block is None:
@@ -1495,6 +1484,19 @@ def lesson_practice_add(request, lesson_id):
             question_version=question_version,
             order=next_order,
         )
+        if data.get("add_to_assessment"):
+            module = lesson.module
+            assessment, _ = Assessment.objects.get_or_create(
+                programme_version=module.programme_version,
+                module=module,
+                assessment_type=Assessment.Type.MODULE,
+                defaults={"title": f"{module.title} Module Assessment", "pass_percentage": 70, "maximum_attempts": 3},
+            )
+            AssessmentItem.objects.get_or_create(
+                assessment=assessment,
+                question_version=question_version,
+                defaults={"order": assessment.items.count() + 1},
+            )
         messages.success(request, "Practice question added.")
         return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab=practice')
     return render_student_page(
