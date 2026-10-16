@@ -165,7 +165,8 @@ def test_student_cannot_reach_admin_changelist(client, student):
 def test_instructor_student_detail_breadcrumb(client, tutor, student, programme):
     from onboarding.models import Enrolment
 
-    enrolment = Enrolment.objects.create(student=student, programme_version=ProgrammeVersion.objects.first())
+    # The roster only shows the enrolments this instructor created.
+    enrolment = Enrolment.objects.create(student=student, programme_version=ProgrammeVersion.objects.first(), enrolled_by=tutor)
     tutor.groups.add(Group.objects.get(name="Instructor"))
     client.force_login(tutor)
     response = client.get(reverse("instructor-student-detail", args=[enrolment.pk]))

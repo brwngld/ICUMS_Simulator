@@ -437,6 +437,9 @@ def test_instructor_portal_rejects_student_and_allows_instructor(client, theory_
     assert client.get(reverse("instructor-dashboard")).status_code == 302  # students are sent back with a message
     instructor = User.objects.create_user(username="instructor", email="instructor@example.test", password="test-password")
     instructor.groups.add(Group.objects.get(name="Instructor"))
+    # The instructor dashboard lists only the enrolments this instructor created.
+    theory_setup["enrolment"].enrolled_by = instructor
+    theory_setup["enrolment"].save(update_fields=("enrolled_by",))
     client.force_login(instructor)
     response = client.get(reverse("instructor-dashboard"))
     assert response.status_code == 200

@@ -108,7 +108,11 @@ class CourseBuilderTests(TestCase):
         student = get_user_model().objects.create_user(username="student", email="student@example.com", password="test-password")
         self.client.force_login(student)
         response = self.client.get(reverse("course-builder"))
-        self.assertEqual(response.status_code, 403)
+        # The portal gate sends a student back to their own dashboard with a
+        # warning instead of Django's bare 403 page; access is still refused.
+        self.assertRedirects(response, reverse("dashboard"))
+        response = self.client.get(reverse("course-builder"), follow=True)
+        self.assertTrue(any("Instructor access is required." in str(message) for message in response.context["messages"]))
 
     def test_instructor_dashboard_exposes_the_two_authoring_paths(self):
         response = self.client.get(reverse("instructor-dashboard"))
