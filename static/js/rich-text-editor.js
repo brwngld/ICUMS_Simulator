@@ -128,11 +128,55 @@
     }
   }
 
+  function isSpacer(node) {
+    return node.tagName === "P" && !node.textContent.trim() && !node.querySelector("img, table");
+  }
+
+  /* An empty item is what Enter leaves behind when the author steps out of a list;
+     a learner should never be shown a bare number or bullet. */
+  function dropEmptyListItems(root) {
+    root.querySelectorAll("ol, ul").forEach((list) => {
+      [...list.children].forEach((item) => {
+        if (item.tagName === "LI" && !item.textContent.trim() && !item.querySelector("img, table")) item.remove();
+      });
+      if (!list.querySelector("li")) list.remove();
+    });
+  }
+
+  /* Chrome starts a brand-new list for every block the author converts, so a list
+     built a few lines at a time arrives as several lists that each restart at 1.
+     Merge same-type neighbours — across the blank paragraph the browser leaves
+     between them — so the learner sees one continuously numbered list. */
+  function mergeAdjacentLists(root) {
+    [...root.children].forEach((list) => {
+      if (list.tagName !== "OL" && list.tagName !== "UL") return;
+      let next = list.nextElementSibling;
+      while (next) {
+        if (next.tagName === list.tagName) {
+          const absorbed = next;
+          next = absorbed.nextElementSibling;
+          list.append(...absorbed.childNodes);
+          absorbed.remove();
+          continue;
+        }
+        if (isSpacer(next) && next.nextElementSibling && next.nextElementSibling.tagName === list.tagName) {
+          const gap = next;
+          next = gap.nextElementSibling;
+          gap.remove();
+          continue;
+        }
+        break;
+      }
+    });
+  }
+
   function serialise(editor) {
     const clone = editor.cloneNode(true);
     breakNewlines(clone);
     paragraphise(clone);
     hoistBlocks(clone);
+    dropEmptyListItems(clone);
+    mergeAdjacentLists(clone);
     stripUnsafe(clone);
     return clone.innerHTML.trim();
   }
@@ -294,6 +338,37 @@
     return node;
   }
 
+  /* Real editors turn "- ", "1. ", "> " or "### " at the start of a line into the
+     block it names, so the numbering a learner sees comes from the page rather
+     than digits the author typed — and those digits cannot drift out of step. */
+  function applyInputRule(editor, event) {
+    const range = selectionInside(editor);
+    if (!range || !range.collapsed || range.startContainer.nodeType !== Node.TEXT_NODE) return;
+    const block = range.startContainer.parentElement?.closest("p, h3, h4");
+    if (!block || !editor.contains(block)) return;
+    const marker = range.startContainer.textContent.slice(0, range.startOffset);
+    if (!marker || !block.textContent.startsWith(marker)) return;
+    const lists = { "-": "UL", "*": "UL" };
+    const heading = marker === "###" ? "H3" : marker === "####" ? "H4" : "";
+    const tag = lists[marker] || (marker === "1." ? "OL" : marker === ">" ? "BLOCKQUOTE" : heading);
+    if (!tag) return;
+    event.preventDefault();
+    const rest = range.startContainer.textContent.slice(range.startOffset);
+    if (tag === "UL" || tag === "OL") {
+      const item = document.createElement("LI");
+      if (rest.trim()) item.append(document.createTextNode(rest.replace(/^\s+/, "")));
+      const list = document.createElement(tag);
+      list.append(item);
+      block.replaceWith(list);
+      selectForReplacement(item);
+    } else {
+      if (rest) range.startContainer.textContent = rest.replace(/^\s+/, "");
+      else range.startContainer.textContent = "";
+      rename(block, tag);
+    }
+    sync(editor);
+  }
+
   function buildEditor(textarea) {
     const host = textarea.closest(".au-rich-field") || textarea.parentElement;
     if (host.dataset.editorReady) return;
@@ -352,6 +427,10 @@
       sync(editor);
     });
     editor.addEventListener("keydown", (event) => {
+      if (event.key === " " && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        applyInputRule(editor, event);
+        return;
+      }
       if (event.key !== "Tab") return;
       const cell = activeCell(editor);
       const item = window.getSelection()?.anchorNode?.parentElement?.closest("li");
@@ -365,6 +444,13 @@
     format.addEventListener("change", () => {
       applyFormat(editor, format.value);
       format.value = "p";
+    });
+
+    // Toolbar buttons must not steal the editor selection before a list or
+    // inline command is applied. Keeping the selection also makes multi-line
+    // ordered and unordered lists behave consistently across browsers.
+    bar.addEventListener("mousedown", (event) => {
+      if (event.target.closest("[data-action]")) event.preventDefault();
     });
 
     bar.addEventListener("click", (event) => {
