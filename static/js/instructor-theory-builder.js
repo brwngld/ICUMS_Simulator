@@ -4,6 +4,8 @@
     const scope = tabset.closest('.authoring') || document;
     const panels = [...scope.querySelectorAll('[data-authoring-panel]')];
     const activate = (name, focus = false) => {
+      const activeTabInput = scope.querySelector('input[name="active_tab"]');
+      if (activeTabInput) activeTabInput.value = name;
       tabs.forEach((tab) => {
         const active = tab.dataset.authoringTab === name;
         tab.setAttribute('aria-selected', String(active));

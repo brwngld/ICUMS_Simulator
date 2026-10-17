@@ -1455,7 +1455,10 @@ def lesson_edit(request, lesson_id):
         if check_form:
             check_form.save()
         messages.success(request, "Lesson updated.")
-        return redirect(f'{reverse("module-edit", args=[lesson.module_id])}?tab=lessons')
+        active_tab = request.POST.get("active_tab", "details")
+        if active_tab not in {"details", "sections", "practice", "review"}:
+            active_tab = "details"
+        return redirect(f'{reverse("lesson-edit", args=[lesson.pk])}?tab={active_tab}')
     return render_student_page(
         request,
         "instructor_portal/lesson_edit.html",

@@ -1,10 +1,10 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}Edit {{ lesson.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit lesson{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261015-8">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1">{% endblock %}
 {% block content %}<div class="authoring">
   <header class="authoring-head"><div><p class="authoring-eyebrow">{{ lesson.module.programme_version.programme.name }} · {{ lesson.module.title }}</p><h1>Edit Lesson — {{ lesson.title }}</h1><p>Edit the persisted content the learner sees. Saving does not publish the course.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'lesson-preview' lesson.pk %}">Learner Preview</a><a class="authoring-secondary" href="{% url 'module-edit' lesson.module_id %}?tab=lessons">Back to module lessons</a><a class="authoring-secondary" href="{% url 'course-builder-detail' lesson.module.programme_version_id %}">Back to course</a></div></header>
   <div class="authoring-progress"><span class="complete">1 Create course</span><span class="complete">2 Add modules</span><span class="complete">3 Create lessons</span><span class="current">4 Add sections</span><span>5 Configure assessment</span><span>6 Review and publish</span></div>
-  <form method="post" class="authoring-form">{% csrf_token %}
+  <form method="post" class="authoring-form">{% csrf_token %}<input type="hidden" name="active_tab" value="details">
     <nav class="authoring-tabs authoring-assessment-tabs authoring-lesson-tabs" role="tablist" aria-label="Lesson editor sections" data-authoring-tabs><button type="button" role="tab" aria-selected="true" data-authoring-tab="details"><span class="authoring-tab-number">1</span><span>Lesson details</span></button><button type="button" role="tab" aria-selected="false" data-authoring-tab="sections" tabindex="-1"><span class="authoring-tab-number">2</span><span>Sections</span><span class="authoring-tab-count">{{ block_count }}</span></button><button type="button" role="tab" aria-selected="false" data-authoring-tab="practice" tabindex="-1"><span class="authoring-tab-number">3</span><span>Practice</span><span class="authoring-tab-count">{{ checks|length }}</span></button><button type="button" role="tab" aria-selected="false" data-authoring-tab="review" tabindex="-1"><span class="authoring-tab-number">4</span><span>Review</span></button></nav>
     <section class="authoring-panel" data-authoring-panel="details">
       <div class="authoring-layout authoring-lesson-details-layout">
@@ -28,4 +28,4 @@
   </form>
   <form id="lesson-section-add" method="post" action="{% url 'lesson-section-add' lesson.pk %}" hidden>{% csrf_token %}</form>
   {% for block_form in block_formset %}<form id="lesson-section-move-{{ block_form.instance.pk }}" method="post" action="{% url 'lesson-section-move' lesson.pk block_form.instance.pk %}" hidden>{% csrf_token %}</form><form id="lesson-section-delete-{{ block_form.instance.pk }}" method="post" action="{% url 'lesson-section-delete' lesson.pk block_form.instance.pk %}" hidden>{% csrf_token %}</form>{% endfor %}
-</div><script src="{% static 'js/instructor-theory-builder.js' %}?v=20261015-5"></script><script src="{% static 'js/rich-text-editor.js' %}?v=20261015-6"></script>{% endblock %}
+</div><script src="{% static 'js/instructor-theory-builder.js' %}?v=20261016-1"></script><script src="{% static 'js/rich-text-editor.js' %}?v=20261016-3"></script>{% endblock %}

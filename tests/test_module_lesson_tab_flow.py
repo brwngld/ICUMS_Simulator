@@ -37,19 +37,20 @@ class ModuleLessonTabFlowTests(TestCase):
         self.assertRedirects(response, f'{reverse("module-edit", args=[self.module.pk])}?tab=lessons')
         self.assertTrue(Lesson.objects.filter(module=self.module, title="A new lesson").exists())
 
-    def test_saved_lesson_returns_to_module_lessons_tab(self):
+    def test_saved_lesson_stays_on_the_active_editor_tab(self):
         lesson = Lesson.objects.create(module=self.module, slug="editable", title="Editable lesson")
         response = self.client.post(reverse("lesson-edit", args=[lesson.pk]), {
             "title": "Updated lesson",
             "summary": "Updated summary",
             "objectives": "Updated objective",
             "key_terms": "Term :: Definition",
+            "active_tab": "sections",
             "form-TOTAL_FORMS": "0",
             "form-INITIAL_FORMS": "0",
             "form-MIN_NUM_FORMS": "0",
             "form-MAX_NUM_FORMS": "1000",
         })
-        self.assertRedirects(response, f'{reverse("module-edit", args=[self.module.pk])}?tab=lessons')
+        self.assertRedirects(response, f'{reverse("lesson-edit", args=[lesson.pk])}?tab=sections')
 
     def test_draft_lesson_can_be_deleted_from_module_tab(self):
         lesson = Lesson.objects.create(module=self.module, slug="disposable", title="Disposable lesson")
