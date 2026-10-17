@@ -75,6 +75,16 @@ def add_question(client, assessment_pk, prompt, correct, wrong, correct_position
     assert response.status_code == 302, f"question add failed: {response.status_code}"
 
 
+def pass_practice(client, module, lesson):
+    """Answer every practice question of one lesson correctly so it can close."""
+    url = reverse("lesson-section", args=[module.code, lesson.slug, "practice"])
+    for check in lesson.knowledge_checks.all():
+        client.post(
+            url,
+            {"action": "answer_check", "check_id": str(check.pk), "option": str(check.question_version.options.get(is_correct=True).pk)},
+        )
+
+
 @pytest.fixture
 def instructor(db):
     user = User.objects.create_user(username="e2e-instructor", email="e2e@example.test", password="test-password")
@@ -340,6 +350,15 @@ def test_complete_authoring_publish_and_progression_workflow(client, instructor,
     checked = student_client.post(practice_url, {"action": "answer_check", "check_id": str(check.pk), "option": str(wrong_option.pk)})
     assert checked.status_code == 302
     assert LessonCheckResponse.objects.filter(is_correct=False).exists()  # wrong answer recorded
+
+    # Practice is unscored but compulsory: the lesson stays open until every
+    # question has been answered correctly, however many attempts that takes.
+    for _ in range(6):
+        stuck = student_client.post(lesson_detail_url, {"action": "continue"})
+        assert "/theory/" in stuck.url
+    assert LessonProgress.objects.get(enrolment__student=student, lesson=lesson_one).completed_at is None
+
+    student_client.post(practice_url, {"action": "answer_check", "check_id": str(check.pk), "option": str(correct_option.pk)})
     for _ in range(6):
         completed = student_client.post(lesson_detail_url, {"action": "continue"})
         assert completed.status_code == 302
@@ -353,6 +372,7 @@ def test_complete_authoring_publish_and_progression_workflow(client, instructor,
 
     # every published lesson of the module must be completed first
     extra_lesson_progress_url = reverse("lesson-detail", args=[module_one.code, extra_lesson.slug])
+    pass_practice(student_client, module_one, extra_lesson)
     for _ in range(6):
         step = student_client.post(extra_lesson_progress_url, {"action": "continue"})
         if "/theory/" not in step.url:
@@ -372,6 +392,7 @@ def test_complete_authoring_publish_and_progression_workflow(client, instructor,
 
     # finish module two the same way
     lesson_two_url = reverse("lesson-detail", args=[module_two.code, Lesson.objects.get(module=module_two, title="Lesson Two").slug])
+    pass_practice(student_client, module_two, Lesson.objects.get(module=module_two, title="Lesson Two"))
     for _ in range(6):
         step = student_client.post(lesson_two_url, {"action": "continue"})
         if "/theory/" not in step.url:

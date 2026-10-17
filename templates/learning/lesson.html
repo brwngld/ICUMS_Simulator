@@ -103,19 +103,19 @@
         {% elif current_section.slug == "concepts" %}
         <section class="lrn-enter">
           <h2><small>{{ current_section.stage }}</small>Key concepts</h2>
-          {% include "learning/_lesson_blocks.html" with blocks=part_blocks copy_class="lrn-copy" empty_message="Key concepts for this lesson have not been published yet." %}
+          {% include "learning/_lesson_blocks.html" with blocks=part_units copy_class="lrn-copy" empty_message="Key concepts for this lesson have not been published yet." %}
         </section>
 
         {% elif current_section.slug == "example" %}
         <section class="lrn-enter">
           <h2><small>{{ current_section.stage }}</small>Worked example</h2>
-          {% include "learning/_lesson_blocks.html" with blocks=part_blocks copy_class="lrn-copy lrn-scenario" empty_message="A worked example for this lesson has not been published yet." %}
+          {% include "learning/_lesson_blocks.html" with blocks=part_units copy_class="lrn-copy lrn-scenario" empty_message="A worked example for this lesson has not been published yet." %}
         </section>
 
         {% elif current_section.slug == "note" %}
         <section class="lrn-enter">
           <h2><small>{{ current_section.stage }}</small>Important note</h2>
-          {% include "learning/_lesson_blocks.html" with blocks=part_blocks copy_class="lrn-key" empty_message="There are no additional notes for this lesson yet." %}
+          {% include "learning/_lesson_blocks.html" with blocks=part_units copy_class="lrn-key" empty_message="There are no additional notes for this lesson yet." %}
         </section>
 
         {% elif current_section.slug == "practice" %}
@@ -125,13 +125,14 @@
             {% for message in messages %}<div class="lrn-feedback {{ message.tags }}" role="status">{{ message }}</div>{% endfor %}
           {% endif %}
           {% if checks %}
+          {% if not preview_mode %}<p class="lrn-hint">{{ checks_answered_correctly }} of {{ checks|length }} answered correctly</p>{% endif %}
+          {% include "learning/_part_rail.html" with unit="Question" %}
           <div class="lrn-check-list">
-          {% for check in checks %}
+          {% for check in part_units %}
           <form method="post" class="lrn-check" id="check-{{ check.pk }}">
             {% csrf_token %}
             <input type="hidden" name="action" value="answer_check">
             <input type="hidden" name="check_id" value="{{ check.pk }}">
-            <p class="lrn-question-count">Question {{ forloop.counter }} of {{ checks|length }}</p>
             <h5>{{ check.question_version.prompt }}</h5>
             <div class="lrn-options">
               {% for option in check.question_version.options.all %}
@@ -143,7 +144,7 @@
               {% endfor %}
             </div>
             <button class="lrn-button" type="submit">Check response</button>
-            <p class="lrn-hint">Answer as many times as you like — every attempt is recorded so you can see your improvement.</p>
+            <p class="lrn-hint">Practice questions do not affect your assessment score. Retry an answer until it is correct.</p>
           </form>
           {% endfor %}
           </div>
@@ -178,6 +179,8 @@
             {% if prev_section %}<a class="lrn-button is-ghost" href="{{ prev_section.url }}">← {{ prev_section.title }}</a>{% endif %}
             {% if next_part_url %}
             <a class="lrn-button" href="{{ next_part_url }}">Next →</a>
+            {% elif part_locked %}
+            <span class="lrn-hint">Answer this question to continue.</span>
             {% else %}
             <form method="post" data-completion-form>
               {% csrf_token %}

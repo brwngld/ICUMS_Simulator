@@ -205,3 +205,24 @@ def test_student_delivery_unchanged_by_preview(client, student_with_progress=Non
     assert response.status_code == 200
     assert "PREVIEW" not in response.content.decode()  # student view is never labelled as preview
     assert LessonProgress.objects.count() == 1  # normal student behaviour intact
+
+
+@pytest.mark.django_db
+def test_lesson_preview_pages_practice_questions_without_locking_them(client, instructor, draft_content):
+    """The instructor sees every question; only a learner's answers lock the next one."""
+    lesson = draft_content["lesson"]
+    question = Question.objects.create(code="preview-check-question-two")
+    version = QuestionVersion.objects.create(question=question, version=1, prompt="Second check prompt?", explanation="Because.", points=1)
+    AnswerOption.objects.create(question_version=version, label="Right", is_correct=True, order=1)
+    LessonCheck.objects.create(lesson=lesson, after_block=lesson.blocks.get(), question_version=version, order=2)
+    client.force_login(instructor)
+    preview = reverse("lesson-preview", args=[lesson.pk])
+
+    first = client.get(preview, {"section": "practice"}).content.decode()
+    assert "Check prompt?" in first and "Second check prompt?" not in first
+    assert "Question 1 of 2" in first and "answered correctly" not in first
+
+    second = client.get(preview, {"section": "practice", "part": 2}).content.decode()
+    assert "Second check prompt?" in second and "Question 2 of 2" in second
+    assert "?section=practice&amp;part=1" in second
+    assert client.get(preview, {"section": "practice", "part": 9}).status_code == 302

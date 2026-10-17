@@ -338,7 +338,7 @@ def test_lesson_position_and_embedded_check_are_saved(client, theory_setup):
 
 
 @pytest.mark.django_db
-def test_practice_page_renders_and_answers_multiple_questions_independently(client, theory_setup):
+def test_practice_page_shows_one_question_and_unlocks_the_next_when_correct(client, theory_setup):
     block = theory_setup["lesson"].blocks.get()
     first_check = LessonCheck.objects.create(
         lesson=theory_setup["lesson"], after_block=block,
@@ -360,26 +360,47 @@ def test_practice_page_renders_and_answers_multiple_questions_independently(clie
         question_version=second_version, order=2,
     )
     DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
-    LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"], last_position=4)
+    progress = LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"], last_position=4)
     client.force_login(theory_setup["user"])
-    url = reverse("lesson-section", args=(theory_setup["module"].code, theory_setup["lesson"].slug, "practice"))
+    args = (theory_setup["module"].code, theory_setup["lesson"].slug)
+    url = reverse("lesson-section", args=[*args, "practice"])
+    second_url = reverse("lesson-part", args=[*args, "practice", 2])
 
-    page = client.get(url)
-    html = page.content.decode()
-    assert html.index("Choose the correct response.") < html.index("Choose the second response.")
-    assert "Question 1 of 2" in html
-    assert "Question 2 of 2" in html
+    html = client.get(url).content.decode()
+    assert "Question 1 of 2" in html and "0 of 2 answered correctly" in html
+    assert "Choose the correct response." in html and "Choose the second response." not in html
     assert "Theory assessment" not in html
+    assert "Answer this question to continue." in html
+    assert second_url not in html, "an unanswered question keeps the next one out of reach"
 
-    answered = client.post(
+    wrong = client.post(
         url,
-        {"action": "answer_check", "check_id": str(second_check.pk), "option": str(second_correct.pk)},
+        {"action": "answer_check", "check_id": str(first_check.pk), "option": str(theory_setup["wrong"].pk)},
     )
-    assert answered.status_code == 302
-    assert LessonCheckResponse.objects.filter(
-        enrolment=theory_setup["enrolment"], lesson_check=second_check, is_correct=True,
-    ).count() == 1
-    assert not LessonCheckResponse.objects.filter(lesson_check=first_check).exists()
+    assert wrong.status_code == 302
+    assert LessonCheckResponse.objects.get(enrolment=theory_setup["enrolment"], lesson_check=first_check).attempt_number == 1
+    assert "Answer this question to continue." in client.get(wrong.url).content.decode()
+
+    retried = client.post(
+        url,
+        {"action": "answer_check", "check_id": str(first_check.pk), "option": str(theory_setup["correct"].pk)},
+    )
+    assert not LessonCheckResponse.objects.filter(lesson_check=second_check).exists()
+    answered = client.get(retried.url).content.decode()
+    assert "1 of 2 answered correctly" in answered
+    assert second_url in answered and "Answer this question to continue." not in answered
+
+    refused = client.post(second_url, {"action": "continue"})
+    assert refused.status_code == 302
+    progress.refresh_from_db()
+    assert progress.completed_at is None, "an unanswered question keeps the lesson open"
+
+    client.post(second_url, {"action": "answer_check", "check_id": str(second_check.pk), "option": str(second_correct.pk)})
+    completed = client.post(second_url, {"action": "continue"})
+    assert reverse("module-overview", args=[theory_setup["module"].code]) in completed.url
+    progress.refresh_from_db()
+    assert progress.completed_at is not None
+    assert LessonCheckResponse.objects.filter(lesson_check=first_check).count() == 2
 
     invalid = client.post(
         url,
@@ -387,7 +408,6 @@ def test_practice_page_renders_and_answers_multiple_questions_independently(clie
     )
     assert invalid.status_code == 302
     assert invalid.url.endswith("/practice/#feedback")
-    assert LessonCheckResponse.objects.count() == 1
 
 
 @pytest.mark.django_db

@@ -1,0 +1,6 @@
+{% if parts.paged %}
+<nav class="lrn-parts" aria-label="{{ unit }} navigation">
+  <p class="lrn-parts-count">{{ unit }} {{ parts.index }} of {{ parts.total }}<span class="lrn-rail-progress" aria-hidden="true"><span style="width: {{ parts.percentage }}%"></span></span></p>
+  <span class="lrn-parts-nav">{% if prev_part_url %}<a class="lrn-part-link" href="{{ prev_part_url }}">← Previous</a>{% endif %}{% if next_part_url %}<a class="lrn-part-link" href="{{ next_part_url }}">Next →</a>{% endif %}</span>
+</nav>
+{% endif %}

@@ -1,8 +1,3 @@
 {% load rich_content %}
-{% if parts.paged %}
-<nav class="lrn-parts" aria-label="Part navigation">
-  <p class="lrn-parts-count">Part {{ parts.index }} of {{ parts.total }}<span class="lrn-rail-progress" aria-hidden="true"><span style="width: {{ parts.percentage }}%"></span></span></p>
-  <span class="lrn-parts-nav">{% if prev_part_url %}<a class="lrn-part-link" href="{{ prev_part_url }}">← Previous</a>{% endif %}{% if next_part_url %}<a class="lrn-part-link" href="{{ next_part_url }}">Next →</a>{% endif %}</span>
-</nav>
-{% endif %}
+{% include "learning/_part_rail.html" with unit="Part" %}
 <div class="lrn-content-blocks">{% for block in blocks %}<article class="lrn-content-block">{% if block.heading %}<h3 class="lrn-content-heading">{{ block.heading }}</h3>{% endif %}<div class="{{ copy_class }}">{{ block.body|rich_content }}</div></article>{% empty %}<p class="lrn-empty">{{ empty_message }}</p>{% endfor %}</div>

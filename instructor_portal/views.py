@@ -1204,6 +1204,7 @@ def lesson_preview(request, lesson_id):
         "concepts": context["concept_blocks"],
         "example": context["example_blocks"],
         "note": context["notice_blocks"],
+        "practice": context["checks"],
     }.get(step_slug, [])
     try:
         requested_part = int(request.GET.get("part", 1))
@@ -1231,7 +1232,7 @@ def lesson_preview(request, lesson_id):
             "prev_section": sections[index - 1] if index > 0 else None,
             "next_section": sections[index + 1] if index < len(sections) - 1 else None,
             "parts": parts,
-            "part_blocks": [step_blocks[parts["index"] - 1]] if parts["paged"] else step_blocks,
+            "part_units": [step_blocks[parts["index"] - 1]] if parts["paged"] else step_blocks,
             "prev_part_url": preview_part_url(parts["index"] - 1) if parts["paged"] and parts["index"] > 1 else None,
             "next_part_url": preview_part_url(parts["index"] + 1) if parts["paged"] and parts["index"] < parts["total"] else None,
             "progress": LessonProgress(lesson=lesson),

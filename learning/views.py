@@ -568,7 +568,13 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
         return redirect(section_url(sections[current_index]["slug"]))
 
     step_slug = sections[current_index]["slug"]
-    step_blocks = {"concepts": concept_blocks, "example": example_blocks, "note": notice_blocks}.get(step_slug, [])
+    step_blocks = {"concepts": concept_blocks, "example": example_blocks, "note": notice_blocks, "practice": checks}.get(step_slug, [])
+    # A practice question counts as passed once any attempt is correct; the
+    # attempts themselves are kept, and none of them carries a score.
+    answered_correctly = set(
+        LessonCheckResponse.objects.filter(enrolment=enrolment, lesson_check__in=checks, is_correct=True).values_list("lesson_check_id", flat=True)
+    )
+    practice_ready = step_slug != "practice" or not checks or all(check.pk in answered_correctly for check in checks)
     # Only the unfinished section being worked through remembers a part; any
     # other section starts again at its first block.
     resume_part = progress.last_part if not progress.completed_at and current_index == progress.last_position else 1
@@ -588,9 +594,15 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
                 previous = LessonCheckResponse.objects.filter(enrolment=enrolment, lesson_check=check).aggregate(value=Max("attempt_number"))["value"] or 0
                 LessonCheckResponse.objects.create(enrolment=enrolment, lesson_check=check, attempt_number=previous + 1, selected_option=selected, is_correct=selected.is_correct)
                 messages.success(request, "Correct. " + check.question_version.explanation if selected.is_correct else "Review this point. " + check.question_version.explanation)
-            return redirect(section_url("practice") + "#feedback")
-        # Explicit, idempotent completion. Revisiting and continuing from an
-        # already completed section never advances the persisted frontier.
+            # The learner stays on the question they answered so the feedback
+            # sits next to it.
+            return redirect((part_url("practice", checks.index(check) + 1) if len(checks) > 1 else section_url("practice")) + "#feedback")
+        if step_slug == "practice" and not practice_ready:
+            # Practice is formative and unscored, but compulsory: the lesson
+            # closes only once every question has been answered correctly.
+            pending = next(check for check in checks if check.pk not in answered_correctly)
+            messages.error(request, "Answer every question correctly before you finish this lesson.")
+            return redirect((part_url("practice", checks.index(pending) + 1) if len(checks) > 1 else section_url("practice")) + "#feedback")
         if parts["paged"] and parts["index"] < parts["total"]:
             # A part is one block of a section, so continuing it reads the next
             # block instead of finishing the section.
@@ -598,6 +610,8 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
                 progress.last_part = parts["index"] + 1
                 progress.save(update_fields=("last_part", "updated_at"))
             return redirect(part_url(step_slug, parts["index"] + 1))
+        # Explicit, idempotent completion. Revisiting and continuing from an
+        # already completed section never advances the persisted frontier.
         if current_index < len(sections) - 1:
             if current_index == progress.last_position:
                 progress.last_position = current_index + 1
@@ -624,9 +638,14 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
         # so rereading an earlier part keeps the learner's place.
         progress.last_part = parts["index"]
         progress.save(update_fields=("last_part", "updated_at"))
-    part_blocks = [step_blocks[parts["index"] - 1]] if parts["paged"] else step_blocks
+    part_units = [step_blocks[parts["index"] - 1]] if parts["paged"] else step_blocks
     prev_part_url = part_url(step_slug, parts["index"] - 1) if parts["paged"] and parts["index"] > 1 else None
     next_part_url = part_url(step_slug, parts["index"] + 1) if parts["paged"] and parts["index"] < parts["total"] else None
+    # The next question stays out of reach until this one is answered correctly,
+    # and the lesson cannot be closed while any question is still open.
+    if step_slug == "practice" and next_part_url and part_units[0].pk not in answered_correctly:
+        next_part_url = None
+    part_locked = step_slug == "practice" and not practice_ready
     word_count = sum(count_words(block.body) for block in blocks)
     lessons_in_module = list(module.lessons.filter(is_published=True).order_by("order", "title"))
     lesson_position = next((index + 1 for index, item in enumerate(lessons_in_module) if item.pk == lesson.pk), 1)
@@ -652,10 +671,12 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
             "example_blocks": example_blocks,
             "notice_blocks": notice_blocks,
             "parts": parts,
-            "part_blocks": part_blocks,
+            "part_units": part_units,
             "prev_part_url": prev_part_url,
             "next_part_url": next_part_url,
+            "part_locked": part_locked,
             "checks": checks,
+            "checks_answered_correctly": len(answered_correctly),
             "objectives": objectives,
             "key_terms": key_terms,
             "lessons_in_module": lessons_in_module,
