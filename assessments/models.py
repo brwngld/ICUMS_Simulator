@@ -137,6 +137,9 @@ class TheoryResponse(models.Model):
 
 
 class LessonCheck(models.Model):
+    # The practice set is edited in place, so a learner's own history outlives it:
+    # TheoryAttemptItem snapshots an assessment per attempt, but nothing here
+    # records which questions a finished lesson actually carried.
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     lesson = models.ForeignKey("learning.Lesson", on_delete=models.CASCADE, related_name="knowledge_checks")
     after_block = models.ForeignKey("learning.ContentBlock", on_delete=models.CASCADE, related_name="knowledge_checks")

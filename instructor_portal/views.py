@@ -337,7 +337,12 @@ def _lesson_issues(lesson):
     if not lesson.knowledge_checks.exists():
         issues.append(f'Add a knowledge check to “{lesson.title}”.')
     for check in lesson.knowledge_checks.all():
-        if check.question_version.options.filter(is_correct=True).count() != 1:
+        options = check.question_version.options.all()
+        # is_published is the publish sweep's own marker, never a precondition:
+        # a draft lesson is ready as soon as its question could be published safely.
+        if options.count() < 2:
+            issues.append(f'A knowledge check in “{lesson.title}” needs at least two answer options.')
+        if options.filter(is_correct=True).count() != 1:
             issues.append(f'The knowledge check in “{lesson.title}” must have exactly one correct answer.')
     return issues
 

@@ -9,6 +9,18 @@ from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment
 from progress.models import LessonProgress, ModuleProgress, ProgrammeProgress
 
 
+def add_practice_check(lesson, block, code, prompt, order):
+    """Attach one more two-option, single-answer question to a lesson's practice set."""
+    version = QuestionVersion.objects.create(
+        question=Question.objects.create(code=code), version=1, prompt=prompt,
+        explanation="Because.", points=1, is_published=True,
+    )
+    AnswerOption.objects.create(question_version=version, label="Right", is_correct=True, order=1)
+    AnswerOption.objects.create(question_version=version, label="Wrong", is_correct=False, order=2)
+    check = LessonCheck.objects.create(lesson=lesson, after_block=block, question_version=version, order=order)
+    return check, version
+
+
 @pytest.fixture
 def theory_setup(db):
     user = User.objects.create_user(username="learner", email="learner@example.test", password="test-password")
@@ -408,6 +420,192 @@ def test_practice_page_shows_one_question_and_unlocks_the_next_when_correct(clie
     )
     assert invalid.status_code == 302
     assert invalid.url.endswith("/practice/#feedback")
+
+
+@pytest.mark.django_db
+def test_a_future_practice_question_cannot_be_reached_by_url(client, theory_setup):
+    """Typing a later question's address lands the learner back on the open one."""
+    lesson = theory_setup["lesson"]
+    block = lesson.blocks.get()
+    LessonCheck.objects.create(lesson=lesson, after_block=block, question_version=theory_setup["question"], order=1)
+    add_practice_check(lesson, block, "question-two", "Second prompt?", 2)
+    add_practice_check(lesson, block, "question-three", "Third prompt?", 3)
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=lesson, last_position=4)
+    client.force_login(theory_setup["user"])
+    args = (theory_setup["module"].code, lesson.slug)
+
+    jumped = client.get(reverse("lesson-part", args=[*args, "practice", 3]))
+    assert jumped.status_code == 302
+    landing = client.get(jumped.url).content.decode()
+    assert "Question 1 of 3" in landing
+    assert "Second prompt?" not in landing and "Third prompt?" not in landing
+    assert LessonCheckResponse.objects.count() == 0
+    progress = LessonProgress.objects.get(enrolment=theory_setup["enrolment"], lesson=lesson)
+    assert progress.last_part == 1, "reading cannot carry the resume pointer past the lock"
+
+    first = lesson.knowledge_checks.get(order=1)
+    client.post(
+        reverse("lesson-part", args=[*args, "practice", 1]),
+        {"action": "answer_check", "check_id": str(first.pk), "option": str(theory_setup["correct"].pk)},
+    )
+    assert "Question 2 of 3" in client.get(reverse("lesson-part", args=[*args, "practice", 2]), follow=True).content.decode()
+    assert "Third prompt?" not in client.get(reverse("lesson-part", args=[*args, "practice", 3]), follow=True).content.decode()
+
+
+@pytest.mark.django_db
+def test_a_forged_practice_answer_on_a_locked_question_writes_nothing(client, theory_setup):
+    lesson = theory_setup["lesson"]
+    block = lesson.blocks.get()
+    LessonCheck.objects.create(lesson=lesson, after_block=block, question_version=theory_setup["question"], order=1)
+    locked_check, locked_version = add_practice_check(lesson, block, "question-locked", "Locked prompt?", 2)
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=lesson, last_position=4)
+    client.force_login(theory_setup["user"])
+    args = (theory_setup["module"].code, lesson.slug)
+
+    refused = client.post(
+        reverse("lesson-part", args=[*args, "practice", 2]),
+        {
+            "action": "answer_check",
+            "check_id": str(locked_check.pk),
+            "option": str(locked_version.options.get(is_correct=True).pk),
+        },
+    )
+    assert refused.status_code == 302
+    assert LessonCheckResponse.objects.count() == 0
+    assert "Answer this question to continue." in client.get(refused.url).content.decode()
+    assert LessonProgress.objects.get(enrolment=theory_setup["enrolment"], lesson=lesson).last_part == 1
+
+
+@pytest.mark.django_db
+def test_a_passed_question_stays_passed_when_revisited_and_reanswered_wrongly(client, theory_setup):
+    lesson = theory_setup["lesson"]
+    block = lesson.blocks.get()
+    first = LessonCheck.objects.create(lesson=lesson, after_block=block, question_version=theory_setup["question"], order=1)
+    second, second_version = add_practice_check(lesson, block, "question-two", "Second prompt?", 2)
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    progress = LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=lesson, last_position=4)
+    client.force_login(theory_setup["user"])
+    args = (theory_setup["module"].code, lesson.slug)
+
+    for check, option in ((first, theory_setup["correct"]), (second, second_version.options.get(is_correct=True))):
+        client.post(
+            reverse("lesson-part", args=[*args, "practice", check.order]),
+            {"action": "answer_check", "check_id": str(check.pk), "option": str(option.pk)},
+        )
+    client.post(reverse("lesson-part", args=[*args, "practice", 2]), {"action": "continue"})
+    progress.refresh_from_db()
+    completed_at = progress.completed_at
+    assert completed_at is not None
+
+    # Revision is free in both directions once the lesson is finished.
+    back = client.get(reverse("lesson-part", args=[*args, "practice", 1]))
+    assert back.status_code == 200 and "Question 1 of 2" in back.content.decode()
+
+    wrong = client.post(
+        reverse("lesson-part", args=[*args, "practice", 1]),
+        {"action": "answer_check", "check_id": str(first.pk), "option": str(theory_setup["wrong"].pk)},
+    )
+    html = client.get(wrong.url).content.decode()
+    assert "2 of 2 answered correctly" in html
+    assert "Answer this question to continue." not in html
+    progress.refresh_from_db()
+    assert progress.completed_at == completed_at, "a late wrong answer cannot revoke a passed question"
+
+
+@pytest.mark.django_db
+def test_a_question_added_after_completion_never_relocks_a_finished_lesson(client, theory_setup):
+    lesson = theory_setup["lesson"]
+    block = lesson.blocks.get()
+    only = LessonCheck.objects.create(lesson=lesson, after_block=block, question_version=theory_setup["question"], order=1)
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    progress = LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=lesson, last_position=4)
+    client.force_login(theory_setup["user"])
+    url = reverse("lesson-section", args=(theory_setup["module"].code, lesson.slug, "practice"))
+
+    client.post(url, {"action": "answer_check", "check_id": str(only.pk), "option": str(theory_setup["correct"].pk)})
+    client.post(url, {"action": "continue"})
+    progress.refresh_from_db()
+    completed_at = progress.completed_at
+    assert completed_at is not None
+
+    late_check, late_version = add_practice_check(lesson, block, "question-late", "Added later?", 2)
+    late_url = reverse("lesson-part", args=(theory_setup["module"].code, lesson.slug, "practice", 2))
+    page = client.get(late_url)
+    assert page.status_code == 200
+    assert "Added later?" in page.content.decode()
+    assert "Answer this question to continue." not in page.content.decode()
+
+    client.post(
+        late_url,
+        {"action": "answer_check", "check_id": str(late_check.pk), "option": str(late_version.options.get(is_correct=False).pk)},
+    )
+    progress.refresh_from_db()
+    assert progress.completed_at == completed_at, "progression already earned is not taken back"
+
+
+@pytest.mark.django_db
+def test_practice_retries_are_unlimited_and_never_scored(client, theory_setup):
+    lesson = theory_setup["lesson"]
+    block = lesson.blocks.get()
+    check = LessonCheck.objects.create(lesson=lesson, after_block=block, question_version=theory_setup["question"], order=1)
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    progress = LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=lesson, last_position=4)
+    client.force_login(theory_setup["user"])
+    url = reverse("lesson-section", args=(theory_setup["module"].code, lesson.slug, "practice"))
+
+    for _ in range(5):
+        client.post(url, {"action": "answer_check", "check_id": str(check.pk), "option": str(theory_setup["wrong"].pk)})
+    refused = client.post(url, {"action": "continue"})
+    assert refused.status_code == 302
+    progress.refresh_from_db()
+    assert progress.completed_at is None, "the completion gate is checked server-side, not just in the footer"
+    assert LessonCheckResponse.objects.filter(lesson_check=check).count() == 5
+    assert list(LessonCheckResponse.objects.filter(lesson_check=check).order_by("attempt_number").values_list("attempt_number", flat=True)) == [1, 2, 3, 4, 5]
+
+    client.post(url, {"action": "answer_check", "check_id": str(check.pk), "option": str(theory_setup["correct"].pk)})
+    assert LessonCheckResponse.objects.filter(lesson_check=check, is_correct=True).count() == 1
+    assert TheoryAttempt.objects.count() == 0, "practice writes no attempt and therefore no score"
+    assert theory_setup["assessment"].pass_percentage == 70
+
+
+@pytest.mark.django_db
+def test_a_single_practice_question_shows_no_rail_and_closes_from_its_root(client, theory_setup):
+    lesson = theory_setup["lesson"]
+    block = lesson.blocks.get()
+    check = LessonCheck.objects.create(lesson=lesson, after_block=block, question_version=theory_setup["question"], order=1)
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    progress = LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=lesson, last_position=4)
+    client.force_login(theory_setup["user"])
+    url = reverse("lesson-section", args=(theory_setup["module"].code, lesson.slug, "practice"))
+
+    html = client.get(url).content.decode()
+    assert "Question 1 of" not in html, "one question is not a sequence"
+    assert "0 of 1 answered correctly" in html
+    assert client.get(reverse("lesson-part", args=(theory_setup["module"].code, lesson.slug, "practice", 2))).status_code == 302
+
+    client.post(url, {"action": "answer_check", "check_id": str(check.pk), "option": str(theory_setup["correct"].pk)})
+    completed = client.post(url, {"action": "continue"})
+    assert reverse("module-overview", args=[theory_setup["module"].code]) in completed.url
+    progress.refresh_from_db()
+    assert progress.completed_at is not None
+
+
+@pytest.mark.django_db
+def test_a_lesson_without_practice_questions_is_unchanged(client, theory_setup):
+    DisclaimerAcceptance.objects.create(user=theory_setup["user"], disclaimer=theory_setup["disclaimer"])
+    progress = LessonProgress.objects.create(enrolment=theory_setup["enrolment"], lesson=theory_setup["lesson"], last_position=4)
+    client.force_login(theory_setup["user"])
+    url = reverse("lesson-section", args=(theory_setup["module"].code, theory_setup["lesson"].slug, "practice"))
+
+    html = client.get(url).content.decode()
+    assert "answered correctly" not in html and "Question 1 of" not in html
+
+    completed = client.post(url, {"action": "continue"})
+    assert reverse("module-overview", args=[theory_setup["module"].code]) in completed.url
+    progress.refresh_from_db()
+    assert progress.completed_at is not None
 
 
 @pytest.mark.django_db

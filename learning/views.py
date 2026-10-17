@@ -574,11 +574,19 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
     answered_correctly = set(
         LessonCheckResponse.objects.filter(enrolment=enrolment, lesson_check__in=checks, is_correct=True).values_list("lesson_check_id", flat=True)
     )
-    practice_ready = step_slug != "practice" or not checks or all(check.pk in answered_correctly for check in checks)
+    # A finished lesson is never locked again, even when the author adds a
+    # question afterwards - the learner keeps free rein over their revision.
+    practice_sequential = step_slug == "practice" and not progress.completed_at
+    practice_ready = not practice_sequential or not checks or all(check.pk in answered_correctly for check in checks)
+    # The furthest question a learner may stand on is the first unanswered one.
+    practice_ceiling = next((index + 1 for index, check in enumerate(checks) if check.pk not in answered_correctly), len(checks))
     # Only the unfinished section being worked through remembers a part; any
     # other section starts again at its first block.
     resume_part = progress.last_part if not progress.completed_at and current_index == progress.last_position else 1
-    parts = part_window(len(step_blocks), part if part is not None else resume_part)
+    requested_part = part if part is not None else resume_part
+    if practice_sequential:
+        requested_part = min(requested_part, practice_ceiling)
+    parts = part_window(len(step_blocks), requested_part)
 
     if request.method == "POST":
         action = request.POST.get("action", "continue")
@@ -587,6 +595,12 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
             if check is None:
                 messages.error(request, "This practice question is no longer available.")
                 return redirect(section_url("practice") + "#feedback")
+            if practice_sequential and checks.index(check) + 1 > practice_ceiling:
+                # A locked question cannot be answered out of turn, not even by a
+                # forged post: nothing is written and the learner goes back to the
+                # question they are actually standing on.
+                messages.error(request, "Answer this question to continue.")
+                return redirect((part_url("practice", practice_ceiling) if len(checks) > 1 else section_url("practice")) + "#feedback")
             selected = check.question_version.options.filter(pk=request.POST.get("option")).first()
             if selected is None:
                 messages.error(request, "Choose an answer before checking your response.")
@@ -643,9 +657,9 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
     next_part_url = part_url(step_slug, parts["index"] + 1) if parts["paged"] and parts["index"] < parts["total"] else None
     # The next question stays out of reach until this one is answered correctly,
     # and the lesson cannot be closed while any question is still open.
-    if step_slug == "practice" and next_part_url and part_units[0].pk not in answered_correctly:
+    if practice_sequential and next_part_url and part_units[0].pk not in answered_correctly:
         next_part_url = None
-    part_locked = step_slug == "practice" and not practice_ready
+    part_locked = practice_sequential and not practice_ready
     word_count = sum(count_words(block.body) for block in blocks)
     lessons_in_module = list(module.lessons.filter(is_published=True).order_by("order", "title"))
     lesson_position = next((index + 1 for index, item in enumerate(lessons_in_module) if item.pk == lesson.pk), 1)

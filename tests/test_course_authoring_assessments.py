@@ -277,6 +277,27 @@ def test_publish_validation_detects_invalid_question_configurations(client, inst
 
 
 @pytest.mark.django_db
+def test_publish_validation_detects_an_unready_practice_question(client, instructor, draft_course):
+    """A knowledge check answers to the same rules as an assessment question."""
+    module = draft_course["module"]
+    lesson = module.lessons.get()
+    block = lesson.blocks.get()
+    question = Question.objects.create(code="thin-practice-question")
+    version = QuestionVersion.objects.create(question=question, version=1, prompt="Only one answer?", points=1)
+    AnswerOption.objects.create(question_version=version, label="Only", is_correct=True, order=1)
+    LessonCheck.objects.create(lesson=lesson, after_block=block, question_version=version, order=2)
+
+    issues = _course_issues(module.programme_version)
+    assert any("knowledge check" in issue and "needs at least two answer options" in issue for issue in issues)
+
+    version.options.update(is_correct=False)
+    AnswerOption.objects.create(question_version=version, label="Second", is_correct=False, order=2)
+    issues = _course_issues(module.programme_version)
+    assert any("knowledge check" in issue and "exactly one correct answer" in issue for issue in issues)
+    assert not any("needs at least two answer options" in issue for issue in issues)
+
+
+@pytest.mark.django_db
 def test_publish_publishes_assessment_question_versions(client, instructor, draft_course):
     version = draft_course["version"]
     module = draft_course["module"]
@@ -288,6 +309,8 @@ def test_publish_publishes_assessment_question_versions(client, instructor, draf
     AnswerOption.objects.create(question_version=lesson_question_version, label="No", is_correct=False, order=2)
     LessonCheck.objects.create(lesson=lesson, after_block=block, question_version=lesson_question_version, order=1)
     client.force_login(instructor)
+    # is_published is what the publish sweep writes, never a precondition for it.
+    assert lesson_question_version.is_published is False
 
     client.post(reverse("module-assessment-create", args=[module.pk]), {"title": "Module assessment", "pass_percentage": "70"})
     assessment = Assessment.objects.get(title="Module assessment")
@@ -305,6 +328,8 @@ def test_publish_publishes_assessment_question_versions(client, instructor, draf
     for item in AssessmentItem.objects.all():
         assert item.question_version.is_published is True
         assert item.assessment.is_published is True
+    lesson_question_version.refresh_from_db()
+    assert lesson_question_version.is_published is True, "the practice question a learner needs is swept too"
 
 
 @pytest.mark.django_db
