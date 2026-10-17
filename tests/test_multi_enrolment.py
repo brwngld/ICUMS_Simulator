@@ -16,10 +16,10 @@ from datetime import UTC
 from django.utils import timezone
 
 from accounts.models import SimulatorCredential, User, allocate_student_id
-from assessments.models import AnswerOption, Assessment, AssessmentItem, Question, QuestionVersion
+from assessments.models import AnswerOption, Assessment, AssessmentItem, Question, QuestionVersion, TheoryAttempt
 from learning.models import Lesson, Module
 from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
-from progress.models import ProgrammeProgress
+from progress.models import LessonProgress, ProgrammeProgress
 from scenarios.models import Scenario, ScenarioAttempt, ScenarioState, ScenarioVersion
 
 
@@ -40,6 +40,7 @@ def _enrolment(learner, code, module_code, assessment_title, enrolled_at=None):
     Lesson.objects.create(module=module, slug=f"lesson-{code}", title=f"Lesson {code}", order=1, is_published=True)
     question_version = QuestionVersion.objects.create(question=Question.objects.create(code=f"q-{code}"), version=1, prompt="Pick one", points=1, is_published=True)
     AnswerOption.objects.create(question_version=question_version, label="Right", is_correct=True, order=1)
+    AnswerOption.objects.create(question_version=question_version, label="Wrong", order=2)
     assessment = Assessment.objects.create(programme_version=version, module=module, title=assessment_title, pass_percentage=50, is_published=True)
     AssessmentItem.objects.create(assessment=assessment, question_version=question_version)
     if enrolled_at is not None:
@@ -95,6 +96,97 @@ def test_sidebar_assessment_link_comes_from_the_chosen_enrolment(client, db):
     assert reverse("assessment-take", args=[assessment.pk]) in html
     other = Assessment.objects.get(programme_version__programme__code="nav-b")
     assert reverse("assessment-take", args=[other.pk]) not in html
+
+
+@pytest.mark.django_db
+def test_retake_link_carries_programme_for_multi_enrolment(client, db):
+    """The retake link is built from the attempt's own enrolment.
+
+    Written with a plain url tag it carried no programme, so the request resolved
+    the oldest enrolment and the learner was refused by their own retake.
+    """
+    learner, _, second = _two_programmes(
+        db, "retake", timezone.datetime(2026, 4, 11, tzinfo=UTC), timezone.datetime(2026, 4, 12, tzinfo=UTC)
+    )
+    client.force_login(learner)
+    code = second.programme_version.programme.code
+    assessment, result_url = _submit_assessment(client, second, code, correct=False)
+
+    retake = _retake_links(client.get(result_url).content.decode(), assessment)
+    assert len(retake) == 1
+    assert f"programme={code}" in retake[0]
+    assert client.get(retake[0]).status_code == 200
+
+
+@pytest.mark.django_db
+def test_a_single_programme_retake_link_stays_plain(client, db):
+    learner = _learner(db, "solo-theory")
+    enrolment = _enrolment(learner, "solo-t", "solo-t-m", "Solo theory assessment")
+    client.force_login(learner)
+    assessment, result_url = _submit_assessment(client, enrolment, correct=False)
+
+    assert "programme=" not in result_url
+    retake = _retake_links(client.get(result_url).content.decode(), assessment)
+    assert len(retake) == 1
+    assert "programme=" not in retake[0]
+
+
+@pytest.mark.django_db
+def test_result_link_from_module_overview_is_programme_scoped(client, db):
+    learner, _, second = _two_programmes(
+        db, "overview-result", timezone.datetime(2026, 4, 21, tzinfo=UTC), timezone.datetime(2026, 4, 22, tzinfo=UTC)
+    )
+    client.force_login(learner)
+    code = second.programme_version.programme.code
+    assessment, _ = _submit_assessment(client, second, code)
+    module = second.programme_version.modules.first()
+    attempt = TheoryAttempt.objects.get(enrolment=second, assessment=assessment)
+
+    html = client.get(reverse("module-overview", args=[module.code]), {"programme": code}).content.decode()
+    result_links = _links_to(html, reverse("assessment-result", args=[attempt.pk]))
+    assert result_links, "a passed module offers a link to its results"
+    assert all(f"programme={code}" in link for link in result_links)
+    assert client.get(result_links[0]).status_code == 200
+
+
+@pytest.mark.django_db
+def test_cross_programme_attempt_still_403(client, db):
+    """Refused gates keep working now that the links carry their programme.
+
+    The portal answers a refused gate with a warning and a redirect (core.views.
+    permission_denied), never by opening another programme's assessment or
+    quietly falling back to a different enrolment.
+    """
+    learner, first, second = _two_programmes(
+        db, "crossover", timezone.datetime(2026, 4, 25, tzinfo=UTC), timezone.datetime(2026, 4, 26, tzinfo=UTC)
+    )
+    client.force_login(learner)
+    _finish_lessons(first)
+    own = Assessment.objects.get(programme_version=first.programme_version)
+    other = Assessment.objects.get(programme_version=second.programme_version)
+
+    wrong_programme = client.get(
+        reverse("assessment-take", args=[other.pk]), {"programme": first.programme_version.programme.code}
+    )
+    assert wrong_programme.status_code == 302
+    assert wrong_programme.url == reverse("dashboard")
+    assert not TheoryAttempt.objects.exists()
+
+    not_enrolled = client.get(reverse("assessment-take", args=[own.pk]), {"programme": "nobody-else"})
+    assert not_enrolled.status_code == 302
+    assert not TheoryAttempt.objects.exists()
+
+    stranger = User.objects.create_user(username="stranger", email="stranger@example.test", password="test-password")
+    stranger_enrolment = _enrolment(stranger, "stranger-t", "stranger-t-m", "Stranger assessment")
+    stranger_attempt = TheoryAttempt.objects.create(
+        enrolment=stranger_enrolment,
+        assessment=Assessment.objects.get(programme_version=stranger_enrolment.programme_version),
+        attempt_number=1,
+        status=TheoryAttempt.Status.SUBMITTED,
+        outcome=TheoryAttempt.Outcome.PASS,
+        submitted_at=timezone.now(),
+    )
+    assert client.get(reverse("assessment-result", args=[stranger_attempt.pk])).status_code == 404
 
 
 @pytest.mark.django_db
@@ -268,6 +360,52 @@ def test_a_single_programme_learner_keeps_plain_practical_links(client, db):
     html = client.get(reverse("scenario-list")).content.decode()
     assert reverse("scenario-detail", args=[version.pk]) in html
     assert "programme=" not in html
+
+
+def _finish_lessons(enrolment):
+    """A module assessment opens only once every published lesson is recorded complete."""
+    for lesson in enrolment.programme_version.modules.first().lessons.filter(is_published=True):
+        LessonProgress.objects.create(enrolment=enrolment, lesson=lesson, completed_at=timezone.now())
+
+
+def _passed_assessment(client, enrolment, programme_code=None):
+    """Take and submit the enrolment's module assessment, returning the redirect target."""
+    assessment = Assessment.objects.get(programme_version=enrolment.programme_version)
+    url = reverse("assessment-take", args=[assessment.pk])
+    if programme_code:
+        url = f"{url}?programme={programme_code}"
+    _finish_lessons(enrolment)
+    client.get(url)
+    item = assessment.items.select_related("question_version").first()
+    submitted = client.post(url, {str(item.question_version_id): str(item.question_version.options.get(is_correct=True).pk)})
+    return assessment, submitted.headers["location"]
+
+
+def _submit_assessment(client, enrolment, programme_code=None, *, correct=True):
+    """Take and submit the enrolment's module assessment, returning the redirect target."""
+    assessment = Assessment.objects.get(programme_version=enrolment.programme_version)
+    url = reverse("assessment-take", args=[assessment.pk])
+    if programme_code:
+        url = f"{url}?programme={programme_code}"
+    _finish_lessons(enrolment)
+    client.get(url)
+    item = assessment.items.select_related("question_version").first()
+    option = item.question_version.options.get(is_correct=correct)
+    submitted = client.post(url, {str(item.question_version_id): str(option.pk)})
+    return assessment, submitted.headers["location"]
+
+
+def _links_to(html, url):
+    """Every href pointing at ``url``, whatever query string it carries."""
+    return [link for link in _html_links(html) if link.split("?")[0] == url]
+
+
+def _retake_links(html, assessment):
+    """The result page's own retake button, not the sidebar link into the assessment."""
+    return [
+        link for link in _links_to(html, reverse("assessment-take", args=[assessment.pk]))
+        if "return_to" in link
+    ]
 
 
 def _oriented(enrolment):

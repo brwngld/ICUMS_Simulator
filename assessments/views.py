@@ -104,6 +104,12 @@ def assessment_result(request, attempt_id):
         if assessment.maximum_attempts is not None else None
     )
     return_to = _safe_return_to(request, attempt.enrolment)
+    # Built here rather than with a {% url %} tag: a plain link drops the programme
+    # and the request then resolves the learner's oldest enrolment, 403ing the retake.
+    retake_url = programme_href(
+        f"{reverse('assessment-take', args=(assessment.pk,))}?{urlencode({'return_to': return_to})}",
+        attempt.enrolment,
+    )
 
     # Where "continue" goes after a pass: the next unfinished lesson, the
     # module's later content, orientation after the final exam, or the roadmap.
@@ -144,6 +150,7 @@ def assessment_result(request, attempt_id):
             "continue_url": continue_url,
             "continue_label": continue_label,
             "return_to": return_to,
+            "retake_url": retake_url,
             "remaining_attempts": remaining_attempts,
             "attempts_limited": assessment.maximum_attempts is not None,
             "review": review,

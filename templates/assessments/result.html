@@ -27,7 +27,7 @@
         <a class="quiz-button" href="{{ continue_url }}">{{ continue_label }}</a>
         {% else %}
           {% if retake_allowed %}
-          <a class="quiz-button" href="{% url 'assessment-take' attempt.assessment.pk %}?return_to={{ return_to|urlencode }}">Retake assessment</a>
+          <a class="quiz-button" href="{{ retake_url }}">Retake assessment</a>
           {% else %}
           <span class="quiz-button" aria-disabled="true">No attempts remaining — ask your instructor</span>
           {% endif %}

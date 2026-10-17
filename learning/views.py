@@ -230,7 +230,7 @@ def module_overview_context(module, enrolment=None):
         ),
         "assessment_take_url": _assessment_url(assessment, preview, enrolment) if assessment else None,
         "assessment_result_url": None if preview else (
-            reverse("assessment-result", args=[best_attempt.pk]) if best_attempt else None),
+            programme_href(reverse("assessment-result", args=[best_attempt.pk]), enrolment) if best_attempt else None),
     }
 
 
