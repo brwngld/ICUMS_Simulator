@@ -384,9 +384,8 @@ def test_instructor_can_add_edit_and_remove_additional_practice_questions(client
 
 
 @pytest.mark.django_db
-def test_lesson_create_uses_the_tabbed_editor_flow(client, instructor, draft_course):
-    """The slim create only makes the draft and opens the tabbed editor; sections,
-    practice checks and the optional module-assessment link are added there."""
+def test_lesson_create_returns_to_the_module_lessons_tab(client, instructor, draft_course):
+    """The lesson popup creates the draft and returns to the module lesson list."""
     module = draft_course["module_a"]
     client.force_login(instructor)
 
@@ -399,7 +398,7 @@ def test_lesson_create_uses_the_tabbed_editor_flow(client, instructor, draft_cou
     assert lesson.summary == "New summary."
     assert lesson.blocks.count() == 0
     assert lesson.knowledge_checks.count() == 0
-    assert response.url == f"{reverse('lesson-edit', args=[lesson.pk])}?tab=details"
+    assert response.url == f"{reverse('module-edit', args=[module.pk])}?tab=lessons"
 
     client.post(reverse("lesson-section-add", args=[lesson.pk]), {"kind": "text"})
     response = client.post(
