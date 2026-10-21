@@ -1,7 +1,7 @@
 # Legacy theme leak audit
 
 Date: 14 October 2026  
-Status: automated remediation applied 15 October 2026; manual visual sweep remains
+Status: automated remediation applied 15 October 2026; re-swept 21 October 2026 — see the re-sweep section below for what closed and what remains open
 
 ## Remediation update — 15 October 2026
 
@@ -18,6 +18,97 @@ The approved source and deployment remediation has now been applied:
 - added a regression test that rejects the known legacy literals and duplicate theme-state ownership.
 
 Automated verification completed with 373 passing tests. A manual route-by-route screenshot and contrast review remains recommended before the next production deployment, particularly for simulator workflows in dark mode. The generated collected-static directory remains ignored build output and was not edited by hand.
+
+## Re-sweep — 21 October 2026
+
+Method for this pass: every class selector in `static/css/app.css` was tested for a full-token occurrence
+across all 445 repository HTML/JS/Python files and all 1,472 installed Django/Unfold files, then against
+every text column of a read-only copy of the development database (83 tables). Stored lesson prose cannot
+hide a stylesheet hook: `learning/rich_text.py:24-30` allows no `class` attribute on any tag it keeps.
+
+### Closed since the 15 October pass
+
+| Finding | Outcome |
+|---|---|
+| Live legacy purple (`#5145cd` and its variants) | The seven remaining sites now consume `var(--color-primary-900, #2b2860)`, `var(--color-primary-50, #eef0fd)`, `var(--color-base-600, #475569)` or `color-mix(in srgb, var(--primary) N%, transparent)`. `tests/test_legacy_theme_guardrails.py:45` passes. |
+| Guardrail blind spot | Three legacy colours had survived the 15 October hex sweep because they were written as `rgb()` triples, which a literal search cannot see. The guardrail now decodes every `rgb()`/`rgba()` triple in active theme sources and reports it as the forbidden hex, with file and line. |
+| P3 font divergence | `static/css/app.css:11` is the only `:root` family declaration and consumes `var(--font-sans, …)`, matching `static/css/simulator-portal.css:14`. The competing `body { font-size: .9rem }` is gone, so the 14px body size is owned once at `app.css:20` and agrees with Unfold's own `text-sm`. Exactly two sans `font-family` declarations remain in application CSS, both on `var(--font-sans, …)`; the old `app.css` monospace rule left with the credential-card block, so the only deliberate monospace left is the simulated-document editor and the one-time-password field. |
+| P2 `templates/base.html` | Deleted. It had no `{% extends %}`, no `template_name`, and both password pages had already moved to `core/base_student.html`. |
+| Dead legacy CSS | 65 class hooks — 195 whole rules and 15 partial selector lists — removed from `app.css`, which went from 666 lines to 469. What left: the welcome banner, journey graphic, stats/role/badge blocks, the module-card sub-parts, the superseded `builder-*` / `outline-*` / `check-row` column layout, the lesson/panel/workflow blocks, the credential list, the auth panel/footnote blocks, `page-intro` / `section-heading` / `table-wrapper`, and `knowledge-check`. |
+| Pre-Unfold shell CSS and its loader | Removed together in a second pass, `app.css` 469 → 322 lines: `.app-layout`, `.page-shell`, `.workspace-bar`, `.guest-layout`, `.brand-mark`, `.account-summary`, `.nav-search`, `.site-header`, `.top-nav`, `.brand`, `.user-avatar`, `.skip-link`, `.theme-menu`, `.theme-switch*`, `.sidebar-*`, `.navigation-*`, `.nav-group*`, `.breadcrumb-divider`, `.environment-badge`, `.training-notice`, `signout-form`. The first pass had scored these live only because `app-shell.js` mutates them; with `base.html` gone that script loads nowhere, so its references stopped counting. `static/js/app-shell.js` is deleted. `.ui-icon` survives the sheet because `templates/components/icon.html` renders it, so the four `.nav-search .ui-icon`-style descendant rules had to be tested per selector part, not per rule. |
+| `static/js/app-shell.js` | Deleted. `tests/test_legacy_theme_guardrails.py:63` no longer reads it; the guard now scans every other file in `static/js/` and fails if anything but `theme.js` names `adminTheme` or `icums-theme`. |
+| Off-palette lavender on the builder review cards | `.step-number` at `app.css:97` now reads `border: 1px solid var(--color-primary-100, #e0e3fb)` and `background: var(--color-primary-50, #eef0fd)`, matching its already-tokenised dark variant. Chrome computes `rgb(224,227,251)` / `rgb(238,240,253)` on `#4236b6` text in light mode and `rgb(56,48,147)` / `rgb(43,40,96)` on `#8a86de` in dark. |
+
+### Still open, and why
+
+| Finding | Extent | Why it waits |
+|---|---|---|
+| Parallel dark neutral palette `#172033`, `#2b3950`, `#aab4ca` | 89 sites | Each substitution needs a dark-mode contrast check, done per file rather than in one sweep. |
+| Hard-coded palette hexes | 592 of 712 six-digit hexes in `static/css/*.css`; the other 120 are correct `var(--token, #hex)` fallbacks | Concentrated in `simulator-portal.css` (199), `cargo-page.css` (148), `dash.css` (67), `app.css` (63), `instructor-theory-builder.css` (40). Mechanical, but wants the same per-file review. |
+| `tools/build_admin_content_guide.py:25` | `PURPLE = colors.HexColor("#5145CD")` | The last legacy purple in the repository. It colours a generated PDF rather than a page, and sits outside the guardrail's source roots. Left alone deliberately. |
+
+### Corrections to the 14 October method
+
+- `\b` word boundaries are unsafe for hyphenated class names: `\bsection-heading\b` matches inside
+  `course-section-heading`, and `auth-story` matches inside `auth-story-footer`. An earlier pass of this
+  re-sweep reported nine classes as live for exactly that reason — they occur only as segments of the
+  prefixed names the app actually renders (`dash-module-icon`, `lrn-content-block`, `quiz-progress-track`).
+- A name appearing in prose is not usage. `knowledge-check` was found inside a sentence at
+  `templates/instructor_portal/module_edit.html:159` and in manual copy at `tools/build_admin_manual.py:159`;
+  `auth-story` was found only in `tests/test_login_redesign.py:45`, which asserts its absence.
+- Repo-only searches under-report nothing here but must not over-report: `errorlist` looks dead in the
+  repository yet is rendered by `django/forms/utils.py`, so it stays.
+- Searching whole file text over-reports usage badly. A name in a template comment or a Python docstring
+  is not a hook: `.top-nav` looked live because `templates/core/base_simulator.html:11` says "the legacy
+  simulator shell (purple gradient header, fixed sidebar, top-nav) is gone", and `.brand` looked live on
+  nine prose hits. The second pass therefore treated only `class="…"` attribute values and JS class APIs
+  (`classList.add/remove/toggle`, `querySelector('.x')`, `className =`) as usage, scanning the repository
+  plus 392 Django and Unfold template/script files. That is what turned the surviving shell block up.
+- A rule is dead when **any** class in a selector part is dead, not only when all of them are.
+  `.nav-search .ui-icon` cannot match once `.nav-search` is rendered nowhere, even though `.ui-icon` is
+  live on its own through `templates/components/icon.html`. Testing per-rule rather than per-part is what
+  left those four rules behind on the first attempt at this block.
+- Per-part testing needs an accurate selector splitter, and two bugs were caught by it rather than by
+  reading the output: a depth counter that started at 0 drove the nesting negative and swallowed whole
+  regions of the sheet (470 lines to 68), and rejoining a mixed selector list without its commas produced
+  `html[data-theme="dark"] .panel` / `html[data-theme="dark"] .reading-panel` on consecutive lines, which
+  parses as a single descendant selector. Both survived only because the tool refused to write.
+
+### Verification
+
+`manage.py check` reports no issues. `tests/` runs 581 passed, 0 failed. `app.css?v=` is bumped to
+`20261021-2` at `templates/core/base_student.html:16`, which is the only template that loads `app.css`.
+
+Both prunes were then checked against real rendered markup rather than source. Every URL resolvable
+without arguments (179 pages) and then a second pass over 163 URLs including every single-argument
+pattern filled from live primary keys were fetched through an in-process `Client` against a *copy* of the
+development database (`local_data/db.scratchprune.sqlite3`, scratch settings module, both deleted
+afterwards; the real DB was only ever read and its row counts are unchanged). Each response was searched
+**inside `class="…"` attribute values only**, with a full-token delimiter match
+(`(?<![A-Za-z0-9_-])name(?![A-Za-z0-9_-])`) — the same usage model used to classify the names, and the
+reason the check is not fooled by a name appearing in prose. Result: **no removed class appears in any
+rendered page.** `app.css` reaches 13 of the arg-free pages plus the practical builder and assessment
+pages, and the pass confirms positively that those pages still render the hooks the sheet keeps —
+`step-number`, `journey-panel` and `journey-step` on two `practical-edit` pages, `my-learning-group` on
+13, and `app.css` linked on every assessment page fetched — so a clean result is not an artefact of never
+reaching a styled page. Three blind spots were closed separately: the rich-text allow-list
+(`learning/rich_text.py` permits no `class` attribute, so stored lesson prose cannot carry a stylesheet
+hook), a read-only scan of all 83 database tables, and this end-to-end render.
+
+The sheet was also parsed by a real CSS engine (headless Chrome, with Unfold's stylesheet in the same
+document) and flattened to 168 selector contexts, which matched the file's own 168 non-at-rule selectors
+one for one — nothing was silently dropped as a parse error. Computed styles were read for the component
+whose colour changed: `.step-number` resolves to `rgb(224,227,251)` border on `rgb(238,240,253)` with
+`rgb(66,54,182)` digits in light mode, and `rgb(56,48,147)` on `rgb(43,40,96)` with `rgb(138,134,222)`
+under `html[data-theme="dark"]`, with `.panel` and `.eyebrow` still applying. What this still does **not**
+prove is how every page looks: no page has been seen in a browser by eye, and the route-by-route
+light/dark sweep remains open.
+
+Restarting the local server is still required for the pruned sheet to appear. `start_local.py:36` runs
+`collectstatic` on every start, so `local_data/static_collected` rebuilds itself and the stale manifest
+needs no manual action; the reason it looks ignored is that `DEBUG = False` caches both templates and the
+WhiteNoise manifest per process. The `?v=` bump is inert under manifest storage, which rewrites the URL
+to a hashed name.
 
 ## Executive summary
 
