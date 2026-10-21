@@ -61,6 +61,7 @@ def test_monthly_password_is_hashed_and_shown_once(client):
     instructor = User.objects.create_user(username="cred-instructor", email="cred-instructor@example.test", password="instructor-pass")
     instructor.groups.add(Group.objects.get(name="Instructor"))
     student = User.objects.create_user(username="cred-student", email="cred-student@example.test", password="student-pass")
+    student.groups.add(Group.objects.get(name="Student"))
     programme = Programme.objects.create(name="Credential Programme", code="credential-programme")
     version = ProgrammeVersion.objects.create(programme=programme, version=1)
     Enrolment.objects.create(student=student, programme_version=version, enrolled_by=instructor)
@@ -75,7 +76,9 @@ def test_monthly_password_is_hashed_and_shown_once(client):
     credential = SimulatorCredential.objects.get(user=student)
     assert credential.password_hash
     assert raw_password not in credential.password_hash
-    assert credential.revealed_at is not None
+    # The one-time display belongs to the student, not this screen.
+    assert credential.revealed_at is None
+    assert credential.password_state == "awaiting_reveal"
     student.refresh_from_db()
     assert student.student_id  # allocated together with the first credential
 

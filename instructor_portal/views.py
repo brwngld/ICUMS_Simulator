@@ -1,4 +1,4 @@
-﻿from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from django.core.files.base import ContentFile
@@ -19,9 +19,11 @@ from .ordering import (
 from django.utils import timezone
 from django.utils.text import slugify
 
-from assessments.models import AnswerOption, Assessment, AssessmentItem, LessonCheck, Question, QuestionVersion
+import math
+
+from assessments.models import AnswerOption, Assessment, AssessmentItem, LessonCheck, Question, QuestionVersion, TheoryAttempt
 from learning.models import ContentBlock, Course, Lesson, Module
-from learning.services import DIFFICULTY_LEVELS, part_window
+from learning.services import DIFFICULTY_LEVELS, module_completion, part_window
 from learning.rich_text import count_words, plain_text
 from learning.rich_text_images import (
     clone_lesson_images,
@@ -32,12 +34,13 @@ from learning.rich_text_images import (
 from learning.views import module_overview_context, roadmap_context
 from scenarios.models import ScenarioVersion as ScenarioVersionModel
 from onboarding.models import Enrolment, Programme, ProgrammeVersion
-from progress.models import LessonProgress
+from progress.models import LessonProgress, ModuleProgress
 
 from evaluations.models import Rubric, RubricCriterion, RubricVersion
 from reports.models import CompletionPolicy
-from scenarios.models import Scenario, ScenarioActionDefinition, ScenarioDocument, ScenarioState, ScenarioVersion
-from accounts.models import SimulatorCredential
+from scenarios.models import Scenario, ScenarioActionDefinition, ScenarioDocument, ScenarioState, ScenarioVersion, ScenarioAttempt
+from audit.models import AuditEvent
+from accounts.models import SimulatorCredential, User
 
 from .forms import (
     AssessmentQuestionForm,
@@ -66,24 +69,105 @@ def _require_instructor(user):
 @login_required
 def dashboard(request):
     _require_instructor(request.user)
-    enrolments = _instructor_enrolments(request.user).select_related("student__simulator_credential").prefetch_related("lesson_progress", "theory_attempts")
-    return render_student_page(request, "instructor_portal/dashboard.html", {"enrolments": enrolments})
+    enrolments = list(
+        _instructor_enrolments(request.user).select_related("student__simulator_credential", "programme_version__programme")
+    )
+    roster = [
+        {
+            "enrolment": enrolment,
+            "student": enrolment.student,
+            "programme_name": enrolment.programme_version.programme.name,
+        }
+        for enrolment in enrolments
+    ]
+    counts = _roster_counts([enrolment.pk for enrolment in enrolments], {enrolment.programme_version_id for enrolment in enrolments})
+    for row in roster:
+        enrolment = row["enrolment"]
+        completed = counts["modules"][enrolment.pk]
+        total = counts["programme_modules"][enrolment.programme_version_id]
+        name = str(enrolment.student)
+        row.update(
+            {
+                "initials": "".join(word[:1] for word in name.split()[:2]).upper() or "?",
+                "search_terms": " ".join(filter(None, (name, enrolment.student.student_id, row["programme_name"]))).lower(),
+                "completed_modules": completed,
+                "total_modules": total,
+                "percentage": round(completed / total * 100) if total else 0,
+                "lessons_completed": counts["lessons"][enrolment.pk],
+                "attempts": counts["attempts"][enrolment.pk],
+            }
+        )
+    return render_student_page(
+        request,
+        "instructor_portal/dashboard.html",
+        {
+            "rows": roster,
+            "stats": {
+                "total_enrolments": len(roster),
+                "active_enrolments": sum(row["enrolment"].status == Enrolment.Status.ACTIVE for row in roster),
+                "lessons_completed": sum(row["lessons_completed"] for row in roster),
+                "attempts": sum(row["attempts"] for row in roster),
+            },
+            "programme_filters": sorted({row["programme_name"] for row in roster}),
+            "status_filters": [(choice.value, choice.label) for choice in Enrolment.Status if any(row["enrolment"].status == choice.value for row in roster)],
+        },
+    )
+
+
+def _roster_counts(enrolment_ids, version_ids):
+    """One grouped query per roster metric, so the table has no per-row reads.
+
+    A module counts as complete on the pass that wrote its ModuleProgress row,
+    and the denominator is the programme edition's published modules — the
+    modules the learner can actually work through.
+    """
+    zero = dict.fromkeys(enrolment_ids, 0)
+    programme_modules = dict.fromkeys(version_ids, 0)
+    return {
+        "modules": {**zero, **dict(ModuleProgress.objects.filter(enrolment__in=enrolment_ids, status=ModuleProgress.Status.COMPLETED).values_list("enrolment").annotate(Count("id")))},
+        "programme_modules": {**programme_modules, **dict(Module.objects.filter(programme_version__in=version_ids, is_published=True).values_list("programme_version").annotate(Count("id")))},
+        "lessons": {**zero, **dict(LessonProgress.objects.filter(enrolment__in=enrolment_ids, completed_at__isnull=False).values_list("enrolment").annotate(Count("id")))},
+        "attempts": {**zero, **dict(TheoryAttempt.objects.filter(enrolment__in=enrolment_ids).values_list("enrolment").annotate(Count("id")))},
+    }
 
 
 @login_required
 @transaction.atomic
 def simulator_credential_issue(request, user_id):
+    """Issue or reset one assigned student's simulator credential.
+
+    The target resolves through the instructor's own roster — the students
+    this instructor enrolled — and must be an active Student-group account,
+    so one instructor cannot replace another's students' credentials or hand
+    a simulator password to a staff account (audit SEC-02). The credential
+    row is locked while it is reissued, and the issuance is audited.
+    """
     _require_instructor(request.user)
     if request.method != "POST":
         return redirect("instructor-dashboard")
 
-
-    from accounts.models import User
-
-    student = get_object_or_404(User, pk=user_id)
+    student = get_object_or_404(
+        User.objects.filter(
+            is_active=True,
+            groups__name="Student",
+            enrolments__in=_instructor_enrolments(request.user),
+        ).distinct(),
+        pk=user_id,
+    )
     credential, _ = SimulatorCredential.objects.get_or_create(user=student)
+    credential = SimulatorCredential.objects.select_for_update().get(pk=credential.pk)
     raw_password = credential.issue()
-    credential.mark_revealed()
+    # The student views the password once on their own credential page;
+    # revealed_at is theirs to set. The instructor's screen shows it too so
+    # a seated student can be talked through a sign-in.
+    AuditEvent.objects.create(
+        actor=request.user,
+        action_code="simulator.credential_issued",
+        target_type="user",
+        target_id=str(student.pk),
+        summary=f"Simulator credential issued for {student.get_full_name() or student.username}.",
+        ip_address=request.META.get("REMOTE_ADDR"),
+    )
     return render_student_page(request, "instructor_portal/credential_reveal.html", {
         "student": student,
         "credential": credential,
@@ -1780,8 +1864,98 @@ def practical_edit(request, scenario_version_id):
     )
 
 
+def _record_modules(enrolment):
+    """One row per published module: its lessons with their states, and where the learner stands."""
+    module_progress = {p.module_id: p for p in enrolment.module_progress.all()}
+    lesson_progress = {p.lesson_id: p for p in enrolment.lesson_progress.all()}
+    passed_modules = {
+        attempt.assessment.module_id
+        for attempt in enrolment.theory_attempts.all()
+        if attempt.outcome == TheoryAttempt.Outcome.PASS and attempt.assessment.module_id
+    }
+    rows = []
+    for module in enrolment.programme_version.modules.filter(is_published=True).prefetch_related("lessons").order_by("order", "title"):
+        lesson_rows = []
+        done = 0
+        for lesson in module.lessons.all():
+            if not lesson.is_published:
+                continue
+            progress = lesson_progress.get(lesson.pk)
+            if progress and progress.completed_at:
+                state, done = "completed", done + 1
+            elif progress:
+                state = "in_progress"
+            else:
+                state = "not_started"
+            lesson_rows.append({"title": lesson.title, "state": state})
+        total = len(lesson_rows)
+        if module.pk in passed_modules:
+            status, label = "passed", "Completed"
+        elif done or (module_progress.get(module.pk) and module_progress[module.pk].status == ModuleProgress.Status.IN_PROGRESS):
+            status, label = "in_progress", "In progress"
+        else:
+            status, label = "not_started", "Not started"
+        rows.append({
+            "title": module.title,
+            "status": status,
+            "label": label,
+            "number": len(rows) + 1,
+            "lessons": lesson_rows,
+            "lessons_total": total,
+            "lessons_done": done,
+            "percentage": round(done / total * 100) if total else 0,
+        })
+    return rows
+
+
+def _record_attempts(enrolment):
+    """Theory attempts as display rows, plus each assessment's best submitted attempt."""
+    labels = {TheoryAttempt.Outcome.PASS: "Pass", TheoryAttempt.Outcome.FAIL: "Fail"}
+    classes = {TheoryAttempt.Outcome.PASS: "is-ok", TheoryAttempt.Outcome.FAIL: "is-bad"}
+    rows, best = [], {}
+
+    def _display(percentage):
+        return f"{percentage:.2f}".rstrip("0").rstrip(".")
+
+    for attempt in sorted(enrolment.theory_attempts.all(), key=lambda a: (a.assessment.title.lower(), a.attempt_number)):
+        outcome = attempt.outcome if attempt.status == TheoryAttempt.Status.SUBMITTED else ""
+        seconds = attempt.duration_seconds
+        if seconds is None:
+            duration = "—"
+        elif seconds < 60:
+            duration = f"{seconds} s"
+        elif seconds < 3600:
+            duration = f"{round(seconds / 60)} min"
+        else:
+            duration = f"{seconds // 3600}h {(seconds % 3600) // 60:02d}m"
+        rows.append({
+            "assessment": attempt.assessment.title,
+            "number": attempt.attempt_number,
+            "outcome": outcome or "in_progress",
+            "label": labels.get(outcome, "In progress"),
+            "class": classes.get(outcome, "is-info"),
+            "percentage": attempt.percentage,
+            "percentage_display": _display(attempt.percentage),
+            "duration": duration,
+        })
+        if attempt.status == TheoryAttempt.Status.SUBMITTED and (
+            attempt.assessment_id not in best or attempt.percentage > best[attempt.assessment_id]["percentage"]
+        ):
+            best[attempt.assessment_id] = {
+                "assessment": attempt.assessment.title,
+                "number": attempt.attempt_number,
+                "outcome": attempt.outcome,
+                "label": labels.get(attempt.outcome, "In progress"),
+                "class": classes.get(attempt.outcome, "is-info"),
+                "percentage": attempt.percentage,
+                "percentage_display": _display(attempt.percentage),
+            }
+    return rows, list(best.values())
+
+
 @login_required
 def student_detail(request, enrolment_id):
+    """The student's training record: submitted progress and evidence, read-only."""
     _require_instructor(request.user)
     enrolment = get_object_or_404(
         _instructor_enrolments(request.user).prefetch_related(
@@ -1792,7 +1966,45 @@ def student_detail(request, enrolment_id):
         ),
         pk=enrolment_id,
     )
-    return render_student_page(request, "instructor_portal/student_detail.html", {"enrolment": enrolment})
+    module_rows = _record_modules(enrolment)
+    attempt_rows, best_attempts = _record_attempts(enrolment)
+    modules_passed = sum(1 for row in module_rows if row["status"] == "passed")
+    lessons_total = sum(row["lessons_total"] for row in module_rows)
+    lessons_done = sum(row["lessons_done"] for row in module_rows)
+    assessments_passed = sum(1 for row in best_attempts if row["outcome"] == TheoryAttempt.Outcome.PASS)
+    practicals = list(enrolment.scenario_attempts.all())
+    practicals_done = sum(1 for attempt in practicals if attempt.status == ScenarioAttempt.Status.COMPLETED)
+    stats = [
+        {"label": "Modules completed", "value": f"{modules_passed}/{len(module_rows)}", "percentage": round(modules_passed / len(module_rows) * 100) if module_rows else 0},
+        {"label": "Lessons completed", "value": f"{lessons_done}/{lessons_total}" if lessons_total else "0", "percentage": round(lessons_done / lessons_total * 100) if lessons_total else 0},
+        {"label": "Assessments passed", "value": f"{assessments_passed}/{len(best_attempts)}" if best_attempts else "0", "percentage": round(assessments_passed / len(best_attempts) * 100) if best_attempts else 0},
+        {"label": "Practical attempts", "value": str(len(practicals)), "percentage": round(practicals_done / len(practicals) * 100) if practicals else 0},
+    ]
+    programmes = []
+    for record in _instructor_enrolments(request.user).filter(student=enrolment.student).select_related("programme_version__programme").order_by("enrolled_at"):
+        counts = module_completion(record)
+        programmes.append({
+            "pk": record.pk,
+            "name": record.programme_version.programme.name,
+            "url": reverse("instructor-student-detail", args=[record.pk]),
+            "current": record.pk == enrolment.pk,
+            "completed": counts["completed_count"],
+            "total": counts["module_count"],
+            "percentage": round(counts["completed_count"] / counts["module_count"] * 100) if counts["module_count"] else 0,
+        })
+    return render_student_page(
+        request,
+        "instructor_portal/student_detail.html",
+        {
+            "enrolment": enrolment,
+            "module_rows": module_rows,
+            "attempt_rows": attempt_rows,
+            "best_attempts": best_attempts,
+            "practicals": practicals,
+            "stats": stats,
+            "programmes": programmes,
+        },
+    )
 
 
 def _instructor_enrolments(user):

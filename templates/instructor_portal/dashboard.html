@@ -1,6 +1,7 @@
 {% extends "core/base_student.html" %}
 
 {% block title %}Instructor dashboard · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Instructor dashboard{% endblock %}
 
 {% block content %}
 <div class="dash">
@@ -8,40 +9,126 @@
     <div>
       <p class="dash-eyebrow">Instructor workspace</p>
       <h1>Student progress</h1>
-      <p>Review progress and assessment evidence. Instructor feedback does not silently replace recorded attempts.</p>
+      <p>Monitor learning, review assessment evidence, and manage simulator access.</p>
     </div>
   </header>
+
+  <div class="dash-cards">
+    <section class="dash-card">
+      <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="users" %}</span>
+      <small class="dash-card-label">Total enrolments</small>
+      <strong class="dash-card-value">{{ stats.total_enrolments }}</strong>
+      <small class="dash-card-sub">Across all programmes</small>
+    </section>
+    <section class="dash-card">
+      <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="check" %}</span>
+      <small class="dash-card-label">Active enrolments</small>
+      <strong class="dash-card-value">{{ stats.active_enrolments }}</strong>
+      <small class="dash-card-sub">Currently enrolled</small>
+    </section>
+    <section class="dash-card">
+      <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="book" %}</span>
+      <small class="dash-card-label">Lessons completed</small>
+      <strong class="dash-card-value">{{ stats.lessons_completed }}</strong>
+      <small class="dash-card-sub">Across visible records</small>
+    </section>
+    <section class="dash-card">
+      <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="award" %}</span>
+      <small class="dash-card-label">Assessment attempts</small>
+      <strong class="dash-card-value">{{ stats.attempts }}</strong>
+      <small class="dash-card-sub">Recorded attempts</small>
+    </section>
+  </div>
 
   <div class="dash-grid">
     <section class="dash-panel">
       <div class="dash-panel-head">
-        <div><h2>Theory</h2><p>Create reading lessons, knowledge questions, quizzes, and module assessments.</p></div>
-        <span class="dash-pill is-info">Theory</span>
+        <div><h2>Theory builder</h2><p>Create lessons, knowledge checks, quizzes, and module assessments.</p></div>
+        <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="book" %}</span>
       </div>
-      <a href="{% url 'course-builder' %}?path=theory">Open Theory builder →</a>
+      <a href="{% url 'course-builder' %}?path=theory">Open builder ↗</a>
     </section>
     <section class="dash-panel">
       <div class="dash-panel-head">
-        <div><h2>Practical/Theory</h2><p>Combine supporting theory with a guided, pre-programmed ICUMS simulator flow and practical assessment.</p></div>
-        <span class="dash-pill is-ok">Practical/Theory</span>
+        <div><h2>Practical / Theory builder</h2><p>Build guided simulator experiences and practical assessments.</p></div>
+        <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="layers" %}</span>
       </div>
-      <a href="{% url 'course-builder' %}?path=combined">Open Practical/Theory builder →</a>
+      <a href="{% url 'course-builder' %}?path=combined">Open builder ↗</a>
     </section>
   </div>
 
   <section class="dash-panel">
     <div class="dash-panel-head">
-      <div><h2>Enrolments</h2><p>Students assigned to you</p></div>
+      <div><h2>Student enrolments</h2><p>Individual enrolment records and recorded training activity</p></div>
+      <span class="dash-pill is-info" data-roster-count>{{ rows|length }} record{{ rows|length|pluralize }}</span>
     </div>
+
+    <div class="dash-grid">
+      <label class="sr-only" for="roster-search">Search student, ID, or programme</label>
+      <input id="roster-search" type="search" placeholder="Search student, ID, or programme…" data-roster-search>
+      <label class="sr-only" for="roster-programme">Filter programme</label>
+      <select id="roster-programme" data-roster-programme>
+        <option value="">All programmes</option>
+        {% for name in programme_filters %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+      </select>
+      <label class="sr-only" for="roster-status">Filter status</label>
+      <select id="roster-status" data-roster-status>
+        <option value="">All statuses</option>
+        {% for value, label in status_filters %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+
     <table class="dash-table">
-      <thead><tr><th>Student</th><th>Programme</th><th>ICUMS user details</th><th>Training</th><th></th></tr></thead>
+      <thead><tr><th>Student</th><th>Programme / Status</th><th>Training activity</th><th>Simulator access</th><th>Action</th></tr></thead>
       <tbody>
-        {% for enrolment in enrolments %}
-          <tr><td>{{ enrolment.student }}<br><small>{{ enrolment.student.student_id|default:"Student ID not assigned" }}</small></td><td>{{ enrolment.programme_version.programme.name }}<br><small>{{ enrolment.get_status_display }}</small></td><td>{% with credential=enrolment.student.simulator_credential %}{% if credential.issued_at %}<small>{% if credential.password_state == "revealed" %}Password hidden — shown once{% if credential.revealed_at %} {{ credential.revealed_at|date:"j M Y, H:i" }}{% endif %}. Reset to display a new one.{% else %}Password generated — awaiting its one-time display.{% endif %}<br>{% if credential.is_current %}Expires {{ credential.expires_at|date:"j M Y, H:i" }}{% else %}<strong>Expired — reset required</strong>{% endif %}{% if credential.reset_requested_at %} · <strong>Student requested reset</strong>{% endif %}</small>{% else %}<small>Not issued</small>{% endif %}<form method="post" action="{% url 'simulator-credential-issue' enrolment.student.pk %}">{% csrf_token %}<button class="dash-secondary" type="submit">{% if enrolment.student.simulator_credential.issued_at %}Reset monthly password{% else %}Create simulator login{% endif %}</button></form>{% endwith %}</td><td>{{ enrolment.lesson_progress.count }} lessons<br>{{ enrolment.theory_attempts.count }} assessment attempts</td><td><a href="{% url 'instructor-student-detail' enrolment.pk %}">Review</a></td></tr>
-        {% empty %}<tr><td colspan="5">No enrolments are available.</td></tr>{% endfor %}
+        {% for row in rows %}
+          <tr data-roster-row data-search="{{ row.search_terms }}" data-programme="{{ row.programme_name }}" data-status="{{ row.enrolment.status }}">
+            <td><span class="student-module-state" aria-hidden="true">{{ row.initials }}</span> <b>{{ row.student }}</b><br><small>{{ row.student.student_id|default:"Student ID not assigned" }}</small></td>
+            <td>{{ row.programme_name }}<br><span class="dash-pill {% if row.enrolment.status == 'withdrawn' %}is-warn{% else %}is-ok{% endif %}">{{ row.enrolment.get_status_display }}</span></td>
+            <td>
+              <div class="student-programme-row"><span>{{ row.completed_modules }} of {{ row.total_modules }} modules</span><strong>{{ row.percentage }}%</strong></div>
+              <span class="student-module-track"><span style="width: {{ row.percentage }}%"></span></span>
+              <small class="dash-muted">{{ row.lessons_completed }} lesson{{ row.lessons_completed|pluralize }} · {{ row.attempts }} attempt{{ row.attempts|pluralize }}</small>
+            </td>
+            <td>{% with credential=row.student.simulator_credential %}<span class="dash-pill {% if credential.issued_at %}is-ok{% else %}is-muted{% endif %}">{% if credential.issued_at %}Login issued{% else %}Not issued{% endif %}</span>{% if credential.issued_at %}<br><small class="dash-muted">{% if credential.password_state == "revealed" %}Password viewed by the student — shown once{% if credential.revealed_at %} {{ credential.revealed_at|date:"j M Y, H:i" }}{% endif %}{% else %}Password issued — the student views it once on their credential page{% endif %} · {% if credential.is_current %}Expires {{ credential.expires_at|date:"j M Y, H:i" }}{% else %}<strong>Expired — reset required</strong>{% endif %}{% if credential.reset_requested_at %} · <strong>Student requested reset</strong>{% if credential.reset_reason %} — {{ credential.get_reset_reason_display }}{% endif %}{% endif %}</small>{% endif %}{% endwith %}</td>
+            <td>
+              {% with credential=row.student.simulator_credential %}<form id="credential-issue-{{ row.enrolment.pk }}" method="post" action="{% url 'simulator-credential-issue' row.student.pk %}">{% csrf_token %}</form>
+              <div class="student-module-main"><button class="student-ghost-action" type="submit" form="credential-issue-{{ row.enrolment.pk }}">{% if credential.issued_at %}Reset password{% else %}Issue login{% endif %}</button><a class="student-ghost-action" href="{% url 'instructor-student-detail' row.enrolment.pk %}">Review →</a></div>{% endwith %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">No enrolments are available.</td></tr>
+        {% endfor %}
       </tbody>
     </table>
+    <p class="dash-empty" data-roster-empty hidden>No enrolments match your filters.</p>
+    <p class="dash-muted" data-roster-showing>Showing {{ rows|length }} of {{ rows|length }} enrolment{{ rows|length|pluralize }}</p>
   </section>
 </div>
-<script>document.querySelectorAll('[data-copy-target]').forEach(button=>button.addEventListener('click',async()=>{const text=document.getElementById(button.dataset.copyTarget).textContent;await navigator.clipboard.writeText(text);button.textContent='Copied';}));</script>
+<script>
+  (() => {
+    const rows = Array.from(document.querySelectorAll('[data-roster-row]'));
+    if (!rows.length) return;
+    const search = document.querySelector('[data-roster-search]');
+    const programme = document.querySelector('[data-roster-programme]');
+    const status = document.querySelector('[data-roster-status]');
+    const badge = document.querySelector('[data-roster-count]');
+    const showing = document.querySelector('[data-roster-showing]');
+    const unmatched = document.querySelector('[data-roster-empty]');
+    const pluralise = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
+    const filterRows = () => {
+      const query = search.value.trim().toLowerCase();
+      const matches = rows.map((row) => (!query || row.dataset.search.includes(query))
+        && (!programme.value || row.dataset.programme === programme.value)
+        && (!status.value || row.dataset.status === status.value));
+      rows.forEach((row, index) => { row.hidden = !matches[index]; });
+      const visible = matches.filter(Boolean).length;
+      badge.textContent = pluralise(visible, 'record');
+      showing.textContent = `Showing ${visible} of ${rows.length} enrolment${rows.length === 1 ? '' : 's'}`;
+      unmatched.hidden = visible > 0;
+    };
+    search.addEventListener('input', filterRows);
+    [programme, status].forEach((control) => control.addEventListener('change', filterRows));
+  })();
+</script>
 {% endblock %}

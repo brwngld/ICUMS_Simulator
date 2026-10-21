@@ -1,15 +1,193 @@
 {% extends "core/base_student.html" %}
 {% load static %}
 
-{% block title %}{{ enrolment.student }} · Instructor{% endblock %}
+{% block title %}{{ enrolment.student }} · Training record · Instructor{% endblock %}
+{% block workspace_name %}{{ enrolment.student }}{% endblock %}
 
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/instructor-portal.css' %}?v=20261015-1">
 <div class="dash portal-main">
-<header class="dash-head"><div><p class="dash-eyebrow">{{ enrolment.programme_version.programme.name }}</p><h1>{{ enrolment.student }}</h1><p>Submitted progress and assessment evidence, shown read-only.</p></div><span class="view-mode-badge">View mode</span></header>
-<section class="dash-panel"><div class="dash-panel-head"><h2>Lesson progress</h2></div><ul>{% for item in enrolment.lesson_progress.all %}<li>{{ item.lesson.module.title }} — {{ item.lesson.title }}: {% if item.completed_at %}Completed{% else %}Section {{ item.last_position|add:1 }}{% endif %}</li>{% empty %}<li>No lesson activity.</li>{% endfor %}</ul></section>
-<section class="dash-panel"><div class="dash-panel-head"><h2>Module progress</h2></div><ul>{% for item in enrolment.module_progress.all %}<li>{{ item.module.title }} — {{ item.get_status_display }}</li>{% empty %}<li>No module activity.</li>{% endfor %}</ul></section>
-<section class="dash-panel"><div class="dash-panel-head"><h2>Assessment attempts</h2></div><table class="dash-table"><thead><tr><th>Assessment</th><th>Attempt</th><th>Result</th><th>Score</th><th>Elapsed time</th></tr></thead><tbody>{% for attempt in enrolment.theory_attempts.all %}<tr><td>{{ attempt.assessment.title }}</td><td>{{ attempt.attempt_number }}</td><td>{{ attempt.get_outcome_display|default:"In progress" }}</td><td>{{ attempt.percentage }}%</td><td>{{ attempt.duration_seconds|default:"—" }} seconds</td></tr>{% empty %}<tr><td colspan="5">No attempts.</td></tr>{% endfor %}</tbody></table></section>
-<section class="dash-panel"><div class="dash-panel-head"><h2>Practical attempts</h2></div><table class="dash-table"><thead><tr><th>Scenario</th><th>Attempt</th><th>Mode</th><th>Status</th><th>Last saved</th><th></th></tr></thead><tbody>{% for attempt in enrolment.scenario_attempts.all %}<tr><td>{{ attempt.scenario_version.scenario.title }}</td><td>{{ attempt.attempt_number }}</td><td>{{ attempt.get_assistance_mode_display }}</td><td>{{ attempt.get_status_display }}</td><td>{{ attempt.last_saved_at }}</td><td>{% if attempt.evaluation %}<a href="{% url 'practical-evaluation' attempt.evaluation.pk %}">Evaluation</a>{% endif %}</td></tr>{% empty %}<tr><td colspan="6">No practical attempts.</td></tr>{% endfor %}</tbody></table></section>
+<header class="dash-head">
+  <div class="record-who">
+    <span class="account-avatar" aria-hidden="true">{{ enrolment.student.get_full_name|default:enrolment.student.username|slice:":1"|upper }}</span>
+    <div>
+      <h1>{{ enrolment.student }}</h1>
+      <p class="record-caption">Training record · {{ enrolment.programme_version.programme.name }}</p>
+    </div>
+  </div>
+  <span class="view-mode-badge">View mode</span>
+</header>
+<p class="record-lead">Submitted progress and assessment evidence, shown read-only.</p>
+
+{% if programmes %}
+  <section class="dash-panel record-programmes">
+    <div class="record-programmes-head">
+      <h2>Programmes</h2>
+      <span class="record-programmes-count">{{ programmes|length }} enrolled</span>
+    </div>
+    <input type="search" class="record-search" placeholder="Search programmes" aria-label="Search programmes" data-record-filter>
+    <div class="record-programme-cards">
+      {% for programme in programmes %}
+        <a href="{{ programme.url }}" class="record-programme-card{% if programme.current %} is-active{% endif %}" data-name="{{ programme.name|lower }}">
+          <b>{{ programme.name }}</b>
+          <small>{{ programme.completed }} of {{ programme.total }} modules · {{ programme.percentage }}%</small>
+          <span class="student-module-track"><span style="width: {{ programme.percentage }}%"></span></span>
+        </a>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
+<div class="record-main">
+    <div>
+      <p class="record-eyebrow">Programme</p>
+      <h2 class="record-title">{{ enrolment.programme_version.programme.name }}</h2>
+      <p class="record-sub">Submitted progress and assessment evidence, shown read-only.</p>
+    </div>
+
+    <div class="record-stats">
+      {% for stat in stats %}
+        <section class="record-stat">
+          <small>{{ stat.label }}</small>
+          <b>{{ stat.value }}</b>
+          <span class="student-module-track"><span style="width: {{ stat.percentage }}%"></span></span>
+        </section>
+      {% endfor %}
+    </div>
+
+    <section class="dash-panel">
+      <div class="dash-panel-head">
+        <div><h2>Modules &amp; lessons</h2><p class="account-note">Expand a module to see its lessons.</p></div>
+      </div>
+      {% for module in module_rows %}
+        <details class="record-module{% if module.status == 'passed' %} is-passed{% elif module.status == 'in_progress' %} is-current{% endif %}">
+          <summary>
+            <span class="record-module-step" aria-hidden="true">{% if module.status == 'passed' %}✓{% else %}{{ module.number }}{% endif %}</span>
+            <span class="record-module-main">
+              <b>{{ module.title }}</b>
+              <small>{{ module.lessons_total }} lesson{{ module.lessons_total|pluralize }} recorded</small>
+            </span>
+            <span class="dash-pill {% if module.status == 'passed' %}is-ok{% elif module.status == 'in_progress' %}is-info{% else %}is-muted{% endif %}">{{ module.label }}</span>
+            <span class="record-chevron" aria-hidden="true">▾</span>
+          </summary>
+          {% if module.lessons %}
+            <div class="record-lessons">
+              {% for lesson in module.lessons %}
+                <div>
+                  <span>{{ lesson.title }}</span>
+                  <span class="dash-pill {% if lesson.state == 'completed' %}is-ok{% elif lesson.state == 'in_progress' %}is-info{% else %}is-muted{% endif %}">{% if lesson.state == 'completed' %}Completed{% elif lesson.state == 'in_progress' %}In progress{% else %}Not started{% endif %}</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="record-lessons"><div><span class="account-note">No published lessons recorded.</span></div></div>
+          {% endif %}
+        </details>
+      {% empty %}
+        <p class="account-note">No published modules in this programme yet.</p>
+      {% endfor %}
+    </section>
+
+    <section class="dash-panel">
+      <div class="dash-panel-head">
+        <div><h2>Assessment attempts</h2><p class="account-note">{% if attempt_rows %}{{ attempt_rows|length }} attempt{{ attempt_rows|length|pluralize }} across {{ best_attempts|length }} assessment{{ best_attempts|length|pluralize }}.{% else %}Quizzes and exams taken in this programme.{% endif %}</p></div>
+        {% if attempt_rows %}
+          <div class="record-filter" role="group" aria-label="Filter attempts">
+            <button type="button" class="is-active" data-outcome="">All</button>
+            <button type="button" data-outcome="pass">Pass</button>
+            <button type="button" data-outcome="fail">Fail</button>
+            <button type="button" data-outcome="in_progress">In progress</button>
+          </div>
+        {% endif %}
+      </div>
+      {% if best_attempts %}
+        <div class="record-best">
+          {% for row in best_attempts %}
+            <div class="record-best-chip"><b>{{ row.assessment }}</b>Best: {{ row.percentage_display }}% · {{ row.label }} (attempt {{ row.number }})</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% if attempt_rows %}
+        <div class="record-table-wrap">
+          <table class="dash-table">
+            <thead><tr><th>Assessment</th><th>Attempt</th><th>Result</th><th>Score</th><th>Time taken</th></tr></thead>
+            <tbody>
+              {% for row in attempt_rows %}
+                <tr data-outcome="{{ row.outcome }}">
+                  <td>{{ row.assessment }}</td>
+                  <td>#{{ row.number }}</td>
+                  <td><span class="dash-pill {{ row.class }}">{{ row.label }}</span></td>
+                  <td class="record-score"><span>{{ row.percentage_display }}%</span><span class="student-module-track {% if row.outcome == 'fail' %}is-bad{% elif row.outcome == 'pass' %}is-ok{% endif %}"><span style="width: {{ row.percentage }}%"></span></span></td>
+                  <td>{{ row.duration }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="record-empty">
+          <span class="record-empty-ico" aria-hidden="true">{% include "components/icon.html" with name="check" %}</span>
+          <b>No assessment attempts yet</b>
+          <span>Attempts show up here after the student takes a quiz or exam.</span>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="dash-panel">
+      <div class="dash-panel-head">
+        <div><h2>Practical attempts</h2><p class="account-note">Simulator scenarios attempted in this programme.</p></div>
+      </div>
+      {% if practicals %}
+        <div class="record-table-wrap">
+          <table class="dash-table">
+            <thead><tr><th>Scenario</th><th>Attempt</th><th>Mode</th><th>Status</th><th>Last saved</th><th></th></tr></thead>
+            <tbody>
+              {% for attempt in practicals %}
+                <tr>
+                  <td>{{ attempt.scenario_version.scenario.title }}</td>
+                  <td>#{{ attempt.attempt_number }}</td>
+                  <td>{{ attempt.get_assistance_mode_display }}</td>
+                  <td>{{ attempt.get_status_display }}</td>
+                  <td>{{ attempt.last_saved_at|date:"j M Y, H:i" }}</td>
+                  <td>{% if attempt.evaluation %}<a href="{% url 'practical-evaluation' attempt.evaluation.pk %}">Evaluation</a>{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="record-empty">
+          <span class="record-empty-ico" aria-hidden="true">{% include "components/icon.html" with name="layers" %}</span>
+          <b>No practical attempts yet</b>
+          <span>Scenarios appear here once the student starts guided simulator practice.</span>
+        </div>
+      {% endif %}
+    </section>
+  </div>
 </div>
+
+<script>
+  (function () {
+    var search = document.querySelector("[data-record-filter]");
+    if (search) {
+      search.addEventListener("input", function () {
+        var query = search.value.trim().toLowerCase();
+        document.querySelectorAll(".record-programme-card").forEach(function (item) {
+          item.hidden = Boolean(query) && item.getAttribute("data-name").indexOf(query) === -1;
+        });
+      });
+    }
+    var filter = document.querySelector(".record-filter");
+    if (filter) {
+      var rows = document.querySelectorAll(".record-table-wrap tbody tr[data-outcome]");
+      filter.addEventListener("click", function (event) {
+        var button = event.target.closest("button");
+        if (!button) return;
+        filter.querySelectorAll("button").forEach(function (candidate) { candidate.classList.toggle("is-active", candidate === button); });
+        var outcome = button.getAttribute("data-outcome");
+        rows.forEach(function (row) { row.hidden = Boolean(outcome) && row.getAttribute("data-outcome") !== outcome; });
+      });
+    }
+  })();
+</script>
 {% endblock %}
