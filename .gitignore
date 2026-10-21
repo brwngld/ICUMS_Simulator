@@ -17,3 +17,4 @@ tmp/
 tmp-unlocode*
 output/
 docs/~$*
+node_modules/

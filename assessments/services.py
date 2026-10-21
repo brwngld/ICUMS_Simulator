@@ -12,10 +12,23 @@ from progress.models import ModuleProgress, ProgrammeProgress
 from .models import TheoryAttempt, TheoryAttemptItem, TheoryResponse
 
 
+def _locked_attempt(pk):
+    """Re-read the attempt under a row lock.
+
+    A save racing a submit — or two of either — must not act on the same
+    stale instance: the lock serialises them and the status check each caller
+    makes afterwards is answered by the row's current state, not the caller's
+    copy (audit SEC-05).
+    """
+    return TheoryAttempt.objects.select_for_update().get(pk=pk)
+
+
 @transaction.atomic
 def save_attempt_answers(attempt, answers):
     """Persist the learner's current selections without scoring the attempt."""
-    if attempt.status != TheoryAttempt.Status.IN_PROGRESS:
+    # Re-read under lock so a save racing a submit is answered by the row's
+    # current state, not the caller's possibly stale copy (audit SEC-05).
+    if _locked_attempt(attempt.pk).status != TheoryAttempt.Status.IN_PROGRESS:
         raise ValueError("Only an in-progress attempt can save answers.")
     items = attempt.items.select_related("question_version").prefetch_related("question_version__options")
     for item in items:
@@ -56,7 +69,9 @@ def get_or_start_attempt(enrolment, assessment):
 
 @transaction.atomic
 def submit_attempt(attempt, answers):
-    if attempt.status != TheoryAttempt.Status.IN_PROGRESS:
+    # Same locked re-read as save: the status verdict comes from the row
+    # itself, while scoring keeps updating the instance the caller handed in.
+    if _locked_attempt(attempt.pk).status != TheoryAttempt.Status.IN_PROGRESS:
         raise ValueError("Only an in-progress attempt can be submitted.")
     assessment = attempt.assessment
     score = 0

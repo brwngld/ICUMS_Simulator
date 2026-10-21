@@ -1,3 +1,5 @@
+import mimetypes
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -6,12 +8,12 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.http import FileResponse, Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from django.views import defaults as django_views
-from django.views.static import serve
 
 from accounts.context_processors import role_context
 from assessments.models import Assessment
@@ -22,6 +24,7 @@ from learning.views import roadmap_context
 from onboarding.services import enrolment_for_request, needs_disclaimer_acceptance, programme_href, requested_enrolment
 from progress.models import ProgrammeProgress
 from accounts.models import SimulatorCredential
+from scenarios.models import UcrDocumentAttachment
 from .admin_dashboard import dashboard_callback, render_student_page
 
 
@@ -41,6 +44,18 @@ def dashboard(request):
     completed_modules = sum(item["assessment_state"] == "passed" for item in summaries)
     total_modules = len(summaries)
     module_completion_percentage = round(completed_modules / total_modules * 100) if total_modules else 0
+    modules_left = max(total_modules - completed_modules, 0)
+    # The first module the learner can still work on: the roadmap highlights
+    # it as "Up next" and the journey cards follow the same position.
+    next_module_pk = next(
+        (item["module"].pk for item in summaries if item["unlocked"] and item["assessment_state"] != "passed"),
+        None,
+    )
+    journey_stage = (
+        "demonstrate" if completion_record
+        else "practise" if programme_progress and programme_progress.orientation_completed_at
+        else "learn"
+    )
 
     primary_action = None
     if enrolment:
@@ -102,6 +117,9 @@ def dashboard(request):
         "completed_modules": completed_modules,
         "total_modules": total_modules,
         "module_completion_percentage": module_completion_percentage,
+        "modules_left": modules_left,
+        "next_module_pk": next_module_pk,
+        "journey_stage": journey_stage,
         # The switcher list. Every row links to its own programme's roadmap, so
         # a learner enrolled on two programmes can reach the second one.
         "programmes": programme_rows(request.user),
@@ -176,12 +194,45 @@ def permission_denied(request, exception=None):
     return django_views.permission_denied(request, exception)
 
 
-# Course and module covers are public artwork, but every other upload (simulator
-# attachments and the like) shares MEDIA_ROOT, so those need a signed-in session.
-PUBLIC_MEDIA_PREFIXES = ("course_covers/", "module_covers/")
+# Course and module covers are public artwork and lesson rich-text images are
+# part of the published reading, but everything else under MEDIA_ROOT is a
+# learner's own material (simulator attachments), served only to its owner or
+# to staff.
+PUBLIC_MEDIA_PREFIXES = ("course_covers/", "module_covers/", "lesson_rich_text/")
+OWNED_MEDIA_PREFIXES = ("ucr_attachments/",)
 
 
 def media_file(request, path):
-    if not path.startswith(PUBLIC_MEDIA_PREFIXES) and not request.user.is_authenticated:
-        return redirect_to_login(request.get_full_path())
-    return serve(request, path, document_root=settings.MEDIA_ROOT)
+    """Serve one media file after checking the viewer may see it.
+
+    A controlled FileResponse replaces ``django.views.static.serve``: paths
+    that escape MEDIA_ROOT answer 404 and every response carries
+    ``X-Content-Type-Options: nosniff``. Learner uploads resolve to their
+    owning record, so one signed-in user cannot fetch another's documents by
+    storage path (audit SEC-01/SEC-11).
+    """
+    root = Path(settings.MEDIA_ROOT).resolve()
+    candidate = (root / path).resolve()
+    if not candidate.is_relative_to(root) or not candidate.is_file():
+        raise Http404("No such file.")
+    if not path.startswith(PUBLIC_MEDIA_PREFIXES):
+        if not request.user.is_authenticated:
+            return redirect_to_login(request.get_full_path())
+        if path.startswith(OWNED_MEDIA_PREFIXES) and not _may_see_private_media(request, path):
+            raise Http404("No such file.")
+    response = FileResponse(candidate.open("rb"), content_type=mimetypes.guess_type(path)[0] or "application/octet-stream")
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+def _may_see_private_media(request, path):
+    """Owner, staff, or an Instructor/Administrator reviewing that work."""
+    attachment = UcrDocumentAttachment.objects.filter(file=path).select_related("ucr").first()
+    if attachment is None:
+        return False
+    user = request.user
+    return (
+        attachment.ucr.owner_id == user.pk
+        or user.is_staff
+        or user.groups.filter(name__in=("Instructor", "Administrator")).exists()
+    )

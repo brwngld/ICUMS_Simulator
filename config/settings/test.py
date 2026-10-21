@@ -10,3 +10,8 @@ DATABASES = {
     }
 }
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+# The auth rate limiter counts failures in the default cache; a no-op cache
+# keeps suites that sign in repeatedly unaffected. The limiter's own tests opt
+# into a real cache with override_settings.
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}}

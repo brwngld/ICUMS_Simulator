@@ -67,6 +67,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "accounts.context_processors.role_context",
+                "accounts.context_processors.account_menu",
                 "accounts.context_processors.simulator_review",
                 "scenarios.context_processors.guided_practical",
             ],
@@ -142,7 +143,8 @@ UNFOLD = {
     },
     "ACCOUNT": {
         "navigation": [
-            {"title": "Change password", "link": "/accounts/password-change/"},
+            # Lands on the Settings page with the change-password dialog open.
+            {"title": "Change password", "link": "/accounts/settings/#change-password"},
         ],
     },
     "SIDEBAR": {

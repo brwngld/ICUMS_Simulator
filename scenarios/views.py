@@ -11,6 +11,7 @@ from django.db.models import Case, IntegerField, Value, When
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
+from core import throttle
 from core.admin_dashboard import render_student_page
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
@@ -24,6 +25,7 @@ def _q2(value):
     return Decimal(str(value or 0)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 from datetime import date, timedelta
 import json
+import os
 
 from onboarding.services import active_enrolments, enrolment_for_request, needs_disclaimer_acceptance, programme_param
 
@@ -108,6 +110,25 @@ def _safe_simulator_next(request):
     return candidate
 
 
+def _frame_for_practice_desk(request, response):
+    """Let the practice-desk spike frame one simulator page from this origin.
+
+    Temporary: the desk prototype shows a real simulator page inside a side
+    panel, and the global ``X_FRAME_OPTIONS = "DENY"`` would block it. The
+    permission is granted per response, only when the browser itself reports
+    that this document is being loaded as a frame (``Sec-Fetch-Dest: iframe``),
+    so it survives the simulator's own POST-then-redirect navigation (save a
+    draft, land on its detail page) that a query-string marker could not.
+    ``DENY`` stays the default for every other request and for the rest of the
+    site; Django's clickjacking middleware leaves a header that the view has
+    already set alone, so no settings change is involved. Discarding the desk
+    reverts this function and the two calls beneath it.
+    """
+    if request.method == "GET" and request.headers.get("Sec-Fetch-Dest", "") == "iframe":
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    return response
+
+
 def simulator_access_required(view):
     @wraps(view)
     def wrapped(request, *args, **kwargs):
@@ -117,13 +138,28 @@ def simulator_access_required(view):
             if requested.startswith("/practical/") and not requested.startswith("//"):
                 request.session["simulator_login_next"] = requested
             return redirect(f"{reverse('simulator-portal')}?login=1")
-        return view(request, *args, **kwargs)
+        return _frame_for_practice_desk(request, view(request, *args, **kwargs))
     return wrapped
 
 
 def simulator_portal(request):
     student_id_hint = request.user.student_id if request.user.is_authenticated else ""
-    return render_student_page(request, "scenarios/portal.html", {"simulator_access": _has_simulator_access(request), "student_id_hint": student_id_hint})
+    response = render_student_page(request, "scenarios/portal.html", {"simulator_access": _has_simulator_access(request), "student_id_hint": student_id_hint})
+    return _frame_for_practice_desk(request, response)
+
+
+def simulator_more_information(request):
+    """Public explainer shown where the service-area menu would otherwise be.
+
+    Reachable without an account: it is the answer to "is this the real
+    ICUMS?", so it has to be readable before anyone can sign in.
+    """
+    from onboarding.services import current_disclaimer
+
+    return render_student_page(request, "scenarios/more_information.html", {
+        "disclaimer": current_disclaimer(),
+        "simulator_access": _has_simulator_access(request),
+    })
 
 
 @require_POST
@@ -166,14 +202,23 @@ def simulator_review_exit(request):
 def simulator_login(request):
     student_id = request.POST.get("student_id", "").strip().upper()
     password = request.POST.get("password", "")
+    address = throttle.client_address(request)
+    if throttle.exhausted("sim-login:id", student_id, throttle.SIMULATOR_ID_LIMIT, throttle.SIMULATOR_WINDOW_SECONDS) or throttle.exhausted(
+        "sim-login:address", address, throttle.SIMULATOR_ADDRESS_LIMIT, throttle.SIMULATOR_WINDOW_SECONDS
+    ):
+        messages.error(request, "Too many failed simulator sign-in attempts. Please wait a few minutes and try again.")
+        return redirect("simulator-portal")
     credential = SimulatorCredential.objects.select_related("user").filter(user__student_id=student_id).first()
     if not credential or not credential.matches(password):
+        throttle.record("sim-login:id", student_id, throttle.SIMULATOR_WINDOW_SECONDS)
+        throttle.record("sim-login:address", address, throttle.SIMULATOR_WINDOW_SECONDS)
         messages.error(request, "The Student ID or simulator password is invalid or expired.")
         return redirect("simulator-portal")
     user = credential.user
     if not user.is_active:
         messages.error(request, "This student account is inactive.")
         return redirect("simulator-portal")
+    throttle.clear("sim-login:id", student_id)
     auth_login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     request.session["simulator_user_id"] = str(user.pk)
     messages.success(request, "Simulator access granted.")
@@ -625,13 +670,41 @@ def _open_ucr_draft(user):
     return UcrDeclaration.objects.filter(owner=user, status=UcrDeclaration.Status.DRAFT).order_by("-updated_at").first()
 
 
+#: Magic bytes expected for each accepted attachment extension, so a file
+#: renamed to .png cannot carry script or HTML content into the simulator
+#: (audit SEC-07). .doc is the OLE2 compound-document header, .docx a zip.
+UPLOAD_CONTENT_SIGNATURES = {
+    ".pdf": (b"%PDF-",),
+    ".png": (b"\x89PNG\r\n\x1a\n",),
+    ".jpg": (b"\xff\xd8\xff",),
+    ".jpeg": (b"\xff\xd8\xff",),
+    ".doc": (b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1",),
+    ".docx": (b"PK\x03\x04",),
+}
+
+
+def _content_matches_extension(uploaded):
+    """True when the uploaded file's leading bytes fit its own extension."""
+    signatures = UPLOAD_CONTENT_SIGNATURES.get(os.path.splitext(uploaded.name.lower())[1])
+    if signatures is None:
+        return False
+    head = uploaded.read(len(max(signatures, key=len)))
+    uploaded.seek(0)
+    return any(head.startswith(signature) for signature in signatures)
+
+
 def _validate_ucr_attachments(documents, request):
     allowed = {".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"}
     for key, uploaded in request.FILES.items():
         if not key.startswith("file_") or not key[5:].isdigit():
             continue
         index = int(key[5:])
-        if index >= len(documents) or uploaded.size > 10 * 1024 * 1024 or not any(uploaded.name.lower().endswith(ext) for ext in allowed):
+        if (
+            index >= len(documents)
+            or uploaded.size > 10 * 1024 * 1024
+            or not any(uploaded.name.lower().endswith(ext) for ext in allowed)
+            or not _content_matches_extension(uploaded)
+        ):
             raise ValidationError("Each attachment needs a document row and must be a PDF, image, or Word file under 10 MB.")
 
 
@@ -1010,7 +1083,11 @@ def ucr_amend(request, record_id):
     allowed_extensions = {".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx"}
     uploads = [(key, file) for key, file in request.FILES.items() if key.startswith("file_") and key[5:].isdigit()]
     for key, uploaded in uploads:
-        if uploaded.size > 10 * 1024 * 1024 or not any(uploaded.name.lower().endswith(ext) for ext in allowed_extensions):
+        if (
+            uploaded.size > 10 * 1024 * 1024
+            or not any(uploaded.name.lower().endswith(ext) for ext in allowed_extensions)
+            or not _content_matches_extension(uploaded)
+        ):
             messages.error(request, "Attachments must be PDF, image, or Word files under 10 MB.")
             return redirect("ucr-amend", record_id=record_id)
 
@@ -2796,6 +2873,27 @@ def boe_submit(request, declaration_id):
     return redirect("boe-declaration", declaration_id=declaration.pk)
 
 
+@simulator_access_required
+@require_POST
+def boe_delete(request):
+    """Only draft BOE declarations can be deleted from the Search BOE list."""
+    blocked = _review_form_guard(request)
+    if blocked:
+        return blocked
+    declaration_id = str(request.POST.get("declaration_id", "")).strip()
+    record = (BoeDeclaration.objects.filter(pk=declaration_id, owner=request.user).first()
+              if declaration_id.isdigit() else None)
+    if record is None:
+        messages.error(request, "Select a declaration record to delete.")
+    elif record.status != BoeDeclaration.Status.DRAFT:
+        messages.error(request, "Only draft declarations can be deleted.")
+    else:
+        job_no = record.job_no
+        record.delete()
+        messages.success(request, f"Draft declaration {job_no} was deleted.")
+    return redirect("search-boe-declaration")
+
+
 SINGLE_WINDOW_REFERENCE_PAGES = {
     "transfer-ucr": {
         "title": "Transfer UCR", "section": "Registration · Unique Consignment Reference",
@@ -2831,7 +2929,11 @@ def single_window_reference_page(request, page_key):
     page = SINGLE_WINDOW_REFERENCE_PAGES.get(page_key)
     if page is None:
         raise PermissionDenied("Unknown Single Window reference page.")
-    return render_student_page(request, "scenarios/single_window_reference_page.html", {"page": page, "page_key": page_key})
+    return render_student_page(request, "scenarios/single_window_reference_page.html", {
+        "page": page,
+        "page_key": page_key,
+        "title": page["title"],
+    })
 
 
 def _enrolment_with_access(request, version=None):
