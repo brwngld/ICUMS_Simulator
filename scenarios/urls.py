@@ -72,6 +72,7 @@ urlpatterns = [
     path("single-window/commitment/letter/search/", views.single_window_reference_page, {"page_key": "letter-search"}, name="single-window-search-letter-commitment"),
     path("single-window/previous/<slug:page_key>/", views.single_window_reference_page, name="single-window-previous-data"),
     path("portal/", views.simulator_portal, name="simulator-portal"),
+    path("more-information/", views.simulator_more_information, name="simulator-more-information"),
     path("access/login/", views.simulator_login, name="simulator-login"),
     path("access/review/login/", views.simulator_review_login, name="simulator-review-login"),
     path("access/review/exit/", views.simulator_review_exit, name="simulator-review-exit"),

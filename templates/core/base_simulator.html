@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load static %}
+{% load static unfold %}
 
 {% comment %}
 Shared Unfold shell for the simulator (playground) pages — the same chrome
@@ -9,7 +9,43 @@ simulator area menus for /practical/ playground paths), header, theme and
 user chip. Pages extend this and keep their own content markup, styled by
 the simulator stylesheets loaded below; the legacy simulator shell
 (purple gradient header, fixed sidebar, top-nav) is gone.
+
+Visitors who are not signed in get none of the admin chrome: the sidebar
+(where the simulator menus live) and the header strip only serve an
+authenticated user, so both are skipped for guests. The header strip keeps
+the admin's own metrics but carries the page identity — the sim_eyebrow and
+sim_title blocks below, which fall back to the admin greeting for pages
+that do not set them.
 {% endcomment %}
+
+{% block nav-sidebar %}{% if user.is_authenticated %}{{ block.super }}{% endif %}{% endblock %}
+
+{% block header %}{% if user.is_authenticated %}
+  {% capture as sim_header_eyebrow silent %}{% block sim_eyebrow %}{% endblock %}{% endcapture %}
+  {% capture as sim_header_title silent %}{% block sim_title %}{% endblock %}{% endcapture %}
+  {% if sim_header_title %}
+  <div class="bg-white border-b border-base-200 mb-4 px-4 z-40 dark:bg-base-900 dark:border-base-800 dark:text-font-default-dark">
+    <div class="container flex items-center h-16 mx-auto py-4">
+      <div id="header-inner" class="flex items-center relative w-full">
+        <div class="flex items-center w-full">
+          <div class="flex flex-row grow font-semibold items-center min-w-0 mr-3">
+            {% if is_nav_sidebar_enabled %}
+              <span class="cursor-pointer flex flex-row items-center">
+                <span class="material-symbols-outlined" x-on:click="sidebarToggle()">dock_to_right</span>
+              </span>
+              <span class="block bg-base-200 h-5 mx-3 w-px dark:bg-base-700"></span>
+            {% endif %}
+            <div class="min-w-0">
+              <p class="sim-header-eyebrow">{{ sim_header_eyebrow }}</p>
+              <h1 class="sim-header-title">{{ sim_header_title }}</h1>
+            </div>
+          </div>
+          {% include "unfold/helpers/userlinks.html" %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% else %}{{ block.super }}{% endif %}{% endif %}{% endblock %}
 
 {% block extrastyle %}
   {{ block.super }}
@@ -36,11 +72,41 @@ the simulator stylesheets loaded below; the legacy simulator shell
     .sim-skip-link { position: absolute; left: 1rem; top: -4rem; z-index: 100; padding: .7rem 1.1rem; border-radius: .5rem; background: #fff; color: var(--color-base-900, #0f172a); font-weight: 600; box-shadow: 0 4px 12px rgba(15, 23, 42, .18); }
     html.dark .sim-skip-link { background: var(--color-base-800, #1e293b); color: var(--color-font-default-dark, #cbd5e1); }
     .sim-skip-link:focus { top: 1rem; }
+    /* Identity row above the menu (reference: the official top bar carries the
+       crest and wordmark). Same surfaces as the menu row below it. */
+    .sim-brandbar { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; max-width: 100rem; margin: 0 auto .5rem; width: 100%; padding: .45rem .7rem; background: #fff; border: 1px solid #e2e8f0; border-radius: .75rem; }
+    html.dark .sim-brandbar { background: #172033; border-color: #2b3950; }
+    .sim-brand-logo { display: flex; align-items: center; padding: .1rem .3rem; border-radius: .5rem; }
+    html.dark .sim-brand-logo { background: #fff; }
+    .sim-brand-logo img { display: block; height: 2.7rem; width: auto; }
+    .sim-brand-side { display: flex; align-items: center; gap: .45rem; margin-left: auto; flex-wrap: wrap; }
+    .sim-brand-side form { display: flex; }
+    @media (max-width: 40rem) { .sim-brand-side { margin-left: 0; } }
+    /* Header identity (replaces the admin greeting): same eyebrow/title
+       pairing the pages used to carry in their own page head. */
+    .sim-header-eyebrow { margin: 0 0 .1rem; color: #4236b6; font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    html.dark .sim-header-eyebrow { color: var(--color-primary-300); }
+    .sim-header-eyebrow:empty { display: none; }
+    .sim-header-title { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Service-area menu, now carried inside the identity row: one line,
+       never wrapping; the arrows page through it when it overflows. */
+    .sim-brand-nav { display: flex; align-items: center; gap: .2rem; flex: 1 1 auto; min-width: 0; }
+    /* Logged-out stand-in for the service-area menu: same metrics, but it
+       sits beside the logo rather than stretching across the row. */
+    .sim-more-info { flex: 0 0 auto; display: flex; align-items: center; padding: .42rem .7rem; border-radius: .5rem; font-size: .76rem; font-weight: 650; color: #475569; text-decoration: none; white-space: nowrap; }
+    html.dark .sim-more-info { color: #aab4ca; }
+    .sim-more-info:hover { color: #4236b6; background: #eef0fd; }
+    html.dark .sim-more-info:hover { color: var(--color-primary-300); background: var(--color-primary-950); }
+    .sim-nav-arrow { flex: none; display: flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; padding: 0; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; color: #475569; cursor: pointer; }
+    html.dark .sim-nav-arrow { background: #172033; border-color: #2b3950; color: #aab4ca; }
+    .sim-nav-arrow:hover { color: #4236b6; background: #eef0fd; }
+    html.dark .sim-nav-arrow:hover { color: var(--color-primary-300); background: var(--color-primary-950); }
+    .sim-nav-arrow[hidden] { display: none; }
+    .sim-nav-arrow .material-symbols-outlined { font-size: 1.1rem; }
     /* Logged-in simulator top menu (reference 004): a single-line menu
        bar — items share the row evenly and never wrap into sentences;
        narrow screens scroll the row instead. */
-    .sim-top-nav { display: flex; flex-wrap: nowrap; align-items: stretch; justify-content: space-between; gap: .15rem; max-width: 100rem; margin: 0 auto; width: 100%; padding: .3rem; background: #fff; border: 1px solid #e2e8f0; border-radius: .75rem; overflow-x: auto; scrollbar-width: thin; }
-    html.dark .sim-top-nav { background: #172033; border-color: #2b3950; }
+    .sim-top-nav { display: flex; flex-wrap: nowrap; align-items: stretch; justify-content: space-between; gap: .15rem; flex: 1 1 auto; min-width: 0; margin: 0; padding: .1rem; overflow-x: auto; scrollbar-width: none; }
     .sim-top-nav a { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: .42rem .5rem; border-radius: .5rem; font-size: .76rem; font-weight: 650; color: #475569; text-decoration: none; white-space: nowrap; }
     html.dark .sim-top-nav a { color: #aab4ca; }
     .sim-top-nav a:hover { color: #4236b6; background: #eef0fd; }
@@ -48,24 +114,68 @@ the simulator stylesheets loaded below; the legacy simulator shell
     .sim-top-nav a[aria-current="page"] { color: #4236b6; background: #eef0fd; box-shadow: inset 0 -2px 0 #4236b6; }
     html.dark .sim-top-nav a[aria-current="page"] { color: var(--color-primary-300); background: var(--color-primary-900); box-shadow: inset 0 -2px 0 var(--color-primary-400); }
     @media (max-width: 60rem) { .sim-top-nav { justify-content: flex-start; } .sim-top-nav a { flex: 0 0 auto; padding: .42rem .8rem; } }
+    /* Narrow screens: the menu takes the whole second line, so the lockup
+       and the sign-in control keep the first. */
+    @media (max-width: 60rem) { .sim-brand-nav { order: 2; flex: 1 0 100%; } .sim-brand-side { order: 1; } }
   </style>
   {% block simulator_style %}{% endblock %}
 {% endblock %}
 
 {% block content %}
   <a class="sim-skip-link" href="#main-content">Skip to main content</a>
-  <nav class="sim-top-nav" aria-label="Logged-in simulator navigation">
-    <a href="{% url 'cargo-direct-delivery' %}"{% if '/practical/cargo' in request.path %} aria-current="page"{% endif %}>Cargo</a>
-    <a href="{% url 'clearance-workspace' %}"{% if '/practical/clearance' in request.path %} aria-current="page"{% endif %}>Clearance</a>
-    <a href="#">Collection</a>
-    <a href="{% url 'single-window-create-ucr' %}"{% if '/practical/single-window' in request.path %} aria-current="page"{% endif %}>Single Window</a>
-    <a href="#">Agent Management</a>
-    <a href="#">e-Docs</a>
-    <a href="#">Post Clearance Audit</a>
-    <a href="#">AEO</a>
-    <a href="#">More Information</a>
-    <a href="#">DW Service</a>
-  </nav>
+  <div class="sim-brandbar">
+    <a class="sim-brand-logo" href="{% url 'simulator-portal' %}" aria-label="Customs Training Simulator home"><img src="{% static 'image/brand-lockup.png' %}" alt="Customs Training Simulator" width="256" height="143"></a>
+    {% if simulator_access %}
+    <div class="sim-brand-nav">
+      <button class="sim-nav-arrow" type="button" data-sim-nav="-1" aria-label="Scroll service areas back" hidden><span class="material-symbols-outlined" aria-hidden="true">chevron_left</span></button>
+      <nav class="sim-top-nav" aria-label="Logged-in simulator navigation">
+        <a href="{% url 'cargo-direct-delivery' %}"{% if '/practical/cargo' in request.path %} aria-current="page"{% endif %}>Cargo</a>
+        <a href="{% url 'clearance-workspace' %}"{% if '/practical/clearance' in request.path %} aria-current="page"{% endif %}>Clearance</a>
+        <a href="#">Collection</a>
+        <a href="{% url 'single-window-create-ucr' %}"{% if '/practical/single-window' in request.path %} aria-current="page"{% endif %}>Single Window</a>
+        <a href="#">Agent Management</a>
+        <a href="#">e-Docs</a>
+        <a href="#">Post Clearance Audit</a>
+        <a href="#">AEO</a>
+        <a href="#">DW Service</a>
+      </nav>
+      <button class="sim-nav-arrow" type="button" data-sim-nav="1" aria-label="Scroll service areas forward" hidden><span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button>
+    </div>
+    {% else %}
+    {# Every service area is gated behind simulator access, so offering them
+       here would only be a page of bounces. #}
+    <div class="sim-brand-nav">
+      <a class="sim-more-info" href="{% url 'simulator-more-information' %}">More information</a>
+    </div>
+    {% endif %}
+    <div class="sim-brand-side">{% block sim_brand_actions %}{% endblock %}</div>
+  </div>
+  <script>
+    (function () {
+      var nav = document.querySelector(".sim-top-nav");
+      var arrows = document.querySelectorAll("[data-sim-nav]");
+      if (!nav || !arrows.length) return;
+      var refresh = function () {
+        var scrollable = nav.scrollWidth - nav.clientWidth > 1;
+        Array.prototype.forEach.call(arrows, function (arrow) {
+          var direction = Number(arrow.getAttribute("data-sim-nav"));
+          arrow.hidden = !scrollable || (direction < 0 ? nav.scrollLeft <= 1 : nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 1);
+        });
+      };
+      Array.prototype.forEach.call(arrows, function (arrow) {
+        arrow.addEventListener("click", function () {
+          nav.scrollBy({ left: nav.clientWidth * 0.75 * Number(arrow.getAttribute("data-sim-nav")), behavior: "smooth" });
+        });
+      });
+      nav.addEventListener("scroll", refresh);
+      window.addEventListener("resize", refresh);
+      window.addEventListener("load", refresh);
+      if (window.ResizeObserver) new ResizeObserver(refresh).observe(nav);
+      // Icon fonts land after first layout, which changes how wide the row is.
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(refresh);
+      refresh();
+    })();
+  </script>
   <div class="dash sim-page">
     <p class="dash-notice">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</p>
     {% if guide_panel %}{% include "scenarios/_guide_panel.html" with panel=guide_panel %}{% endif %}

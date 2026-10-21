@@ -617,6 +617,11 @@ def render_student_page(request, template, context=None, status=200):
     context["has_permission"] = request.user.is_authenticated
     context["breadcrumbs"] = _portal_breadcrumbs(request, context)
     if request.path.startswith(SIMULATOR_PATH_PREFIXES):
+        from scenarios.views import _has_simulator_access
+
+        # The brand bar's service areas are only navigable with simulator
+        # access, so the shell needs to know whether to offer them.
+        context.setdefault("simulator_access", _has_simulator_access(request))
         context["simulator_page"] = _simulator_page_head(template, context)
     return render(request, template, context, status=status)
 
@@ -624,10 +629,12 @@ def render_student_page(request, template, context=None, status=200):
 def _simulator_navigation(request):
     """The simulator playground navigation as Unfold sidebar groups,
     restored per area: like the original in-page sidebars, each area's
-    pages see only their own menu tree (the portal home keeps the Cargo
-    tree, as it originally did). The former three-level trees
-    (area > section > leaf) map to Unfold's two levels as collapsible
-    sections with the original section and leaf labels, verbatim."""
+    pages see only their own menu tree. The workspace home carries no area
+    tree at all — its service areas are entered from the brand bar — and
+    leads with the simulator login block while the visitor still lacks
+    access. The former three-level trees (area > section > leaf) map to
+    Unfold's two levels as collapsible sections with the original section
+    and leaf labels, verbatim."""
     from django.urls import reverse
 
     def cargo_ref(key):
@@ -777,16 +784,23 @@ def _simulator_navigation(request):
     ]
 
     path = request.path
-    if path.startswith("/practical/clearance"):
+    is_home = path.startswith("/practical/portal")
+    if is_home or path.startswith("/practical/more-information"):
+        # The workspace home is a launcher, not an area: its service areas are
+        # entered from the brand bar, so the Cargo menu belongs to the Cargo
+        # pages and not here. The logged-out explainer is not a Cargo page
+        # either — offering its reader the gated trees would only be a page of
+        # bounces.
+        area_sections = []
+    elif path.startswith("/practical/clearance"):
         area_sections = clearance
     elif path.startswith("/practical/single-window"):
         area_sections = single_window
     else:
-        # Cargo pages, the portal home and the access endpoints: the
-        # original portal carried the Cargo sidebar.
+        # Cargo pages and the access endpoints carry the Cargo menu.
         area_sections = cargo
 
-    return [
+    groups = [
         {
             "title": "",
             "items": [
@@ -796,6 +810,28 @@ def _simulator_navigation(request):
         },
         *area_sections,
     ]
+
+    from scenarios.views import _has_simulator_access
+
+    if is_home and hasattr(request, "user") and not _has_simulator_access(request):
+        # Simulator access is what opens every service area, so on the home
+        # page the panel leads with the way in. Login and Forgot Password?
+        # both open the existing dialog; ?login=1 is the hook that page
+        # already honours and &reset=1 expands the reset form inside it.
+        # The practice desk enumerates the menus from a bare path stand-in, so
+        # the block that speaks for one reader is only offered to a request
+        # carrying a reader at all.
+        portal = reverse("simulator-portal")
+        groups.insert(0, {
+            "title": "",
+            "items": [
+                {"title": "Login", "icon": "login", "link": f"{portal}?login=1"},
+                {"title": "Forgot Password?", "icon": "key", "link": f"{portal}?login=1&reset=1"},
+                {"title": "Request Account", "icon": "person_add", "link": reverse("register")},
+            ],
+        })
+
+    return groups
 
 
 SIMULATOR_PATH_PREFIXES = (

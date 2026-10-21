@@ -1,13 +1,11 @@
 {% extends "core/base_simulator.html" %}
 {% load static %}
 {% block title %}Practical Workspace · ICUMS Simulator{% endblock %}
+{% block sim_brand_actions %}{% if simulator_access %}{% if user.is_staff %}<button class="dash-secondary" type="button" data-open-review-dialog>Simulator sign out</button>{% else %}<form method="post" action="{% url 'simulator-logout' %}">{% csrf_token %}<button class="dash-secondary" type="submit">Simulator sign out</button></form>{% endif %}{% elif not user.is_authenticated %}{% comment %}A signed-out visitor has no side panel to hold the login block, so this is their only way in; anyone with a learning account gets it in the panel instead.{% endcomment %}<button class="dash-primary" type="button" data-open-simulator-login>Login</button>{% endif %}{% endblock %}
+{% block sim_eyebrow %}Practical training environment{% endblock %}
+{% block sim_title %}Cargo tracking dashboard{% endblock %}
 {% block simulator_content %}
 <div>
-<header class="dash-head">
-        <div><p class="dash-eyebrow">Practical training environment</p><h1>Cargo tracking dashboard</h1></div>
-        <div class="dash-actions">{% if simulator_access %}{% if user.is_staff %}<button class="dash-secondary" type="button" data-open-review-dialog>Simulator sign out</button>{% else %}<form method="post" action="{% url 'simulator-logout' %}">{% csrf_token %}<button class="dash-secondary" type="submit">Simulator sign out</button></form>{% endif %}{% else %}<button class="dash-primary" type="button" data-open-simulator-login>Login</button>{% endif %}</div>
-      </header>
-
       <section class="tracking-search" aria-labelledby="tracking-title">
         <div><h2 id="tracking-title">Track fictional cargo</h2><p>Search practice records without contacting any external system.</p></div>
         <form class="tracking-form" action="#" onsubmit="return false">
@@ -106,7 +104,7 @@
       const reviewDialog = document.getElementById('simulator-review-dialog');
       document.querySelectorAll('[data-open-review-dialog]').forEach(button => button.addEventListener('click', () => reviewDialog.showModal()));
       document.querySelector('[data-close-review-dialog]').addEventListener('click', () => reviewDialog.close());
-      {% if not simulator_access and request.GET.login %}simulatorLogin.showModal();{% endif %}
+      {% if not simulator_access and request.GET.login %}simulatorLogin.showModal();{% if request.GET.reset %}simulatorLogin.querySelector(".simulator-login-help details").open = true;{% endif %}{% endif %}
       const configureDialog = ({ dialogId, formId, statusId, openSelector, closeSelector, message }) => {
         const dialog = document.getElementById(dialogId);
         const form = document.getElementById(formId);

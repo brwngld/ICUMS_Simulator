@@ -80,10 +80,12 @@ def test_frontend_simulator_portal_uses_main_account_but_not_practical_gate(clie
     assert b"Importer/Exporter Code" in response.content
     assert b'Student dashboard' in response.content
     assert reverse("dashboard").encode() in response.content
-    # The canonical navigation is now the Unfold sidebar: the three area
-    # groups plus the way back to the learning portal.
-    for item in (b"Cargo", b"Clearance", b"Single Window", b"Workspace home"):
+    # The canonical navigation is the Unfold sidebar. Without simulator access
+    # the home panel leads with the way in and names no service area.
+    for item in (b"Login", b"Forgot Password?", b"Request Account", b"Workspace home"):
         assert item in response.content
+    for item in (b">Cargo<", b">Clearance<", b">Single Window<"):
+        assert item not in response.content
 
 
 @pytest.mark.django_db

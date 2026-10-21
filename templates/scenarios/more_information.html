@@ -1,0 +1,13 @@
+{% extends "core/base_simulator.html" %}
+{% load static %}
+{% block title %}More information · ICUMS Simulator{% endblock %}
+{% block sim_title %}More information{% endblock %}
+{% block simulator_content %}
+<div class="dash">
+  <section class="dash-panel">
+    <div class="dash-panel-head"><div><h2>{{ disclaimer.title }}</h2></div></div>
+    {{ disclaimer.body|linebreaks }}
+    <p>{% if user.is_authenticated %}<a href="{% url 'simulator-portal' %}">Return to the workspace home</a>{% else %}<a href="{% url 'register' %}">Register as a new student</a> · <a href="{% url 'login' %}">Learning account login</a>{% endif %}</p>
+  </section>
+</div>
+{% endblock %}

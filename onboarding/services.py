@@ -9,8 +9,14 @@ def active_enrolments(user):
     """Every enrolment a learner may open, oldest first.
 
     ``pk`` breaks ties because ``enrolled_at`` is not unique and an unordered
-    query can pick a different row page to page.
+    query can pick a different row page to page. A reader without a learning
+    account has none: ``student`` is keyed on the UUID primary key, so asking
+    for an enrolment of ``AnonymousUser`` is a type error rather than an empty
+    list, and the pages that answer before sign-in would fault instead of
+    offering the way in.
     """
+    if not user.is_authenticated:
+        return Enrolment.objects.none()
     return (
         Enrolment.objects.select_related("programme_version__programme")
         .filter(student=user, status=Enrolment.Status.ACTIVE)
