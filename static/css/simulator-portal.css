@@ -263,6 +263,8 @@ a, button, summary { transition: background-color .18s, color .18s, border-color
 th, td { padding: .75rem .4rem; font-size: .75rem; }
 th { font-size: .65rem; font-weight: 600; color: var(--muted); background: #f8fafc; }
 tbody tr:last-child td { border-bottom: 0; }
+/* Rows that contain form fields keep the full grid border on every edge. */
+tbody tr:last-child:has(input, select, textarea) td { border-bottom: 1px solid var(--line); }
 .link-list { padding: 0; list-style: none; }
 .link-list li { padding: .4rem 0; font-size: .78rem; }
 .link-list a { text-decoration: none; display: flex; justify-content: space-between; }
@@ -314,10 +316,25 @@ tbody tr:last-child td { border-bottom: 0; }
   .shortcut-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-/* One readable control scale across simulator pages. Keep headings and captions distinct. */
-.portal-main :is(input, select, textarea, button), .portal-main :is(label, td, th, p, a),
+/* ── Simulator type scale ─────────────────────────────────────────────────────
+   One measure per role on every simulator surface, matched to the UCR
+   bordered-grid reference (approved 2026-10-20). Roles are named by their job —
+   grid label, field text, data cell, tab, action — never by the element alone,
+   so a search result and a form field on different pages cannot drift apart
+   again. Lookup dialogs and the guest login panel render outside
+   <main class="portal-main">, so they are listed alongside it. A page sheet may
+   refine a role it owns; nothing else may set a measure. */
+:is(.portal-main, .cargo-dialog, .code-dialog, .simulator-login-dialog) { font-size: .85rem; }
+:is(.portal-main, .cargo-dialog, .code-dialog, .simulator-login-dialog) :is(input, select, textarea) { font-size: .85rem; line-height: 1.45; }
+:is(.portal-main, .cargo-dialog, .code-dialog, .simulator-login-dialog) table { font-size: .8rem; }
+:is(.portal-main, .cargo-dialog, .code-dialog, .simulator-login-dialog) table td { font-size: .8rem; }
+:is(.portal-main, .cargo-dialog, .code-dialog, .simulator-login-dialog) table th { font-size: .68rem; font-weight: 700; }
+:is(.portal-main, .cargo-dialog, .code-dialog, .simulator-login-dialog) .ucr-view-table td { font-size: .85rem; }
+:is(.portal-main, .cargo-dialog, .code-dialog, .simulator-login-dialog) .ucr-view-table :is(th, th label) { font-size: .76rem; font-weight: 650; color: #475569; }
+html[data-theme="dark"] :is(.portal-main, .cargo-dialog, .code-dialog, .simulator-login-dialog) .ucr-view-table th { color: #94a3b8; }
+html[data-theme="dark"] :is(.portal-main, .cargo-dialog, .code-dialog, .simulator-login-dialog) .ucr-view-table th label { color: #cbd5e1; }
+:is(.portal-main, .cargo-dialog, .code-dialog, .simulator-login-dialog) :is(.boe-tab, .app-tab, .primary-button, .secondary-button, .search-button, .reset-button, .save-button, .ucr-row-action, .document-add-button, .document-delete-button, .boe-list-actions button, .item-panel-actions :is(button, a), .date-range button, .simulator-login-form button, .simulator-login-help button, .dialog-actions button, .cargo-actions :is(button, a)) { font-size: .78rem; font-weight: 600; }
 .portal-sidebar :is(a, button, summary) { font-size: .875rem; }
-.portal-main :is(input, select, textarea) { line-height: 1.45; }
 .portal-main .overline { font-size: .75rem; }
 @media (max-width: 40rem) {
   .portal-header { grid-template-columns: 1fr; }
