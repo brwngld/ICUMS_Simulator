@@ -1,0 +1,18 @@
+{% comment %}
+The simulator-access card. On the dashboard it sits in the column beside the
+learning roadmap; a learner without an enrolment yet gets it standalone.
+{% endcomment %}
+<section class="dash-panel student-simulator-access">
+  <div>
+    <h2>Simulator access</h2>
+    {% if simulator_credential and simulator_credential.issued_at %}
+      <span class="dash-pill {% if simulator_credential.is_current %}is-ok{% else %}is-warn{% endif %}">{% if simulator_credential.is_current %}Active{% else %}Expired{% endif %}</span>
+    {% endif %}
+  </div>
+  {% if simulator_credential and simulator_credential.issued_at %}
+    <p>{% if simulator_credential.is_current %}Your simulator credential is active until {{ simulator_credential.expires_at|date:"j F Y, H:i" }}.{% else %}Your simulator credential has expired. Request a reset from your instructor when you are eligible to access practical training.{% endif %}</p>
+  {% else %}
+    <p>Waiting for an instructor or administrator to issue simulator access.</p>
+  {% endif %}
+  <a href="{% url 'account-credential' %}">Credential management →</a>
+</section>

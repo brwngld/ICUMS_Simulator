@@ -2,6 +2,7 @@
 {% load static %}
 
 {% block title %}Dashboard · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Dashboard{% endblock %}
 
 {% block content %}
   <div class="dash student-dashboard">
@@ -16,27 +17,29 @@
 
     {% if enrolment %}
       {% if primary_action %}
-        <section class="student-next-action">
-          <div class="student-next-meta">
-            <span class="dash-pill is-info">{{ primary_action.eyebrow }}</span>
-            <span>{{ completed_modules }} of {{ total_modules }} modules completed</span>
+        <section class="student-next-action student-hero">
+          <div>
+            <div class="student-next-meta">
+              <span class="dash-pill is-info">{{ primary_action.eyebrow }}</span>
+              <span>{{ completed_modules }} of {{ total_modules }} modules completed</span>
+            </div>
+            <h3>{{ primary_action.title }}</h3>
+            <p>{{ primary_action.description }}</p>
+            <div class="student-overall-progress" role="progressbar" aria-valuenow="{{ module_completion_percentage }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ module_completion_percentage }}% module completion">
+              <span style="width: {{ module_completion_percentage }}%"></span>
+            </div>
+            <div class="student-next-footer">
+              <span>{{ module_completion_percentage }}% module completion</span>
+              <span>{{ modules_left }} module{{ modules_left|pluralize }} left</span>
+            </div>
           </div>
-          <h2>Continue your learning</h2>
-          <h3>{{ primary_action.title }}</h3>
-          <p>{{ primary_action.description }}</p>
-          <div class="student-overall-progress" aria-label="{{ module_completion_percentage }}% module completion">
-            <span style="width: {{ module_completion_percentage }}%"></span>
-          </div>
-          <div class="student-next-footer">
-            <span>{{ module_completion_percentage }}% module completion</span>
-            <a class="student-primary-action" href="{{ primary_action.url }}">{{ primary_action.label }} →</a>
-          </div>
+          <a class="student-primary-action student-hero-cta" href="{{ primary_action.url }}">{{ primary_action.label }} {% include "components/icon.html" with name="arrow" %}</a>
         </section>
       {% endif %}
 
       <div class="dash-cards student-status-cards">
         <section class="dash-card student-status-card">
-          <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="menu_book" %}</span>
+          <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name="check" %}</span>
           <strong class="dash-card-value">{{ completed_modules }}/{{ total_modules }}</strong>
           <small class="dash-card-sub">Modules completed</small>
         </section>
@@ -52,70 +55,79 @@
         </section>
       </div>
 
-      {% if programmes|length > 1 %}
+      <div class="student-cols">
         <section class="dash-panel student-roadmap">
           <div class="dash-panel-head">
-            <div><h2><a href="{% url 'my-programmes' %}">My programmes</a></h2></div>
+            <div><h2>Your learning roadmap</h2></div>
+            <span class="dash-pill is-info">{{ total_modules }} module{{ total_modules|pluralize }}</span>
           </div>
           <ol class="student-module-list">
-            {% for row in programmes %}
-              <li{% if row.percentage == 100 %} class="is-complete"{% endif %}>
-                <span class="student-module-state" aria-hidden="true">{% if row.percentage == 100 %}✓{% else %}○{% endif %}</span>
-                <a href="{{ row.url }}">{{ row.programme.name }}</a>
-                <span class="student-module-track"><span style="width: {{ row.percentage }}%"></span></span>
-                <strong>{{ row.completed_count }}/{{ row.module_count }}</strong>
+            {% for item in module_summaries %}
+              <li class="{% if item.assessment_state == 'passed' %}is-complete{% elif not item.unlocked %}is-locked{% elif item.module.pk == next_module_pk %}is-current{% endif %}">
+                <span class="student-module-state" aria-hidden="true">{% if item.assessment_state == 'passed' %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
+                <div class="student-module-main">
+                  {% if item.unlocked %}
+                    <a href="{{ item.url }}">{{ item.module.title }}</a>
+                  {% else %}
+                    <span class="student-module-title">{{ item.module.title }}</span>
+                  {% endif %}
+                  <small>{% if item.assessment_state == 'passed' %}Completed{% elif item.module.pk == next_module_pk %}Up next{% elif not item.unlocked %}{% if forloop.counter0 %}Locked until module {{ forloop.counter0 }} is passed{% else %}Locked{% endif %}{% else %}In progress{% endif %}</small>
+                </div>
+                <span class="student-module-pct">{% if item.assessment_state == 'passed' %}100{% else %}{{ item.percentage }}{% endif %}%</span>
               </li>
+            {% empty %}
+              <li class="dash-empty">Your programme has no published modules yet.</li>
             {% endfor %}
           </ol>
         </section>
-      {% endif %}
 
-      <section class="dash-panel student-roadmap">
-        <div class="dash-panel-head">
-          <div><h2>Your learning roadmap</h2></div>
-          <a href="{{ roadmap_url }}">{{ total_modules }} module{{ total_modules|pluralize }}</a>
+        <div class="student-side">
+          {% include "core/_dashboard_simulator_access.html" %}
         </div>
-        <ol class="student-module-list">
-          {% for item in module_summaries %}
-            <li class="{% if item.assessment_state == 'passed' %}is-complete{% elif not item.unlocked %}is-locked{% elif item.percentage %}is-current{% endif %}">
-              <span class="student-module-state" aria-hidden="true">{% if item.assessment_state == 'passed' %}✓{% elif not item.unlocked %}⌑{% else %}○{% endif %}</span>
-              {% if item.unlocked %}<a href="{{ item.url }}">{{ item.module.title }}</a>{% else %}<span>{{ item.module.title }}</span>{% endif %}
-              <span class="student-module-track"><span style="width: {{ item.percentage }}%"></span></span>
-              <strong>{% if item.assessment_state == 'passed' %}100{% else %}{{ item.percentage }}{% endif %}%</strong>
-            </li>
-          {% empty %}
-            <li class="dash-empty">Your programme has no published modules yet.</li>
-          {% endfor %}
-        </ol>
-      </section>
+      </div>
+
+      {% if programmes|length > 1 %}
+        <section class="dash-panel student-programmes-panel">
+          <div class="dash-panel-head">
+            <div><h2><a href="{% url 'my-programmes' %}">My programmes</a></h2></div>
+            <span class="student-panel-sub">{{ programmes|length }} enrolled</span>
+          </div>
+          <div class="student-programmes">
+            {% for row in programmes %}
+              {% cycle "shield" "layers" "book" as programme_icon silent %}
+              <article class="student-programme-card{% if row.percentage %} is-active{% endif %}">
+                <div class="student-programme-top">
+                  <span class="dash-card-icon" aria-hidden="true">{% include "components/icon.html" with name=programme_icon %}</span>
+                  <span class="dash-pill {% if row.percentage %}is-info{% else %}is-muted{% endif %}">{% if row.percentage %}In progress{% else %}Not started{% endif %}</span>
+                </div>
+                <h3>{{ row.programme.name }}</h3>
+                <p>{{ row.programme.description|truncatewords:24 }}</p>
+                <div>
+                  <div class="student-programme-row"><span>Progress</span><strong>{{ row.completed_count }} of {{ row.module_count }} modules</strong></div>
+                  <span class="student-module-track"><span style="width: {{ row.percentage }}%"></span></span>
+                </div>
+                <a class="{% if row.percentage %}student-primary-action student-card-action{% else %}student-ghost-action{% endif %}" href="{{ row.url }}">{% if row.percentage %}Continue{% else %}Start programme{% endif %}</a>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% endif %}
+    {% else %}
+      {% if user.student_id %}
+        {% include "core/_dashboard_simulator_access.html" %}
+      {% endif %}
     {% endif %}
 
     <section class="dash-panel student-journey">
       <div class="dash-panel-head">
         <div><h2>Your training journey</h2></div>
+        <span class="student-panel-sub">Learn → Practise → Demonstrate</span>
       </div>
       <ol>
-        <li class="is-active"><span aria-hidden="true">{% include "components/icon.html" with name="menu_book" %}</span><strong>Learn</strong><small>Theory and assessments</small></li>
-        <li><span aria-hidden="true">{% include "components/icon.html" with name="layers" %}</span><strong>Practise</strong><small>Guided simulator training</small></li>
-        <li><span aria-hidden="true">{% include "components/icon.html" with name="award" %}</span><strong>Demonstrate</strong><small>Competency evaluation</small></li>
+        <li{% if journey_stage == 'learn' %} class="is-active"{% endif %}><span aria-hidden="true">{% include "components/icon.html" with name="book" %}</span><strong>Learn</strong><small>Theory and assessments</small></li>
+        <li{% if journey_stage == 'practise' %} class="is-active"{% endif %}><span aria-hidden="true">{% include "components/icon.html" with name="layers" %}</span><strong>Practise</strong><small>Guided simulator training</small></li>
+        <li{% if journey_stage == 'demonstrate' %} class="is-active"{% endif %}><span aria-hidden="true">{% include "components/icon.html" with name="award" %}</span><strong>Demonstrate</strong><small>Competency evaluation</small></li>
       </ol>
     </section>
-
-    {% if user.student_id %}
-      <section class="dash-panel student-simulator-access">
-        <div>
-          <h2>Simulator access</h2>
-          {% if simulator_credential and simulator_credential.issued_at %}
-            <span class="dash-pill {% if simulator_credential.is_current %}is-ok{% else %}is-warn{% endif %}">{% if simulator_credential.is_current %}Active{% else %}Expired{% endif %}</span>
-          {% endif %}
-        </div>
-        {% if simulator_credential and simulator_credential.issued_at %}
-          <p>{% if simulator_credential.is_current %}Your simulator credential is active until {{ simulator_credential.expires_at|date:"j F Y, H:i" }}.{% else %}Your simulator credential has expired. Request a reset from your instructor when you are eligible to access practical training.{% endif %}</p>
-        {% else %}
-          <p>Waiting for an instructor or administrator to issue simulator access.</p>
-        {% endif %}
-        <a href="{% url 'simulator-portal' %}">Credential management →</a>
-      </section>
-    {% endif %}
   </div>
 {% endblock %}

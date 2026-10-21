@@ -10,6 +10,16 @@ the content block with their own dash-styled markup.
 
 {% block title %}ICUMS Simulator{% endblock %}
 
+{% comment %}
+Unfold builds the chrome header title from the `content_title` block it
+captures in unfold/layouts/skeleton.html, and falls back to "Welcome
+<username>" when a page gives it nothing. `workspace_name` is what the
+retired pre-Unfold shell called this line, so the shell is bridged to the
+chrome rather than the copy rewritten — keeping the vendor's own `title`
+fallback for the reference pages that only set that.
+{% endcomment %}
+{% block content_title %}{% block workspace_name %}{% if title %}{{ title }}{% endif %}{% endblock %}{% endblock %}
+
 {% block extrastyle %}
   {{ block.super }}
   <script src="{% static 'js/theme.js' %}?v=20261015-1"></script>
@@ -41,7 +51,7 @@ the content block with their own dash-styled markup.
       color: #fff;
     }
   </style>
-    <link rel="stylesheet" href="{% static 'css/dash.css' %}?v=20261015-3">
+    <link rel="stylesheet" href="{% static 'css/dash.css' %}?v=20261021-1">
 {% endblock %}
 
 {% block content %}{% endblock %}
