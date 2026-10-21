@@ -28,3 +28,10 @@ def simulator_review(request):
         return {"review_target": None}
     target = get_user_model().objects.filter(pk=target_id).first()
     return {"review_target": target}
+
+
+def account_menu(request):
+    """The account menu's unread-notification badge count, for any signed-in role."""
+    if not request.user.is_authenticated:
+        return {"unread_notifications": 0}
+    return {"unread_notifications": request.user.notifications.filter(read_at__isnull=True).count()}

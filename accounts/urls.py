@@ -5,6 +5,10 @@ from . import views
 
 urlpatterns = [
     path("register/", views.register, name="register"),
+    path("settings/", views.account_settings, name="account-settings"),
+    path("credential/", views.account_credential, name="account-credential"),
+    path("notifications/", views.notifications, name="account-notifications"),
+    path("notifications/read/", views.notifications_mark_read, name="account-notifications-read"),
     path(
         "password-change/",
         auth_views.PasswordChangeView.as_view(),

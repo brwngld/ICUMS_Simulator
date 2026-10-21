@@ -1,0 +1,55 @@
+{% extends "core/base_student.html" %}
+{% load static %}
+
+{% block title %}Notifications · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Notifications{% endblock %}
+
+{% block content %}
+  <div class="dash student-dashboard">
+    <div class="dash-notice">TRAINING SIMULATOR — NOT OFFICIAL ICUMS</div>
+
+    <header class="dash-head account-head">
+      <div>
+        <h1>Notifications</h1>
+        <p>Updates about your programmes, simulator access and training records.</p>
+      </div>
+      {% if unread_notifications %}
+        <form method="post" action="{% url 'account-notifications-read' %}">
+          {% csrf_token %}
+          <button type="submit" class="student-ghost-action">Mark all as read</button>
+        </form>
+      {% endif %}
+    </header>
+
+    {% if notifications %}
+      <ol class="account-notification-list">
+        {% for notification in notifications %}
+          <li class="{% if not notification.is_read %}is-unread{% endif %}">
+            <span class="account-notification-dot" aria-hidden="true"></span>
+            <div class="account-notification-main">
+              <strong>{{ notification.title }}</strong>
+              {% if notification.body %}<p>{{ notification.body }}</p>{% endif %}
+              <small>{{ notification.created_at|date:"j F Y, H:i" }}</small>
+            </div>
+            <div class="account-notification-side">
+              {% if notification.url %}<a href="{{ notification.url }}">Open →</a>{% endif %}
+              {% if not notification.is_read %}
+                <form method="post" action="{% url 'account-notifications-read' %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="notification" value="{{ notification.pk }}">
+                  <button type="submit" class="account-link-button">Mark read</button>
+                </form>
+              {% endif %}
+            </div>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <section class="dash-panel account-empty">
+        <span class="material-symbols-outlined" aria-hidden="true">notifications_off</span>
+        <h2>No notifications yet</h2>
+        <p>Updates about your programmes, simulator access and training records will appear here.</p>
+      </section>
+    {% endif %}
+  </div>
+{% endblock %}

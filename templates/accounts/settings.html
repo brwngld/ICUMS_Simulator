@@ -1,0 +1,300 @@
+{% extends "core/base_student.html" %}
+{% load static %}
+
+{% block title %}Settings · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Settings{% endblock %}
+
+{% block content %}
+  <div class="dash student-dashboard">
+    <div class="dash-notice">TRAINING SIMULATOR — NOT OFFICIAL ICUMS</div>
+
+    <header class="dash-head">
+      <div>
+        <h1>Settings</h1>
+        <p>Manage your profile, security and preferences. Your name and email appear to instructors and on certificates.</p>
+      </div>
+    </header>
+
+    <nav class="account-nav" aria-label="Settings sections">
+      <a href="#profile"><span aria-hidden="true">{% include "components/icon.html" with name="users" %}</span>Profile</a>
+      <a href="#security"><span aria-hidden="true">{% include "components/icon.html" with name="lock" %}</span>Security</a>
+      <a href="#simulator"><span aria-hidden="true">{% include "components/icon.html" with name="layers" %}</span>Simulator access</a>
+      <a href="#certificate"><span aria-hidden="true">{% include "components/icon.html" with name="award" %}</span>Certificate</a>
+      <a href="#notifications"><span aria-hidden="true">{% include "components/icon.html" with name="bell" %}</span>Notifications</a>
+      <a href="#preferences"><span aria-hidden="true">{% include "components/icon.html" with name="gear" %}</span>Preferences</a>
+      <a href="#privacy"><span aria-hidden="true">{% include "components/icon.html" with name="shield" %}</span>Privacy &amp; data</a>
+    </nav>
+
+    <div class="account-content">
+        <section class="dash-panel account-id">
+          <span class="account-avatar" aria-hidden="true">{{ user.get_full_name|default:user.username|slice:":1"|upper }}</span>
+          <div class="account-id-main">
+            <h2>{{ user.get_full_name|default:user.username }}</h2>
+            <div class="account-chips">
+              <span class="account-chip">Student ID <b>{{ user.student_id|default:"—" }}</b></span>
+              <span class="account-chip">Username <b>{{ user.get_username }}</b></span>
+              <span class="account-chip">Role <b>{{ groups|join:", "|default:"Student" }}</b></span>
+              <span class="account-chip">Member since <b>{{ user.date_joined|date:"j F Y" }}</b></span>
+            </div>
+          </div>
+        </section>
+
+        <section class="dash-panel account-section" id="profile">
+          <div class="dash-panel-head">
+            <div><h2>Profile</h2><p class="account-note">Your account details, as your instructors and certificates see them.</p></div>
+          </div>
+          <form method="post" class="account-grid">
+            {% csrf_token %}
+            <div class="account-field">
+              <label for="{{ form.first_name.id_for_label }}">First name</label>
+              {{ form.first_name }}
+              {% for error in form.first_name.errors %}<p class="account-field-error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="account-field">
+              <label for="{{ form.last_name.id_for_label }}">Last name</label>
+              {{ form.last_name }}
+              {% for error in form.last_name.errors %}<p class="account-field-error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="account-field full">
+              <label for="{{ form.email.id_for_label }}">Email address</label>
+              {{ form.email }}
+              <p class="account-hint">Used for sign-in alerts, results and certificate delivery.</p>
+              {% for error in form.email.errors %}<p class="account-field-error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="account-field">
+              <label for="{{ form.phone.id_for_label }}">Phone number</label>
+              {{ form.phone }}
+              {% for error in form.phone.errors %}<p class="account-field-error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="account-field">
+              <label for="{{ form.organisation.id_for_label }}">Organisation / employer</label>
+              {{ form.organisation }}
+              {% for error in form.organisation.errors %}<p class="account-field-error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="account-field full">
+              <label for="{{ form.certificate_name.id_for_label }}">Name on certificates</label>
+              {{ form.certificate_name }}
+              <p class="account-hint">Check the spelling: it prints exactly as typed.</p>
+            </div>
+            <div class="account-field">
+              <label for="{{ form.country.id_for_label }}">Country</label>
+              {{ form.country }}
+              {% for error in form.country.errors %}<p class="account-field-error">{{ error }}</p>{% endfor %}
+            </div>
+            <div class="account-actions full">
+              <button type="submit" class="student-primary-action">Save changes</button>
+              <button type="reset" class="student-ghost-action">Discard</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="dash-panel account-section" id="security">
+          <div class="dash-panel-head">
+            <div><h2>Security</h2><p class="account-note">Your account password opens the learning portal. The training simulator uses a separate credential.</p></div>
+          </div>
+          <div class="account-row">
+            <div><b>Password</b><small>Changed from the dialog; you stay signed in on this device.</small></div>
+            <button type="button" class="student-ghost-action" data-open-password-dialog>Change password</button>
+          </div>
+          <div class="account-row">
+            <div><b>Two-step verification</b><small>Ask for a code from your phone when you sign in.</small></div>
+            <label class="account-switch"><input type="checkbox" disabled><i></i></label>
+          </div>
+          <div class="account-row">
+            <div><b>Sign-in alerts</b><small>Email me when a new device signs in.</small></div>
+            <label class="account-switch"><input type="checkbox" disabled><i></i></label>
+          </div>
+          <p class="account-note" style="margin-top: 1rem;">Active sessions</p>
+          <div class="account-row">
+            <div><b>This device</b><small>Active now</small></div>
+            <span class="dash-pill is-ok">Current</span>
+          </div>
+        </section>
+
+        <section class="dash-panel account-section" id="simulator">
+          <div class="dash-panel-head">
+            <div><h2>Simulator access</h2><p class="account-note">The credential your instructor issued for the practice simulator.</p></div>
+          </div>
+          <div class="account-facts3">
+            <div><small>Status</small><b>{% if credential and credential.is_current %}<span class="dash-pill is-ok">● Active</span>{% elif credential %}<span class="dash-pill is-warn">● Expired</span>{% else %}<span class="dash-pill is-muted">Not issued</span>{% endif %}</b></div>
+            <div><small>Valid until</small><b>{% if credential and credential.expires_at %}{{ credential.expires_at|date:"j F Y, H:i" }}{% else %}—{% endif %}</b></div>
+            <div><small>Issued by</small><b>{{ issued_by|default:"Your instructor" }}</b></div>
+          </div>
+          <form method="post" action="{% url 'account-settings' %}" data-autosave>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save-preferences">
+            <div class="account-row">
+              <div><b>Expiry reminder</b><small>Warn me before the credential expires.</small></div>
+              {{ preferences_form.expiry_reminder_days }}
+            </div>
+          </form>
+          <div class="account-actions">
+            <a class="student-ghost-action" href="{% url 'account-credential' %}">Credential management →</a>
+            <button type="button" class="student-ghost-action" disabled>Request extension</button>
+          </div>
+        </section>
+
+        <section class="dash-panel account-section" id="certificate">
+          <div class="dash-panel-head">
+            <div><h2>Certificate</h2><p class="account-note">Your completion record and certificate for this programme.</p></div>
+          </div>
+          <div class="account-row">
+            <div>
+              <b>Status</b>
+              <small>{% if completion and completion.certificate and completion.certificate.status == "issued" %}Issued {{ completion.certificate.issued_at|date:"j F Y" }}{% elif completion %}{{ completion.get_status_display }}{% else %}Complete your practical training to receive your certificate.{% endif %}</small>
+            </div>
+            {% if completion and completion.certificate and completion.certificate.status == "issued" %}
+              <a class="student-primary-action" href="{% url 'certificate-detail' completion.certificate.pk %}">View certificate</a>
+            {% else %}
+              <span class="dash-pill is-muted">{% if completion %}In progress{% else %}Not yet available{% endif %}</span>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="dash-panel account-section" id="notifications">
+          <div class="dash-panel-head">
+            <div><h2>Notifications</h2><p class="account-note">Choose what we email you about.</p></div>
+          </div>
+          <div class="account-row">
+            <div><b>Module reminders</b><small>A nudge when you haven't studied for a while.</small></div>
+            <label class="account-switch"><input type="checkbox" disabled><i></i></label>
+          </div>
+          <div class="account-row">
+            <div><b>Assessment results</b><small>When a module quiz or the final exam is marked.</small></div>
+            <label class="account-switch"><input type="checkbox" disabled><i></i></label>
+          </div>
+          <div class="account-row">
+            <div><b>Instructor messages</b><small>Feedback and announcements from your instructor.</small></div>
+            <label class="account-switch"><input type="checkbox" disabled><i></i></label>
+          </div>
+          <div class="account-row">
+            <div><b>Credential expiry</b><small>Warnings about your simulator access running out.</small></div>
+            <label class="account-switch"><input type="checkbox" disabled><i></i></label>
+          </div>
+          <div class="account-row">
+            <div><b>New programmes &amp; updates</b><small>Occasional news about new training content.</small></div>
+            <label class="account-switch"><input type="checkbox" disabled><i></i></label>
+          </div>
+        </section>
+
+        <section class="dash-panel account-section" id="preferences">
+          <div class="dash-panel-head">
+            <div><h2>Preferences</h2><p class="account-note">Make the portal comfortable for you.</p></div>
+          </div>
+          <div class="account-row">
+            <div><b>Appearance</b><small>Light, dark, or follow your device.</small></div>
+            <div class="account-seg" role="group" aria-label="Appearance">
+              <button type="button" data-theme-choice="light">Light</button>
+              <button type="button" data-theme-choice="dark">Dark</button>
+              <button type="button" data-theme-choice="system">System</button>
+            </div>
+          </div>
+          <form method="post" action="{% url 'account-settings' %}" data-autosave>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save-preferences">
+            <div class="account-row">
+              <div><b>Language</b></div>
+              {{ preferences_form.language }}
+            </div>
+            <div class="account-row">
+              <div><b>Time zone</b></div>
+              {{ preferences_form.timezone }}
+            </div>
+            <div class="account-row">
+              <div><b>Date format</b></div>
+              {{ preferences_form.date_format }}
+            </div>
+          </form>
+          <div class="account-row">
+            <div><b>Reduce motion</b><small>Turn off animations and transitions.</small></div>
+            <label class="account-switch"><input type="checkbox" id="reduce-motion"><i></i></label>
+          </div>
+        </section>
+
+        <section class="dash-panel account-section" id="privacy">
+          <div class="dash-panel-head">
+            <div><h2>Privacy &amp; data</h2><p class="account-note">Control what instructors see and what we keep.</p></div>
+          </div>
+          <div class="account-row">
+            <div><b>Show my progress to instructors</b><small>Needed for assessment and certification.</small></div>
+            <label class="account-switch"><input type="checkbox" checked disabled><i></i></label>
+          </div>
+          <div class="account-row">
+            <div><b>Appear on class leaderboards</b><small>Show your first name and score to classmates.</small></div>
+            <label class="account-switch"><input type="checkbox" disabled><i></i></label>
+          </div>
+          <div class="account-row">
+            <div><b>Download my data</b><small>A copy of your profile, progress and results.</small></div>
+            <button type="button" class="student-ghost-action" disabled>Request export</button>
+          </div>
+        </section>
+
+        <section class="dash-panel account-section account-danger" id="danger">
+          <div class="dash-panel-head">
+            <div><h2>Danger zone</h2><p class="account-note">These actions can't be undone.</p></div>
+          </div>
+          <div class="account-row">
+            <div><b>Sign out everywhere</b><small>Ends every session except this one.</small></div>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="sign-out-everywhere">
+              <button type="submit" class="account-btn-danger">Sign out all</button>
+            </form>
+          </div>
+          <div class="account-row">
+            <div><b>Request account deletion</b><small>Your instructor and the admin team must approve this.</small></div>
+            <button type="button" class="account-btn-danger" disabled>Request deletion</button>
+          </div>
+        </section>
+      </div>
+
+    {% include "accounts/_password_change_dialog.html" %}
+  </div>
+
+  <script>
+    (function () {
+      var links = [].slice.call(document.querySelectorAll(".account-nav a"));
+      var sections = links.map(function (a) { return document.querySelector(a.getAttribute("href")); }).filter(Boolean);
+      if (links.length && sections.length) {
+        var strip = document.querySelector(".account-nav");
+        var spy = function () {
+          var current = 0;
+          sections.forEach(function (section, index) {
+            if (section.getBoundingClientRect().top <= 160) current = index;
+          });
+          var atEnd = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+          if (atEnd && window.scrollY > 0) current = sections.length - 1;
+          links.forEach(function (a, index) { a.classList.toggle("is-active", index === current); });
+          // Slide the strip itself so the active tab is centred; scrolling the
+          // link with scrollIntoView would drag the whole page back to the top.
+          if (strip) strip.scrollTo({ left: Math.max(links[current].offsetLeft - (strip.clientWidth - links[current].offsetWidth) / 2, 0), behavior: "smooth" });
+        };
+        window.addEventListener("scroll", spy, { passive: true });
+        window.addEventListener("resize", spy);
+        spy();
+      }
+      document.querySelectorAll("form[data-autosave]").forEach(function (form) {
+        form.addEventListener("change", function () { form.submit(); });
+      });
+      var motion = document.getElementById("reduce-motion");
+      var motionStyle = null;
+      var applyMotion = function () {
+        if (motion.checked) {
+          motionStyle = motionStyle || document.createElement("style");
+          motionStyle.textContent = "*{transition:none!important;animation:none!important;scroll-behavior:auto!important}";
+          document.head.appendChild(motionStyle);
+        } else if (motionStyle) {
+          motionStyle.remove();
+          motionStyle = null;
+        }
+      };
+      if (motion) {
+        if (localStorage.getItem("icums-reduce-motion") === "1") { motion.checked = true; applyMotion(); }
+        motion.addEventListener("change", function () {
+          localStorage.setItem("icums-reduce-motion", motion.checked ? "1" : "0");
+          applyMotion();
+        });
+      }
+    })();
+  </script>
+{% endblock %}
