@@ -1,7 +1,7 @@
 # Legacy theme leak audit
 
 Date: 14 October 2026  
-Status: automated remediation applied 15 October 2026; re-swept 21 October 2026 — see the re-sweep section below for what closed and what remains open
+Status: automated remediation applied 15 October 2026; re-swept 21 October 2026 and committed as `d76396c` — see the re-sweep section below for what closed and what remains open. The work is parked there: the three items in "Still open, and why" each need Bernard's go-ahead as a separate batch (theme/copy lock, `AGENTS.md`), and the route-by-route browser review has not been done.
 
 ## Remediation update — 15 October 2026
 
@@ -46,6 +46,15 @@ hide a stylesheet hook: `learning/rich_text.py:24-30` allows no `class` attribut
 | Parallel dark neutral palette `#172033`, `#2b3950`, `#aab4ca` | 89 sites | Each substitution needs a dark-mode contrast check, done per file rather than in one sweep. |
 | Hard-coded palette hexes | 592 of 712 six-digit hexes in `static/css/*.css`; the other 120 are correct `var(--token, #hex)` fallbacks | Concentrated in `simulator-portal.css` (199), `cargo-page.css` (148), `dash.css` (67), `app.css` (63), `instructor-theory-builder.css` (40). Mechanical, but wants the same per-file review. |
 | `tools/build_admin_content_guide.py:25` | `PURPLE = colors.HexColor("#5145CD")` | The last legacy purple in the repository. It colours a generated PDF rather than a page, and sits outside the guardrail's source roots. Left alone deliberately. |
+
+How to resume each of these when the go-ahead comes: one batch at a time in the order above, and within a
+batch one file at a time, substituting into the idiom the repository already uses —
+`var(--color-primary-N, #hex)`, `var(--color-base-N, #hex)`
+and `color-mix(in srgb, var(--primary) N%, transparent)` — then reading the computed colour in both
+`html[data-theme="dark"]` and light mode before moving on, rather than swapping hues in bulk. The
+guardrail at `tests/test_legacy_theme_guardrails.py:45` will reject any forbidden literal reintroduced in
+either hex or `rgb()` notation, but it cannot judge contrast, which is why these three rows stayed out of
+`d76396c`.
 
 ### Corrections to the 14 October method
 
