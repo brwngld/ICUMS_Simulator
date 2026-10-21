@@ -1,5 +1,6 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}{{ student }} · Students{% endblock %}
+{% block workspace_name %}{{ student }}{% endblock %}
 {% block content %}
 <link rel="stylesheet" href="{% static 'css/instructor-portal.css' %}?v=20261016-1">
 <div class="dash portal-main">

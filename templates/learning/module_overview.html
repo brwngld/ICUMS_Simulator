@@ -1,6 +1,7 @@
 {% extends "core/base_student.html" %}
 {% load static %}
 {% block title %}{{ module.title }} · ICUMS Simulator{% endblock %}
+{% block workspace_name %}{{ module.title }}{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/module-overview.css' %}?v=20261016-1">{% endblock %}
 {% block content %}
 {% if preview_mode %}<div class="dash-notice">Preview — this is how enrolled students will see the course. Nothing you do here is saved.</div>{% endif %}

@@ -3,6 +3,7 @@
 {% load rich_content %}
 
 {% block title %}{{ lesson.title }} · {{ current_section.title }} · ICUMS Simulator{% endblock %}
+{% block workspace_name %}{{ lesson.title }}{% endblock %}
 
 {% block extrastyle %}
   {{ block.super }}

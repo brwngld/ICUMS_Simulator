@@ -1,6 +1,7 @@
 {% extends "core/base_student.html" %}
 
 {% block title %}{{ attempt.scenario_version.scenario.title }} · Practical{% endblock %}
+{% block workspace_name %}{{ attempt.scenario_version.scenario.title }}{% endblock %}
 
 {% block content %}
   <div class="dash">

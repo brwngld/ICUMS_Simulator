@@ -1,8 +1,9 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import get_object_or_404, redirect
 
+from core.admin_dashboard import render_student_page
 from scenarios.models import ConsignmentApplication
 
 from .models import Assessment
@@ -21,7 +22,7 @@ def assessment_detail(request, application_id):
     if application.status != ConsignmentApplication.Status.SUBMITTED and application.owner_id == request.user.pk:
         messages.info(request, "The assessment becomes final once the application is submitted; values shown are from the saved draft.")
     assessment = refresh_assessment(application)
-    return render(request, "assessment/detail.html", {
+    return render_student_page(request, "assessment/detail.html", {
         "application": application,
         "assessment": assessment,
         "review_mode": application.owner_id != request.user.pk,

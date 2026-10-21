@@ -511,23 +511,39 @@ _BREADCRUMB_BUILDERS = {
 }
 
 
+def _page_title(ctx):
+    """A page's own `page_title`, used as a head title or crumb label."""
+    return ctx["page_title"]
+
+
 # Simulator page heads: the title and breadcrumb trail each playground
 # page shows in the chrome header. Extracted from the pages' former
-# in-content heads; labels are the originals, verbatim.
+# in-content heads; labels are the originals, verbatim. A title or crumb
+# label may instead be a callable of the page's render context, for the
+# pages whose name comes from the view (or from the record being shown)
+# rather than from a fixed screen.
 _SIMULATOR_PAGE_HEADS = {key.removeprefix("templates/"): value for key, value in {
     "templates/scenarios/cargo_direct_delivery.html": {"title": 'Direct Delivery', "crumbs": [('Cargo', 'simulator-portal'), ('Sea Import', None), ('Discharge', None), ('Direct Delivery', None)]},
     "templates/scenarios/cargo_service_request.html": {"title": 'Service Request', "crumbs": [('Cargo', 'simulator-portal'), ('Sea Import', None), ('Service Request', None)]},
     "templates/scenarios/clearance_workspace.html": {"title": 'Create BOE Declaration', "crumbs": [('Clearance', 'clearance-workspace'), ('Declaration', None), ('Register Declaration', None), ('Create BOE Declaration', None)]},
     "templates/scenarios/consignment_application.html": {"title": 'Search Application', "crumbs": [('Workspace', 'simulator-portal'), ('Application', None), ('Preparation Application', None), ('Consignment Document', None)]},
+    "templates/scenarios/declaration_create.html": {"title": _page_title, "crumbs": [('Clearance', 'clearance-workspace'), ('Declaration', None), ('Register Declaration', None), (_page_title, None)]},
+    "templates/scenarios/declaration_search.html": {"title": _page_title, "crumbs": [('Clearance', 'clearance-workspace'), ('Declaration', None), ('Register Declaration', None), (_page_title, None)]},
+    "templates/scenarios/single_window_create_consignment_application.html": {"title": 'Create Application', "crumbs": [('Single Window', 'single-window-workspace'), ('Application', None), ('Create Application', 'single-window-create-consignment-application'), ('Search Application', 'single-window-search-consignment-application'), ('Create Application', None)]},
     "templates/scenarios/single_window_create_master_application.html": {"title": 'Create Application', "crumbs": [('Single Window', 'single-window-workspace'), ('Application', None), ('Create Application', 'single-window-create-master-application'), ('Search Application', 'single-window-search-master-application'), ('Create Application', None)]},
     "templates/scenarios/single_window_create_opt_in_out.html": {"title": 'Create Opt In/Out', "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Opt In/Out Request', None), ('Create Opt In/Out', None)]},
     "templates/scenarios/single_window_create_ucr.html": {"title": 'Create UCR', "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Unique Consignment Reference', None), ('Create UCR', None)]},
+    "templates/scenarios/single_window_exporter_registration.html": {"title": _page_title, "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Exporter Registration', None), (_page_title, None)]},
+    "templates/scenarios/single_window_opt_in_out_detail.html": {"title": 'Submitted Opt In/Out', "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Opt In/Out Request', None), ('Submitted Opt In/Out', None)]},
+    "templates/scenarios/single_window_preparation_application.html": {"title": _page_title, "crumbs": [('Single Window', 'single-window-workspace'), ('Application', None), ('Create Application', 'single-window-create-preparation-application'), ('Search Application', 'single-window-search-preparation-application'), (_page_title, None)]},
     "templates/scenarios/single_window_search_consignment_application.html": {"title": 'Search Application', "crumbs": [('Single Window', 'single-window-workspace'), ('Application', None), ('Create Application', 'single-window-create-consignment-application'), ('Search Application', 'single-window-search-consignment-application'), ('Search Application', None)]},
     "templates/scenarios/single_window_search_opt_in_out.html": {"title": 'Search Opt In/Out', "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Search Opt In/Out', None)]},
     "templates/scenarios/single_window_search_ucr.html": {"title": 'Search UCR', "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Unique Consignment Reference', None), ('Search UCR', None)]},
     "templates/scenarios/single_window_workspace.html": {"title": 'Unique Consignment Reference', "crumbs": [('Single Window', 'simulator-portal'), ('Registration', None), ('Unique Consignment Reference', None)]},
+    "templates/scenarios/ucr_amend.html": {"title": 'Amend UCR', "crumbs": [('Single Window', 'single-window-workspace'), ('Registration', None), ('Unique Consignment Reference', None), ('Amend UCR', None)]},
     "templates/scenarios/ucr_create.html": {"title": 'Create UCR', "crumbs": [('Workspace', 'simulator-portal'), ('Registration', None), ('Create UCR', None)]},
     "templates/scenarios/ucr_detail.html": {"title": 'Create UCR', "crumbs": [('Workspace', 'simulator-portal'), ('Create UCR', None)]},
+    "templates/scenarios/boe_declaration.html": {"title": lambda ctx: f"BOE Declaration {ctx['declaration'].job_no}", "crumbs": [('Clearance', 'clearance-workspace'), ('Declaration', None), ('Register Declaration', None), (lambda ctx: f"BOE Declaration {ctx['declaration'].job_no}", None)]},
     "templates/assessment/detail.html": {"title": 'Duty Assessment', "crumbs": [('Workspace', 'simulator-portal'), ('Clearance', None), ('Duty Assessment', None)]},
 }.items()}
 
@@ -539,14 +555,24 @@ def _simulator_page_head(template, context):
     head = _SIMULATOR_PAGE_HEADS.get(template)
     if not head:
         return None
-    crumbs = []
-    for label, url_name in head["crumbs"]:
+
+    def resolve(value):
+        return str(value(context) if callable(value) else value)
+
+    def link(url_name):
         try:
-            href = reverse(url_name) if url_name else ""
+            return reverse(url_name) if url_name else ""
         except Exception:
-            href = ""
-        crumbs.append({"title": label, "link": href})
-    return {"title": head["title"], "crumbs": crumbs}
+            return ""
+
+    try:
+        title = resolve(head["title"])
+        crumbs = [{"title": resolve(label), "link": link(url_name)} for label, url_name in head["crumbs"]]
+    except (KeyError, AttributeError, TypeError):
+        # A dynamic head references context this render does not carry;
+        # leave the chrome to its own fallback rather than half-rendering.
+        return None
+    return {"title": title, "crumbs": crumbs} if title else None
 
 
 def _portal_breadcrumbs(request, context):
@@ -778,6 +804,7 @@ SIMULATOR_PATH_PREFIXES = (
     "/practical/clearance",
     "/practical/single-window",
     "/practical/access",
+    "/practical/assessment",
 )
 
 

@@ -1,6 +1,7 @@
 {% extends "core/base_student.html" %}
 {% load static %}
 {% block title %}Course Overview · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Course Overview{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/course-overview.css' %}?v=20261016-1">{% endblock %}
 {% block content %}
 {% if preview_mode %}<div class="dash-notice">Preview — this is how enrolled students will see the course. Nothing you do here is saved. <a href="{% url 'course-review' version.pk %}">Back to review →</a></div>{% endif %}
