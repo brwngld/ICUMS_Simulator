@@ -59,12 +59,12 @@
 .ucr-form-panel > .boe-box-grid { margin-bottom:1.1rem; }
 .ucr-form-panel .ucr-section-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.6rem; margin:1.1rem 0 .5rem; }
 .ucr-form-panel .ucr-section-head .boe-section-title { margin:0; }
-.ucr-form-panel .boe-box-grid th label { font-size:.76rem; color:#475569; font-weight:650; }
+.ucr-form-panel .boe-box-grid th label { font-size:.76rem; color:#475569; font-weight:650; overflow-wrap:break-word; }
 .ucr-form-panel .boe-box-grid th span { color:#dc2626; font-weight:600; }
 .ucr-same-check { display:inline-flex; align-items:center; gap:.3rem; font-size:.76rem; font-weight:650; color:#475569; white-space:nowrap; }
 /* Country lookup compounds: short code box + lookup trigger + wide read-only name, like the reference. */
 .ucr-form-panel .boe-compound input { min-width:0; }
-.ucr-form-panel .boe-compound input.boe-code-box { flex:0 0 auto; width:5.5rem; min-width:0; }
+.ucr-form-panel .boe-compound input.boe-code-box { flex:0 0 5.5rem; width:5.5rem; min-width:0; }
 .ucr-form-panel .boe-compound .boe-name-box { min-width:0; }
 .ucr-form-panel .boe-lookup-btn:not(:disabled) { cursor:pointer; color:var(--ink); background:var(--panel); }
 
@@ -75,8 +75,8 @@
    column geometry: fixed layout pins the label column so "Regime Type",
    "Country", "Tel. No." etc. line up down the page in every mode. */
 .ucr-form-panel .boe-box-grid { table-layout: fixed; width: 100%; }
-.ucr-form-panel .boe-box-grid th { width: 15%; }
-.ucr-form-panel .boe-box-grid td[colspan="3"] ~ th { width: 15%; }
+.ucr-form-panel .boe-box-grid th { width: 22%; }
+.ucr-form-panel .boe-box-grid td[colspan="3"] ~ th { width: 22%; }
 
 /* Submitted/amend views: values render as table text, not boxed inputs, and
    rows auto-adjust on smaller screens. */
