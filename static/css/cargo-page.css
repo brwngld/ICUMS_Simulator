@@ -426,3 +426,50 @@ html[data-theme="dark"] .dialog-page-indicator { color: #aab4ca; }
 @media (max-width: 40rem) {
   .cargo-panel table { min-width: 100%; }
 }
+
+/* Phone layout for reference-style form tables. Preserve the four-column
+   desktop/tablet grid, but present each label/control pair on its own row
+   where four columns would crush labels into one-character lines. */
+@media (max-width: 40rem) {
+  :is(.cargo-main, .cargo-dialog, .code-dialog) table.boe-box-grid {
+    table-layout: auto;
+  }
+  :is(.cargo-main, .cargo-dialog, .code-dialog) table.boe-box-grid > colgroup {
+    display: none;
+  }
+  :is(.cargo-main, .cargo-dialog, .code-dialog) table.boe-box-grid > tbody > tr {
+    display: grid;
+    grid-template-columns: minmax(7.25rem, .8fr) minmax(0, 1.2fr);
+  }
+  :is(.cargo-main, .cargo-dialog, .code-dialog) table.boe-box-grid > tbody > tr > :is(th, td) {
+    width: auto;
+    min-width: 0;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  :is(.cargo-main, .cargo-dialog, .code-dialog) table.boe-box-grid > tbody > tr > td[colspan] {
+    grid-column: 2 / -1;
+  }
+  :is(.cargo-main, .cargo-dialog, .code-dialog) table.boe-box-grid :is(button, input[type="checkbox"], input[type="radio"]) {
+    min-height: 2.75rem;
+  }
+  :is(.cargo-main, .cargo-dialog, .code-dialog) table.boe-box-grid :is(input[type="checkbox"], input[type="radio"]) {
+    width: 1.25rem;
+    height: 1.25rem;
+    min-width: 1.25rem;
+  }
+  .boe-compound,
+  .ucr-lookup-field {
+    max-width: 100%;
+  }
+  .ucr-form-panel .boe-compound {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2.75rem;
+  }
+  .ucr-form-panel .boe-compound .boe-code-box {
+    width: 100%;
+  }
+  .ucr-form-panel .boe-compound .boe-name-box {
+    grid-column: 1 / -1;
+  }
+}
