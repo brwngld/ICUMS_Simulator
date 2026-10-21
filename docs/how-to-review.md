@@ -224,6 +224,6 @@ Both routes are read-only for student records: corrections are the learner's to 
 ## Simulator student IDs and monthly passwords
 
 - A student's **ID** (for example `BERN00001/26`) is allocated automatically the first time their simulator login is issued: four letters from the first name, a five-digit sequence, and the year.
-- The **monthly password** is generated randomly at issue, stored only as a hash, and **shown exactly once** on the instructor dashboard's one-time password screen (with a Copy button). It is never displayed or stored in a readable form again — if it is lost, use "Reset monthly password" to generate a new one.
+- The **monthly password** is generated randomly at issue, stored only as a hash, and **shown exactly once** on the instructor dashboard's one-time password screen (with a Copy button). It is never displayed or stored in a readable form again — if it is lost, use "Reset password" to generate a new one.
 - Passwords expire at the end of the month. Students can flag "Request password reset" from the simulator login dialog, which shows on the instructor dashboard.
 - The one-time reveal lives on the instructor dashboard only; Django Admin shows credential status (never the password) and can create a credential record, but the reveal happens at an instructor reset.

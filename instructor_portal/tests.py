@@ -119,7 +119,7 @@ class CourseBuilderTests(TestCase):
     def test_instructor_dashboard_exposes_the_two_authoring_paths(self):
         response = self.client.get(reverse("instructor-dashboard"))
         self.assertContains(response, "Theory builder")
-        self.assertContains(response, "Practical/Theory builder")
+        self.assertContains(response, "Practical / Theory builder")
 
     def test_admin_without_student_enrolment_does_not_get_student_theory_link(self):
         self.user.is_staff = True
