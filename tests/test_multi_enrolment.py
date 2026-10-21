@@ -447,6 +447,25 @@ def _simulator_client(client, learner):
     session.save()
 
 
+@pytest.mark.django_db
+def test_a_signed_out_reader_has_no_enrolment_to_resolve(client, db):
+    """Enrolments are keyed on the UUID primary key, so asking for the active
+    enrolment of ``AnonymousUser`` faults instead of answering none. The pages
+    a visitor can reach before signing in ask, so they get the login page."""
+    from django.contrib.auth.models import AnonymousUser
+    from django.test import RequestFactory
+
+    from onboarding.services import active_enrolments, requested_enrolment
+
+    assert list(active_enrolments(AnonymousUser())) == []
+    request = RequestFactory().get("/test")
+    request.user = AnonymousUser()
+    assert requested_enrolment(request) is None
+    response = client.get("/test")
+    assert response.status_code == 302
+    assert reverse("login") in response.headers["location"]
+
+
 def _html_links(html):
     """Every href in a rendered page, in document order."""
     from html.parser import HTMLParser

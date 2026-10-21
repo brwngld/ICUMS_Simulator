@@ -1,0 +1,260 @@
+/*
+  Integrated Practice Desk spike: a resizable two-pane workspace with the lesson
+  and guided-practical step on the left and the real simulator page framed on the
+  right. Shares the dash tokens (dash.css) and the lesson reading classes
+  (lesson.css) so it sits in the same interface rather than beside it.
+  Discardable together with scenarios/desk.py.
+*/
+
+.desk-grid {
+  display: grid;
+  grid-template-columns: var(--desk-left, 35%) .65rem minmax(0, 1fr);
+  gap: .4rem;
+  align-items: stretch;
+  height: calc(100vh - 15.5rem);
+  min-height: 26rem;
+}
+
+.desk-pane {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The reading pane is one panel: the step stays pinned at the top while the
+   theory section, the section chips and the journey scroll beneath it. */
+.desk-theory {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--d-border);
+  border-radius: .75rem;
+  background: #fff;
+}
+
+html.dark .desk-theory { background: var(--color-base-900, #0f172a); }
+
+.desk-scroll {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: .8rem;
+  min-height: 0;
+  padding: .9rem 1.05rem 1rem;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+.desk-card {
+  padding: .9rem 1.05rem 1rem;
+  border: 1px solid var(--d-border);
+  border-radius: .8rem;
+}
+
+.desk-card-step {
+  flex: 0 0 auto;
+  border: 0;
+  border-bottom: 1px solid var(--d-border);
+  border-radius: 0;
+  background: var(--d-card-bg);
+}
+
+.desk-card-label { margin: 0 0 .35rem; color: var(--d-muted); font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+
+.desk-card-title { margin: 0 0 .4rem; font-size: 1.02rem; font-weight: 700; line-height: 1.3; }
+
+.desk-card-text { margin: 0 0 .5rem; font-size: .84rem; line-height: 1.55; }
+
+.desk-card-actions {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  flex-wrap: wrap;
+  margin-top: .7rem;
+}
+
+.desk-card-actions form { display: flex; }
+
+.desk-card .guide-feedback {
+  display: block;
+  margin: .65rem 0 0;
+  color: var(--d-muted);
+  font-size: .76rem;
+  line-height: 1.5;
+}
+
+.desk-card .guide-feedback[data-tone="pass"] { color: var(--color-success-600, #059669); }
+
+.desk-card .guide-feedback[data-tone="fail"] { color: var(--color-danger-600, #dc2626); }
+
+.desk-card .guide-feedback:empty { display: none; }
+
+/* The theory card opens and closes from its own label row. */
+details.desk-card { padding: 0; }
+
+.desk-card-head {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .85rem 1.05rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.desk-card-head::-webkit-details-marker { display: none; }
+
+.desk-card-head .desk-card-label { margin: 0; }
+
+.desk-card-toggle {
+  margin-left: auto;
+  padding: .2rem .6rem;
+  border: 1px solid var(--d-border);
+  border-radius: 99px;
+  color: var(--d-muted);
+  font-size: .68rem;
+  font-weight: 650;
+  letter-spacing: .02em;
+  text-transform: none;
+}
+
+.desk-card-body { padding: 0 1.05rem 1rem; }
+
+/* The journey: one numbered circle per step of the guided practical, spread
+   evenly across the card. Real step labels are sentences, so each one is shown
+   to two lines and the whole label stays in the step's tooltip. */
+.desk-stages {
+  display: flex;
+  gap: .4rem;
+  margin: .6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.desk-stage { flex: 1 1 0; min-width: 0; margin: 0; text-align: center; }
+
+.desk-stage > span {
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin: 0 auto .3rem;
+  border: 1px solid var(--d-border);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--d-muted);
+  font-size: .76rem;
+  font-weight: 700;
+}
+
+html.dark .desk-stage > span { background: var(--color-base-800, #1e293b); }
+
+.desk-stage.done > span { border-color: transparent; background: var(--color-success-600, #059669); color: #fff; }
+
+.desk-stage.now > span { border-color: var(--d-accent); background: var(--d-accent); color: #fff; }
+
+.desk-stage > small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--d-muted);
+  font-size: .68rem;
+  line-height: 1.3;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.desk-stage.now > small { color: inherit; font-weight: 700; }
+
+.desk-workflow {
+  margin: 0;
+  padding: 0 .2rem;
+  color: var(--d-muted);
+  font-size: .76rem;
+  line-height: 1.6;
+}
+
+.desk-workflow b { color: inherit; }
+
+.desk-sim {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--d-border);
+  border-radius: .75rem;
+  background: #fff;
+}
+
+html.dark .desk-sim { background: var(--color-base-900, #0f172a); }
+
+.desk-sim-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .5rem .7rem;
+  border-bottom: 1px solid var(--d-border);
+  background: var(--d-card-bg);
+}
+
+.desk-sim-label { color: var(--d-muted); font-size: .72rem; font-weight: 650; letter-spacing: .02em; }
+
+.desk-sim-select {
+  flex: 1 1 14rem;
+  min-width: 0;
+  max-width: 26rem;
+  padding: .4rem .5rem;
+  border: 1px solid var(--d-border);
+  border-radius: .55rem;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: .78rem;
+}
+
+html.dark .desk-sim-select { background: var(--color-base-800, #1e293b); color: var(--color-font-default-dark, #cbd5e1); }
+
+.desk-sim-bar a.dash-secondary, .desk-sim-bar button.dash-secondary { white-space: nowrap; }
+
+.desk-frame-wrap { flex: 1; min-height: 0; }
+
+.desk-frame { display: block; width: 100%; height: 100%; border: 0; }
+
+/* Drag handle: a visible rule that answers hover, grab and keyboard use. */
+.desk-divider {
+  border-radius: .4rem;
+  background: var(--d-border);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.desk-divider:hover, .desk-divider:focus-visible, .desk-divider.is-dragging { background: var(--d-accent); }
+
+.desk-divider:focus-visible { outline: 2px solid var(--d-accent); outline-offset: 2px; }
+
+.desk-switch { display: none; gap: .4rem; }
+
+.desk-sections > strong {
+  display: block;
+  margin-bottom: .5rem;
+  color: var(--d-muted);
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+/* Narrow screens: one pane at a time, chosen from the header. The frame keeps
+   its document, so switching panes never reloads the simulator or loses input. */
+@media (max-width: 62rem) {
+  .desk-grid { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 0; }
+  .desk-divider { display: none; }
+  .desk-switch { display: flex; }
+  .desk-theory { max-height: 62vh; }
+  .desk-sim { height: 78vh; }
+  .desk-grid[data-desk-pane="theory"] .desk-sim,
+  .desk-grid[data-desk-pane="sim"] .desk-theory { display: none; }
+}
+
+/* Expanded simulator: the reading pane steps aside without unloading it. */
+.desk[data-desk-expanded] .desk-grid { grid-template-columns: minmax(0, 1fr); }
+.desk[data-desk-expanded] .desk-theory, .desk[data-desk-expanded] .desk-divider { display: none; }

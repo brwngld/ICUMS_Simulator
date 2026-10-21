@@ -118,30 +118,53 @@ def active_attempt(request):
     """
     if hasattr(request, "_guided_attempt"):
         return request._guided_attempt
-    request._guided_attempt = _attempt_for(request)
+    request._guided_attempt = attempt_for_route(request, _current_url_name(request))
     return request._guided_attempt
 
 
-def _attempt_for(request):
+def _session_student(request):
+    """The learner whose own simulator session this request carries, else ``None``."""
     user = getattr(request, "user", None)
     session = getattr(request, "session", None)
     if user is None or not user.is_authenticated or session is None:
         return None
     if session.get("simulator_user_id") != str(user.pk):
         return None
-    url_name = _current_url_name(request)
-    if url_name not in SIMULATOR_BINDING_ROUTES:
-        return None
+    return user
+
+
+def _own_attempts(user):
     return (
         ScenarioAttempt.objects.filter(
             enrolment__student=user,
             status=ScenarioAttempt.Status.IN_PROGRESS,
-            current_state__binding__route=url_name,
         )
         .select_related("current_state", "scenario_version__scenario")
         .order_by("-started_at", "id")
-        .first()
     )
+
+
+def attempt_for_route(request, url_name):
+    """The in-progress attempt standing on the step bound to ``url_name``."""
+    if url_name not in SIMULATOR_BINDING_ROUTES:
+        return None
+    user = _session_student(request)
+    if user is None:
+        return None
+    return _own_attempts(user).filter(current_state__binding__route=url_name).first()
+
+
+def newest_attempt(request):
+    """The learner's most recent in-progress attempt, whatever step it is on.
+
+    Used by pages that are not themselves a bound simulator step and so cannot
+    be matched by route; the attempt still comes from the same session check, so
+    it is never someone else's work.
+    """
+    user = _session_student(request)
+    if user is None:
+        return None
+    return _own_attempts(user).first()
 
 
 def _stages(states, current, visited):

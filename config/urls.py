@@ -21,6 +21,7 @@ from django.views.generic import RedirectView
 
 from accounts.views import LoginView
 from core import views as core_views
+from scenarios import desk
 
 handler403 = "core.views.permission_denied"
 
@@ -28,6 +29,10 @@ urlpatterns = [
     path("admin/login/", RedirectView.as_view(url="/accounts/login/", permanent=False), name="admin-login-redirect"),
     path('admin/', admin.site.urls),
     path("favicon.ico", RedirectView.as_view(url="/static/image/favicon.ico", permanent=True), name="favicon"),
+    # Practice Desk spike: the same desk with its parameters filled in, so it can
+    # be opened at /test. Discardable with scenarios/desk.py.
+    path("test", desk.test_desk, name="desk-test"),
+    path("test/", desk.test_desk, name="desk-test-slash"),
     path("accounts/login/", LoginView.as_view(redirect_authenticated_user=True), name="login"),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("accounts/", include("accounts.urls")),
