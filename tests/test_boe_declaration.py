@@ -237,6 +237,51 @@ def test_search_boe_lists_drafts_and_submitted(client):
 
 
 @pytest.mark.django_db
+def test_boe_delete_is_draft_only_and_owner_scoped(client):
+    owner = User.objects.create_user(username="boe-del-owner", email="boe-del-owner@example.test", password="x", is_staff=True)
+    other = User.objects.create_user(username="boe-del-other", email="boe-del-other@example.test", password="x", is_staff=True)
+    client.force_login(owner)
+    draft_idf = _make_idf(owner, "KGHTESTUCR9900000051", idf_no="CD202609MOTIIDF0000051")
+    draft = BoeDeclaration.objects.create(
+        owner=owner, idf=draft_idf, ucr=draft_idf.consignment_application.ucr,
+        job_no="261020GCH0000051", regime="40", form_data={})
+    submitted_idf = _make_idf(owner, "KGHTESTUCR9900000052", idf_no="CD202609MOTIIDF0000052")
+    submitted = BoeDeclaration.objects.create(
+        owner=owner, idf=submitted_idf, ucr=submitted_idf.consignment_application.ucr,
+        job_no="261020GCH0000052", regime="40", form_data={},
+        status=BoeDeclaration.Status.SUBMITTED, declaration_no="BOE260000052")
+    foreign_idf = _make_idf(other, "KGHTESTUCR9900000053", idf_no="CD202609MOTIIDF0000053")
+    foreign = BoeDeclaration.objects.create(
+        owner=other, idf=foreign_idf, ucr=foreign_idf.consignment_application.ucr,
+        job_no="261020GCH0000053", regime="40", form_data={})
+
+    delete_url = reverse("boe-delete")
+
+    # Submitted declarations stay protected.
+    assert client.post(delete_url, {"declaration_id": submitted.pk}).status_code == 302
+    assert BoeDeclaration.objects.filter(pk=submitted.pk).exists()
+
+    # Another learner's draft is unreachable.
+    client.post(delete_url, {"declaration_id": foreign.pk})
+    assert BoeDeclaration.objects.filter(pk=foreign.pk).exists()
+
+    # An empty selection reports a message instead of failing.
+    assert client.post(delete_url, {"declaration_id": ""}).status_code == 302
+
+    # The owner's own draft goes.
+    assert client.post(delete_url, {"declaration_id": draft.pk}).status_code == 302
+    assert not BoeDeclaration.objects.filter(pk=draft.pk).exists()
+
+    # The search page carries the radio column and the three row actions.
+    page = client.get(reverse("search-boe-declaration"))
+    assert b'name="boe-select"' in page.content
+    assert b'id="boe-list-submit"' in page.content
+    assert b'id="boe-list-print"' in page.content
+    assert b'id="boe-list-delete"' in page.content
+    assert b'data-status="submitted"' in page.content
+
+
+@pytest.mark.django_db
 def test_bl_awb_tab_edits_and_saves(client):
     from django.test import Client
 

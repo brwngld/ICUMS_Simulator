@@ -15,6 +15,7 @@ urlpatterns = [
     path("clearance/boe/<int:declaration_id>/save-draft/", views.boe_save_general_draft, name="boe-save-draft"),
     path("clearance/boe/<int:declaration_id>/submit/", views.boe_submit, name="boe-submit"),
     path("clearance/boe/<int:declaration_id>/compute-tax/", views.boe_compute_tax, name="boe-compute-tax"),
+    path("clearance/boe/delete/", views.boe_delete, name="boe-delete"),
     path("clearance/search/boe/", views.declaration_search, {"search_kind": "boe"}, name="search-boe-declaration"),
     path("clearance/search/simple-amendment/", views.declaration_search, {"search_kind": "simple-amendment"}, name="search-simple-amendment"),
     path("clearance/search/post-entry/", views.declaration_search, {"search_kind": "post-entry"}, name="search-post-entry-declaration"),

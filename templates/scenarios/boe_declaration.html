@@ -416,6 +416,12 @@
       tabs.forEach((tab) => tab.addEventListener("click", () => { activate(tab.dataset.boeTab); history.replaceState(null, "", "#" + tab.dataset.boeTab); }));
       const initialTab = location.hash.slice(1);
       activate(tabs.some((tab) => tab.dataset.boeTab === initialTab) ? initialTab : "general");
+      // The Search BOE list's Print button lands here with ?print=1: show the
+      // summary and open the browser's print dialog for it.
+      if (new URLSearchParams(location.search).get("print") === "1" && tabs.some((tab) => tab.dataset.boeTab === "summary")) {
+        activate("summary");
+        window.addEventListener("load", () => window.print(), { once: true });
+      }
       document.querySelector("#go-next-tab")?.addEventListener("click", () => activate("blawb"));
 
       const partyCodes = JSON.parse(document.querySelector("#importer-code-data").textContent) || "";
