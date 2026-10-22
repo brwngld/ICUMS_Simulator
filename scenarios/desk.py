@@ -327,9 +327,8 @@ def test_desk(request):
     """
     params = request.GET.copy()
     pages = _playground_pages(request)
-    has_reference = UcrDeclaration.objects.filter(owner=_effective_owner(request), ucr_no=REFERENCE_UCR).exists()
-    if not params.get("sim"):
-        params["sim"] = reverse("single-window-search-ucr") if has_reference else (pages[0]["url"] if pages else "")
+    if not params.get("sim") and pages:
+        params["sim"] = pages[0]["url"]
     if not params.get("lesson"):
         params["lesson"] = _default_lesson(requested_enrolment(request))
     request.GET = params
