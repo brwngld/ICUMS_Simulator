@@ -146,19 +146,6 @@ Discardable in one revert together with scenarios/desk.py.
 
       <section class="desk-pane desk-sim" data-desk-pane="sim" aria-label="Simulator">
         <div class="desk-sim-bar">
-          <label class="desk-sim-label" for="desk-sim-page">Simulator page</label>
-          <select class="desk-sim-select" id="desk-sim-page" data-desk-page-select>
-            {% for page in desk.loose_pages %}
-              <option value="{{ page.url }}"{% if page.url == desk.frame_path %} selected{% endif %} data-desk-href="{{ page.desk_url }}">{{ page.title }}</option>
-            {% endfor %}
-            {% for group in desk.page_groups %}
-              <optgroup label="{{ group.title }}">
-                {% for page in group.pages %}
-                  <option value="{{ page.url }}"{% if page.url == desk.frame_path %} selected{% endif %} data-desk-href="{{ page.desk_url }}">{{ page.title }}</option>
-                {% endfor %}
-              </optgroup>
-            {% endfor %}
-          </select>
           {% if desk.frame_url %}<a class="dash-secondary" href="{{ desk.frame_url }}" target="_blank" rel="noopener">Open in new tab</a>{% endif %}
           <button class="dash-secondary" type="button" data-desk-expand>Expand simulator ↔</button>
         </div>
@@ -172,5 +159,5 @@ Discardable in one revert together with scenarios/desk.py.
       </section>
     </div>
   </div>
-  <script src="{% static 'js/practice-desk.js' %}?v=20261022-7" defer></script>
+  <script src="{% static 'js/practice-desk.js' %}?v=20261022-8" defer></script>
 {% endblock %}

@@ -141,6 +141,10 @@ def test_test_desk_builds_a_reference_guide_from_the_learners_real_ucr(client, s
     assert "BOTCHWAY PATRICK" in body
     assert f'"detail_path": "{reverse("ucr-detail", args=[record.pk])}"' in body
     assert f'src="{reverse("single-window-search-ucr")}' in _frame_source(body)
+    assert "Simulator page" not in body
+    assert "data-desk-page-select" not in body
+    assert "Open in new tab" in body
+    assert "Expand simulator" in body
 
 
 @pytest.mark.django_db

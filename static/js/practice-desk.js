@@ -157,7 +157,7 @@
     var ucrStep = 0;
     var ucrPassed = [false, false, false, false, false];
     var ucrSteps = [
-      { title: "Find the UCR search", instruction: "Open the Search UCR page in the workspace.", hint: "Choose Search UCR from the Simulator page list.", checks: ["Search UCR page is open"] },
+      { title: "Find the UCR search", instruction: "Open the Search UCR page in the workspace.", hint: "The practical opens the Search UCR workspace automatically.", checks: ["Search UCR page is open"] },
       { title: "Search the training record", instruction: "Enter the training UCR number and run the search.", hint: "Copy the Training UCR shown above into UCR No. or Temp. No., then select Search.", checks: ["Exact UCR number entered", "Matching submitted result is displayed"] },
       { title: "Open the declaration", instruction: "Select the matching UCR result to open its declaration details.", hint: "Select the UCR number in the first column of the result table.", checks: ["Correct UCR detail page is open"] },
       { title: "Verify the declaration", instruction: "Review the parties, movement details and supporting documents against the checklist.", hint: "Scroll through the declaration. The values are read directly from the open record.", checks: ["UCR, regime and declarant match", "Exporter and importer match", "Origin, destination and transport match", "Required documents and references match"] },
