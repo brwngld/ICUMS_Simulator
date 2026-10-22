@@ -784,7 +784,6 @@ def ucr_submit_declaration(request):
                          "attachments": _ucr_attachment_payload(record)})
 
 
-@simulator_access_required
 def _ucr_search_queryset(request):
     """Owner's UCRs filtered by the Search UCR criteria; text fields match exactly, not partially."""
     purge_expired_ucr_drafts()
@@ -822,6 +821,7 @@ def _ucr_search_queryset(request):
     return records, searched
 
 
+@simulator_access_required
 def single_window_search_ucr(request):
     records, searched = _ucr_search_queryset(request)
     # Nothing is listed until the learner enters at least one search criterion.

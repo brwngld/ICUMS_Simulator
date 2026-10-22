@@ -98,6 +98,13 @@ def test_a_simulator_page_lets_the_desk_frame_it(client, signed_in):
 
 
 @pytest.mark.django_db
+def test_ucr_search_loads_inside_the_desk_frame(client, signed_in):
+    response = client.get(reverse("single-window-search-ucr"), HTTP_SEC_FETCH_DEST="iframe")
+    assert response.status_code == 200
+    assert response["X-Frame-Options"] == "SAMEORIGIN"
+
+
+@pytest.mark.django_db
 def test_the_same_simulator_page_refuses_a_frame_it_was_not_asked_for(client, signed_in):
     assert client.get(reverse("single-window-create-ucr"))["X-Frame-Options"] == "DENY"
 
