@@ -10,9 +10,11 @@ make it safe to keep around while the rest of the app is untouched:
   reading, and it never writes: no progress row, no completion, no attempt.
 """
 
+from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import Group
 from django.urls import reverse
 
@@ -152,6 +154,8 @@ def test_test_desk_builds_a_reference_guide_from_the_learners_real_ucr(client, s
     assert "data-desk-page-select" not in body
     assert "Open in new tab" in body
     assert "Expand simulator" in body
+    script = (Path(settings.BASE_DIR) / "static" / "js" / "practice-desk.js").read_text(encoding="utf-8")
+    assert '".sim-brand-side"' in script
 
 
 @pytest.mark.django_db

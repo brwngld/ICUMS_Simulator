@@ -104,7 +104,7 @@
      branch actually holding them is found by walking up to #page and #main:
      hiding #nav-sidebar alone leaves its fixed-position wrapper, and a ":has()"
      rule would match every ancestor up to #page and blank the whole page. */
-  var FRAME_HIDE = [".sim-skip-link", "aside.guide"];
+  var FRAME_HIDE = [".sim-skip-link", ".sim-brand-side", "aside.guide"];
 
   function trimBranch(doc, startId, stopId) {
     var node = doc.getElementById(startId);
