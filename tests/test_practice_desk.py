@@ -21,7 +21,7 @@ from learning.models import ContentBlock, Lesson, Module
 from onboarding.models import Programme, ProgrammeVersion
 from progress.models import LessonProgress
 from scenarios.desk import _playground_pages
-from scenarios.models import ScenarioAttempt
+from scenarios.models import ScenarioAttempt, UcrDeclaration
 
 from tests.test_guide_panel import _oriented, _scenario, _three_step
 from tests.test_guided_simulator_binding import login_with_simulator_access
@@ -74,6 +74,20 @@ def _frame_source(body):
     return body[start:body.index('>', start)]
 
 
+def _reference_ucr(owner):
+    return UcrDeclaration.objects.create(
+        owner=owner, temp_no="TEMPUCR260000014", ucr_no="KGHTESTUCR260000014", status="submitted", regime="IM",
+        declarant_code="RD438419", exporter_identity="BP OCEAN LLC", exporter_name="BP OCEAN LLC",
+        importer_identity="GHA9864991929", importer_name="BOTCHWAY PATRICK", origin_country="US",
+        destination_country="GH", transport_mode="10, Sea Transport",
+        documents=[
+            {"code": "005", "name": "Bill of Lading / Airwaybill", "reference": "BL"},
+            {"code": "003", "name": "Invoice", "reference": "IN"},
+            {"code": "021", "name": "Packing List", "reference": "PK"},
+        ],
+    )
+
+
 # --- who may be framed -------------------------------------------------------
 
 
@@ -115,6 +129,27 @@ def test_the_desk_pairs_the_live_step_with_the_page_it_belongs_to(client, signed
     assert "Step 1 of 3" in body
     assert "Create and submit the importer UCR declaration" in body
     assert "Check my work" in body
+
+
+@pytest.mark.django_db
+def test_test_desk_builds_a_reference_guide_from_the_learners_real_ucr(client, signed_in):
+    record = _reference_ucr(signed_in.user)
+    body = client.get("/test").content.decode()
+    assert "data-ucr-guide" in body
+    assert "KGHTESTUCR260000014" in body
+    assert "BP OCEAN LLC" in body
+    assert "BOTCHWAY PATRICK" in body
+    assert f'"detail_path": "{reverse("ucr-detail", args=[record.pk])}"' in body
+    assert f'src="{reverse("single-window-search-ucr")}' in _frame_source(body)
+
+
+@pytest.mark.django_db
+def test_test_desk_does_not_expose_another_learners_reference_ucr(client, signed_in):
+    other = User.objects.create_user(username="other-ucr-owner", password="test-password")
+    _reference_ucr(other)
+    body = client.get("/test").content.decode()
+    assert "data-ucr-guide" not in body
+    assert "BP OCEAN LLC" not in body
 
 
 @pytest.mark.django_db

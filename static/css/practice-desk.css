@@ -89,6 +89,19 @@ html.dark .desk-theory { background: var(--color-base-900, #0f172a); }
 
 .desk-card .guide-feedback:empty { display: none; }
 
+.desk-ucr-progress { display: grid; grid-template-columns: repeat(5, 1fr); gap: .3rem; margin-bottom: .75rem; }
+.desk-ucr-progress span { height: .3rem; border-radius: 99px; background: var(--d-border); }
+.desk-ucr-progress span.done { background: var(--color-success-600, #059669); }
+.desk-ucr-progress span.now { background: var(--d-accent); }
+.desk-ucr-reference { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin: .7rem 0; padding: .55rem .65rem; border: 1px solid var(--d-border); border-radius: .55rem; font-size: .76rem; }
+.desk-ucr-reference code { font-size: .76rem; font-weight: 700; }
+.desk-ucr-checks, .desk-ucr-journey { display: grid; gap: .4rem; margin: .65rem 0 0; padding: 0; list-style: none; }
+.desk-ucr-checks li, .desk-ucr-journey li { display: flex; gap: .5rem; align-items: flex-start; font-size: .78rem; line-height: 1.4; }
+.desk-ucr-checks li::before, .desk-ucr-journey li::before { content: "○"; flex: 0 0 auto; color: var(--d-muted); font-weight: 700; }
+.desk-ucr-checks li.done::before, .desk-ucr-journey li.done::before { content: "✓"; color: var(--color-success-600, #059669); }
+.desk-ucr-journey li.now { font-weight: 700; }
+.desk-ucr-journey li.now::before { content: "●"; color: var(--d-accent); }
+
 /* The theory card opens and closes from its own label row. */
 details.desk-card { padding: 0; }
 
@@ -258,3 +271,11 @@ html.dark .desk-sim-select { background: var(--color-base-800, #1e293b); color: 
 /* Expanded simulator: the reading pane steps aside without unloading it. */
 .desk[data-desk-expanded] .desk-grid { grid-template-columns: minmax(0, 1fr); }
 .desk[data-desk-expanded] .desk-theory, .desk[data-desk-expanded] .desk-divider { display: none; }
+
+/* The Unfold content container is deliberately capped for reading pages. Once
+   the theory pane is folded away, let this practical workspace fill the actual
+   content column. That column already accounts for the application sidebar,
+   whether it is open or collapsed. */
+@media (min-width: 62.01rem) {
+  #content:has(.desk[data-desk-expanded]) { max-width: none; }
+}

@@ -13,7 +13,7 @@ Discardable in one revert together with scenarios/desk.py.
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261017-1">
   <link rel="stylesheet" href="{% static 'css/guide-panel.css' %}?v=20261016-1">
-  <link rel="stylesheet" href="{% static 'css/practice-desk.css' %}?v=20261019-6">
+  <link rel="stylesheet" href="{% static 'css/practice-desk.css' %}?v=20261022-1">
 {% endblock %}
 
 {% block content %}
@@ -31,7 +31,25 @@ Discardable in one revert together with scenarios/desk.py.
 
     <div class="desk-grid" data-desk-grid>
       <section class="desk-pane desk-theory" data-desk-pane="theory" aria-label="Theory &amp; Guide">
-        {% if guide %}
+        {% if reference_guide %}
+          <article class="desk-card desk-card-step desk-ucr-guide" data-ucr-guide>
+            <div class="desk-ucr-progress" aria-label="Practical progress">
+              {% for unused in "12345" %}<span{% if forloop.first %} class="now"{% endif %} data-ucr-progress="{{ forloop.counter }}"></span>{% endfor %}
+            </div>
+            <p class="desk-card-label">UCR guided practical · Step <span data-ucr-step-number>1</span> of 5</p>
+            <h2 class="desk-card-title" data-ucr-step-title>Find the UCR search</h2>
+            <p class="desk-card-text" data-ucr-step-instruction>Open the Search UCR page in the workspace.</p>
+            <div class="desk-ucr-reference"><strong>Training UCR</strong><code>{{ reference_guide.ucr }}</code></div>
+            <ul class="desk-ucr-checks" data-ucr-checks></ul>
+            <div class="desk-card-actions">
+              <button class="dash-primary" type="button" data-ucr-check>Check my work</button>
+              <button class="dash-secondary" type="button" data-ucr-hint>Hint</button>
+              <button class="dash-primary" type="button" data-ucr-next disabled>Next step →</button>
+            </div>
+            <p class="guide-feedback" data-ucr-feedback role="status">Complete the step in the workspace, then check your work.</p>
+          </article>
+          {{ reference_guide|json_script:"desk-ucr-guide-data" }}
+        {% elif guide %}
           <article class="desk-card desk-card-step" data-desk-guide>
             <p class="desk-card-label">Guided practical · Step {{ guide.step_number }} of {{ guide.step_total }}</p>
             <h2 class="desk-card-title">{{ guide.state.label }}</h2>
@@ -97,7 +115,12 @@ Discardable in one revert together with scenarios/desk.py.
             </nav>
           {% endif %}
 
-          {% if guide %}
+          {% if reference_guide %}
+            <article class="desk-card desk-card-journey">
+              <h3 class="desk-card-title">Practical journey</h3>
+              <ol class="desk-ucr-journey" data-ucr-journey></ol>
+            </article>
+          {% elif guide %}
             <article class="desk-card desk-card-journey">
               <h3 class="desk-card-title">Lesson journey</h3>
               <p class="desk-card-text">{{ desk.steps_done }} of {{ guide.step_total }} completed</p>
@@ -149,5 +172,5 @@ Discardable in one revert together with scenarios/desk.py.
       </section>
     </div>
   </div>
-  <script src="{% static 'js/practice-desk.js' %}?v=20261019-6" defer></script>
+  <script src="{% static 'js/practice-desk.js' %}?v=20261022-7" defer></script>
 {% endblock %}

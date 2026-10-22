@@ -41,8 +41,10 @@ from progress.models import LessonProgress
 
 from . import guides
 from .bindings import SIMULATOR_BINDING_ROUTES
-from .models import ScenarioAttempt
-from .views import _is_simulator_author
+from .models import ScenarioAttempt, UcrDeclaration
+from .views import _effective_owner, _is_simulator_author
+
+REFERENCE_UCR = "KGHTESTUCR260000014"
 
 #: The playground areas whose own navigation supplies the desk's page switcher.
 #: Options are read from that menu rather than copied into a list here, so a
@@ -256,6 +258,7 @@ def practice_desk(request):
     # pick, so the pane cannot disagree with the work in it.
     frame_enrolment = attempt.enrolment if attempt is not None else enrolment
     panel = guides.build_panel(attempt, notice=guides.take_notice(request, attempt)) if attempt else None
+    reference_guide = getattr(request, "_show_reference_ucr_guide", False) and _reference_ucr_guide(request)
     context = {
         "desk": {
             "pages": pages,
@@ -266,11 +269,40 @@ def practice_desk(request):
             "steps_done": sum(1 for stage in panel.stages if stage.is_visited and not stage.is_current) if panel else 0,
         },
         "guide": panel,
+        "reference_guide": reference_guide,
         "enrolment": enrolment,
         "parts": {"paged": False},
     }
     context.update(_theory(request, enrolment))
     return render_student_page(request, "scenarios/practice_desk.html", context)
+
+
+def _reference_ucr_guide(request):
+    """Small, read-only exercise generated from an actual learner-owned UCR."""
+    record = UcrDeclaration.objects.filter(owner=_effective_owner(request), ucr_no=REFERENCE_UCR).first()
+    if record is None:
+        return None
+    documents = [
+        {"code": str(item.get("code") or ""), "name": str(item.get("name") or ""), "reference": str(item.get("reference") or "")}
+        for item in (record.documents or [])
+    ]
+    def party(identity, name):
+        return identity if identity and identity == name else ", ".join(value for value in (identity, name) if value)
+
+    return {
+        "ucr": record.ucr_no,
+        "detail_path": reverse("ucr-detail", args=[record.pk]),
+        "search_path": reverse("single-window-search-ucr"),
+        "status": record.get_status_display(),
+        "regime": record.regime,
+        "declarant": record.declarant_code,
+        "exporter": party(record.exporter_identity, record.exporter_name),
+        "importer": party(record.importer_identity, record.importer_name),
+        "origin": record.origin_country,
+        "destination": record.destination_country,
+        "transport": record.transport_mode,
+        "documents": documents,
+    }
 
 
 def _default_lesson(enrolment):
@@ -295,9 +327,11 @@ def test_desk(request):
     """
     params = request.GET.copy()
     pages = _playground_pages(request)
-    if not params.get("sim") and pages:
-        params["sim"] = pages[0]["url"]
+    has_reference = UcrDeclaration.objects.filter(owner=_effective_owner(request), ucr_no=REFERENCE_UCR).exists()
+    if not params.get("sim"):
+        params["sim"] = reverse("single-window-search-ucr") if has_reference else (pages[0]["url"] if pages else "")
     if not params.get("lesson"):
         params["lesson"] = _default_lesson(requested_enrolment(request))
     request.GET = params
+    request._show_reference_ucr_guide = True
     return practice_desk(request)

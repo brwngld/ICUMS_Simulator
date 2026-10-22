@@ -147,6 +147,107 @@
     trimFrameChrome();
   }
 
+  /* /test reference exercise. The checks read the real, same-origin simulator
+     document: progress is awarded for what is visible in the workspace, not
+     merely for pressing the button. */
+  var ucrGuide = desk.querySelector("[data-ucr-guide]");
+  var ucrDataNode = document.getElementById("desk-ucr-guide-data");
+  if (ucrGuide && ucrDataNode && frame) {
+    var ucrData = JSON.parse(ucrDataNode.textContent);
+    var ucrStep = 0;
+    var ucrPassed = [false, false, false, false, false];
+    var ucrSteps = [
+      { title: "Find the UCR search", instruction: "Open the Search UCR page in the workspace.", hint: "Choose Search UCR from the Simulator page list.", checks: ["Search UCR page is open"] },
+      { title: "Search the training record", instruction: "Enter the training UCR number and run the search.", hint: "Copy the Training UCR shown above into UCR No. or Temp. No., then select Search.", checks: ["Exact UCR number entered", "Matching submitted result is displayed"] },
+      { title: "Open the declaration", instruction: "Select the matching UCR result to open its declaration details.", hint: "Select the UCR number in the first column of the result table.", checks: ["Correct UCR detail page is open"] },
+      { title: "Verify the declaration", instruction: "Review the parties, movement details and supporting documents against the checklist.", hint: "Scroll through the declaration. The values are read directly from the open record.", checks: ["UCR, regime and declarant match", "Exporter and importer match", "Origin, destination and transport match", "Required documents and references match"] },
+      { title: "Practical complete", instruction: "You found the submitted UCR and verified its core declaration data.", hint: "All earlier checks must be complete.", checks: ["All practical checks passed"] }
+    ];
+    var ucrTitles = ["Open UCR search", "Search the UCR", "Open the record", "Verify details", "Complete"];
+    var ucrCheckButton = ucrGuide.querySelector("[data-ucr-check]");
+    var ucrNextButton = ucrGuide.querySelector("[data-ucr-next]");
+    var ucrFeedback = ucrGuide.querySelector("[data-ucr-feedback]");
+
+    function ucrFrameDocument() {
+      try { return frame.contentDocument; } catch (error) { return null; }
+    }
+    function fieldValue(doc, selector) {
+      var field = doc && doc.querySelector(selector);
+      return field ? String(field.value || field.textContent || "").trim() : "";
+    }
+    function includesValue(actual, expected) {
+      return String(actual).toLowerCase().indexOf(String(expected).toLowerCase()) !== -1;
+    }
+    function validateUcrStep() {
+      var doc = ucrFrameDocument();
+      var path = framedPath();
+      if (!doc) { return [false]; }
+      if (ucrStep === 0) { return [path === ucrData.search_path]; }
+      if (ucrStep === 1) {
+        var links = Array.prototype.slice.call(doc.querySelectorAll(".ucr-result-link"));
+        return [fieldValue(doc, "#ucr-number") === ucrData.ucr, links.some(function (link) { return link.textContent.trim() === ucrData.ucr && includesValue(link.closest("tr").textContent, ucrData.status); })];
+      }
+      if (ucrStep === 2) { return [path === ucrData.detail_path && fieldValue(doc, "#ucr-temp") === ucrData.ucr]; }
+      if (ucrStep === 3) {
+        var rows = Array.prototype.slice.call(doc.querySelectorAll("#document-rows tr[data-existing-row]"));
+        var documentsOkay = ucrData.documents.every(function (expected) {
+          return rows.some(function (row) {
+            return fieldValue(row, "[data-document-code]") === expected.code && includesValue(fieldValue(row, "input:not([data-document-code]):not([data-document-name])"), expected.reference);
+          });
+        });
+        return [
+          fieldValue(doc, "#ucr-temp") === ucrData.ucr && fieldValue(doc, "#ucr-regime") === ucrData.regime && fieldValue(doc, "#ucr-declarant") === ucrData.declarant,
+          includesValue(fieldValue(doc, "#ucr-exporter-identity"), ucrData.exporter) && includesValue(fieldValue(doc, "#ucr-importer-identity"), ucrData.importer),
+          includesValue(fieldValue(doc, "#ucr-origin"), ucrData.origin) && includesValue(fieldValue(doc, "#ucr-destination"), ucrData.destination) && fieldValue(doc, "#ucr-mode") === ucrData.transport,
+          documentsOkay
+        ];
+      }
+      return [ucrPassed.slice(0, 4).every(Boolean)];
+    }
+    function renderUcrGuide(results) {
+      var step = ucrSteps[ucrStep];
+      ucrGuide.querySelector("[data-ucr-step-number]").textContent = String(ucrStep + 1);
+      ucrGuide.querySelector("[data-ucr-step-title]").textContent = step.title;
+      ucrGuide.querySelector("[data-ucr-step-instruction]").textContent = step.instruction;
+      ucrGuide.querySelector("[data-ucr-checks]").innerHTML = step.checks.map(function (label, index) {
+        return '<li class="' + (results && results[index] ? "done" : "") + '">' + label + "</li>";
+      }).join("");
+      Array.prototype.forEach.call(desk.querySelectorAll("[data-ucr-progress]"), function (bar, index) {
+        bar.className = index < ucrStep ? "done" : (index === ucrStep ? "now" : "");
+      });
+      var journey = desk.querySelector("[data-ucr-journey]");
+      if (journey) {
+        journey.innerHTML = ucrTitles.map(function (label, index) {
+          return '<li class="' + (index < ucrStep ? "done" : (index === ucrStep ? "now" : "")) + '">' + label + "</li>";
+        }).join("");
+      }
+      ucrNextButton.disabled = !ucrPassed[ucrStep] || ucrStep === ucrSteps.length - 1;
+      ucrCheckButton.disabled = ucrStep === ucrSteps.length - 1 && ucrPassed[ucrStep];
+    }
+    ucrCheckButton.addEventListener("click", function () {
+      var results = validateUcrStep();
+      var passed = results.every(Boolean);
+      ucrPassed[ucrStep] = passed;
+      ucrFeedback.textContent = passed ? (ucrStep === 4 ? "Practical complete. Every validation passed." : "Check passed. Continue to the next step.") : "Not yet. Complete the unchecked item in the workspace and try again.";
+      ucrFeedback.setAttribute("data-tone", passed ? "pass" : "fail");
+      renderUcrGuide(results);
+    });
+    ucrGuide.querySelector("[data-ucr-hint]").addEventListener("click", function () {
+      ucrFeedback.textContent = ucrSteps[ucrStep].hint;
+      ucrFeedback.setAttribute("data-tone", "");
+    });
+    ucrNextButton.addEventListener("click", function () {
+      if (!ucrPassed[ucrStep] || ucrStep >= ucrSteps.length - 1) { return; }
+      ucrStep += 1;
+      if (ucrStep === 4) { ucrPassed[4] = ucrPassed.slice(0, 4).every(Boolean); }
+      ucrFeedback.textContent = ucrStep === 4 ? "Run the final check to confirm completion." : "Complete the step in the workspace, then check your work.";
+      ucrFeedback.setAttribute("data-tone", "");
+      renderUcrGuide();
+    });
+    frame.addEventListener("load", function () { renderUcrGuide(); });
+    renderUcrGuide();
+  }
+
   /* The step card's buttons post to the engine's own endpoints, so a pass is
      always the server's answer about the attempt and never the button's. A check
      or hint comes back as the panel fragment and only its result is written into
