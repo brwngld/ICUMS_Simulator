@@ -34,12 +34,12 @@ Discardable in one revert together with scenarios/desk.py.
         {% if reference_guide %}
           <article class="desk-card desk-card-step desk-ucr-guide" data-ucr-guide>
             <div class="desk-ucr-progress" aria-label="Practical progress">
-              {% for unused in "12345" %}<span{% if forloop.first %} class="now"{% endif %} data-ucr-progress="{{ forloop.counter }}"></span>{% endfor %}
+              {% for unused in "123" %}<span{% if forloop.first %} class="now"{% endif %} data-ucr-progress="{{ forloop.counter }}"></span>{% endfor %}
             </div>
-            <p class="desk-card-label">UCR guided practical · Step <span data-ucr-step-number>1</span> of 5</p>
-            <h2 class="desk-card-title" data-ucr-step-title>Find the UCR search</h2>
-            <p class="desk-card-text" data-ucr-step-instruction>Open the Search UCR page in the workspace.</p>
-            <div class="desk-ucr-reference"><strong>Training UCR</strong><code>{{ reference_guide.ucr }}</code></div>
+            <p class="desk-card-label">UCR guided practical · Step <span data-ucr-step-number>1</span> of 3</p>
+            <h2 class="desk-card-title" data-ucr-step-title>Open Single Window</h2>
+            <p class="desk-card-text" data-ucr-step-instruction>Select Single Window in the simulator navigation.</p>
+            <div class="desk-ucr-reference"><strong>Source UCR</strong><code>{{ reference_guide.ucr }}</code></div>
             <ul class="desk-ucr-checks" data-ucr-checks></ul>
             <div class="desk-card-actions">
               <button class="dash-primary" type="button" data-ucr-check>Check my work</button>
@@ -159,5 +159,5 @@ Discardable in one revert together with scenarios/desk.py.
       </section>
     </div>
   </div>
-  <script src="{% static 'js/practice-desk.js' %}?v=20261022-10" defer></script>
+  <script src="{% static 'js/practice-desk.js' %}?v=20261022-11" defer></script>
 {% endblock %}

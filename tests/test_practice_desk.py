@@ -80,6 +80,7 @@ def _reference_ucr(owner):
     return UcrDeclaration.objects.create(
         owner=owner, temp_no="TEMPUCR260000014", ucr_no="KGHTESTUCR260000014", status="submitted", regime="IM",
         declarant_code="RD438419", exporter_identity="BP OCEAN LLC", exporter_name="BP OCEAN LLC",
+        exporter_country="US", exporter_phone="-", exporter_contact="BP OCEAN LLC", exporter_designation="MANAGER",
         importer_identity="GHA9864991929", importer_name="BOTCHWAY PATRICK", origin_country="US",
         destination_country="GH", transport_mode="10, Sea Transport",
         documents=[
@@ -148,6 +149,10 @@ def test_test_desk_builds_a_reference_guide_from_the_learners_real_ucr(client, s
     assert "KGHTESTUCR260000014" in body
     assert "BP OCEAN LLC" in body
     assert "BOTCHWAY PATRICK" in body
+    assert '"exporter_country": "US"' in body
+    assert '"exporter_phone": "-"' in body
+    assert '"exporter_designation": "MANAGER"' in body
+    assert "Step <span data-ucr-step-number>1</span> of 3" in body
     assert f'"detail_path": "{reverse("ucr-detail", args=[record.pk])}"' in body
     assert f'src="{reverse("simulator-portal")}' in _frame_source(body)
     assert "Simulator page" not in body
