@@ -155,13 +155,16 @@
   if (ucrGuide && ucrDataNode && frame) {
     var ucrData = JSON.parse(ucrDataNode.textContent);
     var ucrStep = 0;
-    var ucrPassed = [false, false, false];
+    var ucrPassed = [false, false, false, false, false, false];
     var ucrSteps = [
       { title: "Open Single Window", instruction: "Select Single Window in the simulator navigation.", hint: "Use the Single Window link in the top navigation of the workspace.", checks: ["Single Window UCR form is open"] },
       { title: "Select the regime", instruction: "Select Import as the Regime Type.", hint: "Regime Type is at the top of the UCR Details form. Choose IM, Import.", checks: ["Regime Type is IM, Import"] },
-      { title: "Enter the exporter details", instruction: "Scroll to Exporter and enter the values from the source UCR.", hint: "Enter each value exactly as shown in the checklist.", checks: ["Exporter name: " + ucrData.exporter_name, "Country: " + ucrData.exporter_country, "Tel. No.: " + ucrData.exporter_phone, "Contact Person: " + ucrData.exporter_contact, "Contact Designation: " + ucrData.exporter_designation] }
+      { title: "Enter the exporter details", instruction: "Scroll to Exporter and enter the values from the source UCR.", hint: "Enter each value exactly as shown in the checklist.", checks: ["Exporter name: " + ucrData.exporter_name, "Country: " + ucrData.exporter_country, "Tel. No.: " + ucrData.exporter_phone, "Contact Person: " + ucrData.exporter_contact, "Contact Designation: " + ucrData.exporter_designation] },
+      { title: "Enter the importer details", instruction: "Enter the importer TIN and use its search button. In the pop-up, select either the TIN or name to populate the name and address. If the address is blank, enter it manually.", hint: "Search with " + ucrData.importer_tin + ", then select the BOTCHWAY PATRICK result.", checks: ["TIN: " + ucrData.importer_tin, "Name: " + ucrData.importer_name, "Country: " + ucrData.importer_country, "Address: " + ucrData.importer_address, "Tel. No.: " + ucrData.importer_phone, "Contact Person: " + ucrData.importer_contact, "Contact No.: " + ucrData.importer_contact_no, "Contact Designation: " + ucrData.importer_designation] },
+      { title: "Enter the consignment details", instruction: "Scroll to Consignment Details and enter the values from the source UCR.", hint: "Enter the goods description, origin, destination and transport mode exactly as shown.", checks: ["Goods description: " + ucrData.goods, "Country of Origin: " + ucrData.origin, "Country of Destination: " + ucrData.destination, "Transport Mode: " + ucrData.transport] },
+      { title: "Save as draft", instruction: "Select Save to store the UCR as a draft and finish this practical.", hint: "The Save button is below the UCR form. A temporary number beginning TEMPUCR confirms the draft was saved.", checks: ["Draft saved with a TEMPUCR number"] }
     ];
-    var ucrTitles = ["Open Single Window", "Select Import", "Enter exporter details"];
+    var ucrTitles = ["Open Single Window", "Select Import", "Exporter details", "Importer details", "Consignment details", "Save as draft"];
     var ucrCheckButton = ucrGuide.querySelector("[data-ucr-check]");
     var ucrNextButton = ucrGuide.querySelector("[data-ucr-next]");
     var ucrFeedback = ucrGuide.querySelector("[data-ucr-feedback]");
@@ -190,6 +193,29 @@
           fieldValue(doc, "#ucr-exporter-contact") === ucrData.exporter_contact,
           fieldValue(doc, "#ucr-exporter-designation") === ucrData.exporter_designation
         ];
+      }
+      if (ucrStep === 3) {
+        return [
+          fieldValue(doc, "#ucr-importer-identity") === ucrData.importer_tin,
+          fieldValue(doc, "#ucr-importer-name") === ucrData.importer_name,
+          fieldValue(doc, "#ucr-importer-country") === ucrData.importer_country,
+          fieldValue(doc, "#ucr-importer-address").replace(/\r\n/g, "\n") === ucrData.importer_address.replace(/\r\n/g, "\n"),
+          fieldValue(doc, "#ucr-importer-phone") === ucrData.importer_phone,
+          fieldValue(doc, "#ucr-importer-contact") === ucrData.importer_contact,
+          fieldValue(doc, "#ucr-importer-contact-no") === ucrData.importer_contact_no,
+          fieldValue(doc, "#ucr-importer-designation") === ucrData.importer_designation
+        ];
+      }
+      if (ucrStep === 4) {
+        return [
+          fieldValue(doc, "#ucr-goods") === ucrData.goods,
+          fieldValue(doc, "#ucr-origin") === ucrData.origin,
+          fieldValue(doc, "#ucr-destination") === ucrData.destination,
+          fieldValue(doc, "#ucr-mode") === ucrData.transport
+        ];
+      }
+      if (ucrStep === 5) {
+        return [/^TEMPUCR\d+$/.test(fieldValue(doc, "#ucr-temp")) && new URL(frame.contentWindow.location.href).searchParams.has("draft")];
       }
       return [false];
     }

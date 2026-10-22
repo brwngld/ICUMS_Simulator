@@ -82,7 +82,9 @@ def _reference_ucr(owner):
         declarant_code="RD438419", exporter_identity="BP OCEAN LLC", exporter_name="BP OCEAN LLC",
         exporter_country="US", exporter_phone="-", exporter_contact="BP OCEAN LLC", exporter_designation="MANAGER",
         importer_identity="GHA9864991929", importer_name="BOTCHWAY PATRICK", origin_country="US",
-        destination_country="GH", transport_mode="10, Sea Transport",
+        importer_country="GH", importer_address="P. O. BOX PMB ACCAR\nGHANA", importer_phone="-",
+        importer_contact="BOTCHWAY PATRICK", importer_contact_no="-", importer_designation="MANAGER",
+        goods_description="HOUSEHOLD GODOS", destination_country="GH", transport_mode="10, Sea Transport",
         documents=[
             {"code": "005", "name": "Bill of Lading / Airwaybill", "reference": "BL"},
             {"code": "003", "name": "Invoice", "reference": "IN"},
@@ -152,7 +154,9 @@ def test_test_desk_builds_a_reference_guide_from_the_learners_real_ucr(client, s
     assert '"exporter_country": "US"' in body
     assert '"exporter_phone": "-"' in body
     assert '"exporter_designation": "MANAGER"' in body
-    assert "Step <span data-ucr-step-number>1</span> of 3" in body
+    assert '"importer_tin": "GHA9864991929"' in body
+    assert '"goods": "HOUSEHOLD GODOS"' in body
+    assert "Step <span data-ucr-step-number>1</span> of 6" in body
     assert f'"detail_path": "{reverse("ucr-detail", args=[record.pk])}"' in body
     assert f'src="{reverse("simulator-portal")}' in _frame_source(body)
     assert "Simulator page" not in body
