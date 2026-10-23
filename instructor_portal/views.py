@@ -886,6 +886,41 @@ def course_revert_to_draft(request, version_id):
 
 
 @login_required
+@require_POST
+@transaction.atomic
+def course_retire(request, version_id):
+    """Close a published course without deleting what students did in it.
+
+    Retirement is the terminal state for a version that has learner history
+    and so cannot be deleted. It makes the version permanently read-only —
+    every authoring view already gates on ``status == draft`` — but it does
+    not revoke access: ``active_enrolments()`` filters on the enrolment's own
+    status, never the version's, so an enrolled student keeps working through
+    a retired course until the enrolment is withdrawn.
+    """
+    _require_instructor(request.user)
+    version = get_object_or_404(
+        ProgrammeVersion.objects.select_for_update().select_related("programme"),
+        pk=version_id,
+    )
+    if version.status == ProgrammeVersion.Status.DRAFT:
+        messages.info(request, "A draft is closed by publishing it or deleting it, not by retiring it.")
+        return redirect("course-builder-detail", version_id=version.pk)
+    if version.status == ProgrammeVersion.Status.RETIRED:
+        messages.info(request, f'“{version.programme.name}” is already retired.')
+        return redirect("course-view-published", version_id=version.pk)
+    name = version.programme.name
+    version.status = ProgrammeVersion.Status.RETIRED
+    version.save(update_fields=("status",))
+    messages.success(
+        request,
+        f'“{name}” is now retired and read-only. Students already enrolled keep access '
+        "until their enrolment is withdrawn.",
+    )
+    return redirect(f'{reverse("course-builder")}?path=theory')
+
+
+@login_required
 @transaction.atomic
 def module_create(request, version_id):
     _require_instructor(request.user)

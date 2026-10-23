@@ -16,6 +16,7 @@ urlpatterns = [
     path("courses/<uuid:version_id>/publish/", views.course_publish, name="course-publish"),
     path("courses/<uuid:version_id>/view/", views.course_view_published, name="course-view-published"),
     path("courses/<uuid:version_id>/new-draft/", views.course_revert_to_draft, name="course-new-draft"),
+    path("courses/<uuid:version_id>/retire/", views.course_retire, name="course-retire"),
     path("courses/<uuid:version_id>/modules/create/", views.module_create, name="course-builder-module-create"),
     path("courses/<uuid:version_id>/programme-courses/create/", views.programme_course_create, name="programme-course-create"),
     path("programme-courses/<uuid:course_id>/edit/", views.programme_course_edit, name="programme-course-edit"),

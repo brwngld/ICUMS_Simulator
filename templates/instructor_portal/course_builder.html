@@ -59,6 +59,12 @@
                 {% csrf_token %}
                 <button class="authoring-secondary" type="submit">New draft</button>
               </form>
+              {% if version.status == 'published' %}
+              <form method="post" action="{% url 'course-retire' version.pk %}">
+                {% csrf_token %}
+                <button class="authoring-secondary authoring-danger" type="submit">Retire</button>
+              </form>
+              {% endif %}
             {% endif %}
           </div>
         </td>
