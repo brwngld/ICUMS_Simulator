@@ -1,9 +1,12 @@
-from django.urls import path
+from django.urls import include, path
 
 from . import views
 
 urlpatterns = [
     path("", views.dashboard, name="instructor-dashboard"),
+    # Theory & Practical builder: the hybrid curriculum's own authoring
+    # namespace, mounted beside the theory and practical builders.
+    path("hybrid/", include("hybrid.instructor_urls")),
     path("courses/", views.course_builder, name="course-builder"),
     path("courses/create/", views.course_create, name="course-create"),
     path("courses/<uuid:version_id>/delete/", views.course_delete, name="course-delete"),

@@ -22,10 +22,24 @@ class Programme(models.Model):
             """
             return [choice for choice in cls.choices if choice[0] != cls.BEGINNER_ADVANCED]
 
+    class Track(models.TextChoices):
+        THEORY = "theory", "Theory"
+        HYBRID = "hybrid", "Theory & Practical"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=150)
     code = models.SlugField(max_length=50, unique=True)
     is_active = models.BooleanField(default=True)
+    learning_track = models.CharField(
+        max_length=12,
+        choices=Track.choices,
+        default=Track.THEORY,
+        help_text=(
+            "Which learning system this programme belongs to. Theory programmes run the "
+            "existing theory portal unchanged; hybrid programmes carry the Theory & "
+            "Practical curriculum in the hybrid app."
+        ),
+    )
     description = models.TextField(
         blank=True,
         help_text="Shown on the learner Course Overview page below the course title.",

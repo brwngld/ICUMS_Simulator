@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "evaluations.apps.EvaluationsConfig",
     "reports.apps.ReportsConfig",
     "assessment.apps.AssessmentConfig",
+    "hybrid.apps.HybridConfig",
 ]
 
 MIDDLEWARE = [

@@ -1,0 +1,58 @@
+{% extends "core/base_student.html" %}
+
+{% comment %}
+The Theory & Practical learning flow: every published course, module and
+lesson of the learner's pinned edition, with completion and lock states
+resolved from their own attempts. Sequencing is enforced server-side; the
+roadmap only displays it.
+{% endcomment %}
+
+{% block title %}Theory &amp; Practical · ICUMS Simulator{% endblock %}{% block workspace_name %}Theory &amp; Practical{% endblock %}
+
+{% block content %}
+  <div class="dash hyb-roadmap">
+    <header class="dash-head">
+      <div>
+        <p class="dash-eyebrow">{{ programme.name }} · Theory &amp; Practical</p>
+        <h1>Theory &amp; Practical</h1>
+      </div>
+      <div><p class="dash-eyebrow">{{ completed }} of {{ total }} lesson{{ total|pluralize }} complete</p></div>
+    </header>
+
+    {% if total and completed == total %}
+      <p class="hyb-done-note" role="status">Programme complete — every required lesson in this edition is done.</p>
+    {% endif %}
+
+    {% for row in courses %}
+      <section class="hyb-card hyb-roadmap-course">
+        <h2>{{ row.course.title }}</h2>
+        {% if row.course.description %}<div class="lrn-copy"><p>{{ row.course.description }}</p></div>{% endif %}
+        {% for module_row in row.modules %}
+          <div class="hyb-roadmap-module">
+            <h3>{{ module_row.module.title }}{% if module_row.complete %} <span class="dash-pill is-ok">Module complete ✓</span>{% endif %}</h3>
+            <ol class="hyb-journey">
+              {% for state in module_row.lessons %}
+                <li class="{% if state.complete %}done{% elif not state.unlocked %}locked{% endif %}">
+                  {% if state.unlocked %}
+                    <a href="{% url 'hybrid-workspace' state.lesson.pk %}">
+                      <span>{% if state.complete %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
+                      <small>{{ state.lesson.title }}</small>
+                    </a>
+                  {% else %}
+                    <span aria-label="{{ state.lesson.title }} locked">
+                      <span>▣</span><small>{{ state.lesson.title }}</small>
+                    </span>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ol>
+          </div>
+        {% empty %}
+          <p class="dash-empty">No modules published yet.</p>
+        {% endfor %}
+      </section>
+    {% empty %}
+      <section class="hyb-card"><p class="dash-empty">Nothing has been published to this programme yet.</p></section>
+    {% endfor %}
+  </div>
+{% endblock %}

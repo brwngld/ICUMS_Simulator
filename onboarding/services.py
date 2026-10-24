@@ -2,10 +2,10 @@ from urllib.parse import urlencode
 
 from django.core.exceptions import PermissionDenied
 
-from .models import DisclaimerAcceptance, DisclaimerVersion, Enrolment
+from .models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme
 
 
-def active_enrolments(user):
+def active_enrolments(user, track=None):
     """Every enrolment a learner may open, oldest first.
 
     ``pk`` breaks ties because ``enrolled_at`` is not unique and an unordered
@@ -14,33 +14,47 @@ def active_enrolments(user):
     for an enrolment of ``AnonymousUser`` is a type error rather than an empty
     list, and the pages that answer before sign-in would fault instead of
     offering the way in.
+
+    ``track`` narrows the answer to one learning track (a ``Programme.Track``
+    value). Listing surfaces such as My Programmes leave it off so a learner
+    sees every programme they are enrolled on; a page that belongs to one
+    learning system passes its track so it can never resolve the other
+    system's enrolment.
     """
     if not user.is_authenticated:
         return Enrolment.objects.none()
-    return (
+    enrolments = (
         Enrolment.objects.select_related("programme_version__programme")
         .filter(student=user, status=Enrolment.Status.ACTIVE)
         .order_by("enrolled_at", "pk")
     )
+    if track is not None:
+        enrolments = enrolments.filter(programme_version__programme__learning_track=track)
+    return enrolments
 
 
-def requested_enrolment(request):
+def requested_enrolment(request, track=Programme.Track.THEORY):
     """The enrolment ``?programme=<code>`` selects, or ``None``.
 
-    With no parameter it falls back to the oldest active enrolment, so every
+    Routes default to the theory track because every route that existed before
+    the hybrid system belongs to it; the hybrid app passes its own track
+    explicitly. The fallback is the oldest active enrolment *on that track*, so
+    a Theory & Practical enrolment can never hijack a theory page by being the
+    older one, and the reverse holds for hybrid pages. With no parameter every
     existing link and bookmark keeps working. Two enrolments for the same
     programme (different versions) resolve to the oldest, because the parameter
-    names a programme.
+    names a programme. A parameter naming a programme of the wrong track
+    selects nothing, exactly like a programme the learner is not enrolled in.
     """
     code = request.GET.get("programme")
     if not code:
-        return active_enrolments(request.user).first()
-    return active_enrolments(request.user).filter(programme_version__programme__code=code).first()
+        return active_enrolments(request.user, track=track).first()
+    return active_enrolments(request.user, track=track).filter(programme_version__programme__code=code).first()
 
 
-def enrolment_for_request(request):
+def enrolment_for_request(request, track=Programme.Track.THEORY):
     """The enrolment a student page renders on, or a 403 for a page that needs one."""
-    enrolment = requested_enrolment(request)
+    enrolment = requested_enrolment(request, track=track)
     if enrolment is None:
         raise PermissionDenied(
             "You are not enrolled in that programme." if request.GET.get("programme")

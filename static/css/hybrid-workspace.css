@@ -1,0 +1,344 @@
+/* Theory & Practical workspace — a lesson's reading and journey beside the
+   live simulator. The geometry forks the /test Practice Desk (35% left pane,
+   320/352px drag floors, 62rem breakpoint) into hybrid-owned classes so the
+   desk spike's frozen assets stay untouched. */
+
+#content:has(> .hyb) {
+  max-width: none;
+}
+
+.hyb-preview-banner {
+  border: 1px solid var(--color-warning-500, #c99a2e);
+  background: var(--color-warning-50, #fdf6e3);
+  color: var(--color-base-700, #4a4a4a);
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+html.dark .hyb-preview-banner {
+  background: var(--color-warning-950, #2b2317);
+  color: var(--color-base-200, #e2e2e2);
+}
+
+.hyb-grid {
+  display: grid;
+  grid-template-columns: var(--hyb-left, 35%) 0.65rem minmax(0, 1fr);
+  height: calc(100vh - 15.5rem);
+  min-height: 26rem;
+}
+
+.hyb-pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.hyb-theory {
+  padding-right: 0.75rem;
+}
+
+.hyb-scroll {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  padding: 0.25rem 0.25rem 1rem 0;
+}
+
+.hyb-card {
+  border: 1px solid var(--color-base-200, #e2e2e2);
+  border-radius: 0.5rem;
+  background: var(--color-base-0, #fff);
+  padding: 1rem;
+}
+
+html.dark .hyb-card {
+  border-color: var(--color-base-700, #3d3d3d);
+  background: var(--color-base-800, #262626);
+}
+
+.hyb-card-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-base-600, #6b6b6b);
+}
+
+html.dark .hyb-card-label {
+  color: var(--color-base-400, #9c9c9c);
+}
+
+.hyb-card-title {
+  margin: 0 0 0.5rem;
+}
+
+.hyb-card-body h3:first-child,
+.hyb-card-text,
+.hyb-outcome,
+.hyb-hint {
+  margin-top: 0.75rem;
+}
+
+.hyb-card-text > strong,
+.hyb-outcome > strong,
+.hyb-hint > strong {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.hyb-outcome {
+  border-left: 3px solid var(--color-primary-500, #4f76b3);
+  padding: 0.25rem 0 0.25rem 0.75rem;
+}
+
+.hyb-hint {
+  border: 1px solid var(--color-warning-100, #f5e3b3);
+  background: var(--color-warning-50, #fdf6e3);
+  border-radius: 0.4rem;
+  padding: 0.5rem 0.75rem;
+}
+
+html.dark .hyb-hint {
+  border-color: var(--color-warning-500, #c99a2e);
+  background: var(--color-warning-950, #2b2317);
+}
+
+.hyb-feedback {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: var(--color-base-600, #6b6b6b);
+}
+
+.hyb-feedback[data-tone="pass"] {
+  color: var(--color-success-600, #2e7d43);
+}
+
+.hyb-feedback[data-tone="fail"],
+.hyb-feedback[data-tone="pending"] {
+  color: var(--color-danger-600, #c0392b);
+}
+
+/* Journey list */
+
+.hyb-journey {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.hyb-journey li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.4rem;
+}
+
+.hyb-journey li span {
+  flex: none;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  background: var(--color-base-100, #f2f2f2);
+}
+
+html.dark .hyb-journey li span {
+  background: var(--color-base-700, #3d3d3d);
+}
+
+.hyb-journey li.now {
+  border-color: var(--color-primary-500, #4f76b3);
+}
+
+.hyb-journey li.done {
+  color: var(--color-base-500, #808080);
+}
+
+.hyb-journey li.done span {
+  background: var(--color-success-500, #3d9970);
+  color: #fff;
+}
+
+/* Pinned step actions */
+
+.hyb-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-base-200, #e2e2e2);
+}
+
+html.dark .hyb-actions {
+  border-top-color: var(--color-base-700, #3d3d3d);
+}
+
+.hyb-actions [data-hyb-hint] {
+  margin-left: auto;
+}
+
+/* Divider */
+
+.hyb-divider {
+  border-radius: 3px;
+  background: var(--color-base-200, #e2e2e2);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+html.dark .hyb-divider {
+  background: var(--color-base-700, #3d3d3d);
+}
+
+.hyb-divider:focus-visible {
+  outline: 2px solid var(--color-primary-500, #4f76b3);
+  outline-offset: 1px;
+}
+
+body.hyb-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* Simulator pane */
+
+.hyb-sim-bar {
+  display: flex;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.hyb-frame-wrap {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  border: 1px solid var(--color-base-200, #e2e2e2);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: #fff;
+}
+
+html.dark .hyb-frame-wrap {
+  border-color: var(--color-base-700, #3d3d3d);
+}
+
+.hyb-frame {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Roadmap page reuses the card and journey styles above. */
+
+.hyb-roadmap-course {
+  margin-bottom: 1rem;
+}
+
+.hyb-roadmap-course h2 {
+  margin: 0 0 0.25rem;
+}
+
+.hyb-roadmap-module {
+  margin-top: 0.75rem;
+}
+
+.hyb-roadmap-module h3 {
+  margin: 0 0 0.35rem;
+}
+
+.hyb-journey li a {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.hyb-journey li a small {
+  color: inherit;
+}
+
+.hyb-journey li.locked {
+  opacity: 0.55;
+}
+
+.hyb-acknowledge {
+  margin-top: 0.75rem;
+}
+
+.hyb-results {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.hyb-results li.passed {
+  color: var(--color-success-600, #2e7d43);
+}
+
+.hyb-results li.failed {
+  color: var(--color-danger-600, #c0392b);
+}
+
+.hyb-done-note {
+  margin-top: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-success-500, #3d9970);
+  background: var(--color-success-50, #e8f5ee);
+  border-radius: 0.4rem;
+}
+
+html.dark .hyb-done-note {
+  background: var(--color-success-950, #14261d);
+}
+
+/* Narrow screens: one pane at a time, chosen with the header switch. */
+
+.hyb-switch {
+  display: none;
+  gap: 0.5rem;
+}
+
+@media (max-width: 62rem) {
+  .hyb-grid {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .hyb-divider {
+    display: none;
+  }
+
+  .hyb-switch {
+    display: flex;
+  }
+
+  .hyb-grid[data-hyb-pane="sim"] .hyb-theory {
+    display: none;
+  }
+
+  .hyb-grid[data-hyb-pane="theory"] .hyb-sim {
+    display: none;
+  }
+
+  .hyb-frame-wrap {
+    height: 60vh;
+  }
+}

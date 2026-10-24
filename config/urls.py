@@ -44,6 +44,9 @@ urlpatterns = [
     path("practical/assessment/", include("assessment.urls")),
     path("practical-results/", include("evaluations.urls")),
     path("records/", include("reports.urls")),
+    # Theory & Practical (hybrid) system: namespace mounted in Stage 1, pages
+    # arrive stage by stage under their own prefix.
+    path("hybrid/", include("hybrid.urls")),
     path("media/<path:path>", core_views.media_file, name="media"),
     path("", include("core.urls")),
 ]

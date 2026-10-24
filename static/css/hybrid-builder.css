@@ -1,0 +1,222 @@
+/* Theory & Practical builder polish.
+
+   Scoped to hybrid-owned pages (.hyb-builder) and composed entirely from the
+   frozen Unfold palette variables and the shared authoring-* design system:
+   no new colours, fonts or type sizes — layout, spacing, state and hover
+   styling only. Dark mode follows the same variables automatically. */
+
+.hyb-builder .authoring-head {
+  border-bottom: 1px solid var(--color-base-200, #e2e2e2);
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+html.dark .hyb-builder .authoring-head {
+  border-bottom-color: var(--color-base-700, #3d3d3d);
+}
+
+.hyb-builder .authoring-card {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+/* Card rhythm: consistent breathing room between stacked sections. */
+.hyb-builder .authoring-card + .authoring-card {
+  margin-top: 1.25rem;
+}
+
+.hyb-builder .authoring-form h3 {
+  margin: 1rem 0 0.5rem;
+}
+
+/* New-course / add-module / add-lesson forms. Django renders each field as
+   three bare siblings — label, help text, control — so a multi-column grid
+   dealt those three parts into three separate cells and split every label
+   away from its own control. They stack in source order instead, and every
+   form on these pages shares one control measure (direct children only, so
+   the lesson editor's nested panels keep their own layout). */
+.hyb-create-form {
+  display: block;
+}
+
+.hyb-create-form > label {
+  display: block;
+  margin-top: 0.9rem;
+}
+
+.hyb-create-form > .helptext {
+  max-width: 34rem;
+  margin-top: 0.2rem;
+}
+
+.hyb-builder .authoring-form > select,
+.hyb-builder .authoring-form > textarea,
+.hyb-builder .authoring-form > input:not([type="hidden"]) {
+  display: block;
+  width: 100%;
+  max-width: 34rem;
+}
+
+.hyb-create-form > button[type="submit"] {
+  margin-top: 1rem;
+}
+
+/* Lesson-editor step rows. The shared .authoring-lesson-list claims columns
+   2 to the end of the row, so the auto-placed tool group falls to a second
+   grid row inside the 2rem number column — three buttons wrapping into a
+   stack that spills past the card. Give the tools the fields' own column and
+   the number stays beside the step title instead of drifting to mid-row.
+   Scoped to rows that carry a field list, so the module page's single-line
+   lesson rows keep their inline tools. */
+.hyb-builder .authoring-lesson-list ~ .authoring-module-tools {
+  grid-column: 2 / -1;
+  justify-self: end;
+  flex-wrap: nowrap;
+}
+
+.hyb-builder .authoring-item:has(.authoring-lesson-list) > .authoring-section-icon {
+  align-self: start;
+}
+
+/* Edition rows: a status accent on the left edge, a quiet hover lift. */
+.hyb-edition {
+  border-left: 3px solid transparent;
+  border-radius: 0.375rem;
+  padding-left: 0.75rem;
+  transition: background-color 0.15s ease;
+}
+
+.hyb-edition:hover {
+  background: var(--color-base-50, #f7f7f7);
+}
+
+html.dark .hyb-edition:hover {
+  background: var(--color-base-800, #1f1f1f);
+}
+
+.hyb-edition--draft {
+  border-left-color: var(--color-warning-500, #c99a2e);
+}
+
+.hyb-edition--published {
+  border-left-color: var(--color-success-500, #3d9970);
+}
+
+.hyb-edition--retired {
+  border-left-color: var(--color-base-400, #9c9c9c);
+  opacity: 0.75;
+}
+
+.hyb-edition .authoring-section-icon {
+  background: var(--color-primary-50, #eef2fa);
+  color: var(--color-primary-700, #2c4590);
+  font-weight: 600;
+}
+
+html.dark .hyb-edition .authoring-section-icon {
+  background: var(--color-primary-900, #1d2c50);
+  color: var(--color-primary-200, #b9c8ec);
+}
+
+/* Course chips inside an edition row. */
+.hyb-course-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.hyb-course-row .authoring-secondary {
+  border: 1px solid var(--color-base-200, #e2e2e2);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+}
+
+.hyb-course-row a.authoring-secondary {
+  text-decoration: none;
+}
+
+.hyb-course-row a.authoring-secondary:hover {
+  border-color: var(--color-primary-500, #4f76b3);
+  color: var(--color-primary-600, #3a5bb0);
+}
+
+.hyb-course-row .authoring-primary {
+  margin-left: auto;
+}
+
+/* Content rows across the builder get the same quiet hover. */
+.hyb-builder .authoring-item {
+  border-radius: 0.375rem;
+  transition: background-color 0.15s ease;
+}
+
+.hyb-builder .authoring-item:hover {
+  background: var(--color-base-50, #f7f7f7);
+}
+
+html.dark .hyb-builder .authoring-item:hover {
+  background: var(--color-base-800, #1f1f1f);
+}
+
+/* Empty states read as deliberate, not missing. */
+.hyb-builder .authoring-empty {
+  border: 1px dashed var(--color-base-300, #c4c4c4);
+  border-radius: 0.5rem;
+  padding: 1.1rem 1rem;
+  text-align: center;
+  color: var(--color-base-500, #808080);
+}
+
+html.dark .hyb-builder .authoring-empty {
+  border-color: var(--color-base-600, #545454);
+}
+
+/* Facts lists (lesson details, review) line up as a responsive grid. */
+.hyb-builder .authoring-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.5rem 1.25rem;
+  margin: 0.75rem 0 0;
+}
+
+.hyb-builder .authoring-facts dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--color-base-500, #808080);
+}
+
+.hyb-builder .authoring-facts dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Simulator & Verification: condition editors read as inset sub-panels so
+   they sit clearly under the step they belong to. */
+.hyb-condition-group {
+  margin-top: 0.5rem;
+}
+
+.hyb-condition-group > h3 {
+  margin: 0.75rem 0 0.35rem;
+}
+
+.hyb-condition-form {
+  border: 1px solid var(--color-base-200, #e2e2e2);
+  border-radius: 0.5rem;
+  background: var(--color-base-25, #fafafa);
+  padding: 0.75rem;
+}
+
+html.dark .hyb-condition-form {
+  border-color: var(--color-base-700, #3d3d3d);
+  background: var(--color-base-800, #1f1f1f);
+}
+
+.hyb-condition-form .authoring-secondary {
+  margin-top: 0.25rem;
+}
+
+.hyb-condition-note {
+  margin: 1rem 0 0;
+}

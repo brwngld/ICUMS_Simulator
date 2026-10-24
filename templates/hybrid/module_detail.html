@@ -1,0 +1,47 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Edit {{ module.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit module{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
+
+{% block content %}<div class="authoring hyb-builder">
+  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ module.course.title }} · draft edition v{{ module.course.programme_version.version }}</p><h1>{{ module.title }}</h1><p>Lessons run in the order shown; each lesson opens in the five-tab editor.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-course-edit' module.course_id %}">Back to course</a></div></header>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>Module details</h2><p>The persisted module record.</p></div><span class="authoring-status">Draft</span></div>
+    <form method="post" class="authoring-form">{% csrf_token %}
+      {{ form.title.as_field_group }}
+      {{ form.description.as_field_group }}
+      <button class="authoring-primary" type="submit">Save module</button>
+    </form>
+  </section>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>Lessons</h2><p>Combined theory-and-practical lessons.</p></div><span class="authoring-status">{{ lessons|length }} lesson{{ lessons|length|pluralize }}</span></div>
+    <div class="authoring-item-list">
+      {% for lesson in lessons %}
+        <article class="authoring-item">
+          <span class="authoring-section-icon">{{ forloop.counter }}</span>
+          <div><h3>{{ lesson.title }}</h3><p>{{ lesson.practical_steps.count }} step{{ lesson.practical_steps.count|pluralize }} · {{ lesson.theory_blocks.count }} theory block{{ lesson.theory_blocks.count|pluralize }}</p></div>
+          <div class="authoring-module-tools">
+            <a class="authoring-secondary" href="{% url 'hybrid-lesson-edit' lesson.pk %}">Open editor</a>
+            <form id="move-lesson-up-{{ lesson.pk }}" method="post" action="{% url 'hybrid-module-edit' module.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_lesson"><input type="hidden" name="lesson_id" value="{{ lesson.pk }}"><input type="hidden" name="direction" value="up"></form>
+            <button class="authoring-secondary" type="submit" form="move-lesson-up-{{ lesson.pk }}" aria-label="Move lesson up">↑</button>
+            <form id="move-lesson-down-{{ lesson.pk }}" method="post" action="{% url 'hybrid-module-edit' module.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_lesson"><input type="hidden" name="lesson_id" value="{{ lesson.pk }}"><input type="hidden" name="direction" value="down"></form>
+            <button class="authoring-secondary" type="submit" form="move-lesson-down-{{ lesson.pk }}" aria-label="Move lesson down">↓</button>
+            <form id="delete-lesson-{{ lesson.pk }}" method="post" action="{% url 'hybrid-module-edit' module.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="delete_lesson"><input type="hidden" name="lesson_id" value="{{ lesson.pk }}"></form>
+            <button class="authoring-secondary" type="submit" form="delete-lesson-{{ lesson.pk }}">Remove</button>
+          </div>
+        </article>
+      {% empty %}
+        <p class="authoring-empty">No lessons yet.</p>
+      {% endfor %}
+    </div>
+    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
+      <input type="hidden" name="action" value="create_lesson">
+      <h3>Add a lesson</h3>
+      {{ lesson_form.title.as_field_group }}
+      {{ lesson_form.summary.as_field_group }}
+      <button class="authoring-primary" type="submit">Add lesson</button>
+    </form>
+  </section>
+</div>{% endblock %}

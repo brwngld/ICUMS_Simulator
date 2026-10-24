@@ -1,0 +1,123 @@
+{% extends "core/base_student.html" %}
+{% load static %}
+
+{% comment %}
+Theory & Practical workspace: the lesson's reading and practical journey
+beside the real simulator screen the current step points at, framed
+same-origin. Every step's text and screen come from the hybrid curriculum
+rows — nothing about a lesson is hardcoded here. The layout forks the /test
+Practice Desk geometry into hybrid-owned assets; the desk itself is untouched.
+{% endcomment %}
+
+{% block title %}{{ lesson.title }} · ICUMS Simulator{% endblock %}
+
+{% block workspace_name %}{{ lesson.title }}{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/hybrid-workspace.css' %}?v=20261023-1">
+{% endblock %}
+
+{% block content %}
+  <div class="dash hyb" data-hyb{% if attempt %} data-attempt-base="/hybrid/attempts/{{ attempt.id }}"{% endif %}>
+    {% if attempt %}{{ attempt|json_script:"hybrid-attempt-data" }}{% endif %}
+    <form id="hyb-csrf" hidden>{% csrf_token %}</form>
+    {% if preview_mode %}<p class="hyb-preview-banner" role="note">Instructor preview — this is draft content. Learners see it only once the edition is published.</p>{% endif %}
+    <header class="dash-head">
+      <div>
+        <p class="dash-eyebrow">Theory &amp; Practical</p>
+        <h1>{{ lesson.title }}</h1>
+      </div>
+      <div class="hyb-head-actions">
+        <div class="hyb-switch" role="group" aria-label="Panel">
+          <button class="dash-secondary" type="button" data-hyb-pane-button="theory" aria-pressed="true">Theory &amp; Guide</button>
+          <button class="dash-secondary" type="button" data-hyb-pane-button="sim" aria-pressed="false">Simulator</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="hyb-grid" data-hyb-grid>
+      <section class="hyb-pane hyb-theory" data-hyb-pane="theory" aria-label="Theory &amp; Guide">
+        <div class="hyb-scroll">
+          {% if lesson.summary %}
+            <article class="hyb-card">
+              <div class="lrn-copy"><p>{{ lesson.summary }}</p></div>
+            </article>
+          {% endif %}
+
+          {% if theory %}
+            <article class="hyb-card">
+              <p class="hyb-card-label">Theory</p>
+              <div class="hyb-card-body"><div class="lrn-copy">{{ theory }}</div></div>
+              {% if attempt %}
+                <div class="hyb-acknowledge">
+                  {% if attempt.theory_acknowledged %}
+                    <span class="dash-pill is-ok">Theory acknowledged ✓</span>
+                  {% else %}
+                    <button class="dash-secondary" type="button" data-hyb-acknowledge>I have read the theory</button>
+                  {% endif %}
+                </div>
+              {% endif %}
+            </article>
+          {% endif %}
+
+          {% if step_views %}
+            <article class="hyb-card">
+              <p class="hyb-card-label">Practical journey · <span data-hyb-progress>Step 1 of {{ step_views|length }}</span></p>
+              <ol class="hyb-journey" data-hyb-journey>
+                {% for item in step_views %}
+                  <li data-hyb-journey-item="{{ item.index }}"{% if item.index == 0 %} class="now"{% endif %}>
+                    <span>{{ item.index|add:1 }}</span><small>{{ item.step.title }}</small>
+                  </li>
+                {% endfor %}
+              </ol>
+            </article>
+
+            {% for item in step_views %}
+              <article class="hyb-card hyb-card-step" data-hyb-step-card="{{ item.index }}" data-screen-url="{{ item.screen_url }}"{% if item.index != 0 %} hidden{% endif %}>
+                <p class="hyb-card-label">Step {{ item.index|add:1 }} of {{ step_views|length }}{% if item.screen_label %} · {{ item.screen_label }}{% endif %}</p>
+                <h2 class="hyb-card-title">{{ item.step.title }}</h2>
+                {% if item.step.instruction %}
+                  <div class="hyb-card-text"><strong>What to do</strong><div class="lrn-copy">{{ item.step.instruction|linebreaks }}</div></div>
+                {% endif %}
+                {% if item.step.outcome %}
+                  <div class="hyb-outcome"><strong>Expected outcome</strong><div class="lrn-copy">{{ item.step.outcome|linebreaks }}</div></div>
+                {% endif %}
+                {% if item.step.hint %}
+                  <div class="hyb-hint" data-hyb-hint="{{ item.index }}" hidden><strong>Hint</strong><div class="lrn-copy">{{ item.step.hint|linebreaks }}</div></div>
+                {% endif %}
+                <p class="hyb-feedback" data-hyb-feedback="{{ item.index }}" role="status">Complete the step in the simulator, then check your work.</p>
+              </article>
+            {% endfor %}
+          {% else %}
+            <article class="hyb-card">
+              <p class="hyb-card-label">Practical journey</p>
+              <div class="lrn-copy"><p>This lesson has no practical steps yet.</p></div>
+            </article>
+          {% endif %}
+        </div>
+
+        {% if step_views %}
+          <div class="hyb-actions">
+            <button class="dash-secondary" type="button" data-hyb-prev disabled>← Previous</button>
+            <button class="dash-secondary" type="button" data-hyb-hint>Hint</button>
+            <button class="dash-secondary" type="button" data-hyb-check>Check my work</button>
+            <button class="dash-primary" type="button" data-hyb-next>Next step →</button>
+          </div>
+        {% endif %}
+      </section>
+
+      <div class="hyb-divider" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Drag to resize theory and simulator" data-hyb-divider></div>
+
+      <section class="hyb-pane hyb-sim" data-hyb-pane="sim" aria-label="Simulator">
+        <div class="hyb-sim-bar">
+          <a class="dash-secondary" href="{{ frame_url }}" target="_blank" rel="noopener">Open in new tab</a>
+        </div>
+        <div class="hyb-frame-wrap">
+          <iframe class="hyb-frame" data-hyb-frame title="Simulator" src="{{ frame_url }}" loading="lazy"></iframe>
+        </div>
+      </section>
+    </div>
+  </div>
+  <script src="{% static 'js/hybrid-workspace.js' %}?v=20261023-1" defer></script>
+{% endblock %}

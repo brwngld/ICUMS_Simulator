@@ -1,0 +1,113 @@
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}Edit {{ lesson.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit lesson{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
+{% block content %}<div class="authoring hyb-builder">
+  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ lesson.module.course.title }} · {{ lesson.module.title }} · draft edition v{{ lesson.module.course.programme_version.version }}</p><h1>Edit Lesson — {{ lesson.title }}</h1><p>The learner sees this lesson in the Theory &amp; Practical workspace. Saving does not publish the edition.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-lesson-preview' lesson.pk %}">Student preview</a><a class="authoring-secondary" href="{% url 'hybrid-module-edit' lesson.module_id %}">Back to module</a></div></header>
+
+  {% comment %} The wrapping form saves lesson details, the continuous theory reading and
+     the step rows together. Every per-row action (add/move/remove, conditions)
+     posts its own standalone form — one form element never nests another. {% endcomment %}
+  <form method="post" class="authoring-form">{% csrf_token %}<input type="hidden" name="active_tab" value="{{ active_tab }}">
+
+    <nav class="authoring-tabs authoring-lesson-tabs" role="tablist" aria-label="Lesson editor sections" data-authoring-tabs><button type="button" role="tab" aria-selected="true" data-authoring-tab="details"><span class="authoring-tab-number">1</span><span>Details</span></button><button type="button" role="tab" aria-selected="false" data-authoring-tab="theory" tabindex="-1"><span class="authoring-tab-number">2</span><span>Theory</span></button><button type="button" role="tab" aria-selected="false" data-authoring-tab="journey" tabindex="-1"><span class="authoring-tab-number">3</span><span>Practical journey</span><span class="authoring-tab-count">{{ step_count }}</span></button><button type="button" role="tab" aria-selected="false" data-authoring-tab="simulator" tabindex="-1"><span class="authoring-tab-number">4</span><span>Simulator &amp; Verification</span></button><button type="button" role="tab" aria-selected="false" data-authoring-tab="review" tabindex="-1"><span class="authoring-tab-number">5</span><span>Review</span></button></nav>
+
+    <section class="authoring-panel" data-authoring-panel="details">
+      <div class="authoring-layout authoring-lesson-details-layout">
+        <main class="authoring-lesson-details">
+          <section class="authoring-card"><div class="authoring-editor-header"><div><h2>Lesson details</h2><p>The persisted lesson record the workspace renders.</p></div><span class="authoring-status">Draft</span></div>
+            {{ lesson_form.title.as_field_group }}
+            {{ lesson_form.summary.as_field_group }}
+            <div class="authoring-facts"><div><dt>Module</dt><dd>{{ lesson.module.title }}</dd></div><div><dt>Course</dt><dd>{{ lesson.module.course.title }}</dd></div><div><dt>Edition</dt><dd>draft v{{ lesson.module.course.programme_version.version }}</dd></div><div><dt>URL slug</dt><dd>{{ lesson.slug }}</dd></div></div>
+          </section>
+        </main>
+        <aside class="authoring-aside"><section class="authoring-card"><div class="authoring-editor-header"><div><h2>Lesson readiness</h2><p>What this lesson currently contains.</p></div></div><div class="authoring-readiness-list"><div><span class="authoring-readiness-marker{% if has_theory %} complete{% endif %}">{% if has_theory %}✓{% else %}•{% endif %}</span><span><strong>Theory reading</strong><small>{% if has_theory %}Written{% else %}Not written yet{% endif %}</small></span></div><div><span class="authoring-readiness-marker{% if step_count %} complete{% endif %}">{% if step_count %}✓{% else %}•{% endif %}</span><span><strong>Practical steps</strong><small>{{ step_count }} configured</small></span></div></div></section></aside>
+      </div>
+    </section>
+
+    <section class="authoring-card authoring-panel" data-authoring-panel="theory" hidden>
+      <div class="authoring-editor-header"><div><h2>Theory reading</h2><p>One continuous reading for the lesson's theory panel — write it as one document; headings inside the text become the learner's section markers.</p></div><span class="authoring-status">{% if has_theory %}Written{% else %}Empty{% endif %}</span></div>
+      <div class="au-rich-field">{{ theory_form.body.as_field_group }}</div>
+    </section>
+
+    <section class="authoring-card authoring-panel" data-authoring-panel="journey" hidden>
+      <div class="authoring-editor-header"><div><h2>Practical journey</h2><p>The numbered steps the learner follows in the simulator. Steps run in this order.</p></div><span class="authoring-status">{{ step_count }} step{{ step_count|pluralize }}</span></div>
+      {{ steps_formset.management_form }}
+      <div class="authoring-item-list">{% for row in step_rows %}{% with step=row.step step_form=row.form %}<article class="authoring-item"><span class="authoring-section-icon">{{ forloop.counter }}</span><div class="authoring-lesson-list">{% for hidden in step_form.hidden_fields %}{{ hidden }}{% endfor %}{{ step_form.title.as_field_group }}{{ step_form.instruction.as_field_group }}{{ step_form.outcome.as_field_group }}{{ step_form.hint.as_field_group }}<p class="helptext">Simulator screen: <strong>{% if step.screen %}{{ step.screen_label }}{% else %}keeps the current screen{% endif %}</strong> — set it on the Simulator &amp; Verification tab.</p></div><div class="authoring-module-tools"><button class="authoring-secondary" type="submit" form="move-step-up-{{ step.pk }}" aria-label="Move step up">↑</button><button class="authoring-secondary" type="submit" form="move-step-down-{{ step.pk }}" aria-label="Move step down">↓</button><button class="authoring-secondary" type="submit" form="delete-step-{{ step.pk }}">Remove</button></div></article>{% endwith %}{% empty %}<p class="authoring-empty">No practical steps yet — add the first one below.</p>{% endfor %}</div>
+      <button class="authoring-secondary" type="submit" form="add-step-form">+ Add practical step</button>
+    </section>
+
+    <section class="authoring-card authoring-panel" data-authoring-panel="simulator" hidden>
+      <div class="authoring-editor-header"><div><h2>Simulator screens</h2><p>Which approved simulator screen each step opens. Saved with “Save lesson”.</p></div><span class="authoring-status">{{ step_count }} step{{ step_count|pluralize }}</span></div>
+      <div class="authoring-item-list">{% for row in step_rows %}<article class="authoring-item"><span class="authoring-section-icon">{{ forloop.counter }}</span><div class="authoring-lesson-list"><h3>{{ row.step.title }}</h3>{{ row.form.screen.as_field_group }}</div></article>{% empty %}<p class="authoring-empty">Add practical steps first — each one needs its simulator screen.</p>{% endfor %}</div>
+    </section>
+
+    <div class="authoring-sticky-actions"><a class="authoring-secondary" href="{% url 'hybrid-module-edit' lesson.module_id %}">Cancel</a><button class="authoring-primary" type="submit">Save lesson</button></div>
+  </form>
+
+  {% comment %} Simulator & Verification, part 2: the per-condition editors. These are
+     standalone forms so a condition can be saved on its own without touching
+     the step rows. Both sections carry the same panel name, so the tab shows
+     them together. {% endcomment %}
+  <section class="authoring-card authoring-panel" data-authoring-panel="simulator" hidden>
+    <div class="authoring-editor-header"><div><h2>Verification conditions</h2><p>What the server must see before “Check my work” passes. Conditions run in this order, and every condition must pass.</p></div></div>
+    {% for row in step_rows %}{% with step=row.step %}
+      <div class="hyb-condition-group">
+        <h3>{{ forloop.parentloop.counter }}. {{ step.title }}</h3>
+        {% for entry in row.conditions %}{% with condition=entry.condition condition_form=entry.form %}
+          <article class="authoring-item">
+            <span class="authoring-section-icon">{{ forloop.counter }}</span>
+            <div class="authoring-lesson-list">
+              <form method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" class="hyb-condition-form">{% csrf_token %}
+                <input type="hidden" name="action" value="save_condition">
+                <input type="hidden" name="condition_id" value="{{ condition.pk }}">
+                {{ condition_form.kind.as_field_group }}
+                {{ condition_form.record_status.as_field_group }}
+                {{ condition_form.expected_fields.as_field_group }}
+                <button class="authoring-secondary" type="submit">Save condition</button>
+              </form>
+            </div>
+            <div class="authoring-module-tools">
+              <form id="move-cond-up-{{ condition.pk }}" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_condition"><input type="hidden" name="condition_id" value="{{ condition.pk }}"><input type="hidden" name="direction" value="up"></form>
+              <button class="authoring-secondary" type="submit" form="move-cond-up-{{ condition.pk }}" aria-label="Move condition up">↑</button>
+              <form id="move-cond-down-{{ condition.pk }}" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_condition"><input type="hidden" name="condition_id" value="{{ condition.pk }}"><input type="hidden" name="direction" value="down"></form>
+              <button class="authoring-secondary" type="submit" form="move-cond-down-{{ condition.pk }}" aria-label="Move condition down">↓</button>
+              <form id="delete-cond-{{ condition.pk }}" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="delete_condition"><input type="hidden" name="condition_id" value="{{ condition.pk }}"></form>
+              <button class="authoring-secondary" type="submit" form="delete-cond-{{ condition.pk }}">Remove</button>
+            </div>
+          </article>
+        {% endwith %}{% empty %}
+          <p class="authoring-empty">No conditions — this step passes “Check my work” as soon as its screen has been opened.</p>
+        {% endfor %}
+      </div>
+      <form id="add-cond-{{ step.pk }}" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="add_condition"><input type="hidden" name="step_id" value="{{ step.pk }}"></form>
+      <button class="authoring-secondary" type="submit" form="add-cond-{{ step.pk }}">+ Add condition to this step</button>
+    {% endwith %}{% endfor %}
+    <p class="helptext">Saved-record conditions use the learner's own simulator records with the guided engine's ownership, freshness, status and exact-value rules. A browser can never certify them.</p>
+  </section>
+
+  <section class="authoring-card authoring-panel" data-authoring-panel="review" hidden>
+    <div class="authoring-editor-header"><div><h2>Review lesson</h2><p>What this lesson contains and what is still missing before it is learner-ready.</p></div></div>
+    <dl class="authoring-facts"><div><dt>Lesson title</dt><dd>{{ lesson.title }}</dd></div><div><dt>Theory reading</dt><dd>{% if has_theory %}Written{% else %}<em>Missing</em>{% endif %}</dd></div><div><dt>Practical steps</dt><dd>{{ step_count }}</dd></div><div><dt>Screens selected</dt><dd>{% for row in step_rows %}{% if row.step.screen %}{{ row.step.screen_label }}{% if not forloop.last %} · {% endif %}{% else %}<em>step {{ forloop.counter }}: none</em> {% endif %}{% endfor %}</dd></div></dl>
+    <div class="authoring-readiness-list">
+      {% if issues %}{% for issue in issues %}<div><span class="authoring-readiness-marker">•</span><span><strong>To do</strong><small>{{ issue }}</small></span></div>{% endfor %}{% else %}<div><span class="authoring-readiness-marker complete">✓</span><span><strong>Draft ready</strong><small>Nothing is missing at lesson level.</small></span></div>{% endif %}
+    </div>
+    <h3>Edition readiness</h3>
+    {% if course_blockers_list %}
+      <ul class="authoring-readiness-list">{% for blocker in course_blockers_list %}<li><span class="authoring-readiness-marker">•</span><span><small>{{ blocker }}</small></span></li>{% endfor %}</ul>
+      <p class="helptext">Publishing happens at the edition level, from the Theory &amp; Practical builder index.</p>
+    {% else %}
+      <p class="helptext">Every lesson in “{{ lesson.module.course.title }}” is ready — publish the edition from the builder index.</p>
+    {% endif %}
+    <a class="authoring-secondary" href="{% url 'hybrid-lesson-preview' lesson.pk %}">Preview as student</a>
+  </section>
+
+  {% comment %} Standalone per-row action forms. They sit outside the wrapping form so no
+     form element ever nests another; the row buttons above reference them by
+     id with the form attribute. {% endcomment %}
+  <form id="add-step-form" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="add_step"><input type="hidden" name="active_tab" value="journey"></form>
+  {% for row in step_rows %}{% with step=row.step %}
+    <form id="move-step-up-{{ step.pk }}" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_step"><input type="hidden" name="step_id" value="{{ step.pk }}"><input type="hidden" name="direction" value="up"><input type="hidden" name="active_tab" value="journey"></form>
+    <form id="move-step-down-{{ step.pk }}" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_step"><input type="hidden" name="step_id" value="{{ step.pk }}"><input type="hidden" name="direction" value="down"><input type="hidden" name="active_tab" value="journey"></form>
+    <form id="delete-step-{{ step.pk }}" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="delete_step"><input type="hidden" name="step_id" value="{{ step.pk }}"></form>
+  {% endwith %}{% endfor %}
+</div><script src="{% static 'js/instructor-theory-builder.js' %}?v=20261016-1"></script><script src="{% static 'js/rich-text-editor.js' %}?v=20261016-3"></script>{% endblock %}

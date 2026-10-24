@@ -302,7 +302,15 @@ def _student_navigation(request):
             "icon_template": "core/nav_icons/practical.html",
             "link": practical_url,
             "submenu": True,
-            "items": [{"title": "Theory & Practical", "link": practical_url}],
+            "items": [{"title": "Practical Scenarios", "link": practical_url}],
+        },
+        {
+            "title": "Theory & Practical",
+            "icon": "school",
+            "link": reverse("hybrid-roadmap"),
+            "submenu": True,
+            "active": request.path.startswith("/hybrid/"),
+            "items": [{"title": "Learning roadmap", "link": reverse("hybrid-roadmap")}],
         },
         {
             "title": "Assessments",
@@ -339,6 +347,7 @@ def _student_navigation(request):
                     {"title": "Students", "icon": "group", "link": reverse("instructor-student-list")},
                     {"title": "Theory builder", "icon": "edit_note", "icon_template": "core/nav_icons/theory_builder.html", "link": reverse("course-builder") + "?path=theory"},
                     {"title": "Practical/Theory builder", "icon": "layers", "icon_template": "core/nav_icons/practical_builder.html", "link": reverse("practical-builder-index")},
+                    {"title": "Theory & Practical builder", "icon": "school", "link": reverse("hybrid-builder")},
                 ],
             }
         )

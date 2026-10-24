@@ -1,0 +1,58 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Theory &amp; Practical builder · ICUMS Simulator{% endblock %}{% block workspace_name %}Theory &amp; Practical builder{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
+
+{% block content %}<div class="authoring hyb-builder">
+  <header class="authoring-head"><div><p class="authoring-eyebrow">Instructor · Theory &amp; Practical</p><h1>Theory &amp; Practical builder</h1><p>Create courses, modules and combined theory-and-practical lessons for any approved simulator workflow. Draft editions are editable; published editions are read-only.</p></div></header>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>New course</h2><p>The course is created inside the programme's draft edition, reused or opened automatically.</p></div></div>
+    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
+      {{ form.programme.as_field_group }}
+      {{ form.title.as_field_group }}
+      {{ form.description.as_field_group }}
+      <button class="authoring-primary" type="submit">Create course</button>
+    </form>
+  </section>
+
+  {% for programme in programmes %}
+    <section class="authoring-card">
+      <div class="authoring-editor-header"><div><h2>{{ programme.name }}</h2><p>Theory &amp; Practical programme</p></div></div>
+      {% for version in programme.versions.all %}
+        <div class="authoring-item-list">
+          <article class="authoring-item hyb-edition hyb-edition--{{ version.status }}">
+            <span class="authoring-section-icon">v{{ version.version }}</span>
+            <div>
+              <h3>{{ version.get_status_display }} edition</h3>
+              <p>{{ version.hybrid_courses.all|length }} course{{ version.hybrid_courses.all|length|pluralize }}</p>
+            </div>
+            {% if version.status == "draft" %}
+              <div class="authoring-module-tools hyb-course-row">
+                {% for course in version.hybrid_courses.all %}
+                  <a class="authoring-secondary" href="{% url 'hybrid-course-edit' course.pk %}">{{ course.title }}</a>
+                {% empty %}
+                  <span class="authoring-empty">No courses yet — create the first above.</span>
+                {% endfor %}
+                <form id="publish-{{ version.pk }}" method="post" action="{% url 'hybrid-builder' %}">{% csrf_token %}<input type="hidden" name="action" value="publish_edition"><input type="hidden" name="version_id" value="{{ version.pk }}"></form>
+                <button class="authoring-primary" type="submit" form="publish-{{ version.pk }}">Publish edition</button>
+              </div>
+            {% else %}
+              <div class="authoring-module-tools hyb-course-row">
+                {% for course in version.hybrid_courses.all %}
+                  <span class="authoring-secondary" title="Published editions are read-only">{{ course.title }}</span>
+                {% empty %}
+                  <span class="authoring-empty">No courses.</span>
+                {% endfor %}
+                <form id="new-draft-{{ version.pk }}" method="post" action="{% url 'hybrid-builder' %}">{% csrf_token %}<input type="hidden" name="action" value="new_draft"><input type="hidden" name="version_id" value="{{ version.pk }}"></form>
+                <button class="authoring-primary" type="submit" form="new-draft-{{ version.pk }}">New draft from this edition</button>
+              </div>
+            {% endif %}
+          </article>
+        </div>
+      {% endfor %}
+    </section>
+  {% empty %}
+    <section class="authoring-card"><p class="authoring-empty">No Theory &amp; Practical programmes exist yet. Ask an administrator to create a programme with the learning track set to “Theory &amp; Practical”.</p></section>
+  {% endfor %}
+</div>{% endblock %}
