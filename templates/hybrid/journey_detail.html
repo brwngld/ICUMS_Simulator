@@ -1,0 +1,175 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Journey · {{ journey.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Journey organizer{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
+
+{% block content %}<div class="authoring hyb-builder">
+  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ course.title }} · draft edition v{{ course.programme_version.version }}</p><h1>{{ journey.title }}</h1><p>Starts with {% if entry_point %}“{{ entry_point.step.title }}”{% else %}— no steps assigned yet{% endif %} · {{ journey.get_start_mode_display }}</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-course-edit' course.pk %}">Back to course</a></div></header>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>Structural readiness</h2><p>What stands between this journey's structure and a testable draft. Testing and publication gates come later.</p></div></div>
+    {% if issues %}
+      <ul class="authoring-readiness-list">{% for issue in issues %}<li><span class="authoring-readiness-marker">•</span><span><small>{{ issue }}</small></span></li>{% endfor %}</ul>
+    {% else %}
+      <p class="authoring-empty">Structurally ready — no outstanding requirements.</p>
+    {% endif %}
+  </section>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>Journey settings</h2><p>The persisted journey record.</p></div><span class="authoring-status">Draft</span></div>
+    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
+      <input type="hidden" name="action" value="save_journey">
+      {{ journey_form.title.as_field_group }}
+      {{ journey_form.description.as_field_group }}
+      {{ journey_form.start_mode.as_field_group }}
+      <button class="authoring-primary" type="submit">Save journey</button>
+    </form>
+    <form id="delete-journey" method="post" class="authoring-form">{% csrf_token %}
+      <input type="hidden" name="action" value="delete_journey">
+      <button class="authoring-secondary" type="submit">Delete journey</button>
+      <span class="helptext">Only an empty journey can be deleted.</span>
+    </form>
+  </section>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>Steps in curriculum order</h2><p>The journey's order follows the curriculum: course, module, lesson, then the step's own order. Reordering the curriculum or the steps inside a lesson moves the journey automatically.</p></div><span class="authoring-status">{{ assignments|length }} step{{ assignments|length|pluralize }}</span></div>
+    <div class="authoring-item-list">
+      {% for assignment in assignments %}
+        <article class="authoring-item">
+          <span class="authoring-section-icon">{{ forloop.counter }}</span>
+          <div>
+            <h3>{{ assignment.step.title }}{% if entry_point.pk == assignment.pk %} <span class="dash-pill is-ok">Entry point</span>{% endif %}</h3>
+            <p>{{ assignment.step.lesson.title }}</p>
+          </div>
+          <div class="authoring-module-tools">
+            <form id="remove-step-{{ assignment.pk }}" method="post" action="{% url 'hybrid-journey-detail' journey.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="remove_step"><input type="hidden" name="step_id" value="{{ assignment.pk }}"></form>
+            <button class="authoring-secondary" type="submit" form="remove-step-{{ assignment.pk }}">Remove</button>
+          </div>
+        </article>
+      {% empty %}
+        <p class="authoring-empty">No steps assigned yet — assign the lesson steps below.</p>
+      {% endfor %}
+    </div>
+    {% if unassigned_steps %}
+    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
+      <input type="hidden" name="action" value="assign_step">
+      <h3>Assign a step</h3>
+      <div class="authoring-lesson-list">
+      {% for step in unassigned_steps %}
+        <label class="authoring-structured-row"><input type="radio" name="step_id" value="{{ step.pk }}" {% if forloop.first %}checked{% endif %}> {{ step.title }} <small class="helptext">({{ step.lesson.title }})</small></label>
+      {% endfor %}
+      </div>
+      <button class="authoring-primary" type="submit">Assign step</button>
+    </form>
+    {% else %}
+    <p class="helptext">Every practical step in this course is already assigned. Add steps in the lessons' Practical journey tab.</p>
+    {% endif %}
+  </section>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>Dependencies</h2><p>Extra prerequisites between steps: a step can require an earlier step to be complete, or a record role to be available.</p></div><span class="authoring-status">{{ journey.dependencies.count }} dependenc{{ journey.dependencies.count|pluralize:"y,ies" }}</span></div>
+    <div class="authoring-item-list">
+      {% for dependency in journey.dependencies.all %}
+        <article class="authoring-item">
+          <span class="authoring-section-icon">{{ forloop.counter }}</span>
+          <div><h3>{{ dependency.predecessor_step.title }} → {{ dependency.dependent_step.title }}</h3><p>{{ dependency.get_dependency_type_display }}{% if dependency.required_record_role %} · requires “{{ dependency.required_record_role.label }}”{% endif %}</p></div>
+          <div class="authoring-module-tools">
+            <form id="remove-dependency-{{ dependency.pk }}" method="post" action="{% url 'hybrid-journey-detail' journey.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="remove_dependency"><input type="hidden" name="dependency_id" value="{{ dependency.pk }}"></form>
+            <button class="authoring-secondary" type="submit" form="remove-dependency-{{ dependency.pk }}">Remove</button>
+          </div>
+        </article>
+      {% empty %}
+        <p class="authoring-empty">No dependencies — steps run in curriculum order.</p>
+      {% endfor %}
+    </div>
+    {% if assignments %}
+    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
+      <input type="hidden" name="action" value="add_dependency">
+      <h3>Add a dependency</h3>
+      {{ dependency_form.predecessor.as_field_group }}
+      {{ dependency_form.dependent.as_field_group }}
+      {{ dependency_form.dependency_type.as_field_group }}
+      {{ dependency_form.required_record_role.as_field_group }}
+      <button class="authoring-primary" type="submit">Add dependency</button>
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>Record roles</h2><p>Stable roles for the simulator records this journey uses, e.g. the learner's own UCR as the primary reference.</p></div><span class="authoring-status">{{ journey.record_roles.count }} role{{ journey.record_roles.count|pluralize }}</span></div>
+    <div class="authoring-item-list">
+      {% for role in journey.record_roles.all %}
+        <article class="authoring-item">
+          <span class="authoring-section-icon">{{ forloop.counter }}</span>
+          <div class="authoring-lesson-list">
+            <form method="post" class="authoring-form">{% csrf_token %}
+              <input type="hidden" name="action" value="save_role">
+              <input type="hidden" name="role_id" value="{{ role.pk }}">
+              {{ role.key.as_field_group }}
+              {{ role.label.as_field_group }}
+              {{ role.record_kind.as_field_group }}
+              {{ role.required.as_field_group }}
+              {{ role.creation_mode.as_field_group }}
+              <button class="authoring-secondary" type="submit">Save role</button>
+            </form>
+          </div>
+          <div class="authoring-module-tools">
+            <form id="move-role-up-{{ role.pk }}" method="post" action="{% url 'hybrid-journey-detail' journey.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_role"><input type="hidden" name="role_id" value="{{ role.pk }}"><input type="hidden" name="direction" value="up"></form>
+            <button class="authoring-secondary" type="submit" form="move-role-up-{{ role.pk }}" aria-label="Move role up">↑</button>
+            <form id="move-role-down-{{ role.pk }}" method="post" action="{% url 'hybrid-journey-detail' journey.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_role"><input type="hidden" name="role_id" value="{{ role.pk }}"><input type="hidden" name="direction" value="down"></form>
+            <button class="authoring-secondary" type="submit" form="move-role-down-{{ role.pk }}" aria-label="Move role down">↓</button>
+            <form id="delete-role-{{ role.pk }}" method="post" action="{% url 'hybrid-journey-detail' journey.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="delete_role"><input type="hidden" name="role_id" value="{{ role.pk }}"></form>
+            <button class="authoring-secondary" type="submit" form="delete-role-{{ role.pk }}">Remove</button>
+          </div>
+        </article>
+      {% empty %}
+        <p class="authoring-empty">No record roles yet.</p>
+      {% endfor %}
+    </div>
+    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
+      <input type="hidden" name="action" value="add_role">
+      <h3>Add a record role</h3>
+      {{ role_form.key.as_field_group }}
+      {{ role_form.label.as_field_group }}
+      {{ role_form.record_kind.as_field_group }}
+      {{ role_form.required.as_field_group }}
+      {{ role_form.creation_mode.as_field_group }}
+      <button class="authoring-primary" type="submit">Add role</button>
+    </form>
+  </section>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>Checkpoints on record roles</h2><p>Saved-record checkpoints from the lessons' steps, bound to the journey's record roles. Conditions themselves are authored in each lesson's Simulator &amp; Verification tab.</p></div></div>
+    {% for row in condition_rows %}
+      <div class="authoring-lesson-list"><h3>{{ row.assignment.step.title }}</h3></div>
+      <div class="authoring-item-list">
+      {% for entry in row.conditions %}
+        {% if entry.condition.kind == 'saved_record' %}
+          <article class="authoring-item">
+            <span class="authoring-section-icon">{{ forloop.parentloop.counter }}.{{ forloop.counter }}</span>
+            <div class="authoring-lesson-list">
+              <p><strong>{{ entry.condition.describe }}</strong></p>
+              {% if entry.binding %}
+                <p class="helptext">Bound to record role “{{ entry.binding.role.label }}”.</p>
+                <form method="post" action="{% url 'hybrid-journey-detail' journey.pk %}">{% csrf_token %}
+                  <input type="hidden" name="action" value="unbind_condition">
+                  <input type="hidden" name="binding_id" value="{{ entry.binding.pk }}">
+                  <button class="authoring-secondary" type="submit">Unbind</button>
+                </form>
+              {% else %}
+                <form method="post" action="{% url 'hybrid-journey-detail' journey.pk %}" class="authoring-form">{% csrf_token %}
+                  <input type="hidden" name="action" value="bind_condition">
+                  <input type="hidden" name="condition_id" value="{{ entry.condition.pk }}">
+                  <select name="role_id">{% for role in journey.record_roles.all %}{% if role.record_kind == entry.condition.record_kind %}<option value="{{ role.pk }}">{{ role.label }}</option>{% endif %}{% endfor %}</select>
+                  <button class="authoring-secondary" type="submit">Bind to record role</button>
+                </form>
+              {% endif %}
+            </div>
+          </article>
+        {% endif %}
+      {% endfor %}
+      </div>
+    {% endfor %}
+    <p class="helptext">Only saved-record checkpoints bind to record roles. Screen-opened checkpoints already follow the journey's step order automatically.</p>
+  </section>
+</div>{% endblock %}

@@ -36,6 +36,8 @@ existing per-lesson ``LessonAttempt`` completion signals plus required
 journey record roles; no journey condition is evaluated at runtime in this
 checkpoint.
 """
+import re
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import models, transaction
 from django.db.models import F
@@ -46,12 +48,15 @@ from scenarios.bindings import VERIFY_RECORDS
 from .models import (
     HybridLesson,
     JourneyAttempt,
+    JourneyConditionBinding,
     JourneyDependency,
     JourneyRecordAssociation,
     JourneyRecordRole,
     JourneyStep,
     LessonAttempt,
+    PracticalJourney,
     ProgrammeVersion,
+    VerificationCondition,
 )
 
 CANONICAL_ORDER = (
@@ -431,4 +436,178 @@ def structural_issues(journey):
         issues.append("The dependency graph contains a cycle.")
     if not journey.record_roles.exists():
         issues.append("No record roles are defined for this journey.")
+    return issues
+
+
+# --- Authoring: journeys, record roles, dependencies, bindings -----------------
+# All authoring mutations are draft-edition only; every function re-checks the
+# edition status so a stale page or a bypassed view still cannot mutate a
+# published or retired curriculum.
+
+
+def _unique_journey_code(version, seed):
+    base = re.sub(r"[^a-z0-9]+", "-", (seed or "").lower()).strip("-") or "journey"
+    candidate, number = base, 2
+    while PracticalJourney.objects.filter(programme_version_id=version.pk, code=candidate).exists():
+        candidate = f"{base}-{number}"
+        number += 1
+    return candidate
+
+
+def create_journey(version, course, title, description="", start_mode=PracticalJourney.StartMode.NEW_RECORD):
+    """Create a journey on a draft edition's course; the code derives from the title."""
+    if version.status != ProgrammeVersion.Status.DRAFT:
+        raise PermissionDenied("Journeys can only be created in a draft edition.")
+    if course.programme_version_id != version.pk:
+        raise ValidationError({"course": "The course must belong to this programme version."})
+    if start_mode not in PracticalJourney.StartMode.values:
+        raise ValidationError({"start_mode": "Unknown start mode."})
+    return PracticalJourney.objects.create(
+        programme_version=version,
+        course=course,
+        code=_unique_journey_code(version, title),
+        title=title,
+        description=description,
+        start_mode=start_mode,
+        order=course.practical_journeys.count() + 1,
+    )
+
+
+def update_journey(journey, title, description, start_mode):
+    _require_draft_version(journey)
+    if start_mode not in PracticalJourney.StartMode.values:
+        raise ValidationError({"start_mode": "Unknown start mode."})
+    journey.title = title
+    journey.description = description
+    journey.start_mode = start_mode
+    journey.save(update_fields=("title", "description", "start_mode"))
+    return journey
+
+
+def delete_journey(journey):
+    """Delete an empty journey. Anything populated must be dismantled first, so
+    a single action can never silently discard authored structure."""
+    _require_draft_version(journey)
+    if journey.step_assignments.exists() or journey.record_roles.exists() or journey.dependencies.exists():
+        raise ValidationError("Remove the journey's steps, record roles and dependencies before deleting it.")
+    journey.delete()
+
+
+def _role_references(role):
+    return {
+        "associations": JourneyRecordAssociation.objects.filter(role=role).exists(),
+        "dependencies": JourneyDependency.objects.filter(required_record_role=role).exists(),
+        "condition bindings": JourneyConditionBinding.objects.filter(role=role).exists(),
+    }
+
+
+def create_record_role(journey, key, label, record_kind, required=True,
+                       creation_mode=JourneyRecordRole.CreationMode.NEW):
+    _require_draft_version(journey)
+    if record_kind not in VERIFY_RECORDS:
+        raise ValidationError({"record_kind": "Choose an approved simulator record kind."})
+    if JourneyRecordRole.objects.filter(journey=journey, key=key).exists():
+        raise ValidationError({"key": "A record role with this key already exists on this journey."})
+    return JourneyRecordRole.objects.create(
+        journey=journey, key=key, label=label, record_kind=record_kind,
+        required=required, creation_mode=creation_mode,
+        order=journey.record_roles.count() + 1,
+    )
+
+
+def update_record_role(role, changes):
+    """Apply field changes to a record role. A role that is referenced by
+    associations, dependencies, or condition bindings keeps its identity:
+    its record kind and key are locked, because those references tie exact
+    records and condition semantics to them. Label, required flag, creation
+    mode and order always stay editable."""
+    _require_draft_version(role.journey)
+    referenced = any(_role_references(role).values())
+    for field in ("record_kind", "key"):
+        new_value = changes.get(field)
+        if new_value and new_value != getattr(role, field):
+            if referenced:
+                raise ValidationError(
+                    {field: "This role is in use, so its " + field + " can no longer change."}
+                )
+            setattr(role, field, new_value)
+    if "label" in changes:
+        role.label = changes["label"]
+    if "required" in changes:
+        role.required = changes["required"]
+    if "creation_mode" in changes:
+        role.creation_mode = changes["creation_mode"]
+    role.full_clean()
+    role.save()
+
+
+def delete_record_role(role):
+    _require_draft_version(role.journey)
+    references = _role_references(role)
+    blocked = [name for name, used in references.items() if used]
+    if blocked:
+        raise ValidationError(
+            "This record role is still referenced by " + ", ".join(blocked) + "; remove those first."
+        )
+    role.delete()
+
+
+def move_record_role(role, direction):
+    """Swap a role with its neighbour in role order."""
+    _require_draft_version(role.journey)
+    roles = list(JourneyRecordRole.objects.filter(journey=role.journey).order_by("order", "id"))
+    index = roles.index(role)
+    swap = index - 1 if direction == "up" else index + 1
+    if swap < 0 or swap >= len(roles):
+        return
+    neighbour = roles[swap]
+    with transaction.atomic():
+        # Lift the moving row clear of the unique (journey, order) constraint
+        # before the two positions change places.
+        JourneyRecordRole.objects.filter(pk=role.pk).update(order=role.order + 10000)
+        JourneyRecordRole.objects.filter(pk=neighbour.pk).update(order=role.order)
+        JourneyRecordRole.objects.filter(pk=role.pk).update(order=neighbour.order)
+
+
+def remove_dependency(journey, dependency):
+    _require_draft_version(journey)
+    if dependency.journey_id != journey.pk:
+        raise ValidationError({"journey": "The dependency belongs to a different journey."})
+    dependency.delete()
+
+
+def bind_condition(condition, role):
+    """Bind a saved-record condition on an assigned journey step to one of the
+    journey's record roles. Purely authoring-level: no runtime verification
+    behaviour is introduced here."""
+    journey = role.journey
+    _require_draft_version(journey)
+    if condition.kind != VerificationCondition.Kind.SAVED_RECORD:
+        raise ValidationError("Only saved-record conditions can be bound to a record role.")
+    if not JourneyStep.objects.filter(step_id=condition.step_id, journey=journey).exists():
+        raise ValidationError("The condition's step must be assigned to this journey.")
+    if role.record_kind != condition.record_kind:
+        raise ValidationError("The record role must use the same record kind as the condition.")
+    binding, _created = JourneyConditionBinding.objects.get_or_create(condition=condition, role=role)
+    return binding
+
+
+def unbind_condition(binding):
+    _require_draft_version(binding.role.journey)
+    binding.delete()
+
+
+def unbound_condition_issues(journey):
+    """Saved-record conditions on assigned steps that have no record role
+    binding yet — surfaced by the organizer's readiness checklist."""
+    issues = []
+    for assignment in ordered_assignments(journey):
+        for condition in assignment.step.conditions.filter(
+            kind=VerificationCondition.Kind.SAVED_RECORD
+        ):
+            if not JourneyConditionBinding.objects.filter(condition=condition).exists():
+                issues.append(
+                    f"Step {assignment.journey_order} (“{assignment.step.title}”): "
+                    "a saved-record condition is not bound to a record role."
+                )
     return issues

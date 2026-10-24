@@ -1,0 +1,29 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Practical journeys · {{ course.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Practical journeys{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
+
+{% block content %}<div class="authoring hyb-builder">
+  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ course.title }} · draft edition v{{ course.programme_version.version }}</p><h1>Practical journeys</h1><p>Cross-lesson practical workflows. Journey order follows the curriculum; the organizer's steps come from the lessons' practical tabs.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-course-edit' course.pk %}">Back to course</a></div></header>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>New journey</h2><p>Created inside this draft edition.</p></div></div>
+    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
+      {{ form.title.as_field_group }}
+      {{ form.description.as_field_group }}
+      {{ form.start_mode.as_field_group }}
+      <button class="authoring-primary" type="submit">Create journey</button>
+    </form>
+  </section>
+
+  {% for row in journeys %}
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2><a class="authoring-secondary" href="{% url 'hybrid-journey-detail' row.journey.pk %}">{{ row.journey.title }}</a></h2><p>{{ row.journey.get_start_mode_display }}</p></div></div>
+    {% if row.issues %}
+      <ul class="authoring-readiness-list">{% for issue in row.issues %}<li><span class="authoring-readiness-marker">•</span><span><small>{{ issue }}</small></span></li>{% endfor %}</ul>
+    {% else %}
+      <p class="authoring-empty">Structurally ready.</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+</div>{% endblock %}

@@ -9,6 +9,7 @@ Publication itself (the draft→published sweep and clone-to-draft) is Stage 4.
 """
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404, redirect
@@ -20,6 +21,7 @@ from instructor_portal.views import _require_instructor, _unique_slug
 from learning.rich_text import plain_text
 from onboarding.models import Programme, ProgrammeVersion
 
+from . import journey_services
 from .forms import (
     CourseCreateForm,
     CourseEditForm,
@@ -29,7 +31,20 @@ from .forms import (
     TheoryForm,
     VerificationConditionForm,
 )
-from .models import HybridCourse, HybridLesson, HybridModule, PracticalStep, VerificationCondition
+from .journey_forms import DependencyForm, JourneyCreateForm, JourneyEditForm, RecordRoleForm
+from .models import (
+    HybridCourse,
+    HybridLesson,
+    HybridModule,
+    JourneyConditionBinding,
+    JourneyDependency,
+    JourneyRecordAssociation,
+    JourneyRecordRole,
+    JourneyStep,
+    PracticalJourney,
+    PracticalStep,
+    VerificationCondition,
+)
 from .publishing import (
     clone_to_draft,
     edition_blockers,
@@ -224,6 +239,14 @@ def course_edit(request, course_id):
         "form": form,
         "modules": modules,
         "module_form": ModuleForm(),
+        "journeys": [
+            {
+                "journey": journey,
+                "issue_count": len(journey_services.structural_issues(journey))
+                + len(journey_services.unbound_condition_issues(journey)),
+            }
+            for journey in course.practical_journeys.order_by("order", "title")
+        ],
     })
 
 
@@ -426,3 +449,216 @@ def lesson_preview(request, lesson_id):
     context = lesson_workspace_context(lesson)
     context["preview_mode"] = True
     return render_student_page(request, "hybrid/workspace.html", context)
+
+
+# --- Journey organizer (course-level, draft editions only) ----------------------
+
+
+def _draft_journey(journey_id):
+    return get_object_or_404(
+        PracticalJourney.objects.select_related("course__programme_version__programme"),
+        pk=journey_id,
+        course__programme_version__status=ProgrammeVersion.Status.DRAFT,
+    )
+
+
+def _error_text(error):
+    if hasattr(error, "message_dict"):
+        return " ".join(" ".join(items) for items in error.message_dict.values())
+    if hasattr(error, "messages"):
+        return " ".join(error.messages)
+    return str(error)
+
+
+def _journey_organizer_context(journey):
+    assignments = journey_services.ordered_assignments(journey)
+    bindings = {
+        binding.condition_id: binding
+        for binding in JourneyConditionBinding.objects.filter(
+            condition__step__journey_assignment__journey=journey
+        )
+    }
+    condition_rows = []
+    for assignment in assignments:
+        condition_rows.append({
+            "assignment": assignment,
+            "conditions": [
+                {"condition": condition, "binding": bindings.get(condition.pk)}
+                for condition in assignment.step.conditions.order_by("order", "id")
+            ],
+        })
+    unassigned = PracticalStep.objects.filter(
+        lesson__module__course=journey.course, journey_assignment__isnull=True,
+    ).select_related("lesson")
+    return {
+        "journey": journey,
+        "assignments": assignments,
+        "entry_point": journey_services.entry_point(journey),
+        "condition_rows": condition_rows,
+        "unassigned_steps": list(unassigned),
+        "issues": journey_services.structural_issues(journey),
+        "unbound_issues": journey_services.unbound_condition_issues(journey),
+        "dependency_form": DependencyForm(journey),
+        "role_form": RecordRoleForm(),
+        "journey_form": JourneyEditForm(
+            initial={
+                "title": journey.title,
+                "description": journey.description,
+                "start_mode": journey.start_mode,
+            }
+        ),
+        "course": journey.course,
+    }
+
+
+@login_required
+def course_journeys(request, course_id):
+    """Organizer index: the draft course's journeys, their structural readiness
+    and unbound conditions, and the create-journey form."""
+    _require_instructor(request.user)
+    course = _draft_course(course_id)
+    journeys = [
+        {
+            "journey": journey,
+            "issues": journey_services.structural_issues(journey)
+            + journey_services.unbound_condition_issues(journey),
+        }
+        for journey in course.practical_journeys.order_by("order", "title")
+    ]
+    form = JourneyCreateForm(request.POST or None)
+    if request.method == "POST":
+        if form.is_valid():
+            try:
+                journey = journey_services.create_journey(
+                    course.programme_version,
+                    course,
+                    title=form.cleaned_data["title"],
+                    description=form.cleaned_data["description"],
+                    start_mode=form.cleaned_data["start_mode"],
+                )
+            except (PermissionDenied, ValidationError) as error:
+                messages.error(request, _error_text(error))
+            else:
+                messages.success(request, "Journey created.")
+                return redirect("hybrid-journey-detail", journey_id=journey.pk)
+            return redirect("hybrid-course-journeys", course_id=course.pk)
+        messages.error(request, "The journey needs a title.")
+        return redirect("hybrid-course-journeys", course_id=course.pk)
+    return render_student_page(request, "hybrid/journey_organizer.html", {
+        "title": f"Practical journeys · {course.title}",
+        "course": course,
+        "journeys": journeys,
+        "form": form,
+    })
+
+
+@login_required
+def journey_detail(request, journey_id):
+    """The journey organizer: canonical step order, roles, dependencies,
+    condition bindings, and structural readiness — draft editions only."""
+    _require_instructor(request.user)
+    journey = _draft_journey(journey_id)
+    context = _journey_organizer_context(journey)
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        try:
+            if action == "save_journey":
+                form = JourneyEditForm(request.POST)
+                if form.is_valid():
+                    journey_services.update_journey(
+                        journey,
+                        form.cleaned_data["title"],
+                        form.cleaned_data["description"],
+                        form.cleaned_data["start_mode"],
+                    )
+                    messages.success(request, "Journey updated.")
+                else:
+                    messages.error(request, "The journey needs a title.")
+            elif action == "delete_journey":
+                journey_services.delete_journey(journey)
+                messages.success(request, "Journey deleted.")
+                return redirect("hybrid-course-journeys", course_id=journey.course_id)
+            elif action == "assign_step":
+                # Look the step up by id alone: a step from another course is
+                # refused by the service with a visible message, not a 404.
+                step = get_object_or_404(PracticalStep, pk=request.POST.get("step_id"))
+                journey_services.assign_step(journey, step)
+                messages.success(request, "Step assigned to the journey.")
+            elif action == "remove_step":
+                assignment = get_object_or_404(JourneyStep, journey=journey, pk=request.POST.get("step_id"))
+                journey_services.unassign_step(journey, assignment.step)
+                messages.success(request, "Step removed from the journey.")
+            elif action == "add_dependency":
+                form = DependencyForm(journey, request.POST)
+                if form.is_valid():
+                    journey_services.add_dependency(
+                        journey,
+                        form.cleaned_data["predecessor"],
+                        form.cleaned_data["dependent"],
+                        form.cleaned_data["dependency_type"],
+                        required_record_role=form.cleaned_data["required_record_role"],
+                    )
+                    messages.success(request, "Dependency added.")
+                else:
+                    messages.error(request, "The dependency was not added — check the selected steps.")
+            elif action == "remove_dependency":
+                dependency = get_object_or_404(
+                    JourneyDependency, journey=journey, pk=request.POST.get("dependency_id"),
+                )
+                journey_services.remove_dependency(journey, dependency)
+                messages.success(request, "Dependency removed.")
+            elif action == "add_role":
+                data = request.POST.copy()
+                if not data.get("key") and data.get("label"):
+                    data["key"] = _unique_slug(JourneyRecordRole, "key", data["label"], journey=journey)
+                role_form = RecordRoleForm(data)
+                if role_form.is_valid():
+                    journey_services.create_record_role(
+                        journey,
+                        key=role_form.cleaned_data["key"],
+                        label=role_form.cleaned_data["label"],
+                        record_kind=role_form.cleaned_data["record_kind"],
+                        required=role_form.cleaned_data["required"],
+                        creation_mode=role_form.cleaned_data["creation_mode"],
+                    )
+                    messages.success(request, "Record role added.")
+                else:
+                    messages.error(request, "The record role needs a key and a shown name.")
+            elif action == "save_role":
+                role = get_object_or_404(JourneyRecordRole, journey=journey, pk=request.POST.get("role_id"))
+                journey_services.update_record_role(role, {
+                    "key": request.POST.get("key", ""),
+                    "label": request.POST.get("label", ""),
+                    "record_kind": request.POST.get("record_kind", ""),
+                    "required": request.POST.get("required") == "on",
+                    "creation_mode": request.POST.get("creation_mode", ""),
+                })
+                messages.success(request, "Record role updated.")
+            elif action == "delete_role":
+                role = get_object_or_404(JourneyRecordRole, journey=journey, pk=request.POST.get("role_id"))
+                journey_services.delete_record_role(role)
+                messages.success(request, "Record role removed.")
+            elif action == "move_role":
+                role = get_object_or_404(JourneyRecordRole, journey=journey, pk=request.POST.get("role_id"))
+                journey_services.move_record_role(role, request.POST.get("direction"))
+            elif action == "bind_condition":
+                condition = get_object_or_404(
+                    VerificationCondition,
+                    pk=request.POST.get("condition_id"),
+                    step__journey_assignment__journey=journey,
+                )
+                role = get_object_or_404(JourneyRecordRole, journey=journey, pk=request.POST.get("role_id"))
+                journey_services.bind_condition(condition, role)
+                messages.success(request, "Condition bound to the record role.")
+            elif action == "unbind_condition":
+                binding = get_object_or_404(
+                    JourneyConditionBinding, pk=request.POST.get("binding_id"), role__journey=journey,
+                )
+                journey_services.unbind_condition(binding)
+                messages.success(request, "Condition unbound.")
+        except (PermissionDenied, ValidationError) as error:
+            messages.error(request, _error_text(error))
+        return redirect("hybrid-journey-detail", journey_id=journey.pk)
+
+    return render_student_page(request, "hybrid/journey_detail.html", context)
