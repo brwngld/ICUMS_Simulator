@@ -59,8 +59,8 @@
 
   <section class="dash-panel">
     <div class="dash-panel-head">
-      <div><h2>Student enrolments</h2><p>Individual enrolment records and recorded training activity</p></div>
-      <span class="dash-pill is-info" data-roster-count>{{ rows|length }} record{{ rows|length|pluralize }}</span>
+      <div><h2>Student progress</h2><p>One row per student, counting every programme they are enrolled in</p></div>
+      <span class="dash-pill is-info" data-roster-count>{{ rows|length }} student{{ rows|length|pluralize }}</span>
     </div>
 
     <div class="dash-grid">
@@ -82,9 +82,9 @@
       <thead><tr><th>Student</th><th>Programme / Status</th><th>Training activity</th><th>Simulator access</th><th>Action</th></tr></thead>
       <tbody>
         {% for row in rows %}
-          <tr data-roster-row data-search="{{ row.search_terms }}" data-programme="{{ row.programme_name }}" data-status="{{ row.enrolment.status }}">
+          <tr data-roster-row data-search="{{ row.search_terms }}" data-programme="{{ row.programme_filter }}" data-status="{{ row.status_filter }}">
             <td><span class="student-module-state" aria-hidden="true">{{ row.initials }}</span> <b>{{ row.student }}</b><br><small>{{ row.student.student_id|default:"Student ID not assigned" }}</small></td>
-            <td>{{ row.programme_name }}<br><span class="dash-pill {% if row.enrolment.status == 'withdrawn' %}is-warn{% else %}is-ok{% endif %}">{{ row.enrolment.get_status_display }}</span></td>
+            <td>{{ row.primary.programme_name }} <span class="dash-programme-edition">v{{ row.primary.enrolment.programme_version.version }}</span><br><span class="dash-pill {% if row.primary.enrolment.status == 'withdrawn' %}is-warn{% else %}is-ok{% endif %}">{{ row.primary.enrolment.get_status_display }}</span>{% if row.programme_count > 1 %} <button type="button" class="dash-programme-trigger" data-open-programmes="student-programmes-{{ row.student.pk }}" aria-haspopup="dialog" title="All {{ row.programme_count }} programmes">{% include "components/icon.html" with name="eye" %}<span>{{ row.programme_count }} programmes</span></button>{% endif %}</td>
             <td>
               <div class="student-programme-row"><span>{{ row.completed_modules }} of {{ row.total_modules }} modules</span><strong>{{ row.percentage }}%</strong></div>
               <span class="student-module-track"><span style="width: {{ row.percentage }}%"></span></span>
@@ -92,8 +92,8 @@
             </td>
             <td>{% with credential=row.student.simulator_credential %}<span class="dash-pill {% if credential.issued_at %}is-ok{% else %}is-muted{% endif %}">{% if credential.issued_at %}Login issued{% else %}Not issued{% endif %}</span>{% if credential.issued_at %}<br><small class="dash-muted">{% if credential.password_state == "revealed" %}Password viewed by the student — shown once{% if credential.revealed_at %} {{ credential.revealed_at|date:"j M Y, H:i" }}{% endif %}{% else %}Password issued — the student views it once on their credential page{% endif %} · {% if credential.is_current %}Expires {{ credential.expires_at|date:"j M Y, H:i" }}{% else %}<strong>Expired — reset required</strong>{% endif %}{% if credential.reset_requested_at %} · <strong>Student requested reset</strong>{% if credential.reset_reason %} — {{ credential.get_reset_reason_display }}{% endif %}{% endif %}</small>{% endif %}{% endwith %}</td>
             <td>
-              {% with credential=row.student.simulator_credential %}<form id="credential-issue-{{ row.enrolment.pk }}" method="post" action="{% url 'simulator-credential-issue' row.student.pk %}">{% csrf_token %}</form>
-              <div class="student-module-main"><button class="student-ghost-action" type="submit" form="credential-issue-{{ row.enrolment.pk }}">{% if credential.issued_at %}Reset password{% else %}Issue login{% endif %}</button><a class="student-ghost-action" href="{% url 'instructor-student-detail' row.enrolment.pk %}">Review →</a></div>{% endwith %}
+              {% with credential=row.student.simulator_credential %}<form id="credential-issue-{{ row.student.pk }}" method="post" action="{% url 'simulator-credential-issue' row.student.pk %}">{% csrf_token %}</form>
+              <div class="student-module-main"><button class="student-ghost-action" type="submit" form="credential-issue-{{ row.student.pk }}">{% if credential.issued_at %}Reset password{% else %}Issue login{% endif %}</button>{% if row.programme_count == 1 %}<a class="student-ghost-action" href="{% url 'instructor-student-detail' row.primary.enrolment.pk %}">Review →</a>{% endif %}</div>{% endwith %}
             </td>
           </tr>
         {% empty %}
@@ -101,13 +101,47 @@
         {% endfor %}
       </tbody>
     </table>
-    <p class="dash-empty" data-roster-empty hidden>No enrolments match your filters.</p>
-    <p class="dash-muted" data-roster-showing>Showing {{ rows|length }} of {{ rows|length }} enrolment{{ rows|length|pluralize }}</p>
+    <p class="dash-empty" data-roster-empty hidden>No students match your filters.</p>
+    <p class="dash-muted" data-roster-showing>Showing {{ rows|length }} of {{ rows|length }} student{{ rows|length|pluralize }}</p>
+
+    {# One dialog per multi-programme student, held after the table so no
+       dialog sits inside a cell. Each lists the student's own enrolments. #}
+    {% for row in rows %}{% if row.programme_count > 1 %}
+      <dialog id="student-programmes-{{ row.student.pk }}" class="account-dialog dash-programmes-dialog" aria-labelledby="student-programmes-{{ row.student.pk }}-title">
+        <div class="account-dialog-card">
+          <header class="account-dialog-head">
+            <div>
+              <p class="account-dialog-eyebrow">Enrolled programmes</p>
+              <h2 id="student-programmes-{{ row.student.pk }}-title">{{ row.student }}</h2>
+            </div>
+            <button type="button" class="account-dialog-close" aria-label="Close" data-close-dialog>×</button>
+          </header>
+          <p class="account-dialog-note">{{ row.student }} is enrolled in {{ row.programme_count }} programmes. Progress below is counted per programme.</p>
+          <ul class="dash-programme-list">
+            {% for programme in row.programmes %}
+              <li>
+                <div class="dash-programme-list-head"><span><b>{{ programme.programme_name }}</b> <span class="dash-programme-edition">v{{ programme.enrolment.programme_version.version }}</span></span><span class="dash-pill {% if programme.enrolment.status == 'withdrawn' %}is-warn{% else %}is-ok{% endif %}">{{ programme.enrolment.get_status_display }}</span></div>
+                <small class="dash-muted">{{ programme.completed_modules }} of {{ programme.total_modules }} modules · {{ programme.percentage }}% · {{ programme.lessons_completed }} lesson{{ programme.lessons_completed|pluralize }} · {{ programme.attempts }} attempt{{ programme.attempts|pluralize }}</small>
+                <a class="student-ghost-action" href="{% url 'instructor-student-detail' programme.enrolment.pk %}">Review →</a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </dialog>
+    {% endif %}{% endfor %}
   </section>
 </div>
 <script>
   (() => {
     const rows = Array.from(document.querySelectorAll('[data-roster-row]'));
+    // Programme names carry spaces, so the row's dataset joins them with "||".
+    const list = (value, joiner) => value.split(joiner).filter(Boolean);
+    document.querySelectorAll('[data-open-programmes]').forEach((trigger) => {
+      const dialog = document.getElementById(trigger.dataset.openProgrammes);
+      if (!dialog) return;
+      trigger.addEventListener('click', () => dialog.showModal());
+      dialog.querySelectorAll('[data-close-dialog]').forEach((button) => button.addEventListener('click', () => dialog.close()));
+    });
     if (!rows.length) return;
     const search = document.querySelector('[data-roster-search]');
     const programme = document.querySelector('[data-roster-programme]');
@@ -119,12 +153,12 @@
     const filterRows = () => {
       const query = search.value.trim().toLowerCase();
       const matches = rows.map((row) => (!query || row.dataset.search.includes(query))
-        && (!programme.value || row.dataset.programme === programme.value)
-        && (!status.value || row.dataset.status === status.value));
+        && (!programme.value || list(row.dataset.programme, '||').includes(programme.value))
+        && (!status.value || list(row.dataset.status, ' ').includes(status.value)));
       rows.forEach((row, index) => { row.hidden = !matches[index]; });
       const visible = matches.filter(Boolean).length;
-      badge.textContent = pluralise(visible, 'record');
-      showing.textContent = `Showing ${visible} of ${rows.length} enrolment${rows.length === 1 ? '' : 's'}`;
+      badge.textContent = pluralise(visible, 'student');
+      showing.textContent = `Showing ${visible} of ${rows.length} student${rows.length === 1 ? '' : 's'}`;
       unmatched.hidden = visible > 0;
     };
     search.addEventListener('input', filterRows);

@@ -368,6 +368,21 @@ html.dark .account-dialog-card, html[data-theme="dark"] .account-dialog-card { b
 .account-dialog-actions { margin-top: .2rem; }
 .account-dialog-actions .student-primary-action { width: 100%; }
 
+/* Roster programmes: the row's eye pill and the dialog it opens. The trigger
+   is sized to sit on the same line as a status pill; the dialog reuses the
+   change-password shell above and only adds the per-enrolment list. */
+.dash-programme-trigger { display: inline-flex; align-items: center; gap: .3rem; margin-top: .2rem; padding: .12rem .55rem; border: 1px solid var(--d-border); border-radius: 99px; background: transparent; color: var(--d-accent); font-weight: 650; font-size: .68rem; cursor: pointer; }
+.dash-programme-trigger:hover { border-color: var(--d-accent); background: color-mix(in srgb, var(--d-accent) 8%, transparent); }
+.dash-programme-trigger .ui-icon { width: .95rem; height: .95rem; }
+.dash-programmes-dialog { width: min(34rem, 92vw); }
+.dash-programme-list { display: grid; gap: .55rem; margin: 0; padding: 0; list-style: none; }
+.dash-programme-list li { display: grid; gap: .35rem; padding: .7rem .8rem; border: 1px solid var(--d-border); border-radius: .6rem; background: color-mix(in srgb, var(--d-card-bg) 90%, #fff); }
+.dash-programme-list-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; font-size: .8rem; }
+/* Edition marker: a student can hold two enrolments in one programme name. */
+.dash-programme-edition { color: var(--d-muted); font-size: .72rem; font-weight: 600; }
+.dash-programme-list .student-ghost-action { justify-self: start; }
+@media(min-width:48rem) { .dash-programme-trigger { font-size: .7rem; } }
+
 /* Settings: sectioned page with a sticky section nav. */
 .account-nav { position: relative; display: flex; gap: .25rem; max-width: 100%; padding: .25rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg); overflow-x: auto; scrollbar-width: none; }
 .account-nav::-webkit-scrollbar { display: none; }

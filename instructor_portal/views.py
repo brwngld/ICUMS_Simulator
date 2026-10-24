@@ -68,33 +68,64 @@ def _require_instructor(user):
 
 @login_required
 def dashboard(request):
+    """The roster, one row per student.
+
+    A student enrolled in several programmes is one person to an instructor,
+    so the table groups their enrolments and adds their activity together;
+    the per-programme breakdown sits behind the row's programmes dialog. The
+    grouping follows ``student_list`` so both pages order people the same way.
+    """
     _require_instructor(request.user)
     enrolments = list(
-        _instructor_enrolments(request.user).select_related("student__simulator_credential", "programme_version__programme")
+        _instructor_enrolments(request.user)
+        .select_related("student__simulator_credential", "programme_version__programme")
+        .order_by("student__first_name", "student__last_name", "-enrolled_at")
     )
-    roster = [
-        {
-            "enrolment": enrolment,
-            "student": enrolment.student,
-            "programme_name": enrolment.programme_version.programme.name,
-        }
-        for enrolment in enrolments
-    ]
     counts = _roster_counts([enrolment.pk for enrolment in enrolments], {enrolment.programme_version_id for enrolment in enrolments})
-    for row in roster:
-        enrolment = row["enrolment"]
-        completed = counts["modules"][enrolment.pk]
-        total = counts["programme_modules"][enrolment.programme_version_id]
-        name = str(enrolment.student)
-        row.update(
+
+    grouped = {}
+    for enrolment in enrolments:
+        grouped.setdefault(enrolment.student_id, []).append(enrolment)
+
+    roster = []
+    for student_enrolments in grouped.values():
+        programmes = []
+        for enrolment in student_enrolments:
+            completed = counts["modules"][enrolment.pk]
+            total = counts["programme_modules"][enrolment.programme_version_id]
+            programmes.append(
+                {
+                    "enrolment": enrolment,
+                    "programme_name": enrolment.programme_version.programme.name,
+                    "completed_modules": completed,
+                    "total_modules": total,
+                    "percentage": round(completed / total * 100) if total else 0,
+                    "lessons_completed": counts["lessons"][enrolment.pk],
+                    "attempts": counts["attempts"][enrolment.pk],
+                }
+            )
+        student = student_enrolments[0].student
+        name = str(student)
+        total_modules = sum(programme["total_modules"] for programme in programmes)
+        completed_modules = sum(programme["completed_modules"] for programme in programmes)
+        # Furthest-through first, so the row speaks for the programme the
+        # student is actually working and the dialog opens on the same one.
+        programmes.sort(key=lambda programme: (programme["enrolment"].status == Enrolment.Status.ACTIVE, programme["percentage"]), reverse=True)
+        roster.append(
             {
+                "student": student,
                 "initials": "".join(word[:1] for word in name.split()[:2]).upper() or "?",
-                "search_terms": " ".join(filter(None, (name, enrolment.student.student_id, row["programme_name"]))).lower(),
-                "completed_modules": completed,
-                "total_modules": total,
-                "percentage": round(completed / total * 100) if total else 0,
-                "lessons_completed": counts["lessons"][enrolment.pk],
-                "attempts": counts["attempts"][enrolment.pk],
+                "programmes": programmes,
+                "primary": programmes[0],
+                "programme_count": len(programmes),
+                "search_terms": " ".join(filter(None, (name, student.student_id, *(programme["programme_name"] for programme in programmes)))).lower(),
+                "programme_filter": "||".join(programme["programme_name"] for programme in programmes),
+                "status_filter": " ".join(programme["enrolment"].status for programme in programmes),
+                "completed_modules": completed_modules,
+                "total_modules": total_modules,
+                "percentage": round(completed_modules / total_modules * 100) if total_modules else 0,
+                "lessons_completed": sum(programme["lessons_completed"] for programme in programmes),
+                "attempts": sum(programme["attempts"] for programme in programmes),
             }
         )
     return render_student_page(
@@ -103,13 +134,14 @@ def dashboard(request):
         {
             "rows": roster,
             "stats": {
-                "total_enrolments": len(roster),
-                "active_enrolments": sum(row["enrolment"].status == Enrolment.Status.ACTIVE for row in roster),
+                "students": len(roster),
+                "total_enrolments": len(enrolments),
+                "active_enrolments": sum(enrolment.status == Enrolment.Status.ACTIVE for enrolment in enrolments),
                 "lessons_completed": sum(row["lessons_completed"] for row in roster),
                 "attempts": sum(row["attempts"] for row in roster),
             },
-            "programme_filters": sorted({row["programme_name"] for row in roster}),
-            "status_filters": [(choice.value, choice.label) for choice in Enrolment.Status if any(row["enrolment"].status == choice.value for row in roster)],
+            "programme_filters": sorted({programme["programme_name"] for row in roster for programme in row["programmes"]}),
+            "status_filters": [(choice.value, choice.label) for choice in Enrolment.Status if any(enrolment.status == choice.value for enrolment in enrolments)],
         },
     )
 
