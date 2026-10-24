@@ -10,6 +10,8 @@ from . import instructor_views
 urlpatterns = [
     path("", instructor_views.builder_index, name="hybrid-builder"),
     path("courses/<uuid:course_id>/edit/", instructor_views.course_edit, name="hybrid-course-edit"),
+    path("courses/<uuid:course_id>/journeys/", instructor_views.course_journeys, name="hybrid-course-journeys"),
+    path("journeys/<uuid:journey_id>/", instructor_views.journey_detail, name="hybrid-journey-detail"),
     path("modules/<uuid:module_id>/edit/", instructor_views.module_edit, name="hybrid-module-edit"),
     path("lessons/<uuid:lesson_id>/edit/", instructor_views.lesson_edit, name="hybrid-lesson-edit"),
     path("lessons/<uuid:lesson_id>/preview/", instructor_views.lesson_preview, name="hybrid-lesson-preview"),

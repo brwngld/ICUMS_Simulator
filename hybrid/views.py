@@ -1,4 +1,5 @@
 """Student-facing Theory & Practical views."""
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
@@ -10,9 +11,17 @@ from django.views.decorators.http import require_POST
 from core.admin_dashboard import render_student_page
 from onboarding.services import needs_disclaimer_acceptance
 
+from . import journey_services
 from . import services
 from . import verification
-from .models import HybridCourse, HybridLesson, LessonAttempt
+from .models import (
+    HybridCourse,
+    HybridLesson,
+    JourneyAttempt,
+    JourneyRecordRole,
+    LessonAttempt,
+    PracticalJourney,
+)
 from .publishing import learner_edition_progress
 
 
@@ -94,12 +103,28 @@ def roadmap(request):
             })
         courses.append({"course": course, "modules": module_rows})
     completed, total = learner_edition_progress(enrolment, enrolment.programme_version)
+    journeys = []
+    for journey in PracticalJourney.objects.filter(
+        programme_version=enrolment.programme_version,
+        course__is_published=True,
+    ).order_by("course__order", "order", "title"):
+        attempt = JourneyAttempt.objects.filter(enrolment=enrolment, journey=journey).first()
+        position_total = JourneyRecordRole.objects.filter(journey=journey).count()
+        rows = journey_services.journey_step_rows(attempt) if attempt else None
+        journeys.append({
+            "journey": journey,
+            "attempt_exists": attempt is not None,
+            "complete": attempt is not None and attempt.completed_at is not None,
+            "current_position": (sum(1 for row in rows if row["satisfied"]) + 1) if rows else 1,
+            "position_total": len(rows) if rows else 0,
+        })
     return render_student_page(request, "hybrid/roadmap.html", {
         "title": "Theory & Practical",
         "programme": programme,
         "courses": courses,
         "completed": completed,
         "total": total,
+        "journeys": journeys,
     })
 
 
@@ -194,3 +219,77 @@ def acknowledge_theory(request, attempt_id):
         attempt.save(update_fields=("theory_acknowledged_at",))
     lesson_complete = verification.refresh_completion(attempt)
     return JsonResponse({"ok": True, "lesson_complete": lesson_complete})
+
+
+# --- Student journey page and runtime -------------------------------------------
+
+
+@login_required
+def journey_student(request, journey_id):
+    """The learner's view of one published practical journey: canonical step
+    order with per-step status, required record roles with live satisfaction,
+    resume control, and completion state. Entry creates (or resumes) the
+    learner's single journey attempt."""
+    journey = get_object_or_404(
+        PracticalJourney.objects.select_related("course__programme_version__programme"),
+        pk=journey_id,
+    )
+    if needs_disclaimer_acceptance(request.user):
+        return redirect("disclaimer")
+    enrolment = services.enrolment_for_request(request)
+    if enrolment.programme_version_id != journey.programme_version_id:
+        raise PermissionDenied("This journey belongs to a different programme version.")
+    attempt = journey_services.get_or_create_attempt(enrolment, journey)
+    rows = journey_services.journey_step_rows(attempt)
+    required_roles = JourneyRecordRole.objects.filter(
+        journey=journey, required=True
+    ).order_by("order", "id")
+    role_rows = [
+        {
+            "role": role,
+            "satisfied": journey_services.role_satisfied(attempt, role)[0],
+            "message": journey_services.role_satisfied(attempt, role)[1],
+            "association": journey_services.active_record(attempt, role),
+        }
+        for role in required_roles
+    ]
+    attempt.refresh_from_db()
+    complete = attempt.completed_at is not None
+    current_step = attempt.current_journey_step.step if attempt.current_journey_step_id else None
+    for row in rows:
+        row["is_current"] = (
+            attempt.current_journey_step_id is not None
+            and row["assignment"].pk == attempt.current_journey_step_id
+        )
+    return render_student_page(request, "hybrid/journey_student.html", {
+        "title": "Journey · " + journey.title,
+        "journey": journey,
+        "attempt": attempt,
+        "rows": rows,
+        "role_rows": role_rows,
+        "complete": complete,
+        "current_step": current_step,
+    })
+
+
+@login_required
+@require_POST
+def journey_advance(request, journey_id):
+    """POST-only journey progression: the learner's demonstrated position can
+    only move forward, and only when the current step's evidence is complete.
+    The service owns the progression ceiling, dependency checks and completion
+    evaluation."""
+    journey = get_object_or_404(
+        PracticalJourney.objects.select_related("course__programme_version__programme"),
+        pk=journey_id,
+    )
+    enrolment = services.enrolment_for_request(request)
+    if enrolment.programme_version_id != journey.programme_version_id:
+        raise PermissionDenied("This journey belongs to a different programme version.")
+    attempt = get_object_or_404(JourneyAttempt, enrolment=enrolment, journey=journey)
+    _attempt, moved, message = journey_services.journey_advance(attempt)
+    if moved:
+        messages.success(request, message)
+    else:
+        messages.warning(request, message)
+    return redirect("hybrid-journey-student", journey_id=journey.pk)

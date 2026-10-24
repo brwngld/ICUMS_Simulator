@@ -24,9 +24,13 @@ prove. Conditions never touch the existing Practical Builder's binding
 schema; they reuse only the ``scenarios.bindings`` registries, so any
 approved ICUMS workflow can be verified without hybrid code naming one.
 
-Future relationship (later stage): a stored hybrid ModuleProgress stamp, if
-reporting needs one — module completion is currently computed from lesson
-attempts at read time.
+Stage 2 adds an optional journey layer without changing those legacy rows.
+Database constraints protect same-row invariants and concurrency boundaries.
+Cross-row rules — canonical curriculum ordering, cycle detection, published
+immutability, atomic association replacement and journey-aware verification —
+remain service responsibilities for later checkpoints. Model clean methods
+provide defensive validation for direct authoring, but no journey-aware
+runtime behaviour is introduced here.
 """
 import uuid
 
@@ -312,3 +316,386 @@ class StepEvent(models.Model):
 
     def __str__(self):
         return f"{self.attempt_id} · {self.step.title} · {self.kind}"
+
+
+class PracticalJourney(models.Model):
+    """A versioned practical workflow spanning lessons in one hybrid course."""
+
+    class StartMode(models.TextChoices):
+        NEW_RECORD = "new_record", "New record"
+        EXISTING_RECORD = "existing_record", "Existing record"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    programme_version = models.ForeignKey(
+        ProgrammeVersion,
+        on_delete=models.PROTECT,
+        related_name="practical_journeys",
+    )
+    course = models.ForeignKey(
+        HybridCourse,
+        on_delete=models.PROTECT,
+        related_name="practical_journeys",
+    )
+    code = models.SlugField(max_length=60)
+    title = models.CharField(max_length=180)
+    description = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=1)
+    start_mode = models.CharField(max_length=20, choices=StartMode.choices, default=StartMode.NEW_RECORD)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("order", "title")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("programme_version", "code"),
+                name="unique_journey_code_per_version",
+            ),
+            models.UniqueConstraint(
+                fields=("course", "order"),
+                name="unique_journey_order_per_course",
+            ),
+            models.CheckConstraint(condition=Q(order__gte=1), name="journey_order_positive"),
+        ]
+
+    def clean(self):
+        if self.course_id and self.programme_version_id:
+            course_version_id = (
+                HybridCourse.objects.filter(pk=self.course_id)
+                .values_list("programme_version_id", flat=True)
+                .first()
+            )
+            if course_version_id != self.programme_version_id:
+                raise ValidationError({"course": "The course must belong to the journey's programme version."})
+
+    def __str__(self):
+        return self.title
+
+
+class JourneyStep(models.Model):
+    """An existing practical step assigned to a cross-lesson journey."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    journey = models.ForeignKey(PracticalJourney, on_delete=models.CASCADE, related_name="step_assignments")
+    step = models.OneToOneField(PracticalStep, on_delete=models.PROTECT, related_name="journey_assignment")
+    journey_order = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("journey_order", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("journey", "journey_order"),
+                name="unique_step_order_per_journey",
+            ),
+            models.CheckConstraint(condition=Q(journey_order__gte=1), name="journey_step_order_positive"),
+        ]
+
+    def clean(self):
+        if not self.journey_id or not self.step_id:
+            return
+        step_scope = (
+            PracticalStep.objects.filter(pk=self.step_id)
+            .values_list("lesson__module__course_id", "lesson__module__course__programme_version_id")
+            .first()
+        )
+        journey_scope = (
+            PracticalJourney.objects.filter(pk=self.journey_id)
+            .values_list("course_id", "programme_version_id")
+            .first()
+        )
+        if step_scope and journey_scope and step_scope != journey_scope:
+            raise ValidationError({"step": "The step must belong to the journey's course and programme version."})
+
+    def __str__(self):
+        return f"{self.journey.title} · {self.journey_order}. {self.step.title}"
+
+
+class JourneyRecordRole(models.Model):
+    """A stable role for one approved kind of simulator record."""
+
+    class CreationMode(models.TextChoices):
+        NEW = "new", "New"
+        EXISTING = "existing", "Existing"
+        EITHER = "either", "New or existing"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    journey = models.ForeignKey(PracticalJourney, on_delete=models.CASCADE, related_name="record_roles")
+    key = models.SlugField(max_length=60)
+    label = models.CharField(max_length=180)
+    record_kind = models.CharField(max_length=20)
+    required = models.BooleanField(default=True)
+    creation_mode = models.CharField(max_length=12, choices=CreationMode.choices, default=CreationMode.NEW)
+    order = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ("order", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("journey", "key"), name="unique_record_role_key"),
+            models.UniqueConstraint(fields=("journey", "order"), name="unique_record_role_order"),
+            models.CheckConstraint(condition=Q(order__gte=1), name="journey_role_order_positive"),
+        ]
+
+    def clean(self):
+        if self.record_kind not in VERIFY_RECORDS:
+            raise ValidationError({"record_kind": "Choose an approved simulator record kind."})
+
+    def __str__(self):
+        return f"{self.journey.title} · {self.label}"
+
+
+class JourneyDependency(models.Model):
+    """An additional forward prerequisite between two journey steps."""
+
+    class DependencyType(models.TextChoices):
+        STEP_COMPLETED = "step_completed", "Step completed"
+        RECORD_AVAILABLE = "record_available", "Record available"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    journey = models.ForeignKey(PracticalJourney, on_delete=models.CASCADE, related_name="dependencies")
+    predecessor_step = models.ForeignKey(
+        JourneyStep,
+        on_delete=models.CASCADE,
+        related_name="dependent_links",
+    )
+    dependent_step = models.ForeignKey(
+        JourneyStep,
+        on_delete=models.CASCADE,
+        related_name="prerequisite_links",
+    )
+    dependency_type = models.CharField(max_length=20, choices=DependencyType.choices)
+    required_record_role = models.ForeignKey(
+        JourneyRecordRole,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="dependencies",
+    )
+    order = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ("order", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("journey", "predecessor_step", "dependent_step", "dependency_type"),
+                name="unique_journey_dependency",
+            ),
+            models.UniqueConstraint(fields=("journey", "order"), name="unique_journey_dependency_order"),
+            models.CheckConstraint(
+                condition=~Q(predecessor_step=models.F("dependent_step")),
+                name="journey_dependency_not_self",
+            ),
+            models.CheckConstraint(condition=Q(order__gte=1), name="journey_dependency_order_positive"),
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.predecessor_step_id and self.dependent_step_id:
+            predecessor = JourneyStep.objects.filter(pk=self.predecessor_step_id).first()
+            dependent = JourneyStep.objects.filter(pk=self.dependent_step_id).first()
+            if predecessor and dependent:
+                if predecessor.journey_id != self.journey_id or dependent.journey_id != self.journey_id:
+                    errors["journey"] = "Both steps must belong to this journey."
+                elif predecessor.journey_order >= dependent.journey_order:
+                    errors["dependent_step"] = "The dependent step must come after its predecessor."
+        if self.required_record_role_id:
+            role_journey_id = (
+                JourneyRecordRole.objects.filter(pk=self.required_record_role_id)
+                .values_list("journey_id", flat=True)
+                .first()
+            )
+            if role_journey_id != self.journey_id:
+                errors["required_record_role"] = "The record role must belong to this journey."
+            if self.dependency_type != self.DependencyType.RECORD_AVAILABLE:
+                errors["required_record_role"] = "Only record-available dependencies may specify a record role."
+        elif self.dependency_type == self.DependencyType.RECORD_AVAILABLE:
+            errors["required_record_role"] = "A record-available dependency requires a record role."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.journey.title} · {self.predecessor_step} → {self.dependent_step}"
+
+
+class JourneyAttempt(models.Model):
+    """One enrolment's state within one published practical journey."""
+
+    class Status(models.TextChoices):
+        NOT_STARTED = "not_started", "Not started"
+        IN_PROGRESS = "in_progress", "In progress"
+        COMPLETED = "completed", "Completed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    enrolment = models.ForeignKey(Enrolment, on_delete=models.PROTECT, related_name="journey_attempts")
+    journey = models.ForeignKey(PracticalJourney, on_delete=models.PROTECT, related_name="attempts")
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.NOT_STARTED)
+    current_journey_step = models.ForeignKey(
+        JourneyStep,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    last_activity_at = models.DateTimeField(default=timezone.now)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-last_activity_at",)
+        constraints = [
+            models.UniqueConstraint(fields=("enrolment", "journey"), name="unique_enrolment_journey_attempt"),
+        ]
+
+    def clean(self):
+        errors = {}
+        if self.enrolment_id and self.journey_id:
+            enrolment_version_id = (
+                Enrolment.objects.filter(pk=self.enrolment_id)
+                .values_list("programme_version_id", flat=True)
+                .first()
+            )
+            journey_version_id = (
+                PracticalJourney.objects.filter(pk=self.journey_id)
+                .values_list("programme_version_id", flat=True)
+                .first()
+            )
+            if enrolment_version_id != journey_version_id:
+                errors["journey"] = "The journey must belong to the enrolment's programme version."
+        if self.current_journey_step_id:
+            current_journey_id = (
+                JourneyStep.objects.filter(pk=self.current_journey_step_id)
+                .values_list("journey_id", flat=True)
+                .first()
+            )
+            if current_journey_id != self.journey_id:
+                errors["current_journey_step"] = "The current step must belong to this journey."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.enrolment_id} · {self.journey.title}"
+
+
+class JourneyRecordAssociation(models.Model):
+    """The exact simulator record occupying a role in a learner journey."""
+
+    class AssignmentSource(models.TextChoices):
+        CREATED_IN_JOURNEY = "created_in_journey", "Created in journey"
+        AUTHORIZED_EXISTING = "authorized_existing", "Authorized existing record"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    journey_attempt = models.ForeignKey(
+        JourneyAttempt,
+        on_delete=models.CASCADE,
+        related_name="record_associations",
+    )
+    role = models.ForeignKey(
+        JourneyRecordRole,
+        on_delete=models.PROTECT,
+        related_name="record_associations",
+    )
+    enrolment = models.ForeignKey(
+        Enrolment,
+        on_delete=models.PROTECT,
+        related_name="journey_record_associations",
+    )
+    programme_version = models.ForeignKey(
+        ProgrammeVersion,
+        on_delete=models.PROTECT,
+        related_name="journey_record_associations",
+    )
+    record_kind = models.CharField(max_length=20)
+    record_id = models.PositiveBigIntegerField()
+    assignment_source = models.CharField(max_length=24, choices=AssignmentSource.choices)
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="assigned_journey_records",
+    )
+    assigned_at = models.DateTimeField(default=timezone.now)
+    is_active = models.BooleanField(default=True)
+    replaced_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-assigned_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("journey_attempt", "role"),
+                condition=Q(is_active=True),
+                name="unique_active_record_per_role",
+            ),
+            models.CheckConstraint(
+                condition=(Q(is_active=True, replaced_at__isnull=True) | Q(is_active=False, replaced_at__isnull=False)),
+                name="journey_record_active_state",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("record_kind", "record_id"), name="journey_record_lookup"),
+            models.Index(fields=("enrolment", "programme_version"), name="journey_record_owner"),
+        ]
+
+    def clean(self):
+        errors = {}
+        attempt = JourneyAttempt.objects.filter(pk=self.journey_attempt_id).select_related("journey").first()
+        role = JourneyRecordRole.objects.filter(pk=self.role_id).first()
+        if attempt:
+            if self.enrolment_id != attempt.enrolment_id:
+                errors["enrolment"] = "The enrolment must match the journey attempt."
+            if self.programme_version_id != attempt.journey.programme_version_id:
+                errors["programme_version"] = "The programme version must match the journey attempt."
+        if role:
+            if attempt and role.journey_id != attempt.journey_id:
+                errors["role"] = "The record role must belong to the attempted journey."
+            if self.record_kind != role.record_kind:
+                errors["record_kind"] = "The record kind must match the selected role."
+        if self.record_kind not in VERIFY_RECORDS:
+            errors["record_kind"] = "Choose an approved simulator record kind."
+        elif self.record_id and self.enrolment_id:
+            model = VERIFY_RECORDS[self.record_kind][0]
+            owner_id = Enrolment.objects.filter(pk=self.enrolment_id).values_list("student_id", flat=True).first()
+            if owner_id and not model.objects.filter(pk=self.record_id, owner_id=owner_id).exists():
+                errors["record_id"] = "The record must exist and belong to the enrolled learner."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.journey_attempt_id} · {self.role.key} · {self.record_kind}:{self.record_id}"
+
+
+class JourneyConditionBinding(models.Model):
+    """Binds a saved-record condition to a journey's exact record role."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    condition = models.OneToOneField(
+        VerificationCondition,
+        on_delete=models.CASCADE,
+        related_name="journey_binding",
+    )
+    role = models.ForeignKey(
+        JourneyRecordRole,
+        on_delete=models.PROTECT,
+        related_name="condition_bindings",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        errors = {}
+        condition = VerificationCondition.objects.filter(pk=self.condition_id).select_related("step").first()
+        role = JourneyRecordRole.objects.filter(pk=self.role_id).first()
+        if condition:
+            if condition.kind != VerificationCondition.Kind.SAVED_RECORD:
+                errors["condition"] = "Only saved-record conditions can be bound to a journey record role."
+            assignment = JourneyStep.objects.filter(step_id=condition.step_id).first()
+            if not assignment:
+                errors["condition"] = "The condition's step must be assigned to a journey."
+            elif role and assignment.journey_id != role.journey_id:
+                errors["role"] = "The condition and role must belong to the same journey."
+            if role and condition.record_kind != role.record_kind:
+                errors["role"] = "The condition and role must use the same record kind."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.condition_id} · {self.role.key}"

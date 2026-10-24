@@ -23,6 +23,20 @@ roadmap only displays it.
       <p class="hyb-done-note" role="status">Programme complete — every required lesson in this edition is done.</p>
     {% endif %}
 
+    {% for journey_row in journeys %}
+      <section class="hyb-card">
+        <h2>{{ journey_row.journey.title }}</h2>
+        <p class="dash-eyebrow">
+          {% if journey_row.complete %}Journey complete ✓
+          {% else %}Step {{ journey_row.current_position }} of {{ journey_row.position_total }}{% endif %}
+          · {{ journey_row.journey.get_start_mode_display }}
+        </p>
+        <a class="dash-secondary" href="{% url 'hybrid-journey-student' journey_row.journey.pk %}">
+          {% if journey_row.complete %}Review journey{% elif journey_row.attempt_exists %}Resume journey{% else %}Start journey{% endif %}
+        </a>
+      </section>
+    {% endfor %}
+
     {% for row in courses %}
       <section class="hyb-card hyb-roadmap-course">
         <h2>{{ row.course.title }}</h2>

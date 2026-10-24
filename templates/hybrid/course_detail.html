@@ -16,6 +16,22 @@
   </section>
 
   <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>Practical journeys</h2><p>Cross-lesson practical workflows. Order follows the curriculum; structure changes happen in the organizer.</p></div><span class="authoring-status">{{ journeys|length }} journey{{ journeys|length|pluralize }}</span></div>
+    <div class="authoring-item-list">
+      {% for row in journeys %}
+        <article class="authoring-item">
+          <span class="authoring-section-icon">{{ forloop.counter }}</span>
+          <div><h3>{{ row.journey.title }}</h3><p>{{ row.journey.get_start_mode_display }} · {{ row.issue_count }} outstanding requirement{{ row.issue_count|pluralize }}</p></div>
+          <div class="authoring-module-tools"><a class="authoring-secondary" href="{% url 'hybrid-journey-detail' row.journey.pk %}">Open organizer</a></div>
+        </article>
+      {% empty %}
+        <p class="authoring-empty">No practical journeys yet.</p>
+      {% endfor %}
+    </div>
+    <p class="helptext"><a href="{% url 'hybrid-course-journeys' course.pk %}">Open the journey organizer</a> to create a journey, assign steps, and configure roles, dependencies and checkpoints.</p>
+  </section>
+
+  <section class="authoring-card">
     <div class="authoring-editor-header"><div><h2>Modules</h2><p>Learners take modules in the order shown.</p></div><span class="authoring-status">{{ modules|length }} module{{ modules|length|pluralize }}</span></div>
     <div class="authoring-item-list">
       {% for module in modules %}
