@@ -10,6 +10,8 @@ from . import views
 
 urlpatterns = [
     path("", views.roadmap, name="hybrid-roadmap"),
+    path("journeys/<uuid:journey_id>/", views.journey_student, name="hybrid-journey-student"),
+    path("journeys/<uuid:journey_id>/advance/", views.journey_advance, name="hybrid-journey-advance"),
     path("lessons/<uuid:lesson_id>/", views.workspace, name="hybrid-workspace"),
     path("attempts/<uuid:attempt_id>/open/<int:step_index>/", views.step_open, name="hybrid-step-open"),
     path("attempts/<uuid:attempt_id>/check/<int:step_index>/", views.step_check, name="hybrid-step-check"),

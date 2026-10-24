@@ -12,6 +12,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from hybrid import journey_services
+from hybrid import verification as hybrid_verification
 from hybrid.models import (
     HybridCourse,
     HybridLesson,
@@ -260,41 +261,57 @@ def test_attempt_retrieval_is_learner_scoped(world):
 
 
 @pytest.mark.django_db
-def test_completion_requires_lessons_and_required_record_roles(world):
-    """Completed lessons alone cannot complete a journey while a required
-    record role is unsatisfied; an optional role never blocks."""
+def test_completion_requires_evidence_roles_and_lessons(world):
+    """Journey completion reads durable step evidence directly: lesson
+    completion flags alone never certify it, and every required record role
+    must be satisfied. Optional roles never block."""
     _assign_all(world)
     journey = world["journey"]
     attempt = journey_services.get_or_create_attempt(world["enrolment"], journey)
     required_role = JourneyRecordRole.objects.create(
         journey=journey, key="ucr", label="Primary UCR", record_kind="ucr", required=True, order=1,
+        creation_mode=JourneyRecordRole.CreationMode.EXISTING,
     )
-    optional_role = JourneyRecordRole.objects.create(
+    JourneyRecordRole.objects.create(
         journey=journey, key="note", label="Optional note", record_kind="boe", required=False, order=2,
     )
 
-    # Every lesson complete — the required role is still missing.
-    for lesson in world["lessons"]:
+    # Lesson completion flags alone: no durable step evidence exists yet.
+    lesson_attempts = [
         LessonAttempt.objects.create(
-            enrolment=attempt.enrolment, lesson=lesson, completed_at=timezone.now(),
+            enrolment=attempt.enrolment, lesson=lesson,
+            completed_at=timezone.now(), theory_acknowledged_at=timezone.now(),
         )
-    state = journey_services.completion_state(attempt)
-    assert (state["lessons_completed"], state["lessons_total"]) == (3, 3)
+        for lesson in world["lessons"]
+    ]
+    state = journey_services.journey_completion_state(attempt)
+    assert (state["steps_satisfied"], state["steps_total"]) == (0, 3)
     assert (state["roles_satisfied"], state["roles_required"]) == (0, 1)
-    assert journey_services.refresh_completion(attempt) is False
-    attempt.refresh_from_db()
-    assert attempt.completed_at is None
+    assert journey_services.refresh_journey_completion(attempt) is False
 
-    # Satisfying the required role completes the journey; the optional role
-    # was never needed.
+    # The engine's evidence path (durable StepEvent stamps on this enrolment's
+    # LessonAttempt) satisfies the steps one at a time.
+    for lesson_attempt, step in zip(lesson_attempts, world["steps"]):
+        hybrid_verification.record_open(lesson_attempt, step)
+        hybrid_verification.mark_verified(lesson_attempt, step)
+
+    # Steps verified but the required record role still unsatisfied: the
+    # journey stays incomplete until the exact record is assigned.
+    assert journey_services.refresh_journey_completion(attempt) is False
     record = _ucr(world["student"])
     journey_services.assign_record(
-        attempt, required_role, record.pk, JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+        attempt, required_role, record.pk, JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING,
     )
-    assert journey_services.refresh_completion(attempt) is True
+
+    state = journey_services.journey_completion_state(attempt)
+    assert state["steps_satisfied"] == 3
+    assert journey_services.refresh_journey_completion(attempt) is True
     attempt.refresh_from_db()
     assert attempt.completed_at is not None
     assert attempt.status == JourneyAttempt.Status.COMPLETED
+
+    # The optional role never blocked completion.
+    assert JourneyRecordRole.objects.filter(key="note").exists()
 
 
 # --- Record associations: ownership, replacement with history, satisfaction ----
@@ -338,7 +355,7 @@ def test_replacement_preserves_history_and_keeps_one_active(world):
     )
     second = journey_services.assign_record(
         attempt, role, second_record.pk,
-        JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING, assigned_by=world["student"],
+        JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
     )
 
     first.refresh_from_db()
@@ -381,6 +398,7 @@ def test_role_satisfaction_follows_the_record_world(world):
     attempt = journey_services.get_or_create_attempt(world["enrolment"], journey)
     role = JourneyRecordRole.objects.create(
         journey=journey, key="ucr", label="Primary UCR", record_kind="ucr", order=1,
+        creation_mode=JourneyRecordRole.CreationMode.EXISTING,
     )
 
     satisfied, message = journey_services.role_satisfied(attempt, role)
@@ -388,7 +406,7 @@ def test_role_satisfaction_follows_the_record_world(world):
 
     record = _ucr(world["student"])
     journey_services.assign_record(
-        attempt, role, record.pk, JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+        attempt, role, record.pk, JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING,
     )
     satisfied, message = journey_services.role_satisfied(attempt, role)
     assert satisfied is True
@@ -398,33 +416,45 @@ def test_role_satisfaction_follows_the_record_world(world):
     assert satisfied is False and "no longer exists" in message
 
 
-@pytest.mark.skip(
-    reason="Follow-up requirement recorded at Checkpoint 3 acceptance (2026-10-24): journey "
-    "completion must not be possible when a mandatory practical step remains incomplete, "
-    "even if a lesson-level completion flag is present. Implement alongside journey-aware "
-    "step verification (Checkpoints 4-6).",
-)
 @pytest.mark.django_db
 def test_an_incomplete_mandatory_step_blocks_journey_completion_despite_a_completed_lesson(world):
     """A completed LessonAttempt flag must not certify an unverified mandatory
     practical step: the journey attempt stays incomplete until the step's own
-    authoritative verification evidence exists."""
+    authoritative verification evidence exists. Recorded at Checkpoint 3
+    acceptance; enforceable since the Checkpoint 5 step-evidence gate."""
     _assign_all(world)
     journey = world["journey"]
     attempt = journey_services.get_or_create_attempt(world["enrolment"], journey)
     required_role = JourneyRecordRole.objects.create(
         journey=journey, key="ucr", label="Primary UCR", record_kind="ucr", required=True, order=1,
+        creation_mode=JourneyRecordRole.CreationMode.EXISTING,
     )
     record = _ucr(world["student"])
     journey_services.assign_record(
-        attempt, required_role, record.pk, JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+        attempt, required_role, record.pk, JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING,
     )
-    for lesson in world["lessons"]:
+    lesson_attempts = [
         LessonAttempt.objects.create(
-            enrolment=attempt.enrolment, lesson=lesson, completed_at=timezone.now(),
+            enrolment=attempt.enrolment, lesson=lesson,
+            completed_at=timezone.now(), theory_acknowledged_at=timezone.now(),
         )
-    # TODO(Checkpoints 4-6): leave the mandatory step's verification evidence absent,
-    # then assert refresh_completion(attempt) is False and completed_at stays None.
+        for lesson in world["lessons"]
+    ]
+    # Lesson completion flags alone: the journey stays incomplete because the
+    # mandatory steps carry no durable verification evidence.
+    assert journey_services.refresh_journey_completion(attempt) is False
+    attempt.refresh_from_db()
+    assert attempt.completed_at is None
+
+    # The workspace's evidence path (StepEvent OPENED stamps on the lessons'
+    # LessonAttempts) unlocks completion.
+    for lesson_attempt in lesson_attempts:
+        for step in lesson_attempt.lesson.practical_steps.all():
+            hybrid_verification.record_open(lesson_attempt, step)
+    assert journey_services.refresh_journey_completion(attempt) is True
+    attempt.refresh_from_db()
+    assert attempt.completed_at is not None
+    assert attempt.status == JourneyAttempt.Status.COMPLETED
 
 
 # --- Structural readiness -------------------------------------------------------

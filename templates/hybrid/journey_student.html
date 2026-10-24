@@ -1,0 +1,76 @@
+{% extends "core/base_student.html" %}
+
+{% comment %}
+The learner's view of one published practical journey: canonical step order
+with per-step status resolved from durable verification evidence, required
+record roles with live satisfaction, and resume into the existing two-pane
+workspace. All progression runs through POST endpoints; this page only
+displays and links.
+{% endcomment %}
+
+{% block title %}{{ journey.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Journey{% endblock %}
+
+{% block content %}
+  <div class="dash hyb-roadmap">
+    <header class="dash-head">
+      <div>
+        <p class="dash-eyebrow">{{ journey.course.title }} · Theory &amp; Practical</p>
+        <h1>{{ journey.title }}</h1>
+        <p class="dash-eyebrow">{{ journey.get_start_mode_display }}</p>
+      </div>
+    </header>
+
+    {% if complete %}
+      <p class="hyb-done-note" role="status">Journey complete — every step is verified and all required records are in place.</p>
+    {% endif %}
+
+    <section class="hyb-card">
+      <h2>Journey steps</h2>
+      <ol class="hyb-journey">
+        {% for row in rows %}
+          <li class="{% if row.satisfied %}done{% elif row.is_current %}now{% endif %}">
+            {% if row.satisfied %}
+              <span>✓</span>
+            {% else %}
+              <span>{{ row.position }}</span>
+            {% endif %}
+            <small>
+              {{ row.step.title }}
+              {% if row.is_current %} <strong class="dash-pill is-ok">Resume here</strong>{% endif %}
+              {% if row.requirement %} — {{ row.requirement }}{% endif %}
+            </small>
+          </li>
+        {% endfor %}
+      </ol>
+      {% if current_step %}
+        <a class="dash-primary" href="{% url 'hybrid-workspace' current_step.lesson.pk %}">Continue in the workspace</a>
+      {% endif %}
+      {% if not complete and rows %}
+        <form method="post" action="{% url 'hybrid-journey-advance' journey.pk %}">
+          {% csrf_token %}
+          <button class="dash-secondary" type="submit">I have completed this step — continue</button>
+        </form>
+      {% endif %}
+    </section>
+
+    {% if role_rows %}
+      <section class="hyb-card">
+        <h2>Required records</h2>
+        <ul class="hyb-journey">
+          {% for role_row in role_rows %}
+            <li class="{% if role_row.satisfied %}done{% endif %}">
+              <span>{% if role_row.satisfied %}✓{% else %}•{% endif %}</span>
+              <small>
+                {{ role_row.role.label }}
+                {% if role_row.association %}
+                  — record #{{ role_row.association.record_id }} ({{ role_row.association.get_assignment_source_display }})
+                {% endif %}
+                {% if not role_row.satisfied %} — {{ role_row.message }}{% endif %}
+              </small>
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+  </div>
+{% endblock %}
