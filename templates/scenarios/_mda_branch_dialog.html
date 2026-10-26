@@ -1,7 +1,8 @@
 <dialog id="mda-branch-dialog" class="code-dialog" aria-labelledby="mda-branch-title">
   <form method="dialog" class="code-dialog-card">
     <header><h2 id="mda-branch-title">Common Code</h2><button type="submit" aria-label="Close MDA Branch popup">×</button></header>
-    <div class="code-search"><label>Code <input id="mda-code-filter"></label><label>Code Name <input id="mda-name-filter"></label><button id="filter-mda-codes" type="button">Search</button></div>
+    <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody><tr><th>Code</th><td><input class="boe-field" id="mda-code-filter"></td><th>Code Name</th><td><input class="boe-field" id="mda-name-filter"></td></tr></tbody></table>
+    <div class="cargo-actions"><button class="primary-button" id="filter-mda-codes" type="button">Search</button></div>
     <div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Code</th><th>Code Name</th><th>Code Description</th></tr></thead><tbody id="mda-code-list"></tbody></table></div>
     <div class="code-pagination" id="mda-code-pagination" aria-label="MDA Branch pages"></div>
     <p class="dialog-help">Select a row to place its office code and name in MDA Branch.</p>

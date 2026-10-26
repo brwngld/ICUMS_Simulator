@@ -1,11 +1,8 @@
 <dialog id="document-code-dialog" class="code-dialog" aria-labelledby="document-code-title">
   <form method="dialog" class="code-dialog-card">
     <header><h2 id="document-code-title">Common Code</h2><button type="submit" aria-label="Close document code popup">×</button></header>
-    <div class="code-search">
-      <label>Code <input id="document-code-filter"></label>
-      <label>Code Name <input id="document-name-filter"></label>
-      <button id="filter-document-codes" type="button">Search</button>
-    </div>
+    <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody><tr><th>Code</th><td><input class="boe-field" id="document-code-filter"></td><th>Code Name</th><td><input class="boe-field" id="document-name-filter"></td></tr></tbody></table>
+    <div class="cargo-actions"><button class="primary-button" id="filter-document-codes" type="button">Search</button></div>
     <div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Code</th><th>Code Name</th><th>Code Description</th></tr></thead>
       <tbody id="document-code-list">
         <tr data-code="CCC" data-name="Copy of Commissioner Correspondence (CC)"><td>1</td><td>CCC</td><td>Copy of Commissioner Correspondence (CC)</td><td>Attached document code</td></tr>

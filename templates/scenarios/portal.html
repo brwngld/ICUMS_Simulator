@@ -58,15 +58,15 @@
 </div>
 </div>
   <dialog class="simulator-login-dialog" id="simulator-login-dialog" aria-labelledby="simulator-login-title">
-    <div class="simulator-login-heading"><div><h2 id="simulator-login-title">Login</h2><p>ICUMS training simulator access</p></div><button type="button" data-close-simulator-login aria-label="Close login">×</button></div>
-    <form method="post" action="{% url 'simulator-login' %}" class="simulator-login-form">{% csrf_token %}<label for="simulator-student-id">Student ID</label><input id="simulator-student-id" name="student_id" value="{{ student_id_hint }}" placeholder="BERN00001/26" autocomplete="username" required><label for="simulator-password">Monthly password</label><input id="simulator-password" name="password" type="password" autocomplete="current-password" required><button type="submit">Continue</button></form>
-    <div class="simulator-login-help"><strong>Forgot ID or password?</strong><p>Your monthly password must be reset by an instructor or administrator after it expires.</p><details><summary>Request password reset</summary><form method="post" action="{% url 'simulator-reset-request' %}">{% csrf_token %}<label for="reset-student-id">Student ID</label><input id="reset-student-id" name="student_id" value="{{ student_id_hint }}" placeholder="BERN00001/26" required><button type="submit">Notify instructor</button></form></details>{% if not user.is_authenticated %}<p><a href="{% url 'register' %}">Register as a new student</a> · <a href="{% url 'login' %}">Learning account login</a></p>{% endif %}</div>
+    <header class="simulator-login-heading"><div><h2 id="simulator-login-title">Login</h2><p>ICUMS training simulator access</p></div><button type="button" data-close-simulator-login aria-label="Close login">×</button></header>
+    <form method="post" action="{% url 'simulator-login' %}" class="simulator-login-form">{% csrf_token %}<label for="simulator-student-id">Student ID</label><input id="simulator-student-id" name="student_id" value="{{ student_id_hint }}" placeholder="BERN00001/26" autocomplete="username" required><label for="simulator-password">Monthly password</label><input id="simulator-password" name="password" type="password" autocomplete="current-password" required><button class="primary-button" type="submit">Continue</button></form>
+    <div class="simulator-login-help"><strong>Forgot ID or password?</strong><p>Your monthly password must be reset by an instructor or administrator after it expires.</p><details><summary>Request password reset</summary><form method="post" action="{% url 'simulator-reset-request' %}">{% csrf_token %}<label for="reset-student-id">Student ID</label><input id="reset-student-id" name="student_id" value="{{ student_id_hint }}" placeholder="BERN00001/26" required><button class="primary-button" type="submit">Notify instructor</button></form></details>{% if not user.is_authenticated %}<p><a href="{% url 'register' %}">Register as a new student</a> · <a href="{% url 'login' %}">Learning account login</a></p>{% endif %}</div>
   </dialog>
   <dialog class="simulator-login-dialog" id="simulator-review-dialog" aria-labelledby="simulator-review-title">
-    <div class="simulator-login-heading"><div><h2 id="simulator-review-title">Review student work</h2><p>Staff only · view only</p></div><button type="button" data-close-review-dialog aria-label="Close student review">×</button></div>
+    <header class="simulator-login-heading"><div><h2 id="simulator-review-title">Review student work</h2><p>Staff only · view only</p></div><button type="button" data-close-review-dialog aria-label="Close student review">×</button></header>
     {% if review_target %}<p class="frontend-note">You are reviewing <strong>{{ review_target.get_full_name|default:review_target.username }}</strong> (<strong>{{ review_target.student_id|default:"no student ID" }}</strong>). You can browse everything the student sees; saving, submitting, and deleting are disabled.</p>
-    <form method="post" action="{% url 'simulator-review-exit' %}">{% csrf_token %}<button type="submit">Exit student review</button></form>{% endif %}
-    <form method="post" action="{% url 'simulator-review-login' %}" class="simulator-login-form">{% csrf_token %}<label for="review-student">{% if review_target %}Switch to another student{% else %}Student ID or name{% endif %}</label><input id="review-student" name="student" placeholder="e.g. BERN00001/26" autocomplete="off" required><button type="submit">Open student records</button></form>
+    <form method="post" action="{% url 'simulator-review-exit' %}">{% csrf_token %}<button class="primary-button" type="submit">Exit student review</button></form>{% endif %}
+    <form method="post" action="{% url 'simulator-review-login' %}" class="simulator-login-form">{% csrf_token %}<label for="review-student">{% if review_target %}Switch to another student{% else %}Student ID or name{% endif %}</label><input id="review-student" name="student" placeholder="e.g. BERN00001/26" autocomplete="off" required><button class="primary-button" type="submit">Open student records</button></form>
     <div class="simulator-login-help"><strong>View only · no password needed</strong><p>You will browse the student's UCRs, consignment applications, and MDA applications exactly as they see them — read-only. A banner in the sidebar reminds you whose work you are viewing; use Exit review to return to your own workspace.</p></div>
   </dialog>
   <dialog class="cargo-dialog" id="cargo-search-dialog" aria-labelledby="cargo-dialog-title">
@@ -81,7 +81,7 @@
         <label class="cargo-option"><span><input type="radio" name="cargo_search_type" value="delivery_order"> DO / SR No.</span><input name="delivery_order_number" aria-label="Delivery order or shipping release number"></label>
       </div>
       <p class="dialog-status" id="cargo-search-status" role="status" aria-live="polite"></p>
-      <div class="dialog-actions"><button class="reset-button" type="reset">Reset</button><button class="search-button" type="submit">Search fictional cargo</button></div>
+      <div class="dialog-actions"><button class="secondary-button" type="reset">Reset</button><button class="primary-button" type="submit">Search fictional cargo</button></div>
     </form>
   </dialog>
   <dialog class="cargo-dialog boe-dialog" id="boe-search-dialog" aria-labelledby="boe-dialog-title">
@@ -93,7 +93,7 @@
         <label for="boe-trader-code">Importer/Exporter Code <span aria-hidden="true">*</span></label><input id="boe-trader-code" name="trader_code" required autocomplete="off">
       </div>
       <p class="dialog-status" id="boe-search-status" role="status" aria-live="polite"></p>
-      <div class="dialog-actions"><button class="reset-button" type="reset">Reset</button><button class="search-button" type="submit">Search BOE status</button></div>
+      <div class="dialog-actions"><button class="secondary-button" type="reset">Reset</button><button class="primary-button" type="submit">Search BOE status</button></div>
     </form>
   </dialog>
   <script>

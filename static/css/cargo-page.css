@@ -23,8 +23,10 @@
 .secondary-button, .reset-button { color: #475569; border: 1px solid #cbd5e1; background: #fff; }
 .cargo-table-wrap { overflow-x: auto; }
 .cargo-panel table { min-width: 38rem; }
-.cargo-panel th { padding: .7rem .58rem; color: #475569; border-bottom: 2px solid #e2e8f0; background: #eef0fd; font-size: .73rem; font-weight: 800; text-align: left; }
-.cargo-panel td { padding: .62rem .58rem; color: #64748b; background: #fff; font-size: .75rem; }
+/* Cell sizes come from the simulator type scale (simulator-portal.css); this
+   sheet only owns the panel's padding, ink and rules. */
+.cargo-panel th { padding: .7rem .58rem; color: #475569; border-bottom: 2px solid #e2e8f0; background: #eef0fd; text-align: left; }
+.cargo-panel td { padding: .62rem .58rem; color: #64748b; background: #fff; }
 .cargo-panel tbody tr:hover td { background: #eef0fd; }
 .empty-row { padding: .8rem !important; text-align: center !important; }
 .table-footer { display: flex; justify-content: space-between; gap: 1rem; padding-top: .7rem; color: var(--muted); font-size: .75rem; }
@@ -39,12 +41,17 @@
 .nested-active { padding-left: 3.2rem !important; font-weight: 750; }
 .clearance-menu-grid { display: grid; grid-template-columns: repeat(3, minmax(12rem, 1fr)); gap: .55rem; }
 .clearance-menu-grid a { padding: .78rem; color: var(--primary-dark); border: 1px solid #e2e8f0; border-radius: .5rem; background: linear-gradient(135deg, #fff, #eef0fd); text-decoration: none; font-size: .78rem; font-weight: 650; transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease; }
-.clearance-menu-grid a:hover { transform: translateY(-1px); border-color: #aab4ca; box-shadow: 0 4px 11px rgba(65,42,154,.09); }
+.clearance-menu-grid a:hover { transform: translateY(-1px); border-color: #aab4ca; box-shadow: 0 4px 11px color-mix(in srgb, var(--primary) 9%, transparent); }
 .declaration-search-grid { display: grid; grid-template-columns: 11rem minmax(12rem,1fr) 11rem minmax(12rem,1fr); gap: .72rem .85rem; align-items: center; }
 .declaration-search-grid label { color: #475569; font-size: .76rem; font-weight: 650; }
 .declaration-search-grid input, .declaration-search-grid select, .declaration-search-grid textarea { min-width: 0; width: 100%; }
 .document-add-button, .document-delete-button { margin-left: .4rem; padding: .42rem .68rem; border: 1px solid #cbd5e1; border-radius: .4rem; background: #fff; color: #475569; font-weight: 700; cursor: pointer; }
 .document-add-button:hover, .document-delete-button:hover { color: var(--primary-dark); border-color: #aab4ca; background: #eef0fd; }
+/* Row-action buttons beside a panel title (Search BOE list): same metrics as
+   the page-level action buttons, so the three read as one family. */
+.boe-list-actions { display: inline-flex; align-items: center; gap: .45rem; }
+.boe-list-actions button { min-height: 2.15rem; padding: .42rem .8rem; border-radius: .45rem; cursor: pointer; }
+.boe-list-actions button:disabled { opacity: .45; cursor: not-allowed; }
 .document-type-field { display: flex; gap: .3rem; }
 .document-type-field input, #document-rows td > input { min-width: 8rem; width: 100%; }
 .document-type-field button { min-width: 2.55rem; border: 1px solid #cbd5e1; border-radius: .42rem; color: #fff; background: linear-gradient(135deg, var(--teal), #059669); font-size: 1rem; }
@@ -57,18 +64,13 @@
 .code-dialog-card header button { border: 0; background: transparent; font-size: 1.5rem; cursor: pointer; }
 .code-dialog-help { margin: .65rem 0 0; color: #475569; font-size: .78rem; }
 /* ICUMS help dialogs: filter labels sit next to their inputs on one row. */
-/* ICUMS help dialogs: one filter row, labels beside their inputs,
-   fields unmistakably visible. */
-.code-search { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem 1rem; padding: 1rem 0; }
-.code-search label { display: inline-flex; align-items: center; gap: .5rem; color: #475569; font-size: .78rem; font-weight: 700; white-space: nowrap; }
-.code-search input, .code-search select { width: clamp(7rem, 14vw, 10rem); min-width: 7rem; min-height: 2.4rem; padding: .45rem .6rem; color: var(--ink); border: 1px solid #94a3b8; border-radius: .4rem; background: #fff; font: inherit; font-weight: 500; }
-.code-search input:focus, .code-search select:focus { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
-.code-search button { min-height: 2.55rem; padding: .55rem .9rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font-weight: 750; cursor: pointer; }
-.code-search > button { margin-left: auto; }
+/* ICUMS help dialogs: search criteria sit in the same bordered label/control
+   grid as the form panels (see .boe-box-grid below); only results tables and
+   pick lists live here. */
 #app-port-results tr { cursor: pointer; }
 #app-port-results tr.port-row-selected { background: color-mix(in srgb, var(--primary) 10%, #fff); box-shadow: inset 0 0 0 1px var(--primary); }
 .code-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .8rem; }
-#app-port-select { min-height: 2.55rem; padding: .55rem 1.4rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font-weight: 750; cursor: pointer; }
+.code-dialog-footer .primary-button { min-height: 2.55rem; padding: .55rem 1.4rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font-weight: 750; cursor: pointer; }
 #document-code-list tr { cursor: pointer; }
 #document-code-list tr:hover { background: #eef0fd; }
 .dialog-help { color: var(--muted); font-size: .76rem; }
@@ -145,8 +147,8 @@
 .primary-button:hover, .search-button:hover, .save-button:hover { background: var(--primary-dark); }
 .secondary-button, .reset-button, .document-add-button, .document-delete-button { background: #fff; border-color: #cbd5e1; }
 .cargo-panel table { border: 0; }
-.cargo-panel th { padding: .8rem; border: 0; border-bottom: 1px solid var(--line); color: #64748b; background: #f8fafc; font-size: .68rem; text-align: left; }
-.cargo-panel td { padding: .85rem .8rem; border: 0; border-bottom: 1px solid var(--line); font-size: .76rem; }
+.cargo-panel th { padding: .8rem; border: 0; border-bottom: 1px solid var(--line); color: #64748b; background: #f8fafc; text-align: left; }
+.cargo-panel td { padding: .85rem .8rem; border: 0; border-bottom: 1px solid var(--line); }
 .cargo-panel tbody tr:hover td { background: #eef0fd; }
 .cargo-panel .empty-row { padding: 2.25rem 1rem !important; color: #94a3b8; background: #f8fafc; }
 .table-footer { align-items: center; padding-top: 1rem; font-size: .7rem; }
@@ -154,7 +156,7 @@
 .clearance-menu-grid { gap: .8rem; }
 .clearance-menu-grid a { min-height: 3.5rem; display: flex; align-items: center; padding: 1rem; border: 1px solid var(--line); border-radius: .65rem; background: #fff; color: #475569; font-size: .8rem; }
 .clearance-menu-grid a:hover { color: var(--primary); background: #eef0fd; }
-.code-search button, .document-type-field button { background: var(--primary); }
+.document-type-field button { background: var(--primary); }
 .code-dialog-card { padding: 1.5rem; }
 .dialog-pager { flex-wrap: wrap; justify-content: flex-end; }
 @media (min-width: 62rem) and (max-width: 78rem) { .summary-grid, .cargo-form-grid, .declaration-search-grid { grid-template-columns: 9rem minmax(0, 1fr); } .summary-grid .full-field { grid-column: 2; } }
@@ -167,7 +169,6 @@
   .summary-grid .full-field { grid-column: 1; }
   .cargo-panel-title { flex-wrap: wrap; }
   .clearance-menu-grid { grid-template-columns: 1fr; }
-  .code-search { grid-template-columns: 1fr; }
   .table-footer { align-items: flex-start; }
 }
 
@@ -198,13 +199,23 @@ html[data-theme="dark"] .cargo-panel th { color: #aab4ca; background: #172033; b
 html[data-theme="dark"] .cargo-panel td { color: #aab4ca; background: var(--panel); border-color: var(--line); }
 html[data-theme="dark"] .cargo-panel tbody tr:hover td { background: #172033; }
 html[data-theme="dark"] .cargo-panel .empty-row { color: #aab4ca; background: #172033; }
+/* Rows that contain form fields stay neutral on hover; the tint is for data rows. */
+.cargo-panel tbody tr:hover:has(input, select, textarea) td { background: transparent; }
+html[data-theme="dark"] .cargo-panel tbody tr:hover:has(input, select, textarea) td { background: transparent; }
+/* BOE's item and document grids are editable rows inside a results-styled table,
+   which paints the tint on the row itself. Only inside a BOE tab: on a search
+   results page the same row is a selectable record and keeps the hover cue. */
+.boe-tab-panel .ucr-search-table tbody tr:hover:has(input, select, textarea) { background: transparent; }
+/* .ucr-view-table is always a bordered form grid, never a data list: a row tinting
+   reads as every field in it changing state at once, and the shared last-row reset
+   leaves the grid open at the bottom. Keep both edges as they are in the rest of the grid. */
+:is(.ucr-view-table, .cargo-panel .ucr-view-table) tbody tr:hover td { background: var(--panel); }
+html[data-theme="dark"] .cargo-panel .ucr-view-table tbody tr:hover td { background: var(--panel); }
+.ucr-view-table tbody tr:last-child td { border-bottom: 1px solid var(--line); }
 
-.cargo-main .summary-grid :is(input, select, textarea),
-.cargo-main .summary-grid > label,
-.cargo-main .declaration-search-grid :is(input, select, textarea),
-.cargo-main .declaration-search-grid > label,
-.cargo-main .cargo-panel :is(td, th, button, a) { font-size: .875rem; }
-.ucr-row-action { display: inline-flex; align-items: center; justify-content: center; min-height: 2rem; padding: .4rem .75rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
+/* Panel body text inherits one measure (see the type scale at the foot of this
+   sheet); the roles that need their own size set it explicitly there. */
+.ucr-row-action { display: inline-flex; align-items: center; justify-content: center; min-height: 2rem; padding: .4rem .75rem; color: #fff; border: 1px solid var(--primary); border-radius: .45rem; background: var(--primary); font: inherit; text-decoration: none; cursor: pointer; }
 .ucr-row-action:hover { background: var(--primary-dark); }
 .ucr-row-action-amend { color: var(--primary); background: var(--panel); }
 .ucr-row-action-amend:hover { color: #fff; }
@@ -212,20 +223,33 @@ html[data-theme="dark"] .cargo-panel .empty-row { color: #aab4ca; background: #1
 html[data-theme="dark"] .frontend-note { color: #f2d889; border-color: #4a3f1d; background: #2a2313; }
 html[data-theme="dark"] .gsa-permanent-note { color: #ffb5ad; background: #472522; }
 html[data-theme="dark"] .clearance-menu-grid a { color: var(--color-primary-300, #a8aded); background: var(--color-base-900, #0f172a); border-color: var(--line); }
-html[data-theme="dark"] .clearance-menu-grid a:hover { background: #262254; }
+html[data-theme="dark"] .clearance-menu-grid a:hover { background: var(--color-primary-900, #2b2860); }
 html[data-theme="dark"] .code-dialog-card { color: var(--ink); background: var(--panel); }
-html[data-theme="dark"] .code-search label { color: #cbd5e1; }
 html[data-theme="dark"] .dialog-total { color: #7fd8bd; }
 html[data-theme="dark"] .dialog-pager button { color: #cbd5e1; background: #172033; border-color: #2b3950; }
 html[data-theme="dark"] .dialog-pager button[aria-current="page"] { background: var(--primary); color: #fff; }
 
 /* Search UCR results table: colored header, ruled rows, per-column alignment. */
 .ucr-search-table, .cargo-table-wrap > table, .code-dialog table { width: 100%; border-collapse: collapse; }
-.ucr-search-table th, .cargo-table-wrap > table th, .code-dialog table th { padding: .6rem .75rem; background: #f8fafc; color: #64748b; font-size: .68rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; text-align: center; white-space: normal; overflow-wrap: anywhere; word-break: normal; hyphens: auto; line-height: 1.25; border-bottom: 1px solid #e2e8f0; }
-.ucr-search-table td, .cargo-table-wrap > table td, .code-dialog table td { padding: .55rem .75rem; font-size: .8rem; text-align: center; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.ucr-search-table th, .cargo-table-wrap > table:not(.ucr-view-table) th, .code-dialog table:not(.ucr-view-table) th { padding: .6rem .75rem; background: #f8fafc; color: #64748b; letter-spacing: .05em; text-transform: uppercase; text-align: center; white-space: normal; overflow-wrap: anywhere; word-break: normal; hyphens: auto; line-height: 1.25; border-bottom: 1px solid #e2e8f0; }
+.ucr-search-table td, .cargo-table-wrap > table:not(.ucr-view-table) td, .code-dialog table:not(.ucr-view-table) td { padding: .55rem .75rem; text-align: center; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .ucr-search-table td.cell-left { text-align: left; }
 .ucr-search-table tbody tr:hover, .cargo-table-wrap > table tbody tr:hover, .code-dialog table tbody tr:hover { background: #eef0fd; }
 html[data-theme="dark"] .ucr-search-table tbody tr:hover, html[data-theme="dark"] .cargo-table-wrap > table tbody tr:hover, html[data-theme="dark"] .code-dialog table tbody tr:hover { background: #172033; }
+.code-dialog table tbody tr:hover:has(input, select, textarea) { background: transparent; }
+html[data-theme="dark"] .code-dialog table tbody tr:hover:has(input, select, textarea) { background: transparent; }
+
+/* Dialog criteria grid (ICUMS reference): label cell + input cell per pair,
+   like the form grids — not the uppercase results-table band. */
+.code-dialog .ucr-view-table.boe-box-grid { width: 100%; border-collapse: collapse; }
+.code-dialog .ucr-view-table.boe-box-grid th { width: 15%; padding: .45rem .6rem; background: #eef0fd; color: #475569; border: 1px solid var(--line); font-size: .76rem; font-weight: 650; letter-spacing: normal; text-align: left; text-transform: none; line-height: 1.25; }
+.code-dialog .ucr-view-table.boe-box-grid td { padding: .45rem .6rem; border: 1px solid var(--line); text-align: left; vertical-align: middle; }
+html[data-theme="dark"] .code-dialog .ucr-view-table.boe-box-grid th, html.dark .code-dialog .ucr-view-table.boe-box-grid th { background: #172033; }
+html[data-theme="dark"] .code-dialog :is(input.boe-field, select.boe-field, textarea.boe-field), html.dark .code-dialog :is(input.boe-field, select.boe-field, textarea.boe-field) { background: var(--color-primary-900, #2b2860); color: var(--color-primary-50, #eef0fd); border-color: var(--color-base-600, #475569); -webkit-text-fill-color: var(--color-primary-50, #eef0fd); }
+.code-dialog-card .cargo-actions .ui-icon { width: 14px; height: 14px; }
+.code-dialog .boe-radio-group { display: flex; flex-wrap: wrap; gap: .35rem 1rem; }
+.code-dialog .boe-radio-group label { display: inline-flex; align-items: center; gap: .3rem; font-size: .78rem; color: #475569; }
+html[data-theme="dark"] .code-dialog .boe-radio-group label, html.dark .code-dialog .boe-radio-group label { color: #aab4ca; }
 
 /* Pickable UCR cell: underline on hover, single click populates. */
 .ucr-search-table td.ucr-pick-cell { cursor: pointer; }
@@ -237,7 +261,7 @@ html[data-theme="dark"] #mda-code-list tr:hover, html[data-theme="dark"] #gsa-pr
 
 /* Consignment Document application tabs */
 .app-tabs { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: 1rem; }
-.app-tab { min-height: 2.3rem; padding: .45rem 1rem; border: 1px solid var(--line); border-radius: .45rem .45rem 0 0; background: var(--panel); color: var(--ink); font-size: .8rem; font-weight: 700; cursor: pointer; }
+.app-tab { min-height: 2.3rem; padding: .45rem 1rem; border: 1px solid var(--line); border-radius: .45rem .45rem 0 0; background: var(--panel); color: var(--ink); cursor: pointer; }
 .app-tab[aria-current="tab"] { color: #fff; border-color: var(--primary); background: var(--primary); }
 .app-party-title { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin: 1.1rem 0 .3rem; font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; }
 .app-same-as { display: inline-flex; align-items: center; gap: .35rem; text-transform: none; letter-spacing: 0; font-weight: 600; }
@@ -294,13 +318,6 @@ html[data-theme="dark"] #app-tab-general [readonly] { color: #aab4ca; background
 .app-item-editor-grid > .full-field { grid-column: 2 / -1; }
 #app-item-editor[hidden], #app-item-list[hidden] { display: none; }
 .app-hs-dialog { width: min(96rem, 98vw); }
-.app-hs-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; padding: 1rem 0; }
-.app-hs-filters label { font-size: .78rem; font-weight: 700; display: inline-flex; align-items: center; gap: .45rem; }
-.app-hs-filters input { width: clamp(6rem, 12vw, 9.5rem); min-width: 0; }
-.app-hs-filters legend { font-size: .78rem; font-weight: 700; }
-.app-hs-filters fieldset { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .9rem; margin: 0; padding: .45rem .7rem; border: 1px solid var(--line); }
-.app-hs-filters fieldset label { font-weight: 500; }
-.app-hs-filters > button { margin-left: auto; min-height: 2.2rem; padding: .4rem .75rem; }
 .app-hs-dialog .cargo-table-wrap { max-height: 54vh; overflow: auto; border: 1px solid var(--line); border-radius: .45rem; }
 .app-hs-table { border-collapse: separate; border-spacing: 0; }
 .app-hs-table thead th { position: sticky; top: 0; z-index: 1; padding: .55rem .6rem; text-align: center; vertical-align: middle; line-height: 1.3; white-space: normal; }
@@ -329,9 +346,9 @@ html[data-theme="dark"] .app-items-table thead th { background: #1b1940; color: 
 #app-fob-check.app-fob-ok { color: #059669; }
 #app-fob-check.app-fob-mismatch { color: #b7791f; }
 html[data-theme="dark"] #app-fob-check.app-fob-ok { color: #7fd8bd; }
-#app-tab-item .app-items-table td input { width: 100%; min-width: 0; box-sizing: border-box; padding: .22rem .35rem; border: 1px solid transparent; border-radius: .3rem; background: transparent; color: inherit; font: inherit; }
-#app-tab-item .app-items-table td input:hover { border-color: var(--line); }
+#app-tab-item .app-items-table td input { width: 100%; min-width: 0; box-sizing: border-box; padding: .22rem .35rem; border: 1px solid #cbd5e1; border-radius: .3rem; background: transparent; color: inherit; font: inherit; }
 #app-tab-item .app-items-table td input:focus { outline: none; border-color: var(--primary); background: var(--panel); }
+html[data-theme="dark"] #app-tab-item .app-items-table td input { border-color: #475569; }
 
 .app-items-table tfoot th { background: var(--canvas, #eef0fd); color: var(--ink, #475569); font-weight: 700; border-top: 2px solid var(--line); padding: .45rem .4rem; overflow-wrap: normal; }
 .app-items-table tfoot th:first-child { text-align: center; }
@@ -369,7 +386,7 @@ html[data-theme="dark"] .app-confirm-detail-table td { color: #e2e8f0; backgroun
 .panel-actions form { margin: 0; }
 
 /* Staff student-review banner in the sidebar. */
-.portal-review-note { margin: .8rem 1rem 0; padding: .7rem .8rem; border: 1px solid var(--line); border-left: 3px solid var(--primary); border-radius: .4rem; background: rgba(81, 69, 205, .08); font-size: .78rem; }
+.portal-review-note { margin: .8rem 1rem 0; padding: .7rem .8rem; border: 1px solid var(--line); border-left: 3px solid var(--primary); border-radius: .4rem; background: color-mix(in srgb, var(--primary) 8%, transparent); font-size: .78rem; }
 .portal-review-note p { margin: 0 0 .5rem; line-height: 1.4; }
 .portal-review-note button { padding: .35rem .6rem; border: 1px solid var(--line); border-radius: .4rem; background: var(--panel); color: var(--ink); font: inherit; font-size: .75rem; cursor: pointer; }
 .portal-review-note button:hover { color: var(--primary-dark); border-color: #aab4ca; }
@@ -405,14 +422,14 @@ html[data-theme="dark"] #boe-tab-item [readonly] { color: #aab4ca; background: #
 
 /* --- BoE reference-style boxed grids (General/Invoice/Documents alignment) --- */
 .boe-box-grid th { width: 14%; white-space: normal; }
-.boe-box { display: inline-block; min-width: 5rem; padding: .3rem .55rem; border: 1px solid var(--line); border-radius: .35rem; background: color-mix(in srgb, var(--panel) 82%, transparent); color: var(--ink); font-size: .82rem; overflow-wrap: anywhere; }
+.boe-box { display: inline-block; min-width: 5rem; padding: .3rem .55rem; border: 1px solid var(--line); border-radius: .35rem; background: color-mix(in srgb, var(--panel) 82%, transparent); color: var(--ink); overflow-wrap: anywhere; }
 td > .boe-box { width: 100%; box-sizing: border-box; }
 .boe-req { color: #dc2626; font-weight: 600; }
 .boe-compound { display: inline-flex; align-items: stretch; gap: .4rem; width: 100%; }
 .boe-compound .boe-code-box { flex: 0 1 auto; min-width: 4.5rem; max-width: 12rem; text-align: center; white-space: nowrap; }
 .boe-compound .boe-name-box { flex: 1 1 auto; }
 .boe-lookup-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: .35rem; background: transparent; color: var(--muted); padding: 0 .45rem; font-size: .78rem; cursor: default; }
-.boe-field { width: 100%; box-sizing: border-box; padding: .3rem .55rem; border: 1px solid var(--line); border-radius: .35rem; background: var(--panel); color: var(--ink); font: inherit; font-size: .82rem; }
+.boe-field { width: 100%; box-sizing: border-box; padding: .3rem .55rem; border: 1px solid var(--line); border-radius: .35rem; background: var(--panel); color: var(--ink); font-family: inherit; }
 .boe-field:disabled { color: var(--muted); background: color-mix(in srgb, var(--panel) 82%, transparent); }
 .boe-money { display: flex; align-items: center; gap: .4rem; width: 100%; }
 .boe-money > input { flex: 1 1 0; min-width: 0; }
@@ -426,6 +443,16 @@ html[data-theme="dark"] .dialog-page-indicator { color: #aab4ca; }
 @media (max-width: 40rem) {
   .cargo-panel table { min-width: 100%; }
 }
+
+/* ── BOE and UCR roles on the shared type scale ──────────────────────────────
+   Measures come from the simulator type scale (simulator-portal.css); the tabs
+   and command buttons there already cover these pages. What is BOE/UCR's own is
+   the ink of its value boxes and the bare <label> that heads a search or
+   summary grid instead of a table header. */
+:is(.cargo-main, .cargo-dialog, .code-dialog) :is(.boe-field, .boe-box) { color: var(--ink); }
+:is(.cargo-main, .cargo-dialog, .code-dialog) .boe-field:disabled { color: var(--muted); }
+:is(.cargo-main, .cargo-dialog, .code-dialog) :is(.declaration-search-grid, .summary-grid) > label { font-size: .76rem; font-weight: 650; color: #475569; }
+html[data-theme="dark"] :is(.cargo-main, .cargo-dialog, .code-dialog) :is(.declaration-search-grid, .summary-grid) > label { color: #cbd5e1; }
 
 /* Phone layout for reference-style form tables. Preserve the four-column
    desktop/tablet grid, but present each label/control pair on its own row

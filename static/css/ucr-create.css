@@ -3,9 +3,6 @@
 .ucr-lookup-field { display:grid; grid-template-columns:minmax(4.5rem,.65fr) 2.6rem minmax(8rem,1.35fr); gap:.35rem; min-width:0; }
 .ucr-lookup-field input { min-width:0; }
 .ucr-lookup-field button { min-width:0; border:1px solid var(--line); border-radius:.4rem; color:var(--ink); background:var(--panel); cursor:pointer; }
-.ucr-country-filters { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; padding: 1rem 0; }
-.ucr-country-filters label { display: inline-flex; align-items: center; gap: .45rem; color: #475569; font-size: .78rem; font-weight: 700; }
-.ucr-country-filters input { width: clamp(6rem, 13vw, 9.5rem); min-width: 0; }
 #ucr-country-results tr { cursor:pointer; }
 #ucr-country-results tr:hover, #ucr-country-results tr:focus { background:var(--canvas); }
 .ucr-country-footer { display:flex; justify-content:space-between; padding:.8rem 0; }
@@ -46,7 +43,7 @@
 
 /* Read-only View UCR sections: bordered label/value grid like the reference. */
 .ucr-view-table { width:100%; border-collapse:collapse; }
-.ucr-view-table th, .ucr-view-table td { border:1px solid var(--line); padding:.45rem .6rem; font-size:.78rem; text-align:left; vertical-align:middle; overflow-wrap:anywhere; }
+.ucr-view-table th, .ucr-view-table td { border:1px solid var(--line); padding:.45rem .6rem; text-align:left; vertical-align:middle; overflow-wrap:anywhere; }
 .ucr-view-table th { width:10rem; font-weight:400; }
 .ucr-view-table td { min-width:0; }
 .ucr-view-table select { width:100%; }
@@ -100,10 +97,10 @@ html[data-theme="dark"] .ucr-form-panel .boe-box-grid th { color: #94a3b8; }
 
 html[data-theme="dark"] .ucr-form-panel :is(input:not([type="checkbox"]):not([type="file"]):not([type="submit"]):not([type="button"]), select, textarea),
 html[data-theme="dark"] .ucr-form-panel .ucr-party-search {
-  background: #262254;
-  color: #eef0fd;
-  border-color: #475569;
-  -webkit-text-fill-color: #eef0fd;
+  background: var(--color-primary-900, #2b2860);
+  color: var(--color-primary-50, #eef0fd);
+  border-color: var(--color-base-600, #475569);
+  -webkit-text-fill-color: var(--color-primary-50, #eef0fd);
 }
 html[data-theme="dark"] .ucr-form-panel :is(input, textarea)::placeholder { color: #64748b; opacity: 1; -webkit-text-fill-color: #64748b; }
 
@@ -117,20 +114,5 @@ html[data-theme="light"] .ucr-form-panel.view-mode :is(input:not([type="checkbox
   -webkit-text-fill-color: var(--ink);
 }
 
-/* The UCR search dialog's criteria labels render as plain grey cells (like the
-   Preparation Application's popup), not as the purple results-table band. */
-.code-dialog .ucr-view-table.boe-box-grid th {
-  background: #eef0fd;
-  color: #475569;
-  border: 1px solid #cbd5e1;
-  border-bottom: 1px solid #cbd5e1;
-  font-weight: 650;
-  text-align: left;
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-html[data-theme="dark"] .code-dialog .ucr-view-table.boe-box-grid th {
-  background: #172033;
-  color: #cbd5e1;
-  border-color: #475569;
-}
+/* Dialog criteria grids are styled in cargo-page.css so every dialog page
+   renders them identically, whether or not this sheet is loaded. */

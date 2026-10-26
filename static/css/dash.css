@@ -161,8 +161,10 @@
       .dash-bars li { grid-template-columns: minmax(6rem, 10rem) 1fr 2.5rem; gap: .5rem; font-size: .75rem; }
     }
 
-/* Student dashboard: action-led learning workspace. */
-.student-dashboard { max-width: 72rem; }
+/* Student dashboard: action-led learning workspace. It keeps its own reading
+   width, so it centres in the column the way the lesson pages do rather than
+   leaving the leftover all on one side. */
+.student-dashboard { max-width: 72rem; margin-inline: auto; }
 .student-next-action { padding: 1.2rem 1.25rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg); }
 .student-next-meta { display: flex; align-items: center; justify-content: space-between; gap: 1rem; color: var(--d-muted); font-size: .72rem; }
 .student-next-action h3 { margin: .8rem 0 .5rem; font-size: 1.15rem; }
@@ -533,4 +535,25 @@ html.dark .record-filter button.is-active, html[data-theme="dark"] .record-filte
 .record-empty b { color: inherit; font-size: .8rem; }
 @media (max-width: 60rem) {
   .record-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* The chrome caps its content column for reading pages. Both dash shells are
+   worked in as much as read, so when the application sidebar is collapsed the
+   column takes the room it is given instead of centring a 1536px strip in the
+   leftover. The padding is the one margin every page keeps to the window edge;
+   the practice desk opts out in practice-desk.css and fills to it.
+   Every surface that used to size itself against the old column follows this
+   one instead, otherwise the margin differs page to page: the simulator pages
+   and brand row at 100rem, the dashboard at 72rem, the course roadmap at 94rem,
+   the module overview at 88rem, the authoring builder at 92rem and the theory
+   assessment at 82rem. Only the lesson measure (.lrn.learning-workspace-page)
+   keeps its own width, and centres it, because a long paragraph stretched
+   across the window is not easier to read. */
+@media (min-width: 62.01rem) {
+  #content { max-width: none; padding-inline: calc(clamp(1.5rem, 4vw, 3.5rem) + 3px); }
+  .sim-page, .sim-brandbar, .student-dashboard { max-width: none; }
+  /* These surfaces are linked after this file by their own pages, so they need
+     the column's id to win against their own width. */
+  #content > .course-overview, #content > .mod-overview, #content > .authoring { width: 100%; }
+  #content > .quiz.learning-workspace-page { width: 100%; }
 }

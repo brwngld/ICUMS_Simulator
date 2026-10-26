@@ -110,7 +110,7 @@ th { color: var(--muted); white-space: normal; overflow-wrap: anywhere; word-bre
 .x-axis { display: flex; justify-content: space-between; padding-left: .4rem; color: var(--muted); font-size: .65rem; }
 .portal-footer { display: flex; justify-content: space-between; gap: 1rem; padding: .8rem 1.2rem; color: var(--muted); font-size: .7rem; }
 .cargo-dialog { width: min(58rem, calc(100% - 2rem)); padding: 0; color: var(--ink); border: 0; border-radius: .65rem; background: var(--panel); box-shadow: 0 1.5rem 5rem rgba(15,23,42,.35); }
-.simulator-login-dialog{width:min(31rem,calc(100% - 2rem));padding:0;border:1px solid #e2e8f0;background:#fff;color:#0f172a;box-shadow:0 1.5rem 5rem rgba(15,23,42,.48)}.simulator-login-dialog::backdrop{background:rgba(8,12,22,.76)}.simulator-login-heading{display:flex;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;border-bottom:1px solid #e2e8f0}.simulator-login-heading h2{margin:0;color:#0f172a;font-size:1.55rem}.simulator-login-heading p{margin:.25rem 0 0;color:#64748b;font-size:.78rem}.simulator-login-heading button{align-self:flex-start;width:2.4rem;height:2.4rem;border:0;background:#64748b;color:#fff;font-size:1.6rem}.simulator-login-form{display:grid;gap:.45rem;padding:1.25rem 1.8rem}.simulator-login-form label,.simulator-login-help label{font-size:.76rem;font-weight:700}.simulator-login-form input,.simulator-login-help input{width:100%;padding:.7rem;border:1px solid #cbd5e1}.simulator-login-form button,.simulator-login-help button{justify-self:end;margin-top:.65rem;padding:.65rem 1.5rem;border:0;border-radius:999px;background:#4236b6;color:#fff;font-weight:800}.simulator-login-help{margin:0 1.8rem 1.4rem;padding:1rem;border:1px solid #cbd5e1;font-size:.78rem}.simulator-login-help p{color:#64748b}.simulator-login-help summary{cursor:pointer;color:#dc2626;font-weight:700}.simulator-login-help form{display:grid;gap:.4rem;margin-top:.8rem}
+.simulator-login-dialog{width:min(31rem,calc(100% - 2rem));padding:0;border:1px solid #e2e8f0;background:#fff;color:#0f172a;box-shadow:0 1.5rem 5rem rgba(15,23,42,.48)}.simulator-login-dialog::backdrop{background:rgba(8,12,22,.76)}.simulator-login-heading{display:flex;justify-content:space-between;gap:1rem;padding:1rem 1.25rem;border-bottom:1px solid #e2e8f0}.simulator-login-heading h2{margin:0;color:#0f172a;font-size:1.55rem}.simulator-login-heading p{margin:.25rem 0 0;color:#64748b;font-size:.78rem}.simulator-login-heading button{align-self:flex-start;width:2.4rem;height:2.4rem;border:0;background:#64748b;color:#fff;font-size:1.6rem}.simulator-login-form{display:grid;gap:.45rem;padding:1.25rem 1.8rem}.simulator-login-form label,.simulator-login-help label{font-size:.76rem;font-weight:700}.simulator-login-form input,.simulator-login-help input{width:100%;padding:.7rem;border:1px solid #cbd5e1}.simulator-login-form button,.simulator-login-help button{justify-self:end;margin-top:.65rem;padding:.65rem 1.5rem;border:0;border-radius:999px;background:#4236b6;color:#fff}.simulator-login-help{margin:0 1.8rem 1.4rem;padding:1rem;border:1px solid #cbd5e1;font-size:.78rem}.simulator-login-help p{color:#64748b}.simulator-login-help summary{cursor:pointer;color:#dc2626;font-weight:700}.simulator-login-help form{display:grid;gap:.4rem;margin-top:.8rem}
 .cargo-dialog::backdrop { background: rgba(15,23,42,.72); backdrop-filter: blur(2px); }
 .cargo-dialog-form { margin: 0; }
 .dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; color: #fff; background: linear-gradient(115deg, var(--primary-dark), var(--primary), var(--teal)); }
@@ -125,7 +125,7 @@ th { color: var(--muted); white-space: normal; overflow-wrap: anywhere; word-bre
 .reference-parts { display: grid; grid-template-columns: auto minmax(6rem,2fr) auto minmax(3.5rem,1fr) auto minmax(3.5rem,1fr); gap: .4rem; align-items: center; color: var(--muted); }
 .dialog-status { min-height: 1.4rem; margin: 0; padding: 0 1.25rem; color: var(--primary-dark); font-size: .82rem; }
 .dialog-actions { display: flex; justify-content: flex-end; gap: .65rem; padding: 1rem 1.25rem; border-top: 1px solid var(--line); background: #f8fafc; }
-.dialog-actions button { padding: .65rem 1rem; border-radius: .35rem; font-weight: 700; }
+.dialog-actions button { padding: .65rem 1rem; border-radius: .35rem; }
 .reset-button { color: var(--ink); border: 1px solid #cbd5e1; background: #fff; }
 .search-button { color: #fff; border: 1px solid var(--primary); background: var(--primary); }
 .boe-dialog { width: min(52rem, calc(100% - 2rem)); }
@@ -185,7 +185,7 @@ th { color: var(--muted); white-space: normal; overflow-wrap: anywhere; word-bre
 .portal-main textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(90, 63, 192, .14), inset 0 1px 2px rgba(25, 34, 62, .03);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent), inset 0 1px 2px rgba(25, 34, 62, .03);
 }
 .portal-main input[readonly],
 .portal-main textarea[readonly] { color: #64748b; border-color: #cbd5e1; background: #f8fafc; box-shadow: none; }
@@ -465,10 +465,10 @@ html[data-theme="dark"] .view-mode-badge { border-color: var(--color-base-500, #
    state and the UCR form palette); placeholders stay dimmed. The submitted
    view-mode panels keep their pure-text values. */
 html[data-theme="dark"] .portal-main :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):not([type="button"]), select, textarea) {
-  background: #262254;
-  color: #eef0fd;
-  border-color: #475569;
-  -webkit-text-fill-color: #eef0fd;
+  background: var(--color-primary-900, #2b2860);
+  color: var(--color-primary-50, #eef0fd);
+  border-color: var(--color-base-600, #475569);
+  -webkit-text-fill-color: var(--color-primary-50, #eef0fd);
 }
 html[data-theme="dark"] .portal-main :is(input, textarea)::placeholder { color: #64748b; opacity: 1; -webkit-text-fill-color: #64748b; }
 html[data-theme="dark"] .portal-main :is(button, input[type="submit"])[disabled] { opacity: .45; }
@@ -520,7 +520,7 @@ html[data-theme="dark"] .date-range button:hover { border-color: var(--color-pri
 .simulator-login-heading button { border-radius: .5rem; background: #f8fafc; color: #475569; font-size: 1.1rem; border: 1px solid #e2e8f0; }
 .simulator-login-form button { border-radius: .5rem; }
 .cargo-panel th { text-transform: uppercase; letter-spacing: .04em; }
-.primary-button, .search-button, .save-button, .ucr-row-action { font-weight: 650; border-radius: .5rem; }
+.primary-button, .search-button, .save-button, .ucr-row-action { border-radius: .5rem; }
 .secondary-button, .reset-button, .document-add-button, .document-delete-button { font-weight: 600; border-radius: .5rem; border-color: #cbd5e1; }
 .secondary-button:hover, .reset-button:hover, .document-delete-button:hover { border-color: #c7cdf7; color: #4236b6; background: #eef0fd; }
 html[data-theme="dark"] .secondary-button, html[data-theme="dark"] .reset-button,
@@ -528,6 +528,5 @@ html[data-theme="dark"] .document-add-button, html[data-theme="dark"] .document-
 
 /* Lookup buttons carry the platform's inline SVG search icon; centre it
    inside the reference grid's compact square buttons. */
-.boe-lookup-btn, .ucr-party-search, .code-search button[type="button"] { display: inline-grid; place-items: center; }
+.boe-lookup-btn, .ucr-party-search { display: inline-grid; place-items: center; }
 .boe-lookup-btn .ui-icon, .ucr-party-search .ui-icon { width: 14px; height: 14px; }
-.code-search button .ui-icon { width: 14px; height: 14px; vertical-align: -2px; }

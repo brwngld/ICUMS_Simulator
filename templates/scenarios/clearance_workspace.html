@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Create BOE Declaration · ICUMS Simulator{% endblock %}
 {% block page_css %}
-  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261015-1">
+  <link rel="stylesheet" href="{% static 'css/cargo-page.css' %}?v=20261020-6">
   <link rel="stylesheet" href="{% static 'css/ucr-create.css' %}?v=20261021-2">
 {% endblock %}
 {% block simulator_content %}
@@ -33,19 +33,22 @@
 </div>
   <dialog id="boe-regime-dialog" class="code-dialog" aria-labelledby="boe-regime-title"><div class="code-dialog-card">
     <header><h2 id="boe-regime-title">Common Code</h2><button id="boe-regime-close" type="button" aria-label="Close regime search">×</button></header>
-    <div class="code-search"><label>Code <input id="boe-regime-filter-code" maxlength="2"></label><label>Code Name <input id="boe-regime-filter-name"></label><button id="boe-regime-filter-submit" type="button">{% include "components/icon.html" with name="search" %} Search</button></div>
+    <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody><tr><th>Code</th><td><input class="boe-field" id="boe-regime-filter-code" maxlength="2"></td><th>Code Name</th><td><input class="boe-field" id="boe-regime-filter-name"></td></tr></tbody></table>
+    <div class="cargo-actions"><button class="primary-button" id="boe-regime-filter-submit" type="button">{% include "components/icon.html" with name="search" %} Search</button></div>
     <div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Code</th><th>Code Name</th><th>Code Description</th></tr></thead><tbody id="boe-regime-results"></tbody></table></div>
     <div class="code-pagination" id="boe-regime-pagination"></div>
   </div></dialog>
   <dialog id="boe-cpc-dialog" class="code-dialog" aria-labelledby="boe-cpc-title"><div class="code-dialog-card">
     <header><h2 id="boe-cpc-title">CPC</h2><button id="boe-cpc-close" type="button" aria-label="Close CPC search">×</button></header>
-    <div class="code-search"><label>CPC Code &amp; Description <input id="boe-cpc-filter"></label><button id="boe-cpc-filter-submit" type="button">{% include "components/icon.html" with name="search" %} Search</button></div>
+    <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody><tr><th>CPC Code &amp; Description</th><td colspan="3"><input class="boe-field" id="boe-cpc-filter"></td></tr></tbody></table>
+    <div class="cargo-actions"><button class="primary-button" id="boe-cpc-filter-submit" type="button">{% include "components/icon.html" with name="search" %} Search</button></div>
     <div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>CPC</th><th>CPC Description</th></tr></thead><tbody id="boe-cpc-results"></tbody></table></div>
     <div class="code-pagination" id="boe-cpc-pagination"></div>
   </div></dialog>
   <dialog id="boe-zone-dialog" class="code-dialog" aria-labelledby="boe-zone-title"><div class="code-dialog-card">
     <header><h2 id="boe-zone-title">Common Code</h2><button id="boe-zone-close" type="button" aria-label="Close zone search">×</button></header>
-    <div class="code-search"><label>Code <input id="boe-zone-filter-code" maxlength="3"></label><label>Code Name <input id="boe-zone-filter-name"></label><button id="boe-zone-filter-submit" type="button">{% include "components/icon.html" with name="search" %} Search</button></div>
+    <table class="ucr-view-table boe-box-grid"><colgroup><col style="width:15%"><col style="width:35%"><col style="width:15%"><col style="width:35%"></colgroup><tbody><tr><th>Code</th><td><input class="boe-field" id="boe-zone-filter-code" maxlength="3"></td><th>Code Name</th><td><input class="boe-field" id="boe-zone-filter-name"></td></tr></tbody></table>
+    <div class="cargo-actions"><button class="primary-button" id="boe-zone-filter-submit" type="button">{% include "components/icon.html" with name="search" %} Search</button></div>
     <div class="cargo-table-wrap"><table><thead><tr><th>No.</th><th>Code</th><th>Code Name</th><th>Code Description</th></tr></thead><tbody id="boe-zone-results"></tbody></table></div>
     <div class="code-pagination" id="boe-zone-pagination"></div>
   </div></dialog>

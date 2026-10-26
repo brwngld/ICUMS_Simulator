@@ -153,8 +153,13 @@ def test_student_detail_is_marked_as_read_only_view_mode(client):
 
 @pytest.mark.django_db
 def test_credential_reveal_readonly_input_follows_shared_contract(client):
+    # Issuance is roster-scoped, so the student must be an enrolled account.
     instructor = make_instructor("credential-uniform-instructor")
     student = User.objects.create_user(username="credential-student", email="credential-student@example.test", password="student-pass")
+    student.groups.add(Group.objects.get(name="Student"))
+    programme = Programme.objects.create(name="Reveal Contract Programme", code="reveal-contract-programme")
+    version = ProgrammeVersion.objects.create(programme=programme, version=1)
+    Enrolment.objects.create(student=student, programme_version=version, enrolled_by=instructor)
 
     client.force_login(instructor)
     response = client.post(reverse("simulator-credential-issue", args=(student.pk,)))
