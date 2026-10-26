@@ -1,6 +1,14 @@
+from django.db import transaction
 from django.urls import path
 
 from . import desk, views
+
+
+def _creation_transaction(view):
+    """Creation routes run inside one transaction so the simulator record and
+    its Stage 3 creation-evidence ledger row (hybrid.SimulatorRecordCreation,
+    written by the post_save capture receiver) commit or roll back together."""
+    return transaction.atomic(view)
 
 urlpatterns = [
     # Integrated Practice Desk spike: discardable in one revert.
@@ -12,7 +20,7 @@ urlpatterns = [
     path("clearance/cpcs/", views.clearance_cpc_search, name="clearance-cpc-search"),
     path("clearance/reference/<slug:page_key>/", views.clearance_reference_page, name="clearance-reference-page"),
     path("clearance/boe/idf-lookup/", views.boe_idf_lookup, name="boe-idf-lookup"),
-    path("clearance/boe/create/", views.boe_create, name="boe-create"),
+    path("clearance/boe/create/", _creation_transaction(views.boe_create), name="boe-create"),
     path("clearance/boe/<int:declaration_id>/", views.boe_declaration, name="boe-declaration"),
     path("clearance/boe/<int:declaration_id>/save-draft/", views.boe_save_general_draft, name="boe-save-draft"),
     path("clearance/boe/<int:declaration_id>/submit/", views.boe_submit, name="boe-submit"),
@@ -29,12 +37,12 @@ urlpatterns = [
     path("single-window/stakeholders/service-providers/", views.training_service_providers, name="training-service-providers"),
     path("single-window/ucr/service-provider/", views.ucr_service_provider_lookup, name="ucr-service-provider-lookup"),
     path("single-window/ucr/stakeholders/", views.ucr_stakeholder_lookup, name="ucr-stakeholder-lookup"),
-    path("single-window/ucr/save/", views.ucr_save_declaration, name="ucr-save"),
+    path("single-window/ucr/save/", _creation_transaction(views.ucr_save_declaration), name="ucr-save"),
     path("single-window/ucr/submit/", views.ucr_submit_declaration, name="ucr-submit"),
     path("single-window/ucr/search/", views.single_window_search_ucr, name="single-window-search-ucr"),
     path("single-window/ucr/reference-search/", views.ucr_reference_search, name="ucr-reference-search"),
     path("single-window/ucr/<int:record_id>/", views.ucr_detail, name="ucr-detail"),
-    path("single-window/ucr/<int:record_id>/clone/", views.ucr_clone, name="ucr-clone"),
+    path("single-window/ucr/<int:record_id>/clone/", _creation_transaction(views.ucr_clone), name="ucr-clone"),
     path("single-window/ucr/<int:record_id>/amend/", views.ucr_amend, name="ucr-amend"),
     path("single-window/ucr/attachments/<int:attachment_id>/", views.ucr_attachment, name="ucr-attachment"),
     path("single-window/ucr/transfer/", views.single_window_reference_page, {"page_key": "transfer-ucr"}, name="single-window-transfer-ucr"),
@@ -58,7 +66,7 @@ urlpatterns = [
     path("single-window/application/mda/<int:request_id>/save/", views.mda_consignment_application_save, name="mda-consignment-application-save"),
     path("single-window/application/mda/<int:request_id>/submit/", views.mda_consignment_application_submit, name="mda-consignment-application-submit"),
     path("single-window/application/mda/delete/", views.mda_request_delete, name="mda-request-delete"),
-    path("single-window/application/consignment-document/save/", views.application_save_declaration, name="application-save"),
+    path("single-window/application/consignment-document/save/", _creation_transaction(views.application_save_declaration), name="application-save"),
     path("single-window/application/consignment-document/submit/", views.application_submit_declaration, name="application-submit"),
     path("single-window/application/master/create/", views.single_window_create_master_application, name="single-window-create-master-application"),
     path("single-window/application/master/search/", views.single_window_reference_page, {"page_key": "master-search"}, name="single-window-search-master-application"),

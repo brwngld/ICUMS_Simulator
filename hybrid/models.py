@@ -699,3 +699,52 @@ class JourneyConditionBinding(models.Model):
 
     def __str__(self):
         return f"{self.condition_id} · {self.role.key}"
+
+
+class SimulatorRecordCreation(models.Model):
+    """Authoritative server-side evidence that one registry record was created.
+
+    One row per created simulator record of an approved kind, written by the
+    capture receiver in ``hybrid.creation_ledger`` inside the same database
+    transaction as the record's INSERT. Every value is server-generated: the
+    owner comes from the creating view, the timestamp from ``auto_now_add`` —
+    nothing here is client-supplied.
+
+    The ledger is evidence only. It carries no journey, role or attempt
+    reference, and nothing in the journey engine reads it, so it cannot by
+    itself claim a role, satisfy a dependency or complete a journey.
+    Attribution (linking a ledger row to a journey attempt) is a separate,
+    later checkpoint. ``owner`` uses ``PROTECT`` so evidence outlives user
+    cleanup; ``record_id`` is kept as a plain integer reference — the ledger
+    is historical evidence and deliberately does not follow record deletion.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    record_kind = models.CharField(max_length=20)
+    record_id = models.PositiveBigIntegerField()
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="simulator_creation_evidence",
+    )
+    record_created_at = models.DateTimeField()
+    captured_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("record_created_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("record_kind", "record_id"),
+                name="unique_creation_evidence_per_record",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("owner", "record_kind"), name="creation_evidence_owner_kind"),
+        ]
+
+    def clean(self):
+        if self.record_kind not in VERIFY_RECORDS:
+            raise ValidationError({"record_kind": "Choose an approved simulator record kind."})
+
+    def __str__(self):
+        return f"{self.record_kind}:{self.record_id} · {self.owner_id}"
