@@ -1,0 +1,1 @@
+{% load static %}<img class="{{ css_class }}" src="{% if cover %}{{ cover.url }}{% elif variant == "module" %}{% static "image/default-module.png" %}{% else %}{% static "image/default-course.png" %}{% endif %}" alt="{{ alt }}">

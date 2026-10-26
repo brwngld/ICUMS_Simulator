@@ -9,7 +9,7 @@
   <div class="course-overview-layout">
     <main class="course-main">
       <section class="course-hero">
-        <img class="course-hero-image" src="{% if programme.cover_image %}{{ programme.cover_image.url }}{% else %}{% static 'image/gsa-course.png' %}{% endif %}" alt="{{ programme.name }} course illustration">
+        {% include "components/cover_image.html" with cover=programme.cover_image css_class="course-hero-image" alt=programme.name|add:" course illustration" %}
         <div class="course-hero-copy">
           <span class="course-badge">▣ Theoretical Training</span>
           <h1>{% if course %}{{ course.title }}{% else %}{{ programme.name }}{% endif %}</h1>
