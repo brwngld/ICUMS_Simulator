@@ -10,6 +10,7 @@ from django.contrib.messages import get_messages
 from django.urls import reverse
 
 from accounts.models import User
+from hybrid import journey_services
 from hybrid.models import (
     HybridCourse,
     HybridLesson,
@@ -544,3 +545,68 @@ def test_an_unused_role_can_be_deleted_normally(client, db):
 
     client.post(_detail(journey), {"action": "delete_role", "role_id": role.pk})
     assert not JourneyRecordRole.objects.filter(pk=role.pk).exists()
+
+
+# --- Live-integration regression: the real course editor's journey links -------
+# Added after the merged branch hit NoReverseMatch for 'hybrid-course-journeys'
+# on a live server still serving the pre-merge URLconf. These tests render the
+# real pages through the application's actual URL configuration, so a missing
+# journey route can never pass the suite again.
+
+
+@pytest.mark.django_db
+def test_the_live_course_editor_renders_and_its_organizer_link_resolves(client, db):
+    """Render /instructor/hybrid/courses/<id>/edit/ exactly as the live server
+    does; every journey URL it references must reverse and load."""
+    instructor = _instructor(db)
+    world = _world(db)
+    client.force_login(instructor)
+    editor_url = reverse("hybrid-course-edit", args=[world["course"].pk])
+
+    html = client.get(editor_url).content.decode()
+    organizer_href = reverse("hybrid-course-journeys", args=[world["course"].pk])
+    assert organizer_href in html
+
+    response = client.get(organizer_href)
+    assert response.status_code == 200
+    assert "New journey" in response.content.decode()
+
+
+def test_every_stage2_journey_url_name_resolves(db):
+    """The full Stage 2 journey URL surface registered and reversible."""
+    from django.urls import reverse
+
+    placeholder = "00000000-0000-0000-0000-000000000000"
+    no_args = ("hybrid-builder", "hybrid-roadmap")
+    for name in no_args:
+        assert reverse(name).startswith(("/instructor/hybrid/", "/hybrid/"))
+    one_uuid = (
+        "hybrid-course-edit",
+        "hybrid-course-journeys",
+        "hybrid-journey-detail",
+        "hybrid-journey-student",
+        "hybrid-journey-advance",
+        "hybrid-workspace",
+        "hybrid-acknowledge-theory",
+    )
+    for name in one_uuid:
+        assert reverse(name, args=[placeholder]).startswith(("/instructor/hybrid/", "/hybrid/"))
+    for name in ("hybrid-step-open", "hybrid-step-check", "hybrid-step-advance"):
+        assert reverse(name, args=[placeholder, 0]).startswith("/hybrid/attempts/")
+
+
+@pytest.mark.django_db
+def test_the_journey_detail_page_loads_through_the_live_urlconf(client, db):
+    instructor = _instructor(db)
+    world = _world(db)
+    journey = _journey(world)
+    journey_services.assign_step(journey, world["steps"][0])
+    client.force_login(instructor)
+
+    detail_url = reverse("hybrid-journey-detail", args=[journey.pk])
+    response = client.get(detail_url)
+    assert response.status_code == 200
+
+    # The detail page's own action forms must also reverse.
+    html = response.content.decode()
+    assert 'action="' + reverse("hybrid-journey-detail", args=[journey.pk]) + '"' in html
