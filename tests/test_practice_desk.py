@@ -168,6 +168,58 @@ def test_test_desk_builds_a_reference_guide_from_the_learners_real_ucr(client, s
 
 
 @pytest.mark.django_db
+def test_the_practical_mode_leads_with_the_step_card(client, signed_in):
+    """Approved 2026-10-22: the task and its action sit at the top of the practical
+     mode, the theory follows as a fold, and one header control moves between the
+     two modes - the in-panel next/back buttons are gone."""
+    _reference_ucr(signed_in.user)
+    body = client.get("/test").content.decode()
+    assert "What is UCR and How to Create UCR" in body
+    assert "Module 1" not in body
+    assert "Things needed before one can work on UCR" in body
+    assert "You need the importer&#x27;s TIN." in body
+    assert "You need scanned copies of the documents." in body
+    assert 'data-desk-mode="theory"' in body and 'data-desk-mode="practical"' in body
+    assert "data-desk-page-go" not in body
+    assert "Practical journey →" not in body and "← Theory" not in body
+    assert 'data-desk-page="theory practical"' in body
+    assert body.index("data-ucr-guide") < body.index('data-desk-fold="theory"')
+    assert body.index('data-desk-fold="theory"') < body.index("data-ucr-journey")
+    assert body.index("data-ucr-journey") < body.index("Things needed before one can work on UCR")
+    assert 'data-desk-page="practical" hidden' in body
+    assert "data-ucr-progress" not in body
+    script = (Path(settings.BASE_DIR) / "static" / "js" / "practice-desk.js").read_text(encoding="utf-8")
+    assert '"icums.desk.state"' in script
+    css = (Path(settings.BASE_DIR) / "static" / "css" / "practice-desk.css").read_text(encoding="utf-8")
+    assert ".desk-ucr-guide { background:" in css
+    assert ".desk-ucr-progress" not in css
+
+
+@pytest.mark.django_db
+def test_the_desk_can_run_without_a_simulator_beside_it(client, signed_in):
+    """Document teaching needs no playground page, so the frame can be left out."""
+    _reference_ucr(signed_in.user)
+    body = client.get("/test?sim=none").content.decode()
+    assert "<iframe" not in body
+    assert "No simulator page to show." in body
+    assert "data-ucr-guide" not in body
+    assert "You need BL, Invoice and Packing List." in body
+
+
+@pytest.mark.django_db
+def test_the_reference_practical_shows_one_page_of_ucr_theory(client, signed_in):
+    """The UCR explanation is a single page here, not a section of a lesson."""
+    _reference_ucr(signed_in.user)
+    body = client.get("/test").content.decode()
+    assert "UCR in ICUMS stands for Unique Consignment Reference." in body
+    assert "What It Is" in body and "Key Uses in ICUMS" in body
+    assert "certificates of origin (COO)" in body
+    assert "Ghana Revenue Authority" in body
+    assert "Section " not in body.split('class="desk-scroll"')[1]
+    assert "Lesson sections" not in body
+
+
+@pytest.mark.django_db
 def test_test_desk_does_not_expose_another_learners_reference_ucr(client, signed_in):
     other = User.objects.create_user(username="other-ucr-owner", password="test-password")
     _reference_ucr(other)

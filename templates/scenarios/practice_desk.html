@@ -7,47 +7,43 @@ real simulator page, framed same-origin so the playground is shown, not copied.
 Discardable in one revert together with scenarios/desk.py.
 {% endcomment %}
 
-{% block title %}{{ guide.scenario_title|default:"Guided practical" }} · ICUMS Simulator{% endblock %}
+{% block title %}{% firstof ucr_theory.title guide.scenario_title "Guided practical" %} · ICUMS Simulator{% endblock %}
 
 {% block extrastyle %}
   {{ block.super }}
   <link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261017-1">
   <link rel="stylesheet" href="{% static 'css/guide-panel.css' %}?v=20261016-1">
-  <link rel="stylesheet" href="{% static 'css/practice-desk.css' %}?v=20261022-1">
+  <link rel="stylesheet" href="{% static 'css/practice-desk.css' %}?v=20261022-6">
 {% endblock %}
 
 {% block content %}
   <div class="dash desk" data-desk>
     <header class="dash-head">
       <div>
-        <p class="dash-eyebrow">{% if theory %}Module {{ theory.module_number }} · Lesson {{ theory.lesson_number }} of {{ theory.lesson_total }} · {% endif %}{% if guide %}{{ guide.area }} · Guided practical{% else %}Guided practical{% endif %}</p>
-        <h1>{% if theory %}{{ theory.lesson.title }}{% elif guide %}{{ guide.scenario_title }}{% else %}Guided practical{% endif %}</h1>
+        {% if ucr_theory %}
+          <h1>{{ ucr_theory.title }}</h1>
+        {% else %}
+          <p class="dash-eyebrow">{% if theory %}Module {{ theory.module_number }} · Lesson {{ theory.lesson_number }} of {{ theory.lesson_total }} · {% endif %}{% if guide %}{{ guide.area }} · Guided practical{% else %}Guided practical{% endif %}</p>
+          <h1>{% if theory %}{{ theory.lesson.title }}{% elif guide %}{{ guide.scenario_title }}{% else %}Guided practical{% endif %}</h1>
+        {% endif %}
       </div>
-      <div class="desk-switch" role="group" aria-label="Panel">
-        <button class="dash-secondary" type="button" data-desk-pane-button="theory" aria-pressed="true">Theory &amp; Guide</button>
-        <button class="dash-secondary" type="button" data-desk-pane-button="sim" aria-pressed="false">Simulator</button>
+      <div class="desk-head-actions">
+        {% if ucr_theory %}
+        <div class="desk-modes" role="group" aria-label="Panel">
+          <button class="dash-secondary" type="button" data-desk-mode="theory" aria-pressed="true">Theory</button>
+          <button class="dash-secondary" type="button" data-desk-mode="practical" aria-pressed="false">Practical journey</button>
+        </div>
+        {% endif %}
+        <div class="desk-switch" role="group" aria-label="Panel">
+          <button class="dash-secondary" type="button" data-desk-pane-button="theory" aria-pressed="true">Theory &amp; Guide</button>
+          <button class="dash-secondary" type="button" data-desk-pane-button="sim" aria-pressed="false">Simulator</button>
+        </div>
       </div>
     </header>
 
-    <div class="desk-grid" data-desk-grid>
+    <div class="desk-grid" data-desk-grid{% if not desk.frame_url %} data-desk-pane="theory"{% endif %}>
       <section class="desk-pane desk-theory" data-desk-pane="theory" aria-label="Theory &amp; Guide">
-        {% if reference_guide %}
-          <article class="desk-card desk-card-step desk-ucr-guide" data-ucr-guide>
-            <div class="desk-ucr-progress" aria-label="Practical progress">
-              {% for unused in "123456" %}<span{% if forloop.first %} class="now"{% endif %} data-ucr-progress="{{ forloop.counter }}"></span>{% endfor %}
-            </div>
-            <p class="desk-card-label">UCR guided practical · Step <span data-ucr-step-number>1</span> of 6</p>
-            <h2 class="desk-card-title" data-ucr-step-title>Open Single Window</h2>
-            <p class="desk-card-text" data-ucr-step-instruction>Select Single Window in the simulator navigation.</p>
-            <div class="desk-ucr-reference"><strong>Source UCR</strong><code>{{ reference_guide.ucr }}</code></div>
-            <ul class="desk-ucr-checks" data-ucr-checks></ul>
-            <div class="desk-card-actions">
-              <button class="dash-primary" type="button" data-ucr-check>Check my work</button>
-              <button class="dash-secondary" type="button" data-ucr-hint>Hint</button>
-              <button class="dash-primary" type="button" data-ucr-next disabled>Next step →</button>
-            </div>
-            <p class="guide-feedback" data-ucr-feedback role="status">Complete the step in the workspace, then check your work.</p>
-          </article>
+        {% if ucr_theory %}
           {{ reference_guide|json_script:"desk-ucr-guide-data" }}
         {% elif guide %}
           <article class="desk-card desk-card-step" data-desk-guide>
@@ -82,7 +78,63 @@ Discardable in one revert together with scenarios/desk.py.
         {% endif %}
 
         <div class="desk-scroll">
-          {% if theory %}
+          {% if ucr_theory %}
+            {% if desk.frame_url %}
+            <article class="desk-card desk-ucr-guide" data-desk-page="practical" data-ucr-guide hidden>
+              <p class="desk-card-label">UCR guided practical · Step <span data-ucr-step-number>1</span> of 6</p>
+              <h2 class="desk-card-title" data-ucr-step-title>Open Single Window</h2>
+              <p class="desk-card-text" data-ucr-step-instruction>Select Single Window in the simulator navigation.</p>
+              <div class="desk-ucr-reference"><strong>Source UCR</strong><code>{{ reference_guide.ucr }}</code></div>
+              <ul class="desk-ucr-checks" data-ucr-checks></ul>
+              <div class="desk-card-actions">
+                <button class="dash-primary" type="button" data-ucr-check>Check my work</button>
+                <button class="dash-secondary" type="button" data-ucr-hint>Hint</button>
+                <button class="dash-primary" type="button" data-ucr-next disabled>Next step →</button>
+              </div>
+              <p class="guide-feedback" data-ucr-feedback role="status">Complete the step in the workspace, then check your work.</p>
+            </article>
+            {% endif %}
+
+            {# One reading, two uses: the page itself in theory mode, a fold under
+               the task in practical mode, so the concept stays reachable mid-step. #}
+            <details class="desk-card desk-card-theory" data-desk-page="theory practical" data-desk-fold="theory" open>
+              <summary class="desk-card-head">
+                <span class="desk-card-label">Theory</span>
+                <span class="desk-card-toggle" aria-hidden="true">Show / hide</span>
+              </summary>
+              <div class="desk-card-body">
+                <div class="lrn-copy">
+                  <p>{{ ucr_theory.lead }}</p>
+                  {% for group in ucr_theory.sections %}
+                    <h3>{{ group.heading }}</h3>
+                    <ul>
+                      {% for item in group.items %}
+                        <li><strong>{{ item.lead }}:</strong> {{ item.text }}</li>
+                      {% endfor %}
+                    </ul>
+                  {% endfor %}
+                </div>
+              </div>
+            </details>
+
+            {% if desk.frame_url %}
+            <article class="desk-card desk-card-journey" data-desk-page="practical" hidden>
+              <ol class="desk-ucr-journey" data-ucr-journey></ol>
+            </article>
+            {% endif %}
+
+            <article class="desk-card" data-desk-page="practical" hidden>
+              <p class="desk-card-label">Practical journey</p>
+              <div class="lrn-copy">
+                <h3>{{ ucr_howto.label }}</h3>
+                <ol>
+                  {% for item in ucr_howto.items %}
+                    <li>{{ item }}</li>
+                  {% endfor %}
+                </ol>
+              </div>
+            </article>
+          {% elif theory %}
             <details class="desk-card desk-card-theory" open>
               <summary class="desk-card-head">
                 <span class="desk-card-label">Section {{ theory.section_number }} · Theory</span>
@@ -115,12 +167,7 @@ Discardable in one revert together with scenarios/desk.py.
             </nav>
           {% endif %}
 
-          {% if reference_guide %}
-            <article class="desk-card desk-card-journey">
-              <h3 class="desk-card-title">Practical journey</h3>
-              <ol class="desk-ucr-journey" data-ucr-journey></ol>
-            </article>
-          {% elif guide %}
+          {% if guide and not ucr_theory %}
             <article class="desk-card desk-card-journey">
               <h3 class="desk-card-title">Lesson journey</h3>
               <p class="desk-card-text">{{ desk.steps_done }} of {{ guide.step_total }} completed</p>
@@ -159,5 +206,5 @@ Discardable in one revert together with scenarios/desk.py.
       </section>
     </div>
   </div>
-  <script src="{% static 'js/practice-desk.js' %}?v=20261022-12" defer></script>
+  <script src="{% static 'js/practice-desk.js' %}?v=20261022-17" defer></script>
 {% endblock %}

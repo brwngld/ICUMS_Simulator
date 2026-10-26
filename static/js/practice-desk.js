@@ -4,13 +4,15 @@
   same engine endpoints, so a check is still the server's answer about the
   attempt, never the button's.
 
-  Nothing here reloads the simulator frame. Width and pane choice are the desk's
-  own state, kept in the tab; unsaved fields inside the frame stay untouched.
+  Nothing here reloads the simulator frame. Width, pane choice and how far the
+  learner got are the desk's own state, kept in the tab; unsaved fields inside
+  the frame stay untouched.
 */
 (function () {
   "use strict";
 
   var WIDTH_KEY = "icums.desk.left";
+  var STATE_KEY = "icums.desk.state";
   var MIN_LEFT = 320;
   var MIN_RIGHT = 352;
   var STEP = 24;
@@ -58,6 +60,39 @@
     }
     if (saved) {
       setLeftWidth(Number(saved));
+    }
+  }
+
+  /* Where the learner had got to: which left-pane page is showing and how far
+     through the practical. Kept in the tab, so a refresh continues and a new tab
+     starts again at the theory. The reading page, not the workspace, is what is
+     remembered - the simulator frame's own unsaved fields stay as they were. */
+  function deskState() {
+    var saved;
+    try {
+      saved = window.sessionStorage.getItem(STATE_KEY);
+    } catch (error) {
+      return null;
+    }
+    if (!saved) {
+      return null;
+    }
+    try {
+      return JSON.parse(saved);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function saveDeskState(patch) {
+    var state = deskState() || {};
+    Object.keys(patch).forEach(function (key) {
+      state[key] = patch[key];
+    });
+    try {
+      window.sessionStorage.setItem(STATE_KEY, JSON.stringify(state));
+    } catch (error) {
+      /* storage unavailable in this tab: the desk still works, it just starts from the theory again */
     }
   }
 
@@ -136,7 +171,11 @@
     style.id = "desk-embed-style";
     style.textContent = FRAME_HIDE.map(function (selector) {
       return selector + " { display: none !important; }";
-    }).join("\n") + "\n#page { min-height: 0; }";
+    }).join("\n") + "\n#page { min-height: 0; }\n"
+      /* The workspace scrolls without a bar of its own; the desk pane beside it
+         has none either, so the two read as one surface. */
+      + "html, body { scrollbar-width: none; }\n"
+      + "::-webkit-scrollbar { width: 0; height: 0; display: none; }";
     doc.head.appendChild(style);
     trimBranch(doc, "nav-sidebar", "page");
     trimBranch(doc, "header-inner", "main");
@@ -154,8 +193,12 @@
   var ucrDataNode = document.getElementById("desk-ucr-guide-data");
   if (ucrGuide && ucrDataNode && frame) {
     var ucrData = JSON.parse(ucrDataNode.textContent);
-    var ucrStep = 0;
-    var ucrPassed = [false, false, false, false, false, false];
+    var ucrState = deskState();
+    var ucrStep = ucrState && typeof ucrState.step === "number" && ucrState.step >= 0 && ucrState.step < 6
+      ? Math.trunc(ucrState.step) : 0;
+    var ucrPassed = [0, 1, 2, 3, 4, 5].map(function (index) {
+      return Boolean(index <= ucrStep && ucrState && Array.isArray(ucrState.passed) && ucrState.passed[index]);
+    });
     var ucrSteps = [
       { title: "Open Single Window", instruction: "Select Single Window in the simulator navigation.", hint: "Use the Single Window link in the top navigation of the workspace.", checks: ["Single Window UCR form is open"] },
       { title: "Select the regime", instruction: "Select Import as the Regime Type.", hint: "Regime Type is at the top of the UCR Details form. Choose IM, Import.", checks: ["Regime Type is IM, Import"] },
@@ -227,9 +270,6 @@
       ucrGuide.querySelector("[data-ucr-checks]").innerHTML = step.checks.map(function (label, index) {
         return '<li class="' + (results && results[index] ? "done" : "") + '">' + label + "</li>";
       }).join("");
-      Array.prototype.forEach.call(desk.querySelectorAll("[data-ucr-progress]"), function (bar, index) {
-        bar.className = index < ucrStep ? "done" : (index === ucrStep ? "now" : "");
-      });
       var journey = desk.querySelector("[data-ucr-journey]");
       if (journey) {
         journey.innerHTML = ucrTitles.map(function (label, index) {
@@ -243,6 +283,7 @@
       var results = validateUcrStep();
       var passed = results.every(Boolean);
       ucrPassed[ucrStep] = passed;
+      saveDeskState({ step: ucrStep, passed: ucrPassed });
       ucrFeedback.textContent = passed ? (ucrStep === ucrSteps.length - 1 ? "Practical complete. All exporter details match the source UCR." : "Check passed. Continue to the next step.") : "Not yet. Complete the unchecked item in the workspace and try again.";
       ucrFeedback.setAttribute("data-tone", passed ? "pass" : "fail");
       renderUcrGuide(results);
@@ -254,6 +295,7 @@
     ucrNextButton.addEventListener("click", function () {
       if (!ucrPassed[ucrStep] || ucrStep >= ucrSteps.length - 1) { return; }
       ucrStep += 1;
+      saveDeskState({ step: ucrStep, passed: ucrPassed });
       ucrFeedback.textContent = "Complete the step in the workspace, then check your work.";
       ucrFeedback.setAttribute("data-tone", "");
       renderUcrGuide();
@@ -366,6 +408,52 @@
         window.location.assign(href);
       }
     });
+  }
+
+  /* The left pane is read in two modes, chosen from the header: the theory on
+     its own page, then the practical journey with the step card at the top so
+     its action never sits below the reading. The theory card is the same one in
+     both - the page in theory mode, folded under the task in practical mode.
+     The mode reached is kept in the tab, so a refresh comes back to it. */
+  var pageCards = desk.querySelectorAll("[data-desk-page]");
+  var pageScroll = desk.querySelector(".desk-scroll");
+  var modeButtons = desk.querySelectorAll("[data-desk-mode]");
+  var pageCount = {};
+
+  function pagesOf(card) {
+    return card.getAttribute("data-desk-page").split(" ");
+  }
+
+  Array.prototype.forEach.call(pageCards, function (card) {
+    pagesOf(card).forEach(function (name) { pageCount[name] = true; });
+  });
+
+  function showPage(name) {
+    Array.prototype.forEach.call(pageCards, function (card) {
+      card.hidden = pagesOf(card).indexOf(name) < 0;
+      if (card.hasAttribute("data-desk-fold")) {
+        card.open = card.getAttribute("data-desk-fold") === name;
+      }
+    });
+    Array.prototype.forEach.call(modeButtons, function (button) {
+      button.setAttribute("aria-pressed", String(button.getAttribute("data-desk-mode") === name));
+    });
+    if (pageScroll) {
+      pageScroll.scrollTop = 0;
+    }
+    saveDeskState({ page: name });
+  }
+
+  Array.prototype.forEach.call(modeButtons, function (button) {
+    button.addEventListener("click", function () {
+      showPage(button.getAttribute("data-desk-mode"));
+    });
+  });
+
+  var savedState = deskState();
+  var savedPage = savedState && savedState.page;
+  if (savedPage && savedPage !== "theory" && pageCount[savedPage]) {
+    showPage(savedPage);
   }
 
   var paneButtons = desk.querySelectorAll("[data-desk-pane-button]");

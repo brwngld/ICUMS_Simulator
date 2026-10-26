@@ -13,6 +13,7 @@ def _creation_transaction(view):
 urlpatterns = [
     # Integrated Practice Desk spike: discardable in one revert.
     path("practice-desk/", desk.practice_desk, name="practice-desk"),
+    path("roadmap/", desk.practical_roadmap, name="practical-roadmap"),
     path("cargo/direct-delivery/", views.cargo_direct_delivery, name="cargo-direct-delivery"),
     path("cargo/service-request/", views.cargo_service_request, name="cargo-service-request"),
     path("cargo/reference/<slug:page_key>/", views.cargo_reference_page, name="cargo-reference-page"),

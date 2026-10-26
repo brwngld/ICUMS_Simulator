@@ -9,9 +9,12 @@ anything. Progression is untouched: the desk renders the same guide panel and
 
 The footprint is small on purpose, so the spike can be dropped in one revert:
 ``scenarios/desk.py``, ``templates/scenarios/practice_desk.html``,
-``static/css/practice-desk.css``, ``static/js/practice-desk.js``, the two lines
-in ``scenarios/urls.py``, the ``/test`` route in ``config/urls.py``, and the
-framing gate in ``scenarios/views.py``. The theory side reads lesson content and
+``static/css/practice-desk.css``, ``static/js/practice-desk.js``, the two lines in
+``scenarios/urls.py``, the ``/test`` route in ``config/urls.py``, and the framing
+gate in ``scenarios/views.py``. ``practical_roadmap`` below, its template
+``scenarios/practical_roadmap.html`` and its url line are the same kind of spike:
+a redesign of the practical landing shown on its own path, ``?done=N`` previewing
+how far the learner has got. The theory side reads lesson content and
 writes nothing — no progress row is created or moved here, so a desk visit
 cannot complete a section; that stays on the lesson page. Reading a locked
 section is equally harmless, because locking is enforced by the writes on that
@@ -21,7 +24,8 @@ Everything is steered from the url, so no code change is needed to pair a page
 with a lesson:
 ``/practical/practice-desk/?sim=<simulator page>&lesson=<module code>/<slug>&section=<slug>&programme=<code>``,
 or ``/test`` for the same page with the first playground page and the first
-lesson of the current programme filled in.
+lesson of the current programme filled in. ``sim=none`` leaves the simulator out
+altogether, for the reading and How To pages.
 """
 
 from types import SimpleNamespace
@@ -30,9 +34,11 @@ from urllib.parse import urlencode
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 from django.urls import NoReverseMatch, reverse
+from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET
 
+from accounts.models import SimulatorCredential
 from core.admin_dashboard import _simulator_navigation, render_student_page
 from learning.models import Lesson, Module
 from learning.views import _annotate_sections, _lesson_sections, _resolve_current_section
@@ -42,7 +48,8 @@ from progress.models import LessonProgress
 from . import guides
 from .bindings import SIMULATOR_BINDING_ROUTES
 from .models import ScenarioAttempt, UcrDeclaration
-from .views import _effective_owner, _is_simulator_author
+from .services import practical_is_unlocked
+from .views import _effective_owner, _enrolment_with_access, _is_simulator_author, simulator_access_required
 
 REFERENCE_UCR = "KGHTESTUCR260000014"
 
@@ -56,6 +63,11 @@ PLAYGROUND_AREAS = ("/practical/cargo", "/practical/clearance", "/practical/sing
 #: the desk from aiming its own frame at a page it should not show.
 FRAMEABLE_PATHS = ("/practical/",)
 
+#: ``?sim=none`` runs the desk without a simulator beside it. The theory and How
+#: To pages have no use for one; the step checks read the framed document, so
+#: they are inert on this setting until a page is named again.
+NO_FRAME = "none"
+
 #: Lesson sections readable beside the simulator. Answering practice questions
 #: needs the lesson page's own POST flow, so the desk links out to that.
 DESK_SECTIONS = ("objectives", "concepts", "example", "note")
@@ -66,6 +78,71 @@ SECTION_COPY_CLASS = {
     "concepts": "lrn-copy",
     "example": "lrn-copy lrn-scenario",
     "note": "lrn-key",
+}
+
+#: The theory shown beside the UCR practical: one page, no section machinery.
+#: Body copy is Bernard's, dictated 2026-10-22; the two headings are his too.
+#: Rendered with ``lesson.css``'s own ``.lrn-copy``, so nothing new is styled.
+UCR_THEORY = {
+    "title": "What is UCR and How to Create UCR",
+    "lead": "UCR in ICUMS stands for Unique Consignment Reference.",
+    "sections": [
+        {
+            "heading": "What It Is",
+            "items": [
+                {
+                    "lead": "Definition",
+                    "text": "An exclusive, globally unique reference number assigned to a shipment or cargo "
+                    "movement within Ghana's Integrated Customs Management System (ICUMS).",
+                },
+                {
+                    "lead": "Electronic Data Binder",
+                    "text": "It acts as a digital file that tracks an international trade transaction from the "
+                    "initial order all the way to final delivery.",
+                },
+                {
+                    "lead": "Single Window Access",
+                    "text": "Importers, exporters, or declarants create and manage it directly inside the ICUMS "
+                    "platform without switching between different systems.",
+                },
+            ],
+        },
+        {
+            "heading": "Key Uses in ICUMS",
+            "items": [
+                {
+                    "lead": "Cargo Tracking & Identification",
+                    "text": "Allows customs authorities and traders to easily identify, monitor, and trace goods.",
+                },
+                {
+                    "lead": "Document Linking",
+                    "text": "Serves as the primary reference key to attach and link trade documents\u2014such as "
+                    "invoices, bills of lading, packing lists, and certificates of origin (COO)\u2014to a specific "
+                    "consignment.",
+                },
+                {
+                    "lead": "Audit & Reconciliation",
+                    "text": "Used by enforcement and revenue agencies (like the Ghana Revenue Authority) for "
+                    "auditing, compliance checks, and customs clearance reconciliation.",
+                },
+            ],
+        },
+    ],
+}
+
+
+#: The How To page shown after the theory: what to have ready before a UCR is
+#: started. Bernard dictates this list; add an item and it shows on the page.
+UCR_HOWTO = {
+    "label": "Things needed before one can work on UCR",
+    "items": [
+        "You need BL, Invoice and Packing List.",
+        "You need the importer's TIN.",
+        "You need scanned copies of the documents.",
+        "You need to check the importer's details against that of the TIN. If the names match, "
+        "then you are good to go, but if not, kindly draw the attention of the one who gave you "
+        "the work, probably your boss.",
+    ],
 }
 
 
@@ -235,6 +312,7 @@ def practice_desk(request):
     enrolment = requested_enrolment(request)
     pages = _playground_pages(request)
     frame_path = _frame_path(request, pages)
+    no_frame = (request.GET.get("sim") or "").strip().lower() == NO_FRAME
 
     attempt = None
     if frame_path:
@@ -250,7 +328,7 @@ def practice_desk(request):
         attempt = ScenarioAttempt.objects.filter(
             enrolment__student=request.user, status=ScenarioAttempt.Status.IN_PROGRESS
         ).select_related("current_state", "scenario_version", "enrolment").order_by("-started_at", "id").first()
-    if not frame_path:
+    if not frame_path and not no_frame:
         frame_path = _bound_path(attempt) or (pages[0]["url"] if pages else "")
 
     # The page the frame shows decides which programme its links resolve on: an
@@ -270,6 +348,8 @@ def practice_desk(request):
         },
         "guide": panel,
         "reference_guide": reference_guide,
+        "ucr_theory": UCR_THEORY if reference_guide else None,
+        "ucr_howto": UCR_HOWTO if reference_guide else None,
         "enrolment": enrolment,
         "parts": {"paged": False},
     }
@@ -349,3 +429,123 @@ def test_desk(request):
     request.GET = params
     request._show_reference_ucr_guide = True
     return practice_desk(request)
+
+
+#: Provisional copy for the roadmap spike. Bernard dictates the wording; these
+#: strings are the only place it lives so a pass over them is one edit.
+ROADMAP_COPY = {
+    "title": "Guided simulator practice",
+    "description": "Work through the same transactions a clearing agent works through in ICUMS, one checked step at a time, with the live page open beside you.",
+    "doing": "Re-enter a real UCR in the Single Window form, step by step, and save it as a draft.",
+    "skills": [
+        "Read a consignment from its source documents",
+        "Key importer and exporter records accurately",
+        "Keep a clean draft for the next session",
+    ],
+}
+
+CREDENTIAL_LABELS = {"active": "Active", "expiring": "Expiring soon", "expired": "Expired", "none": "Not issued"}
+
+
+def _roadmap_plan(reference):
+    """The six UCR steps, mirrored from the ``ucrSteps`` array in
+    ``static/js/practice-desk.js``. That text lives in the browser today, so this
+    page cannot list it from a model - one of the two has to become the source.
+    """
+    def value(key):
+        return str((reference or {}).get(key) or "—")
+
+    return [
+        {"title": "Open Single Window", "short": "Open Single Window", "instruction": "Select Single Window in the simulator navigation.", "checks": ["Single Window UCR form is open"]},
+        {"title": "Select the regime", "short": "Select Import", "instruction": "Select Import as the Regime Type.", "checks": ["Regime Type is IM, Import"]},
+        {"title": "Enter the exporter details", "short": "Exporter details", "instruction": "Scroll to Exporter and enter the values from the source UCR.", "checks": [f"Exporter name: {value('exporter_name')}", f"Country: {value('exporter_country')}", f"Tel. No.: {value('exporter_phone')}", f"Contact Person: {value('exporter_contact')}", f"Contact Designation: {value('exporter_designation')}"]},
+        {"title": "Enter the importer details", "short": "Importer details", "instruction": "Enter the importer TIN and use its search button. In the pop-up, select either the TIN or name to populate the name and address. If the address is blank, enter it manually.", "checks": [f"TIN: {value('importer_tin')}", f"Name: {value('importer_name')}", f"Country: {value('importer_country')}", f"Address: {value('importer_address')}", f"Tel. No.: {value('importer_phone')}", f"Contact Person: {value('importer_contact')}", f"Contact No.: {value('importer_contact_no')}", f"Contact Designation: {value('importer_designation')}"]},
+        {"title": "Enter the consignment details", "short": "Consignment details", "instruction": "Scroll to Consignment Details and enter the values from the source UCR.", "checks": [f"Goods description: {value('goods')}", f"Country of Origin: {value('origin')}", f"Country of Destination: {value('destination')}", f"Transport Mode: {value('transport')}"]},
+        {"title": "Save as draft", "short": "Save as draft", "instruction": "Select Save to store the UCR as a draft and finish this practical.", "checks": ["Draft saved with a TEMPUCR number"]},
+    ]
+
+
+def _credential_summary(user):
+    """The learner's simulator credential, stated the way the account page states it."""
+    credential = SimulatorCredential.objects.filter(user=user).first()
+    state = "none"
+    if credential and credential.expires_at:
+        remaining = (credential.expires_at - timezone.now()).total_seconds()
+        state = "expired" if remaining <= 0 else ("expiring" if remaining <= 7 * 86400 else "active")
+    expires = credential.expires_at if credential else None
+    return {
+        "state": state,
+        "state_label": CREDENTIAL_LABELS[state],
+        "expires_label": timezone.localdate(expires).strftime("%d %b %Y").lstrip("0") if expires else "—",
+        "url": reverse("account-credential"),
+    }
+
+
+@login_required
+@simulator_access_required
+def practical_roadmap(request):
+    """The practical landing in the theory roadmap frame, filled from this desk."""
+    if needs_disclaimer_acceptance(request.user):
+        return redirect("disclaimer")
+    enrolment, response = _enrolment_with_access(request)
+    if response:
+        return response
+    reference = _reference_ucr_guide(request)
+    pages = _playground_pages(request)
+    plan = _roadmap_plan(reference)
+    try:
+        current = max(0, min(len(plan), int(request.GET.get("done") or 0)))
+    except ValueError:
+        current = 0
+    create_path = (reference or {}).get("create_path") or (pages[0]["url"] if pages else reverse("scenario-list"))
+    desk_url = programme_href(
+        "{}?{}".format(reverse("practice-desk"), urlencode({"sim": create_path})), enrolment
+    )
+    steps = []
+    for index, step in enumerate(plan):
+        state = "done" if index < current else ("current" if index == current else "locked")
+        steps.append({**step, "state": state, "clickable": state in ("done", "current"), "url": desk_url,
+                      "check_count": len(step["checks"])})
+    practicals = [{
+        "title": "Create a UCR in Single Window",
+        "area": "Single Window",
+        "objective": "{} supplies every value this practical re-enters.".format((reference or {}).get("ucr") or "A source UCR"),
+        "steps": steps,
+        "step_count": len(steps),
+        "done_count": current,
+    }]
+    return render_student_page(request, "scenarios/practical_roadmap.html", {
+        "proto": {
+            **ROADMAP_COPY,
+            "practicals": practicals,
+            "step_total": len(steps),
+            "done_count": current,
+            "locked_count": max(len(steps) - current - 1, 0),
+            "check_total": sum(len(step["checks"]) for step in plan),
+            "percentage": round(current / len(steps) * 100) if steps else 0,
+            "pages": pages,
+            "page_groups": _page_groups(pages),
+            "howto_items": UCR_HOWTO["items"],
+            "theory_sections": [
+                {"heading": group["heading"], "summary": " · ".join(item["lead"] for item in group["items"])}
+                for group in UCR_THEORY["sections"]
+            ],
+            "source_fields": [
+                {"label": "UCR No.", "value": (reference or {}).get("ucr", "Not available on this account")},
+                {"label": "Status", "value": (reference or {}).get("status", "—")},
+                {"label": "Regime", "value": (reference or {}).get("regime", "—")},
+                {"label": "Declarant", "value": (reference or {}).get("declarant", "—")},
+                {"label": "Importer TIN", "value": (reference or {}).get("importer_tin", "—")},
+                {"label": "Exporter", "value": (reference or {}).get("exporter", "—")},
+            ],
+            "credential": _credential_summary(request.user),
+            "unlocked": practical_is_unlocked(enrolment) if enrolment else False,
+            "lock_note": "Complete simulator orientation to unlock practical training.",
+            "resume": None if not steps or current >= len(steps) else {
+                "practical": practicals[0]["title"],
+                "title": steps[current]["title"],
+                "instruction": steps[current]["instruction"],
+                "url": desk_url,
+            },
+        }
+    })

@@ -41,7 +41,6 @@ html.dark .desk-theory { background: var(--color-base-900, #0f172a); }
   min-height: 0;
   padding: .9rem 1.05rem 1rem;
   overflow: auto;
-  scrollbar-gutter: stable;
   overscroll-behavior: contain;
 }
 
@@ -89,10 +88,10 @@ html.dark .desk-theory { background: var(--color-base-900, #0f172a); }
 
 .desk-card .guide-feedback:empty { display: none; }
 
-.desk-ucr-progress { display: grid; grid-template-columns: repeat(6, 1fr); gap: .3rem; margin-bottom: .75rem; }
-.desk-ucr-progress span { height: .3rem; border-radius: 99px; background: var(--d-border); }
-.desk-ucr-progress span.done { background: var(--color-success-600, #059669); }
-.desk-ucr-progress span.now { background: var(--d-accent); }
+/* The step card keeps the tint it had in the pinned band, so it still reads as
+   the card you work in rather than one more reading card above it. */
+.desk-ucr-guide { background: var(--d-card-bg); }
+
 .desk-ucr-reference { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin: .7rem 0; padding: .55rem .65rem; border: 1px solid var(--d-border); border-radius: .55rem; font-size: .76rem; }
 .desk-ucr-reference code { font-size: .76rem; font-weight: 700; }
 .desk-ucr-checks, .desk-ucr-journey { display: grid; gap: .4rem; margin: .65rem 0 0; padding: 0; list-style: none; }
@@ -244,6 +243,8 @@ html.dark .desk-sim-select { background: var(--color-base-800, #1e293b); color: 
 
 .desk-divider:focus-visible { outline: 2px solid var(--d-accent); outline-offset: 2px; }
 
+.desk-head-actions { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.desk-modes { display: flex; gap: .4rem; }
 .desk-switch { display: none; gap: .4rem; }
 
 .desk-sections > strong {
@@ -262,6 +263,9 @@ html.dark .desk-sim-select { background: var(--color-base-800, #1e293b); color: 
   .desk-grid { grid-template-columns: minmax(0, 1fr); height: auto; min-height: 0; }
   .desk-divider { display: none; }
   .desk-switch { display: flex; }
+  /* With only the simulator on screen there is no pane left for the mode
+     buttons to act on, so they stand down until the guide returns. */
+  .desk:has(.desk-grid[data-desk-pane="sim"]) .desk-modes { display: none; }
   .desk-theory { max-height: 62vh; }
   .desk-sim { height: 78vh; }
   .desk-grid[data-desk-pane="theory"] .desk-sim,
@@ -272,10 +276,30 @@ html.dark .desk-sim-select { background: var(--color-base-800, #1e293b); color: 
 .desk[data-desk-expanded] .desk-grid { grid-template-columns: minmax(0, 1fr); }
 .desk[data-desk-expanded] .desk-theory, .desk[data-desk-expanded] .desk-divider { display: none; }
 
-/* The Unfold content container is deliberately capped for reading pages. Once
-   the theory pane is folded away, let this practical workspace fill the actual
-   content column. That column already accounts for the application sidebar,
-   whether it is open or collapsed. */
+/* No scrollbars. The desk is a workspace whose panes always overflow a little,
+   so the bars only cost width and draw the eye: wheel, keyboard and drag still
+   scroll everything here, and the frame's own document is styled from
+   practice-desk.js because its scrollbar lives in that document. */
+html:has(.desk),
+.desk-scroll {
+  scrollbar-width: none;
+}
+
+html:has(.desk)::-webkit-scrollbar,
+.desk-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* The Unfold content container is deliberately capped for reading pages. This
+   workspace is not one: on a wide screen it fills the content column edge to
+   edge - that column already accounts for the application sidebar, whether it
+   is open or collapsed - and runs down to the bottom of the window instead of
+   stopping short of it. The 6.25rem is the chrome above the desk: the 4rem
+   header strip, the gap under it and the gutter the shell leaves at the bottom. */
 @media (min-width: 62.01rem) {
-  #content:has(.desk[data-desk-expanded]) { max-width: none; }
+  #content:has(> .desk) { max-width: none; padding-inline: 0; height: calc(100vh - 6.25rem); }
+  #content > .desk { height: 100%; }
+  .desk > .desk-grid { flex: 1 1 auto; height: auto; }
 }

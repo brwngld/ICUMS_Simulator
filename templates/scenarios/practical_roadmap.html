@@ -1,0 +1,102 @@
+{% extends "core/base_student.html" %}
+{% load static %}
+{% comment %}Scratch prototype: /practical/ in the roadmap frame, built from the /test desk's own content. Not a project template.{% endcomment %}
+{% block title %}Practical training · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Practical training{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/course-overview.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/lesson.css' %}?v=20261017-1">{% endblock %}
+{% block content %}
+<div class="course-overview" data-practical-proto>
+  <div class="course-overview-layout">
+    <main class="course-main">
+      <section class="course-hero">
+        {% include "components/cover_image.html" with css_class="course-hero-image" alt="Practical training illustration" %}
+        <div class="course-hero-copy">
+          <span class="course-badge">◈ Practical Training</span>
+          <h1>{{ proto.title }}</h1>
+          <p>{{ proto.description }}</p>
+          <div class="course-meta" aria-label="Practical information"><span>▤ {{ proto.practicals|length }} guided practical{{ proto.practicals|length|pluralize }}</span><span>◈ {{ proto.step_total }} guided step{{ proto.step_total|pluralize }}</span><span>◇ {{ proto.pages|length }} workspace page{{ proto.pages|length|pluralize }}</span><span>☷ Self-paced</span></div>
+        </div>
+      </section>
+
+      <nav class="course-tabs" aria-label="Practical sections" role="tablist">
+        <button type="button" role="tab" aria-selected="true" aria-controls="course-panel-overview" id="course-tab-overview" data-course-tab="overview">Overview</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="course-panel-roadmap" id="course-tab-roadmap" data-course-tab="roadmap" tabindex="-1">Practical roadmap</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="course-panel-guide" id="course-tab-guide" data-course-tab="guide" tabindex="-1">Step guide</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="course-panel-resources" id="course-tab-resources" data-course-tab="resources" tabindex="-1">Resources</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="course-panel-next" id="course-tab-next" data-course-tab="next" tabindex="-1">Next steps</button>
+      </nav>
+
+      <section class="course-tab-panel" id="course-panel-overview" role="tabpanel" aria-labelledby="course-tab-overview" data-course-panel="overview">
+        <div class="course-feature-grid">
+          <article class="course-feature"><span class="course-feature-icon blue">◎</span><div><h2>What you’ll do</h2><p>{{ proto.doing }}</p></div></article>
+          <article class="course-feature"><span class="course-feature-icon violet">◈</span><div><h2>Where you work</h2><ul>{% for group in proto.page_groups %}<li>{{ group.title }} — {{ group.pages|length }} page{{ group.pages|length|pluralize }}</li>{% endfor %}</ul></div></article>
+          <article class="course-feature"><span class="course-feature-icon green">▥</span><div><h2>Skills you’ll build</h2><ul>{% for item in proto.skills %}<li>{{ item }}</li>{% endfor %}</ul></div></article>
+          <article class="course-feature"><span class="course-feature-icon amber">↻</span><div><h2>How a step works</h2><ul><li>Read the step beside the workspace.</li><li>Enter it in the live simulator page.</li><li>Check my work unlocks the next step.</li></ul></div></article>
+        </div>
+        <section class="course-compact-modules">
+          <div class="course-section-heading"><div><h2>Guided practicals</h2><p>Complete the steps in their required order.</p></div><button type="button" class="course-outline-button" data-open-tab="roadmap">View full roadmap</button></div>
+          {% for practical in proto.practicals %}<article><span class="course-module-number">{{ forloop.counter }}</span><div><strong>{{ practical.title }}</strong><small>{{ practical.step_count }} step{{ practical.step_count|pluralize }} · {{ practical.area }}</small></div><progress value="{{ practical.done_count }}" max="{{ practical.step_count|default:1 }}"></progress><small>{{ practical.done_count }} of {{ practical.step_count }} steps</small></article>{% empty %}<p class="course-empty">No guided practicals are published yet.</p>{% endfor %}
+        </section>
+      </section>
+
+      <section class="course-tab-panel" id="course-panel-roadmap" role="tabpanel" aria-labelledby="course-tab-roadmap" data-course-panel="roadmap" hidden>
+        <div class="course-section-heading"><div><h2>Your practical roadmap</h2><p>Each step opens in the practice desk with the simulator page beside it.</p></div><button type="button" class="course-outline-button" data-expand-modules>Expand all</button></div>
+        <div class="course-roadmap-summary"><strong>{{ proto.practicals|length }} practical{{ proto.practicals|length|pluralize }}</strong><span>{{ proto.step_total }} steps</span><span>{{ proto.check_total }} values checked</span></div>
+        <section class="course-modules" aria-label="Guided practicals">
+          {% for practical in proto.practicals %}
+          <details class="course-module"{% if forloop.first %} open{% endif %}>
+            <summary>
+              <span class="course-module-number">{{ forloop.counter }}</span>
+              <span class="course-module-title"><strong>{{ practical.title }}</strong><small>{{ practical.objective }}</small></span>
+              <span class="course-module-stat">◈ {{ practical.step_count }} step{{ practical.step_count|pluralize }}</span>
+              <span class="course-module-stat">◇ {{ practical.area }}</span>
+              <span class="course-module-progress"><progress value="{{ practical.done_count }}" max="{{ practical.step_count|default:1 }}"></progress><small>{{ practical.done_count }} of {{ practical.step_count }} steps</small></span>
+              <span class="course-module-chevron">⌄</span>
+            </summary>
+            <div class="course-lessons">
+              <div class="lrn-journey-steps" data-practical-rail>
+                {% for step in practical.steps %}<span class="lrn-journey-step {{ step.state }}" data-rail-index="{{ forloop.counter0 }}"><span>{{ forloop.counter }}</span><small>{{ step.short_label }}</small></span>{% endfor %}
+              </div>
+              {% for step in practical.steps %}
+              {% if step.clickable %}<a class="course-lesson {% if step.state == 'done' %}completed{% elif step.state == 'current' %}active{% endif %}" href="{{ step.url }}">{% else %}<span class="course-lesson locked">{% endif %}<span class="course-lesson-state" aria-hidden="true">{% if step.state == 'done' %}✓{% elif step.state == 'current' %}▶{% elif step.state == 'locked' %}▣{% endif %}</span><span>◈</span><strong>{{ forloop.counter }}. {{ step.title }}</strong><small>{{ step.check_count }} value{{ step.check_count|pluralize }} checked</small><span>›</span>{% if step.clickable %}</a>{% else %}</span>{% endif %}
+              {% endfor %}
+            </div>
+          </details>
+          {% endfor %}
+        </section>
+      </section>
+
+      <section class="course-tab-panel" id="course-panel-guide" role="tabpanel" aria-labelledby="course-tab-guide" data-course-panel="guide" hidden>
+        <header class="course-panel-heading"><span>◈</span><div><h2>Step guide</h2><p>The instruction and the exact values the workspace checks, step by step.</p></div></header>
+        <div class="course-feature-grid">{% for practical in proto.practicals %}{% for step in practical.steps %}<article class="course-feature"><span class="course-feature-icon {% if step.state == 'done' %}green{% elif step.state == 'current' %}blue{% endif %}">{{ forloop.counter }}</span><div><h2>{{ step.title }}</h2><p>{{ step.instruction }}</p><ul>{% for check in step.checks %}<li>{{ check }}</li>{% endfor %}</ul></div></article>{% endfor %}{% endfor %}</div>
+      </section>
+
+      <section class="course-tab-panel" id="course-panel-resources" role="tabpanel" aria-labelledby="course-tab-resources" data-course-panel="resources" hidden>
+        <header class="course-panel-heading"><span>▤</span><div><h2>Practical resources</h2><p>What to have ready, the theory behind the workspace and the record you are copying from.</p></div></header>
+        <label class="course-resource-search"><span class="sr-only">Search resources</span><input type="search" placeholder="Search resources…" data-resource-search></label>
+        <div class="course-resource-categories">
+          <section data-resource-category><div><span>▤</span><h3>Before you start</h3><p>What to have ready before a practical is opened</p></div><div class="course-resource-items">{% for item in proto.howto_items %}<article data-resource-item><strong>{{ item }}</strong></article>{% endfor %}</div></section>
+          <section data-resource-category><div><span>◎</span><h3>Theory in the workspace</h3><p>The same reading the desk shows beside the simulator</p></div><div class="course-resource-items">{% for group in proto.theory_sections %}<article data-resource-item><strong>{{ group.heading }}</strong><p>{{ group.summary }}</p></article>{% endfor %}</div></section>
+          <section data-resource-category><div><span>◈</span><h3>Source record</h3><p>The UCR this practical copies its values from</p></div><div class="course-resource-items">{% for field in proto.source_fields %}<article data-resource-item><strong>{{ field.label }}</strong><p>{{ field.value }}</p></article>{% endfor %}</div></section>
+        </div><p class="course-search-empty" data-search-empty hidden>No resources match your search.</p>
+      </section>
+
+      <section class="course-tab-panel" id="course-panel-next" role="tabpanel" aria-labelledby="course-tab-next" data-course-panel="next" hidden>
+        <header class="course-panel-heading"><span>→</span><div><h2>Your next practical step</h2><p>Pick up where you left off in the desk.</p></div></header>
+        <article class="course-next-card">
+          {% if proto.resume %}<span class="course-state available">Recommended next</span><small>{{ proto.resume.practical }}</small><h3>{{ proto.resume.title }}</h3><p>{{ proto.resume.instruction }}</p><a class="course-primary-button" href="{{ proto.resume.url }}">Continue in the desk →</a>{% else %}<span class="course-state locked">No next activity</span><h3>No guided practical is open</h3><p>{{ proto.lock_note }}</p>{% endif %}
+        </article>
+        <div class="course-next-timeline"><article class="{% if proto.done_count %}complete{% endif %}"><span>◈</span><div><strong>Read the step</strong><p>The instruction sits beside the live page in the desk.</p></div></article><article class="current"><span>●</span><div><strong>Enter it in ICUMS</strong><p>Every value is typed into the real simulator form.</p></div></article><article><span>✓</span><div><strong>Check my work</strong><p>{{ proto.check_total }} values are verified before the next step opens.</p></div></article></div>
+      </section>
+    </main>
+
+    <aside class="course-aside">
+      <section class="course-side-card"><h2>Your progress</h2><div class="course-progress-summary"><div class="course-ring" style="--course-progress:{{ proto.percentage }}"><span>{{ proto.percentage }}%</span></div><div><strong>Guided steps</strong><p>{{ proto.done_count }} of {{ proto.step_total }} steps completed</p></div></div><dl class="course-status-list"><div><dt><i class="done"></i>Completed</dt><dd>{{ proto.done_count }}</dd></div><div><dt><i class="progress"></i>In progress</dt><dd>1</dd></div><div><dt><i></i>Not started</dt><dd>{{ proto.locked_count }}</dd></div></dl>{% if proto.resume %}<a class="course-primary-button" href="{{ proto.resume.url }}">Continue in the desk →</a>{% endif %}</section>
+      <section class="course-side-card"><div class="course-side-title"><span>◇</span><h2>Simulator workspace</h2></div><p>The areas this practical opens, straight from the workspace navigation.</p><div class="course-assessment-list">{% for group in proto.page_groups %}<a href="{{ group.pages.0.desk_url }}"><strong>{{ group.title }}</strong><small>{{ group.pages|length }} page{{ group.pages|length|pluralize }}</small><b>›</b></a>{% endfor %}</div></section>
+      <section class="course-side-card"><div class="course-side-title"><span>▣</span><h2>Practical access</h2></div><dl class="course-status-list"><div><dt><i class="done"></i>Orientation</dt><dd>{% if proto.unlocked %}Complete{% else %}Required{% endif %}</dd></div><div><dt><i class="{% if proto.credential.state == 'active' %}done{% elif proto.credential.state == 'expiring' %}progress{% endif %}"></i>Simulator credential</dt><dd>{{ proto.credential.state_label }}</dd></div><div><dt><i></i>Valid until</dt><dd>{{ proto.credential.expires_label }}</dd></div></dl><p><a href="{{ proto.credential.url }}">Credential management →</a></p></section>
+      <section class="course-side-card course-help"><div class="course-side-title"><span>☼</span><h2>Need help?</h2></div><p>Every step has a hint, and the theory page stays open beside the workspace while you work.</p></section>
+    </aside>
+  </div>
+</div>
+<script src="{% static 'js/course-overview.js' %}?v=20261014-1"></script>
+{% endblock %}
