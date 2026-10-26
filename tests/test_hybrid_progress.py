@@ -16,12 +16,15 @@ from hybrid.models import (
     HybridCourse,
     HybridLesson,
     HybridModule,
+    JourneyDependency,
+    JourneyRecordRole,
     LessonAttempt,
+    PracticalJourney,
     PracticalStep,
     StepEvent,
     VerificationCondition,
 )
-from hybrid import publishing
+from hybrid import journey_services, publishing
 from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
 from scenarios.models import UcrDeclaration
 
@@ -300,7 +303,7 @@ def test_publishing_flips_ready_courses_and_leaves_unfinished_ones(db):
     version.save(update_fields=("status",))
     draft_course = HybridCourse.objects.create(programme_version=version, code="empty-course", title="Empty", order=2)
 
-    published, skipped = publishing.publish_edition(version)
+    published, skipped, warnings = publishing.publish_edition(version)
     version.refresh_from_db()
     assert version.status == ProgrammeVersion.Status.PUBLISHED
     assert version.published_at is not None
@@ -321,6 +324,46 @@ def test_cloning_a_published_edition_copies_everything_including_conditions(db):
     step_copy = PracticalStep.objects.get(lesson=lesson_copy)
     assert step_copy.conditions.count() == 2
     assert VerificationCondition.objects.filter(step=step_copy, record_kind="ucr").exists()
+
+
+@pytest.mark.django_db
+def test_a_published_editions_journeys_come_along_with_the_clone(db):
+    """The clone test above covers lesson content; a published edition's
+    journeys must ride along too, or the new draft has no practical side."""
+    programme = Programme.objects.create(
+        name="Journey clone", code="journeyclone", learning_track=Programme.Track.HYBRID,
+    )
+    version = ProgrammeVersion.objects.create(programme=programme, version=1, status=ProgrammeVersion.Status.DRAFT)
+    course = HybridCourse.objects.create(programme_version=version, code="jc-c", title="JC course", order=1)
+    module = HybridModule.objects.create(course=course, code="jc-m", title="JC module", order=1)
+    steps = []
+    for index in (1, 2):
+        lesson = HybridLesson.objects.create(
+            module=module, slug=f"jc-lesson-{index}", title=f"JC lesson {index}", order=index,
+            summary="Lesson summary.", theory="<p>Theory.</p>",
+        )
+        steps.append(PracticalStep.objects.create(
+            lesson=lesson, key=f"jc-step-{index}", title=f"JC step {index}", order=1,
+            instruction="Do it.", outcome="Done.", screen="single-window-overview",
+        ))
+    journey = journey_services.create_journey(version, course, title="JC journey")
+    assignments = [journey_services.assign_step(journey, step) for step in steps]
+    journey_services.create_record_role(
+        journey, "declaration", "Export declaration", "ucr",
+        creation_mode=JourneyRecordRole.CreationMode.EXISTING,
+    )
+    journey_services.add_dependency(
+        journey, assignments[0], assignments[1], JourneyDependency.DependencyType.STEP_COMPLETED,
+    )
+    published, skipped, warnings = publishing.publish_edition(version)
+    assert (skipped, warnings) == ([], [])
+
+    draft = publishing.clone_to_draft(version)
+    copied = PracticalJourney.objects.get(programme_version=draft, code=journey.code)
+    assert [row.step.key for row in copied.step_assignments.order_by("journey_order")] == ["jc-step-1", "jc-step-2"]
+    assert copied.record_roles.get().key == "declaration"
+    assert copied.dependencies.get().predecessor_step.journey_id == copied.pk
+    assert copied.course.hybrid_modules.get().title == module.title
 
 
 @pytest.mark.django_db

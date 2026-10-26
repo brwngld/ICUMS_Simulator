@@ -117,9 +117,11 @@ def builder_index(request):
             if blockers:
                 messages.error(request, "This edition is not ready to publish: " + " ".join(blockers))
             else:
-                published, skipped = publish_edition(version)
+                published, skipped, warnings = publish_edition(version)
                 note = f" {len(skipped)} unfinished course(s) stayed unpublished." if skipped else ""
                 messages.success(request, f"Edition v{version.version} published with {len(published)} course(s).{note}")
+                for warning in warnings:
+                    messages.warning(request, warning)
             return redirect("hybrid-builder")
         if request.POST.get("action") == "new_draft":
             version = get_object_or_404(
