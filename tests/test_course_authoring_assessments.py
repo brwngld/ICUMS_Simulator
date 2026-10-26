@@ -391,3 +391,53 @@ def test_cross_course_assessment_access_is_isolated(client, instructor, draft_co
         reverse("module-assessment-create", args=[draft_course["module"].pk]), {"title": "Mine"}
     )
     assert Assessment.objects.filter(module=other_module, title="Other assessment").exists()
+
+
+# --- Removing assessment questions that are shared with lesson practice -------
+
+
+def _module_assessment(module):
+    return Assessment.objects.create(
+        programme_version=module.programme_version, module=module,
+        title="Module assessment", assessment_type=Assessment.Type.MODULE, pass_percentage=70,
+    )
+
+
+@pytest.mark.django_db
+def test_removing_a_shared_practice_question_keeps_the_lesson_practice(client, instructor, draft_course):
+    """The practice tick box shares one question version between lesson
+    practice and the module assessment. Removing the assessment entry must
+    unlink the question, not destroy the lesson's own practice material."""
+    module = draft_course["module"]
+    lesson = Lesson.objects.get(module=module)
+    check = lesson.knowledge_checks.get()
+    assessment = _module_assessment(module)
+    AssessmentItem.objects.create(assessment=assessment, question_version=check.question_version, order=1)
+    client.force_login(instructor)
+
+    response = client.post(reverse("assessment-question-delete", args=[assessment.pk, check.question_version_id]))
+
+    assert response.status_code == 302
+    assert not AssessmentItem.objects.filter(assessment=assessment).exists()
+    assert QuestionVersion.objects.filter(pk=check.question_version_id).exists()
+    assert LessonCheck.objects.filter(pk=check.pk).exists()
+    followed = client.get(response.url)
+    assert "lesson practice" in " ".join(str(m) for m in followed.context["messages"])
+
+
+@pytest.mark.django_db
+def test_removing_a_standalone_assessment_question_deletes_it(client, instructor, draft_course):
+    module = draft_course["module"]
+    assessment = _module_assessment(module)
+    question = Question.objects.create(code="standalone-question")
+    question_version = QuestionVersion.objects.create(question=question, version=1, prompt="Standalone?", points=1)
+    AnswerOption.objects.create(question_version=question_version, label="Yes", is_correct=True, order=1)
+    AnswerOption.objects.create(question_version=question_version, label="No", is_correct=False, order=2)
+    AssessmentItem.objects.create(assessment=assessment, question_version=question_version, order=1)
+    client.force_login(instructor)
+
+    response = client.post(reverse("assessment-question-delete", args=[assessment.pk, question_version.pk]))
+
+    assert response.status_code == 302
+    assert not QuestionVersion.objects.filter(pk=question_version.pk).exists()
+    assert not AssessmentItem.objects.filter(assessment=assessment).exists()

@@ -504,6 +504,6 @@ class LessonPracticeQuestionForm(AssessmentQuestionForm):
 
     add_to_assessment = forms.BooleanField(
         required=False,
-        initial=True,
+        initial=False,
         label="Also add this question to the module assessment",
     )

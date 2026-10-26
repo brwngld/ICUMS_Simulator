@@ -3,7 +3,7 @@ from django.core.exceptions import PermissionDenied
 from django.contrib import messages
 from django.core.files.base import ContentFile
 from django.db import models, transaction
-from django.db.models import Count, Max, Q
+from django.db.models import Count, Max, ProtectedError, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -1281,9 +1281,25 @@ def assessment_question_delete(request, assessment_id, question_version_id):
     assessment = _draft_assessment(assessment_id)
     item = get_object_or_404(AssessmentItem, assessment=assessment, question_version_id=question_version_id)
     question_version = item.question_version
+    used_by_practice = LessonCheck.objects.filter(question_version=question_version).exists()
     item.delete()
-    question_version.delete()  # draft-only: nothing references a draft question version
-    messages.success(request, "Question removed.")
+    if used_by_practice:
+        # The practice tick box shares one question version between a lesson's
+        # practice set and this assessment; removing the assessment entry must
+        # not destroy the lesson's own practice question.
+        messages.success(
+            request,
+            "Question removed from the assessment. It is still used as lesson practice, so the question itself was kept.",
+        )
+    else:
+        try:
+            question_version.delete()  # draft-only: nothing references a draft question version
+            messages.success(request, "Question removed.")
+        except ProtectedError:
+            messages.error(
+                request,
+                "The question is still referenced elsewhere, so it was removed from the assessment only.",
+            )
     return redirect("assessment-edit", assessment_id=assessment.pk)
 
 
