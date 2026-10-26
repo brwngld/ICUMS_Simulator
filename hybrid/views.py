@@ -1,4 +1,6 @@
 """Student-facing Theory & Practical views."""
+import json
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -11,6 +13,7 @@ from django.views.decorators.http import require_POST
 from core.admin_dashboard import render_student_page
 from onboarding.services import needs_disclaimer_acceptance
 
+from . import attribution as attribution_services
 from . import journey_services
 from . import services
 from . import verification
@@ -293,3 +296,54 @@ def journey_advance(request, journey_id):
     else:
         messages.warning(request, message)
     return redirect("hybrid-journey-student", journey_id=journey.pk)
+
+
+@login_required
+def journey_role_eligible(request, journey_id, role_id):
+    """The student's eligible, unattributed creations for one required NEW
+    record role — server-generated only; the request supplies nothing."""
+    journey = get_object_or_404(
+        PracticalJourney.objects.select_related("course__programme_version__programme"),
+        pk=journey_id,
+    )
+    enrolment = services.enrolment_for_request(request)
+    if enrolment.programme_version_id != journey.programme_version_id:
+        raise PermissionDenied("This journey belongs to a different programme version.")
+    attempt = get_object_or_404(JourneyAttempt, enrolment=enrolment, journey=journey)
+    role = get_object_or_404(JourneyRecordRole, pk=role_id, journey=journey)
+    rows = attribution_services.eligible_for_view(attempt, role)
+    return JsonResponse({"role_id": str(role.pk), "eligible": rows})
+
+
+@login_required
+@require_POST
+def journey_role_attribute(request, journey_id, role_id):
+    """Attribute one ledger-backed creation to this role. Server-validated
+    end to end; a refusal is a controlled JSON error, never a silent one."""
+    journey = get_object_or_404(
+        PracticalJourney.objects.select_related("course__programme_version__programme"),
+        pk=journey_id,
+    )
+    enrolment = services.enrolment_for_request(request)
+    if enrolment.programme_version_id != journey.programme_version_id:
+        raise PermissionDenied("This journey belongs to a different programme version.")
+    attempt = get_object_or_404(JourneyAttempt, enrolment=enrolment, journey=journey)
+    role = get_object_or_404(JourneyRecordRole, pk=role_id, journey=journey)
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "The request body is not valid JSON."}, status=400)
+    creation_id = payload.get("creation_id")
+    if not creation_id:
+        return JsonResponse({"error": "Select a creation to attribute."}, status=400)
+    try:
+        attribution_services.attribute_creation(attempt, role, creation_id, request.user)
+    except attribution_services.AttributionError as exc:
+        return JsonResponse({"error": exc.message, "code": exc.code}, status=exc.status)
+    except PermissionDenied as exc:
+        return JsonResponse({"error": str(exc)}, status=403)
+    return JsonResponse({
+        "role_id": str(role.pk),
+        "attributed": True,
+        "message": "Record attributed to this journey role.",
+    })

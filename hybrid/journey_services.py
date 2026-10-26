@@ -47,6 +47,7 @@ from scenarios.bindings import VERIFY_RECORDS
 
 from .models import (
     HybridLesson,
+    SimulatorRecordCreation,
     JourneyAttempt,
     JourneyConditionBinding,
     JourneyDependency,
@@ -582,10 +583,21 @@ def role_satisfied(attempt, role):
     if record is None:
         return False, f"The assigned {label} record no longer exists for this learner."
     if association.assignment_source == JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY:
-        return False, (
-            f"The {label} record requirement is open: the system cannot yet verify "
-            "that this record was created within this journey."
-        )
+        # Stage 3.2: the lift requires authoritative creation evidence — an
+        # immutable ledger row for this exact record, owned by the learner —
+        # written by the capture receiver (Checkpoint 3.1). The association
+        # alone is the student's attribution; the ledger is the proof.
+        evidence = SimulatorRecordCreation.objects.filter(
+            record_kind=association.record_kind,
+            record_id=association.record_id,
+            owner=attempt.enrolment.student,
+        ).exists()
+        if not evidence:
+            return False, (
+                f"The {label} record requirement is open: the system cannot yet verify "
+                "that this record was created within this journey."
+            )
+        return True, f"{label} record created within the journey."
     return True, f"{label} record assigned."
 
 

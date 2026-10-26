@@ -630,6 +630,11 @@ class JourneyRecordAssociation(models.Model):
                 condition=(Q(is_active=True, replaced_at__isnull=True) | Q(is_active=False, replaced_at__isnull=False)),
                 name="journey_record_active_state",
             ),
+            models.UniqueConstraint(
+                fields=("record_kind", "record_id"),
+                condition=Q(assignment_source="created_in_journey", is_active=True),
+                name="unique_active_created_in_journey_claim",
+            ),
         ]
         indexes = [
             models.Index(fields=("record_kind", "record_id"), name="journey_record_lookup"),
