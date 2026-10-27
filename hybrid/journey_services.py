@@ -569,34 +569,6 @@ def assign_record(attempt, role, record_id, source, assigned_by=None):
     return association
 
 
-def _role_window_floor(attempt, role):
-    """The latest moment a creation attributable to this role may carry:
-    the attempt's start, or the bound step's current opening if the learner
-    has (re)entered it — whichever is later."""
-    floor = attempt.started_at
-    binding = (
-        JourneyConditionBinding.objects.filter(role=role)
-        .select_related("condition__step")
-        .first()
-    )
-    if binding is not None:
-        step = binding.condition.step
-        lesson_attempt = LessonAttempt.objects.filter(
-            enrolment=attempt.enrolment, lesson=step.lesson,
-        ).first()
-        if lesson_attempt is not None:
-            event = (
-                StepEvent.objects.filter(
-                    attempt=lesson_attempt, step=step, kind=StepEvent.Kind.OPENED,
-                )
-                .order_by("-occurred_at")
-                .first()
-            )
-            if event is not None and event.occurred_at > floor:
-                floor = event.occurred_at
-    return floor
-
-
 def role_satisfied(attempt, role):
     """(satisfied, message) for one record role.
 
@@ -618,11 +590,14 @@ def role_satisfied(attempt, role):
         return False, f"The assigned {label} record no longer exists for this learner."
     if association.assignment_source == JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY:
         # Stage 3.2: the lift requires authoritative creation evidence — an
-        # immutable ledger row for this exact record, owned by the learner —
-        # written by the capture receiver (Checkpoint 3.1), created at or
-        # after the attempt's start and after the bound step's current
-        # opening. The association alone is the student's attribution; the
-        # ledger is the proof.
+        # immutable ledger row for this exact record, owned by the learner and
+        # created at or after this attempt started. The association alone is
+        # the student's attribution; the ledger is the proof. The bound is
+        # journey-scoped on purpose: one role can serve several steps and a
+        # record produced for an early step is legitimately reused by later
+        # ones, so no step opening may un-satisfy a filled role. Step
+        # freshness belongs to the verification engines, which bound the
+        # record's activity to the one step being checked.
         evidence = SimulatorRecordCreation.objects.filter(
             record_kind=association.record_kind,
             record_id=association.record_id,
@@ -633,11 +608,10 @@ def role_satisfied(attempt, role):
                 f"The {label} record requirement is open: the system cannot yet verify "
                 "that this record was created within this journey."
             )
-        window_floor = max(attempt.started_at, _role_window_floor(attempt, role))
-        if evidence.record_created_at < window_floor:
+        if evidence.record_created_at < attempt.started_at:
             return False, (
                 f"The {label} record requirement is open: this record was created "
-                "before the step's current opening."
+                "before this journey started."
             )
         return True, f"{label} record created within the journey."
     return True, f"{label} record assigned."

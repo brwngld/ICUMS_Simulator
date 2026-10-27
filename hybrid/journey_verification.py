@@ -174,8 +174,17 @@ def _resolve_selection(attempt, lesson_attempt, assignment, condition):
         ).first()
         if evidence is None:
             _fail("Creation evidence is unavailable for the attributed record.", "creation_evidence_missing")
-        if evidence.record_created_at < freshness_floor:
-            _fail("The attributed record predates the current verification window.", "record_stale")
+        # Creation provenance is journey-scoped: the record must have been
+        # created after this attempt started. It must not be bounded by this
+        # step's opening, because one role can serve several steps and a record
+        # produced for an early step is legitimately reused here. Whether the
+        # learner actually worked the record during this visit is the separate
+        # activity freshness check above.
+        if evidence.record_created_at < attempt.started_at:
+            _fail(
+                "The attributed record was created before this journey started.",
+                "record_predates_journey",
+            )
 
     return AuthorizedRecordSelection(
         condition_id=condition.pk,

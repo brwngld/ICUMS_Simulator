@@ -12,30 +12,29 @@ row.
 
 Eligibility (server-derived, never client-supplied): the ledger row is the
 student's, of the role's kind, unattributed to any attempt, and created at or
-after the window floor — the attempt's start, or the learner's last opening
-of the role's bound condition step if that is later (the same freshness bound
-Check-My-Work applies). Concurrency: the caller's transaction holds the
+after ``JourneyAttempt.started_at``. Creation eligibility is journey-scoped,
+never step-scoped: one record role may serve several journey steps and a record
+produced for an early step is legitimately reused by later ones, so entering or
+re-entering a step never invalidates a record already attributed. Step-specific
+freshness is the separate, narrower question the verification engines own — they
+bound the record's *activity* to the one step being checked.
+Concurrency: the caller's transaction holds the
 attempt row lock; the partial unique constraint
 ``unique_active_created_in_journey_claim`` is the cross-attempt
 record-claim gate on both SQLite and PostgreSQL — a race is refused by the
 database and surfaced as a controlled ``AttributionError``.
 """
-from django.core.exceptions import PermissionDenied
-from django.db import transaction
-from django.db.models import Q
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from scenarios.bindings import VERIFY_RECORDS
 
 from .models import (
     JourneyAttempt,
-    JourneyConditionBinding,
     JourneyRecordAssociation,
     JourneyRecordRole,
-    JourneyStep,
-    LessonAttempt,
     SimulatorRecordCreation,
-    StepEvent,
 )
 
 
@@ -47,39 +46,6 @@ class AttributionError(Exception):
         self.message = message
         self.status = status
         self.code = code
-
-
-def _bound_step(role):
-    """The step whose condition is bound to this role, or None."""
-    binding = (
-        JourneyConditionBinding.objects.filter(role=role)
-        .select_related("condition__step")
-        .first()
-    )
-    return binding.condition.step if binding else None
-
-
-def _window_floor(attempt, role):
-    """The earliest creation moment eligible for this role: the attempt's
-    start, or the learner's last entry into the role's bound condition step
-    if that is later — the freshness bound Check-My-Work already applies."""
-    floor = attempt.started_at
-    step = _bound_step(role)
-    if step is not None:
-        lesson_attempt = LessonAttempt.objects.filter(
-            enrolment=attempt.enrolment, lesson=step.lesson,
-        ).first()
-        if lesson_attempt is not None:
-            event = (
-                StepEvent.objects.filter(
-                    attempt=lesson_attempt, step=step, kind=StepEvent.Kind.OPENED,
-                )
-                .order_by("-occurred_at")
-                .first()
-            )
-            if event is not None and event.occurred_at > floor:
-                floor = event.occurred_at
-    return floor
 
 
 def _claim_exists(record_kind, record_id):
@@ -95,9 +61,9 @@ def _claim_exists(record_kind, record_id):
 
 
 def eligible_creations(attempt, role):
-    """The student's unclaimed, in-window creations eligible for this role,
-    newest first. Server-derived only; the request supplies nothing."""
-    floor = _window_floor(attempt, role)
+    """The student's unclaimed creations this journey attempt may still claim
+    for this role, newest first. Server-derived only; the request supplies
+    nothing."""
     claimed = set(
         JourneyRecordAssociation.objects.filter(
             record_kind=role.record_kind,
@@ -107,7 +73,7 @@ def eligible_creations(attempt, role):
     rows = SimulatorRecordCreation.objects.filter(
         owner=attempt.enrolment.student,
         record_kind=role.record_kind,
-        record_created_at__gte=floor,
+        record_created_at__gte=attempt.started_at,
     ).order_by("-record_created_at", "-id")
 
     return [row for row in rows if row.record_id not in claimed]
@@ -160,10 +126,9 @@ def attribute_creation(attempt, role, ledger_id, student):
         if locked.status != JourneyAttempt.Status.IN_PROGRESS:
             raise AttributionError("The journey attempt is no longer in progress.",
                                    status=409, code="attempt_not_in_progress")
-        floor = _window_floor(locked, role)
-        if ledger.record_created_at < floor:
+        if ledger.record_created_at < locked.started_at:
             raise AttributionError(
-                "This record was created before the step was (re)opened.",
+                "This record was created before the journey started.",
                 code="outside_window",
             )
         replaced = JourneyRecordAssociation.objects.filter(
@@ -183,10 +148,12 @@ def attribute_creation(attempt, role, ledger_id, student):
                     assignment_source=JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
                     assigned_by=student,
                 )
-        except Exception:
+        except IntegrityError:
             # The per-record claim constraint lost a race with another
             # attempt: surface it as the controlled refusal. The savepoint
             # keeps the surrounding transaction usable for the refusal.
+            # Anything else — a missing ledger table, a broken FK — must
+            # propagate rather than be reported as a lost race.
             raise AttributionError(
                 "This creation was just attributed to another journey.",
                 status=409, code="already_claimed",

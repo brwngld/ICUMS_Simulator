@@ -16,7 +16,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounts.models import User
-from hybrid import attribution, journey_services
+from hybrid import attribution, journey_services, verification
 from hybrid.models import (
     HybridCourse,
     HybridLesson,
@@ -186,19 +186,16 @@ def test_attribution_of_another_students_creation_is_refused(db):
 
 @pytest.mark.django_db
 def test_a_creation_outside_the_window_is_ineligible(db):
-    """The window floor is the attempt's start (or the bound step's last
-    opening). Pushing the attempt's start past a creation excludes that
-    creation from eligibility and refusal follows at attribution."""
-    from datetime import timedelta
-    from django.utils import timezone
-
+    """Creation eligibility is journey-attempt-scoped: pushing the attempt's
+    start past a creation excludes it from eligibility, and attribution
+    refuses it."""
     world = _world(db, "attrwindow")
     student = world["student"]
     ucr = _create_ucr_for(student, "TEMPWIN1")
     attempt = world["attempt"]
 
     # The attempt's start moves past the creation: the record now predates
-    # the window floor.
+    # the journey.
     JourneyAttempt.objects.filter(pk=attempt.pk).update(
         started_at=timezone.now() + timedelta(minutes=1),
     )
@@ -334,45 +331,60 @@ def test_a_replaced_record_cannot_be_claimed_by_another_role_in_the_same_attempt
 
 
 @pytest.mark.django_db
-def test_reopening_the_bound_step_invalidates_older_creations(db):
-    """The window floor follows the bound step's latest opening: a record
-    created before the learner re-entered the step is no longer eligible and
-    no longer satisfies the role."""
+def test_reopening_the_bound_step_keeps_the_attributed_record_valid(db):
+    """Re-entry is navigation, not a new creation obligation.
+
+    Creation eligibility is journey-attempt-scoped, so reopening the bound
+    step leaves the attributed record in place and leaves the learner's other
+    creations claimable. What re-entry does change is the step's own freshness
+    bound: work last done before the re-entry no longer passes Check-My-Work,
+    and the learner has to touch the record again.
+    """
     world = _world(db, "attrewindow")
     student = world["student"]
     attempt = world["attempt"]
-    ucr = _create_ucr_for(student, "TEMPREWIN")
-    ledger = _ledger_of(ucr)
+    step = world["step"]
+    ucr = _create_ucr_for(student, "TEMPREWIN", exporter_name="ACME Trading")
 
-    from django.utils import timezone as tz
-
-    from hybrid.models import LessonAttempt
-
-    # The student walks the guided flow: the bound step's lesson attempt is
-    # opened (recording the OPENED event), then re-opened later, pushing the
-    # freshness bound past the record's creation.
-    lesson_attempt = LessonAttempt.objects.create(enrolment=world["enrolment"], lesson=world["step"].lesson)
-    StepEvent.objects.create(attempt=lesson_attempt, step=world["step"], kind=StepEvent.Kind.OPENED)
-    first_floor = attribution._window_floor(attempt, world["role"])
-    StepEvent.objects.create(attempt=lesson_attempt, step=world["step"], kind=StepEvent.Kind.OPENED)
-    StepEvent.objects.filter(attempt=lesson_attempt, step=world["step"]).update(
-        occurred_at=tz.now() + timedelta(hours=2),
+    JourneyAttempt.objects.filter(pk=attempt.pk).update(
+        started_at=timezone.now() - timedelta(hours=1),
     )
-    later_floor = attribution._window_floor(attempt, world["role"])
+    attempt.refresh_from_db()
+    lesson_attempt = LessonAttempt.objects.create(enrolment=world["enrolment"], lesson=step.lesson)
 
-    assert first_floor > attempt.started_at
-    assert later_floor > first_floor
-    assert ledger.record_created_at < later_floor
+    attribution.attribute_creation(attempt, world["role"], _ledger_of(ucr).pk, student)
+    attempt.refresh_from_db()
 
-    response = _eligible(world, student)
-    ids = [row["record_id"] for row in json.loads(response.content)["eligible"]]
-    assert ucr.pk not in ids
+    # 1. The attributed record still satisfies the role after re-entry.
+    verification.record_open(lesson_attempt, step)
+    satisfied, message = journey_services.role_satisfied(attempt, world["role"])
+    assert satisfied, message
+    assert JourneyRecordAssociation.objects.filter(
+        journey_attempt=attempt, role=world["role"], is_active=True, record_id=ucr.pk,
+    ).exists()
 
-    with pytest.raises(attribution.AttributionError):
-        attribution.attribute_creation(attempt, world["role"], ledger.pk, student)
+    # 2. Re-entry does not push the claimability of this journey's creations:
+    # a record made earlier in the attempt is still listed and still claims.
+    second = _create_ucr_for(student, "TEMPREWIN2", exporter_name="OTHER TRADER")
+    ids = [row["record_id"] for row in attribution.eligible_for_view(attempt, world["role"])]
+    assert second.pk in ids
+    attribution.attribute_creation(attempt, world["role"], _ledger_of(second).pk, student)
+    attempt.refresh_from_db()
+    assert journey_services.role_satisfied(attempt, world["role"])[0]
 
-    satisfied, _message = journey_services.role_satisfied(attempt, world["role"])
-    assert not satisfied
+    # 3. Re-entry authorizes nothing on the step itself: the record was last
+    # worked before the learner came back, so the check still fails and no
+    # VERIFIED event is written.
+    result = verification.verify_step(lesson_attempt, step)
+    assert not result["passed"]
+    assert not StepEvent.objects.filter(
+        attempt=lesson_attempt, step=step, kind=StepEvent.Kind.VERIFIED,
+    ).exists()
+
+    # Working the record after re-entry is what satisfies the step.
+    ucr.refresh_from_db()
+    ucr.save()
+    assert verification.verify_step(lesson_attempt, step)["passed"]
 
 
 @pytest.mark.django_db
@@ -550,7 +562,7 @@ def test_stale_interface_selection_returns_a_controlled_error(client, db):
 
     assert response.status_code == 400
     assert response.json()["code"] == "outside_window"
-    assert "before the step" in response.json()["error"]
+    assert "before the journey started" in response.json()["error"]
 
 
 @pytest.mark.django_db

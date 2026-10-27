@@ -1318,7 +1318,7 @@ def mda_consignment_application_save(request, request_id):
     parties = payload.pop("additional_parties", [])
     record.additional_parties = parties if isinstance(parties, list) else []
     record.form_data = payload
-    record.save(update_fields=("approval_terms", "approval_purpose", "approval_remarks", "additional_parties", "form_data"))
+    record.save(update_fields=("approval_terms", "approval_purpose", "approval_remarks", "additional_parties", "form_data", "updated_at"))
     return JsonResponse({"id": record.pk, "application_no": record.application_no, "status": record.get_status_display()})
 
 
@@ -1366,7 +1366,7 @@ def mda_consignment_application_submit(request, request_id):
     # system then generates their document and attaches it to the UCR's eDocuments.
     if application_code.startswith("IDF") or mda_code == "GSA":
         record.status = MdaStatus.APPROVED
-    record.save(update_fields=("status", "submitted_at"))
+    record.save(update_fields=("status", "submitted_at", "updated_at"))
     if record.status == MdaStatus.APPROVED:
         _attach_generated_mda_document(record)
     return JsonResponse({
