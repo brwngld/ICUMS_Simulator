@@ -205,6 +205,7 @@ def test_record_available_dependency_requires_its_role(world):
     ordered = journey_services.ordered_assignments(journey)
     role = JourneyRecordRole.objects.create(
         journey=journey, key="ucr", label="Primary UCR", record_kind="ucr", order=1,
+        creation_mode=JourneyRecordRole.CreationMode.EITHER,
     )
 
     with pytest.raises(ValidationError):
@@ -324,6 +325,7 @@ def test_assign_record_validates_role_and_ownership(world):
     attempt = journey_services.get_or_create_attempt(world["enrolment"], journey)
     role = JourneyRecordRole.objects.create(
         journey=journey, key="ucr", label="Primary UCR", record_kind="ucr", order=1,
+        creation_mode=JourneyRecordRole.CreationMode.EITHER,
     )
     other_role = JourneyRecordRole.objects.create(
         journey=journey, key="boe", label="BOE", record_kind="boe", order=2,
@@ -346,21 +348,26 @@ def test_replacement_preserves_history_and_keeps_one_active(world):
     attempt = journey_services.get_or_create_attempt(world["enrolment"], journey)
     role = JourneyRecordRole.objects.create(
         journey=journey, key="ucr", label="Primary UCR", record_kind="ucr", order=1,
+        creation_mode=JourneyRecordRole.CreationMode.EITHER,
     )
     first_record = _ucr(world["student"])
     second_record = _ucr(world["student"])
 
+    # AUTHORIZED_EXISTING keeps the test focused on replacement/backstop
+    # mechanics; created-in-journey claims are minted only by the Stage 3.2
+    # attribution service.
     first = journey_services.assign_record(
-        attempt, role, first_record.pk, JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+        attempt, role, first_record.pk,
+        JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING,
     )
     second = journey_services.assign_record(
         attempt, role, second_record.pk,
-        JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+        JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING,
     )
 
     first.refresh_from_db()
     assert first.is_active is False and first.replaced_at is not None
-    assert first.assignment_source == JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY
+    assert first.assignment_source == JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING
     assert second.is_active is True and second.replaced_at is None
     assert journey_services.active_record(attempt, role).pk == second.pk
     # History is preserved: both rows remain.
@@ -374,10 +381,12 @@ def test_the_database_backstop_blocks_two_active_associations(world):
     attempt = journey_services.get_or_create_attempt(world["enrolment"], journey)
     role = JourneyRecordRole.objects.create(
         journey=journey, key="ucr", label="Primary UCR", record_kind="ucr", order=1,
+        creation_mode=JourneyRecordRole.CreationMode.EITHER,
     )
     record = _ucr(world["student"])
     journey_services.assign_record(
-        attempt, role, record.pk, JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+        attempt, role, record.pk,
+        JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING,
     )
 
     with pytest.raises(IntegrityError):

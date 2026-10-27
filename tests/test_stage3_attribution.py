@@ -7,9 +7,10 @@ Attribution never writes a VERIFIED ``StepEvent`` and never completes a
 practical step.
 """
 import json
+from datetime import timedelta
 
 import pytest
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.test import Client
 from django.urls import reverse
 
@@ -20,10 +21,12 @@ from hybrid.models import (
     HybridLesson,
     HybridModule,
     JourneyAttempt,
+    JourneyConditionBinding,
     JourneyRecordAssociation,
     JourneyRecordRole,
     PracticalJourney,
     PracticalStep,
+    JourneyStep,
     SimulatorRecordCreation,
     StepEvent,
     VerificationCondition,
@@ -216,12 +219,31 @@ def test_a_record_claimed_by_another_attempt_cannot_be_reclaimed(db):
         code="attrclaim-2", title="Second journey", order=2,
         start_mode=PracticalJourney.StartMode.NEW_RECORD,
     )
-    journey_services.assign_step(second, world["step"])
-    second_role = journey_services.create_record_role(
-        second, "declaration", "Fresh declaration", "ucr",
-        required=True, creation_mode=JourneyRecordRole.CreationMode.NEW,
+    # The edition is published, so structure rows are written directly — the
+    # same "rows written around the service" pattern the publication tests use.
+    # A step can belong to only one journey, so the second journey gets its own.
+    second_lesson = HybridLesson.objects.create(
+        module=world["step"].lesson.module, slug="attrclaim-2-lesson",
+        title="Second journey lesson", order=2,
+        summary="Summary.", theory="<p>Theory.</p>",
     )
-    journey_services.bind_condition(world["step"].conditions.get(), second_role)
+    second_step = PracticalStep.objects.create(
+        lesson=second_lesson, key="attrclaim-2-step", title="Second journey step",
+        instruction="Create the second record.", outcome="The record is saved.",
+        screen=SCREEN, order=1,
+    )
+    JourneyStep.objects.create(journey=second, step=second_step, journey_order=1)
+    VerificationCondition.objects.create(
+        step=second_step, kind=VerificationCondition.Kind.SAVED_RECORD, record_kind="ucr",
+        required_status="draft", order=1,
+    )
+    second_role = JourneyRecordRole.objects.create(
+        journey=second, key="declaration", label="Fresh declaration", record_kind="ucr",
+        required=True, creation_mode=JourneyRecordRole.CreationMode.NEW, order=1,
+    )
+    JourneyConditionBinding.objects.create(
+        condition=second_step.conditions.get(), role=second_role,
+    )
     attempt_a = journey_services.get_or_create_attempt(world["enrolment"], world["journey"])
     attempt_b = journey_services.get_or_create_attempt(world["enrolment"], second)
 
@@ -266,10 +288,89 @@ def test_replacement_releases_the_old_claim_and_keeps_history(db):
     )
     assert superseded.record_id == first.pk
     assert superseded.replaced_at is not None
-    # The released record is eligible again for the owner.
+    # The superseded claim still belongs to this attempt: the replaced
+    # record cannot be re-claimed — by this attempt, another role, or any
+    # other attempt (immutable claim history).
     response = _eligible(world, student)
     ids = [row["record_id"] for row in json.loads(response.content)["eligible"]]
-    assert first.pk in ids
+    assert first.pk not in ids
+
+
+@pytest.mark.django_db
+def test_a_replaced_record_cannot_be_claimed_by_another_role_in_the_same_attempt(db):
+    """Immutable claim history: the superseded claim on the replaced record
+    blocks a second role in the same attempt from claiming it — at the
+    service level and at the database level."""
+    world = _world(db, "attrsameattempt")
+    student = world["student"]
+    first = _create_ucr_for(student, "TEMPSAME1")
+    second = _create_ucr_for(student, "TEMPSAME2")
+    role = world["role"]
+    other_role = JourneyRecordRole.objects.create(
+        journey=world["journey"], key="declaration-2", label="Second role",
+        record_kind="ucr", required=False,
+        creation_mode=JourneyRecordRole.CreationMode.NEW, order=2,
+    )
+    attribution.attribute_creation(world["attempt"], role, _ledger_of(first).pk, student)
+    attribution.attribute_creation(world["attempt"], role, _ledger_of(second).pk, student)
+
+    with pytest.raises(attribution.AttributionError) as excinfo:
+        attribution.attribute_creation(world["attempt"], other_role, _ledger_of(first).pk, student)
+    assert excinfo.value.code == "already_claimed"
+
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            JourneyRecordAssociation.objects.create(
+                journey_attempt=world["attempt"],
+                role=other_role,
+                enrolment=world["enrolment"],
+                programme_version=world["version"],
+                record_kind="ucr",
+                record_id=first.pk,
+                assignment_source=JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+            )
+
+
+@pytest.mark.django_db
+def test_reopening_the_bound_step_invalidates_older_creations(db):
+    """The window floor follows the bound step's latest opening: a record
+    created before the learner re-entered the step is no longer eligible and
+    no longer satisfies the role."""
+    world = _world(db, "attrewindow")
+    student = world["student"]
+    attempt = world["attempt"]
+    ucr = _create_ucr_for(student, "TEMPREWIN")
+    ledger = _ledger_of(ucr)
+
+    from django.utils import timezone as tz
+
+    from hybrid.models import LessonAttempt
+
+    # The student walks the guided flow: the bound step's lesson attempt is
+    # opened (recording the OPENED event), then re-opened later, pushing the
+    # freshness bound past the record's creation.
+    lesson_attempt = LessonAttempt.objects.create(enrolment=world["enrolment"], lesson=world["step"].lesson)
+    StepEvent.objects.create(attempt=lesson_attempt, step=world["step"], kind=StepEvent.Kind.OPENED)
+    first_floor = attribution._window_floor(attempt, world["role"])
+    StepEvent.objects.create(attempt=lesson_attempt, step=world["step"], kind=StepEvent.Kind.OPENED)
+    StepEvent.objects.filter(attempt=lesson_attempt, step=world["step"]).update(
+        occurred_at=tz.now() + timedelta(hours=2),
+    )
+    later_floor = attribution._window_floor(attempt, world["role"])
+
+    assert first_floor > attempt.started_at
+    assert later_floor > first_floor
+    assert ledger.record_created_at < later_floor
+
+    response = _eligible(world, student)
+    ids = [row["record_id"] for row in json.loads(response.content)["eligible"]]
+    assert ucr.pk not in ids
+
+    with pytest.raises(attribution.AttributionError):
+        attribution.attribute_creation(attempt, world["role"], ledger.pk, student)
+
+    satisfied, _message = journey_services.role_satisfied(attempt, world["role"])
+    assert not satisfied
 
 
 @pytest.mark.django_db
@@ -318,7 +419,9 @@ def test_attribution_requires_the_student_and_post(client, db):
         attribute_url, data=json.dumps({"creation_id": str(ledger.pk)}),
         content_type="application/json",
     )
-    assert response.status_code == 403
+    # The project's 403 handler redirects authenticated portal users with a
+    # warning; nothing is attributed either way.
+    assert response.status_code == 302
     assert not JourneyRecordAssociation.objects.exists()
 
     # CSRF is enforced for browser flows.
@@ -349,4 +452,6 @@ def test_the_eligible_listing_requires_the_student(client, db):
         reverse("hybrid-journey-role-eligible", args=[world["journey"].pk, world["role"].pk]),
     )
 
-    assert response.status_code == 403
+    # The project's 403 handler redirects authenticated portal users with a
+    # warning instead of rendering a bare 403 page.
+    assert response.status_code == 302

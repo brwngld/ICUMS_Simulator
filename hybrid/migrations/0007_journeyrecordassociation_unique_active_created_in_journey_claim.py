@@ -15,6 +15,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddConstraint(
             model_name='journeyrecordassociation',
-            constraint=models.UniqueConstraint(condition=models.Q(('assignment_source', 'created_in_journey'), ('is_active', True)), fields=('record_kind', 'record_id'), name='unique_active_created_in_journey_claim'),
+            constraint=models.UniqueConstraint(condition=models.Q(assignment_source='created_in_journey'), fields=('record_kind', 'record_id'), name='unique_created_in_journey_record_claim'),
         ),
     ]

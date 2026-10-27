@@ -538,8 +538,14 @@ def assign_record(attempt, role, record_id, source, assigned_by=None):
             raise PermissionDenied("That simulator record belongs to another learner.")
         raise ValidationError(f"That {role.record_kind.upper()} record does not exist.")
     # Creation-mode compatibility: a new-record role can only ever be filled
-    # by a record created inside the journey; an existing-record role only by
-    # an authorized assignment.
+    # by a record created inside the journey, and such claims are minted
+    # exclusively by the Stage 3.2 attribution service after it validates the
+    # creation window — never through this legacy assignment path.
+    if source == JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY:
+        raise ValidationError(
+            "created-in-journey records are attributed through the journey "
+            "attribution flow and cannot be assigned directly."
+        )
     if role.creation_mode == JourneyRecordRole.CreationMode.NEW and source != JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY:
         raise ValidationError("This role requires a record created within the journey.")
     if role.creation_mode == JourneyRecordRole.CreationMode.EXISTING and source != JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING:
@@ -561,6 +567,34 @@ def assign_record(attempt, role, record_id, source, assigned_by=None):
             assigned_by=assigned_by,
         )
     return association
+
+
+def _role_window_floor(attempt, role):
+    """The latest moment a creation attributable to this role may carry:
+    the attempt's start, or the bound step's current opening if the learner
+    has (re)entered it — whichever is later."""
+    floor = attempt.started_at
+    binding = (
+        JourneyConditionBinding.objects.filter(role=role)
+        .select_related("condition__step")
+        .first()
+    )
+    if binding is not None:
+        step = binding.condition.step
+        lesson_attempt = LessonAttempt.objects.filter(
+            enrolment=attempt.enrolment, lesson=step.lesson,
+        ).first()
+        if lesson_attempt is not None:
+            event = (
+                StepEvent.objects.filter(
+                    attempt=lesson_attempt, step=step, kind=StepEvent.Kind.OPENED,
+                )
+                .order_by("-occurred_at")
+                .first()
+            )
+            if event is not None and event.occurred_at > floor:
+                floor = event.occurred_at
+    return floor
 
 
 def role_satisfied(attempt, role):
@@ -585,17 +619,25 @@ def role_satisfied(attempt, role):
     if association.assignment_source == JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY:
         # Stage 3.2: the lift requires authoritative creation evidence — an
         # immutable ledger row for this exact record, owned by the learner —
-        # written by the capture receiver (Checkpoint 3.1). The association
-        # alone is the student's attribution; the ledger is the proof.
+        # written by the capture receiver (Checkpoint 3.1), created at or
+        # after the attempt's start and after the bound step's current
+        # opening. The association alone is the student's attribution; the
+        # ledger is the proof.
         evidence = SimulatorRecordCreation.objects.filter(
             record_kind=association.record_kind,
             record_id=association.record_id,
             owner=attempt.enrolment.student,
-        ).exists()
-        if not evidence:
+        ).first()
+        if evidence is None:
             return False, (
                 f"The {label} record requirement is open: the system cannot yet verify "
                 "that this record was created within this journey."
+            )
+        window_floor = max(attempt.started_at, _role_window_floor(attempt, role))
+        if evidence.record_created_at < window_floor:
+            return False, (
+                f"The {label} record requirement is open: this record was created "
+                "before the step's current opening."
             )
         return True, f"{label} record created within the journey."
     return True, f"{label} record assigned."

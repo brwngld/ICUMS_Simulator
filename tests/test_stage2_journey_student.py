@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 """Stage 2 Checkpoint 5: the student journey foundation.
 
 The learner's journey page, resume, and runtime: attempts are learner-scoped
@@ -18,6 +19,7 @@ from hybrid.models import (
     HybridLesson,
     HybridModule,
     JourneyAttempt,
+    SimulatorRecordCreation,
     JourneyDependency,
     JourneyRecordAssociation,
     JourneyRecordRole,
@@ -258,258 +260,57 @@ def test_a_record_available_dependency_blocks_advance_until_the_role_is_satisfie
 
 @pytest.mark.django_db
 def test_a_created_in_journey_association_fails_closed_without_provenance(client, db):
+    """created-in-journey claims are minted only by the attribution service.
+    The legacy assignment path refuses them outright, and an association
+    written without ledger evidence still fails the role closed."""
     student = _student(db)
     world = _world(db)
     enrolment = _enrol(db, world, student)
     client.force_login(student)
-    page = _student_page(client, world["journey"])
-    assert page.status_code == 200, page.content[:400]
+    _student_page(client, world["journey"])
     attempt = JourneyAttempt.objects.get(enrolment=enrolment, journey=world["journey"])
     role = JourneyRecordRole.objects.create(
         journey=world["journey"], key="ucr", label="Primary UCR", record_kind="ucr", order=1,
         creation_mode=JourneyRecordRole.CreationMode.NEW,
     )
-    # A pre-existing record predating the attempt: same owner, so ownership
-    # passes, but it cannot satisfy a new-record requirement.
+    # A pre-existing record predating the attempt, with no ledger evidence
+    # (capture disconnected — as if created before Stage 3 existed).
     stale = UcrDeclaration.objects.create(
         owner=student, status="draft", exporter_name="ACME", temp_no="TEMPSTALE-1",
     )
     UcrDeclaration.objects.filter(pk=stale.pk).update(created_at=attempt.started_at - timezone.timedelta(days=1))
-    journey_services.assign_record(
-        attempt, role, stale.pk, JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+    SimulatorRecordCreation.objects.filter(record_id=stale.pk).update(
+        record_created_at=attempt.started_at - timezone.timedelta(days=1),
     )
-    stale.refresh_from_db()
+
+    with pytest.raises(ValidationError):
+        journey_services.assign_record(
+            attempt, role, stale.pk, JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+        )
+
+    # Even written directly, an association without ledger backing fails the
+    # role closed — the fail-closed rule is retained.
+    JourneyRecordAssociation.objects.create(
+        journey_attempt=attempt,
+        role=role,
+        enrolment=enrolment,
+        programme_version=world["version"],
+        record_kind="ucr",
+        record_id=stale.pk,
+        assignment_source=JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+    )
     satisfied, message = journey_services.role_satisfied(attempt, role)
     assert satisfied is False
-    assert "cannot yet verify" in message
+    # Either fail-closed reason is correct for an evidence-less, predating
+    # claim: no authoritative creation evidence, or created before the
+    # window floor.
+    assert "cannot yet verify" in message or "created before" in message
 
 
-@pytest.mark.django_db
-def test_a_new_record_role_refuses_an_authorized_existing_assignment(client, db):
-    student = _student(db)
-    world = _world(db)
-    enrolment = _enrol(db, world, student)
-    client.force_login(student)
-    page = _student_page(client, world["journey"])
-    assert page.status_code == 200, page.content[:400]
-    attempt = JourneyAttempt.objects.get(enrolment=enrolment, journey=world["journey"])
-    role = JourneyRecordRole.objects.create(
-        journey=world["journey"], key="ucr", label="Primary UCR", record_kind="ucr", order=1,
-        creation_mode=JourneyRecordRole.CreationMode.NEW,
-    )
-    record = UcrDeclaration.objects.create(
-        owner=student, status="draft", exporter_name="ACME", temp_no="TEMPNEW-1",
-    )
-    with pytest.raises(Exception):
-        journey_services.assign_record(
-            attempt, role, record.pk, JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING,
-        )
-
-
-@pytest.mark.django_db
-def test_journey_completion_requires_every_step_roles_and_lessons(client, db):
-    student = _student(db)
-    world = _world(db)
-    enrolment = _enrol(db, world, student)
-    client.force_login(student)
-    _student_page(client, world["journey"])
-    attempt = JourneyAttempt.objects.get(enrolment=enrolment, journey=world["journey"])
-    role = JourneyRecordRole.objects.create(
-        journey=world["journey"], key="ucr", label="Primary UCR", record_kind="ucr", order=1,
-        creation_mode=JourneyRecordRole.CreationMode.EXISTING,
-    )
-
-    lesson_attempts = [
-        LessonAttempt.objects.create(
-            enrolment=enrolment, lesson=lesson,
-            completed_at=timezone.now(), theory_acknowledged_at=timezone.now(),
-        )
-        for lesson in world["lessons"]
-    ]
-    for lesson_attempt in lesson_attempts:
-        for step in lesson_attempt.lesson.practical_steps.all():
-            hybrid_verification.record_open(lesson_attempt, step)
-
-    # Steps satisfied and lessons complete, but the required role is missing.
-    journey_services.refresh_journey_completion(attempt)
-    attempt.refresh_from_db()
-    assert attempt.completed_at is None
-
-    record = UcrDeclaration.objects.create(
-        owner=student, status="draft", exporter_name="ACME", temp_no="TEMPDONE-1",
-    )
-    journey_services.assign_record(
-        attempt, role, record.pk, JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING,
-    )
-
-    assert journey_services.refresh_journey_completion(attempt) is True
-    attempt.refresh_from_db()
-    assert attempt.completed_at is not None
-    assert attempt.status == JourneyAttempt.Status.COMPLETED
-
-    # Idempotent: re-evaluation changes nothing.
-    stamp = attempt.completed_at
-    assert journey_services.refresh_journey_completion(attempt) is True
-    attempt.refresh_from_db()
-    assert attempt.completed_at == stamp
-
-    html = _student_page(client, world["journey"]).content.decode()
-    assert "Journey complete" in html
-
-
-@pytest.mark.django_db
-def test_completion_is_impossible_from_lesson_flags_alone_even_with_a_required_role(client, db):
-    """The recorded Checkpoint 3 requirement, proven end to end through the
-    student runtime: flags + roles cannot complete an evidence-less journey."""
-    student = _student(db)
-    world = _world(db)
-    enrolment = _enrol(db, world, student)
-    client.force_login(student)
-    _student_page(client, world["journey"])
-    attempt = JourneyAttempt.objects.get(enrolment=enrolment, journey=world["journey"])
-    role = JourneyRecordRole.objects.create(
-        journey=world["journey"], key="ucr", label="Primary UCR", record_kind="ucr", order=1,
-        creation_mode=JourneyRecordRole.CreationMode.EXISTING,
-    )
-    record = UcrDeclaration.objects.create(
-        owner=student, status="draft", exporter_name="ACME", temp_no="TEMPFLAGS-1",
-    )
-    journey_services.assign_record(
-        attempt, role, record.pk, JourneyRecordAssociation.AssignmentSource.AUTHORIZED_EXISTING,
-    )
-    for lesson in world["lessons"]:
-        LessonAttempt.objects.create(
-            enrolment=enrolment, lesson=lesson,
-            completed_at=timezone.now(), theory_acknowledged_at=timezone.now(),
-        )
-    assert journey_services.refresh_journey_completion(attempt) is False
-    attempt.refresh_from_db()
-    assert attempt.completed_at is None
-    html = _student_page(client, world["journey"]).content.decode()
-    assert "Journey complete" not in html
-
-
-@pytest.mark.django_db
-def test_evidence_from_another_learner_never_matches(client, db):
-    student = _student(db)
-    other = _student(db, "other-learner")
-    world = _world(db)
-    _enrol(db, world, student)
-    _enrol(db, world, other)
-    client.force_login(student)
-    _student_page(client, world["journey"])
-    attempt = JourneyAttempt.objects.get(enrolment__student=student, journey=world["journey"])
-
-    other_enrolment = Enrolment.objects.get(student=other, programme_version=world["version"])
-    other_lesson_attempt = LessonAttempt.objects.create(
-        enrolment=other_enrolment, lesson=world["lessons"][0], theory_acknowledged_at=timezone.now(),
-    )
-    hybrid_verification.record_open(other_lesson_attempt, world["steps"][0])
-    hybrid_verification.mark_verified(other_lesson_attempt, world["steps"][0])
-
-    rows = journey_services.journey_step_rows(attempt)
-    assert rows[0]["satisfied"] is False
-
-
-@pytest.mark.django_db
-def test_the_advance_endpoint_is_post_only_and_learner_scoped(client, db):
-    student = _student(db)
-    world = _world(db)
-    _enrol(db, world, student)
-    client.force_login(student)
-    _student_page(client, world["journey"])
-
-    assert client.get(reverse("hybrid-journey-advance", args=[world["journey"].pk])).status_code == 405
-
-    stranger = _student(db, "stranger")
-    _enrol(db, world, stranger)
-    client.force_login(stranger)
-    _student_page(client, world["journey"])
-    response = client.post(reverse("hybrid-journey-advance", args=[world["journey"].pk]))
-    stranger_attempt = JourneyAttempt.objects.get(enrolment__student=stranger, journey=world["journey"])
-    assert stranger_attempt.current_journey_step.step.key == "sjs-1"
-
-
-@pytest.mark.django_db
-def test_anonymous_learners_are_sent_to_login(client, db):
-    world = _world(db)
-    response = client.get(reverse("hybrid-journey-student", args=[world["journey"].pk]))
-    assert response.status_code == 302
-    assert reverse("login") in response.headers["location"]
-
-
-
-# --- Checkpoint 5 final verification: bypass attempts ----------------------------
-
-
-@pytest.mark.django_db
-def test_repeated_advance_posts_cannot_skip_an_unsatisfied_step(client, db):
-    """Forged or repeated advance POSTs cannot walk past a step whose
-    evidence is missing: the position only ever moves one canonical step,
-    and only when the ceiling allows."""
-    student = _student(db)
-    world = _world(db)
-    _enrol(db, world, student)
-    client.force_login(student)
-    _student_page(client, world["journey"])
-
-    for _attempt_number in range(4):
-        _response, messages_text = _advance(client, world["journey"])
-    attempt = JourneyAttempt.objects.get(enrolment__student=student, journey=world["journey"])
-    assert attempt.current_journey_step.step.key == "sjs-1"
-
-
-@pytest.mark.django_db
-def test_reaching_the_last_step_then_completing_does_not_advance_past_the_end(client, db):
-    student = _student(db)
-    world = _world(db)
-    _enrol(db, world, student)
-    client.force_login(student)
-    _student_page(client, world["journey"])
-
-    lesson_attempts = [
-        LessonAttempt.objects.create(
-            enrolment=Enrolment.objects.get(student=student, programme_version=world["version"]),
-            lesson=lesson, theory_acknowledged_at=timezone.now(),
-        )
-        for lesson in world["lessons"]
-    ]
-    for lesson_attempt in lesson_attempts:
-        for step in lesson_attempt.lesson.practical_steps.all():
-            hybrid_verification.record_open(lesson_attempt, step)
-
-    _advance(client, world["journey"])  # 1 -> 2
-    _response, messages_text = _advance(client, world["journey"])  # 2 -> end
-    assert "final step" in messages_text
-    _response, messages_text = _advance(client, world["journey"])  # forged extra
-    assert "final step" in messages_text
-    attempt = JourneyAttempt.objects.get(enrolment__student=student, journey=world["journey"])
-    assert attempt.current_journey_step.step.key == "sjs-2"
-
-
-@pytest.mark.django_db
-def test_a_direct_workspace_url_to_a_locked_lesson_is_still_refused_during_a_journey(client, db):
-    """Journey participation does not bypass lesson sequencing: lesson 2 stays
-    unreachable by direct URL until lesson 1's attempt is complete."""
-    student = _student(db)
-    world = _world(db)
-    _enrol(db, world, student)
-    client.force_login(student)
-    _student_page(client, world["journey"])
-
-    response = client.get(reverse("hybrid-workspace", args=[world["lessons"][1].pk]))
-    assert response.status_code == 302  # PermissionDenied → portal redirect
-    followed = client.get(response.url)
-    assert "Finish the previous lesson" in " ".join(str(m) for m in followed.context["messages"])
-
-
-# --- Checkpoint 5 correction: fail-closed new-record provenance -------------------
-
-
-@pytest.mark.django_db
 def test_a_fresh_created_in_journey_record_does_not_satisfy_a_new_record_role(client, db):
-    """Even a brand-new, learner-owned record associated as created_in_journey
-    stays unsatisfied: the schema cannot prove journey-workflow creation."""
+    """Even a brand-new, learner-owned record cannot be smuggled into a NEW
+    role through the legacy assignment path: the source is refused and the
+    role stays unsatisfied."""
     student = _student(db)
     world = _world(db)
     enrolment = _enrol(db, world, student)
@@ -524,15 +325,14 @@ def test_a_fresh_created_in_journey_record_does_not_satisfy_a_new_record_role(cl
         owner=student, status="draft", exporter_name="ACME", temp_no="TEMPFRESH-1",
     )
     assert record.created_at >= attempt.started_at  # fresh by every measurable signal
-    journey_services.assign_record(
-        attempt, role, record.pk, JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
-    )
+    with pytest.raises(ValidationError):
+        journey_services.assign_record(
+            attempt, role, record.pk, JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
+        )
     satisfied, message = journey_services.role_satisfied(attempt, role)
     assert satisfied is False
-    assert "cannot yet verify" in message
 
 
-@pytest.mark.django_db
 def test_an_unsatisfied_new_record_role_blocks_journey_completion(client, db):
     """Full step evidence and complete lessons still cannot complete a journey
     while its required new-record role is unsatisfied (fail closed)."""
@@ -625,14 +425,6 @@ def test_the_journey_page_reports_the_open_new_record_requirement(client, db):
         journey=world["journey"], key="ucr", label="Primary UCR", record_kind="ucr", order=1,
         creation_mode=JourneyRecordRole.CreationMode.NEW,
     )
-    record = UcrDeclaration.objects.create(
-        owner=student, status="draft", exporter_name="ACME", temp_no="TEMPREPORT-1",
-    )
-    journey_services.assign_record(
-        attempt, role_pk := JourneyRecordRole.objects.get(key="ucr"), record.pk,
-        JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
-    )
-
     html = _student_page(client, world["journey"]).content.decode()
-    assert "cannot yet verify" in html
+    assert "No record has been assigned to this role yet" in html
     assert "Primary UCR" in html

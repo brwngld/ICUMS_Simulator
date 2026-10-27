@@ -632,8 +632,8 @@ class JourneyRecordAssociation(models.Model):
             ),
             models.UniqueConstraint(
                 fields=("record_kind", "record_id"),
-                condition=Q(assignment_source="created_in_journey", is_active=True),
-                name="unique_active_created_in_journey_claim",
+                condition=Q(assignment_source="created_in_journey"),
+                name="unique_created_in_journey_record_claim",
             ),
         ]
         indexes = [

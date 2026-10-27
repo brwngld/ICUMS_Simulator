@@ -82,12 +82,15 @@ def _window_floor(attempt, role):
     return floor
 
 
-def _active_claim_exists(record_kind, record_id):
+def _claim_exists(record_kind, record_id):
+    """True when the record has ever been claimed as created-in-journey —
+    superseded claims count: a claimed record cannot be re-claimed by another
+    attempt (database constraint ``unique_active_created_in_journey_claim``
+    enforces the same rule, superseded rows included)."""
     return JourneyRecordAssociation.objects.filter(
         record_kind=record_kind,
         record_id=record_id,
         assignment_source=JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
-        is_active=True,
     ).exists()
 
 
@@ -99,7 +102,6 @@ def eligible_creations(attempt, role):
         JourneyRecordAssociation.objects.filter(
             record_kind=role.record_kind,
             assignment_source=JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
-            is_active=True,
         ).values_list("record_id", flat=True)
     )
     rows = SimulatorRecordCreation.objects.filter(
@@ -142,7 +144,7 @@ def attribute_creation(attempt, role, ledger_id, student):
         raise AttributionError("That creation record does not exist.", code="unknown_creation")
     if ledger.owner_id != student.pk or ledger.record_kind != role.record_kind:
         raise PermissionDenied("That creation does not belong to this learner.")
-    if _active_claim_exists(ledger.record_kind, ledger.record_id):
+    if _claim_exists(ledger.record_kind, ledger.record_id):
         raise AttributionError(
             "This creation has already been attributed to a journey.",
             status=409, code="already_claimed",
