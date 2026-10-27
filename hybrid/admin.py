@@ -6,7 +6,7 @@ durable learner evidence for staff inspection.
 """
 from django.contrib import admin
 
-from .models import LessonAttempt, StepEvent, VerificationCondition
+from .models import JourneyVerificationEvidence, LessonAttempt, StepEvent, VerificationCondition
 
 
 @admin.register(VerificationCondition)
@@ -27,4 +27,21 @@ class LessonAttemptAdmin(admin.ModelAdmin):
 class StepEventAdmin(admin.ModelAdmin):
     list_display = ("attempt", "step", "kind", "occurred_at")
     list_filter = ("kind",)
-    readonly_fields = ("attempt", "step", "kind", "occurred_at")
+    readonly_fields = ("attempt", "step", "kind", "occurred_at", "generation")
+
+
+@admin.register(JourneyVerificationEvidence)
+class JourneyVerificationEvidenceAdmin(admin.ModelAdmin):
+    list_display = ("journey_step", "condition", "role", "record_kind", "record_id", "verified_at")
+    list_filter = ("record_kind",)
+    search_fields = ("journey_step__step__title", "condition__step__title", "role__label")
+    readonly_fields = tuple(field.name for field in JourneyVerificationEvidence._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

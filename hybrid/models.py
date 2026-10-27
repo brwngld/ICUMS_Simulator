@@ -302,6 +302,12 @@ class StepEvent(models.Model):
     step = models.ForeignKey(PracticalStep, on_delete=models.PROTECT, related_name="events")
     kind = models.CharField(max_length=12, choices=Kind.choices)
     occurred_at = models.DateTimeField(default=timezone.now)
+    generation = models.UUIDField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="opened rows only: the generation later evidence is bound to.",
+    )
 
     class Meta:
         constraints = [
@@ -310,6 +316,11 @@ class StepEvent(models.Model):
                 fields=("attempt", "step"),
                 condition=Q(kind="verified"),
                 name="unique_hybrid_step_verified",
+            ),
+            models.UniqueConstraint(
+                fields=("attempt", "step"),
+                condition=Q(kind="opened"),
+                name="unique_hybrid_step_opened",
             ),
         ]
         indexes = [models.Index(fields=("attempt", "step", "kind"))]
@@ -753,3 +764,146 @@ class SimulatorRecordCreation(models.Model):
 
     def __str__(self):
         return f"{self.record_kind}:{self.record_id} · {self.owner_id}"
+
+
+class JourneyVerificationEvidence(models.Model):
+    """Immutable proof that one journey condition passed in one opening.
+
+    A row is written once, after the server itself has re-verified the
+    condition, and is never edited or deleted: it freezes which opening, which
+    condition wording and which simulator record satisfied the step. The live
+    predicate compares the step's current conditions and active association
+    against these rows, so an edited condition, a replaced record or a reopened
+    step leaves the old row intact and simply stops matching. That is why
+    ``condition_fingerprint`` and ``association`` are part of
+    ``unique_evidence_identity``: the same success cannot be recorded twice,
+    while a changed condition or a new record records separately.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    journey_attempt = models.ForeignKey(
+        JourneyAttempt,
+        on_delete=models.CASCADE,
+        related_name="verification_evidence",
+    )
+    lesson_attempt = models.ForeignKey(
+        LessonAttempt,
+        on_delete=models.PROTECT,
+        related_name="journey_verification_evidence",
+    )
+    journey_step = models.ForeignKey(
+        JourneyStep,
+        on_delete=models.PROTECT,
+        related_name="verification_evidence",
+    )
+    condition = models.ForeignKey(
+        VerificationCondition,
+        on_delete=models.PROTECT,
+        related_name="journey_verification_evidence",
+    )
+    condition_fingerprint = models.CharField(max_length=64)
+    role = models.ForeignKey(
+        JourneyRecordRole,
+        on_delete=models.PROTECT,
+        related_name="verification_evidence",
+    )
+    association = models.ForeignKey(
+        JourneyRecordAssociation,
+        on_delete=models.PROTECT,
+        related_name="verification_evidence",
+    )
+    record_kind = models.CharField(max_length=20)
+    record_id = models.PositiveBigIntegerField()
+    opening_generation = models.UUIDField()
+    opening_occurred_at = models.DateTimeField()
+    verified_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ("-verified_at", "id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=(
+                    "lesson_attempt",
+                    "journey_step",
+                    "condition",
+                    "opening_generation",
+                    "condition_fingerprint",
+                    "association",
+                ),
+                name="unique_evidence_identity",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=("journey_attempt", "journey_step"), name="evidence_journey_step"),
+            models.Index(fields=("condition",), name="evidence_condition"),
+            models.Index(fields=("record_kind", "record_id"), name="evidence_record"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise ValidationError("Journey verification evidence is append-only.")
+        return super().save(*args, **kwargs)
+
+    def clean(self):
+        errors = {}
+        if self.record_kind not in VERIFY_RECORDS:
+            errors["record_kind"] = "Choose an approved simulator record kind."
+        if not self.condition_fingerprint:
+            errors["condition_fingerprint"] = "Evidence must carry a condition fingerprint."
+        attempt = (
+            JourneyAttempt.objects.filter(pk=self.journey_attempt_id)
+            .values_list("journey_id", "enrolment_id")
+            .first()
+        )
+        assignment = (
+            JourneyStep.objects.filter(pk=self.journey_step_id)
+            .values_list("journey_id", "step_id")
+            .first()
+        )
+        condition = (
+            VerificationCondition.objects.filter(pk=self.condition_id)
+            .values_list("step_id", "kind", "record_kind")
+            .first()
+        )
+        role = (
+            JourneyRecordRole.objects.filter(pk=self.role_id)
+            .values_list("journey_id", "record_kind")
+            .first()
+        )
+        association = (
+            JourneyRecordAssociation.objects.filter(pk=self.association_id)
+            .values_list(
+                "journey_attempt_id", "role_id", "record_kind", "record_id", "is_active", "replaced_at",
+            )
+            .first()
+        )
+        lesson_enrolment_id = (
+            LessonAttempt.objects.filter(pk=self.lesson_attempt_id)
+            .values_list("enrolment_id", flat=True)
+            .first()
+        )
+        if attempt and assignment and assignment[0] != attempt[0]:
+            errors["journey_step"] = "The journey step must belong to the attempted journey."
+        if attempt and lesson_enrolment_id and attempt[1] != lesson_enrolment_id:
+            errors["lesson_attempt"] = "The lesson attempt must belong to the journey attempt's enrolment."
+        if assignment and condition:
+            if condition[0] != assignment[1]:
+                errors["condition"] = "The condition must belong to the journey step's practical step."
+            if condition[1] != VerificationCondition.Kind.SAVED_RECORD:
+                errors["condition"] = "Only saved-record conditions produce journey evidence."
+        if attempt and role and role[0] != attempt[0]:
+            errors["role"] = "The record role must belong to the attempted journey."
+        if role and condition and role[1] != condition[2]:
+            errors["role"] = "The role must use the condition's record kind."
+        if association and attempt:
+            if association[0] != self.journey_attempt_id or association[1] != self.role_id:
+                errors["association"] = "The association must be this role's record on this journey attempt."
+            if not association[4] or association[5] is not None:
+                errors["association"] = "The association must be the role's active record."
+            if (association[2], association[3]) != (self.record_kind, self.record_id):
+                errors["association"] = "The recorded identity must match the association."
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        return f"{self.journey_step_id} · {self.record_kind}:{self.record_id} · {self.verified_at:%Y-%m-%d}"
