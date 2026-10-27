@@ -58,19 +58,100 @@ displays and links.
         <h2>Required records</h2>
         <ul class="hyb-journey">
           {% for role_row in role_rows %}
-            <li class="{% if role_row.satisfied %}done{% endif %}">
-              <span>{% if role_row.satisfied %}✓{% else %}•{% endif %}</span>
-              <small>
-                {{ role_row.role.label }}
+            <li class="{% if role_row.step_verified %}done{% elif role_row.association %}now{% endif %}" data-role-row="{{ role_row.role.pk }}">
+              <span>{% if role_row.step_verified %}✓{% elif role_row.association %}•{% else %}○{% endif %}</span>
+              <div>
+                <strong>{{ role_row.role.label }}</strong>
+                <small>{{ role_row.record_type_label }} · {{ role_row.role.get_creation_mode_display }}</small>
+                <p class="hyb-feedback" data-role-state>{{ role_row.state_label }}</p>
                 {% if role_row.association %}
-                  — record #{{ role_row.association.record_id }} ({{ role_row.association.get_assignment_source_display }})
+                  <p class="hyb-feedback">Current record: #{{ role_row.association.record_id }} · {{ role_row.association.get_assignment_source_display }}</p>
+                {% else %}
+                  <p class="hyb-feedback">{{ role_row.message }}</p>
                 {% endif %}
-                {% if not role_row.satisfied %} — {{ role_row.message }}{% endif %}
-              </small>
+                {% if role_row.state == "ineligible" %}<p class="hyb-feedback" data-tone="fail">{{ role_row.message }}</p>{% endif %}
+
+                {% if role_row.can_attribute %}
+                  <button class="dash-secondary" type="button" data-record-select aria-expanded="false" aria-controls="record-options-{{ role_row.role.pk }}">
+                    {% if role_row.association %}Replace record{% else %}Select record{% endif %}
+                  </button>
+                  <div id="record-options-{{ role_row.role.pk }}" data-record-options hidden>
+                    {% if role_row.eligible %}
+                      <form data-attribution-form data-endpoint="{% url 'hybrid-journey-role-attribute' journey.pk role_row.role.pk %}">
+                        {% csrf_token %}
+                        <fieldset>
+                          <legend>Select an eligible {{ role_row.record_type_label|lower }}</legend>
+                          {% for record in role_row.eligible %}
+                            <label>
+                              <input type="radio" name="creation_id" value="{{ record.creation_id }}" required>
+                              {{ record.record_label }} · {{ record.record_status }} · created {{ record.record_created_at|date:"j M Y, H:i" }}
+                            </label>
+                          {% endfor %}
+                        </fieldset>
+                        <button class="dash-primary" type="submit">Use selected record</button>
+                        <p class="hyb-feedback" data-attribution-message role="status" aria-live="polite"></p>
+                      </form>
+                    {% else %}
+                      <p class="hyb-feedback" role="status">No eligible records are available. Create the required record in the simulator, then return to this page.</p>
+                    {% endif %}
+                  </div>
+                {% elif review_mode %}
+                  <p class="hyb-feedback">Instructor review is view-only.</p>
+                {% endif %}
+              </div>
             </li>
           {% endfor %}
         </ul>
       </section>
     {% endif %}
   </div>
+  <script>
+    (() => {
+      document.querySelectorAll("[data-record-select]").forEach((button) => {
+        const panel = document.getElementById(button.getAttribute("aria-controls"));
+        button.addEventListener("click", () => {
+          const opening = panel.hidden;
+          panel.hidden = !opening;
+          button.setAttribute("aria-expanded", String(opening));
+          if (opening) panel.querySelector("input, button")?.focus();
+        });
+      });
+
+      document.querySelectorAll("[data-attribution-form]").forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const message = form.querySelector("[data-attribution-message]");
+          const submit = form.querySelector('button[type="submit"]');
+          const selected = form.querySelector('input[name="creation_id"]:checked');
+          if (!selected) {
+            message.textContent = "Select a record before continuing.";
+            message.dataset.tone = "fail";
+            return;
+          }
+          submit.disabled = true;
+          message.textContent = "Saving record selection…";
+          message.dataset.tone = "pending";
+          try {
+            const response = await fetch(form.dataset.endpoint, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": form.querySelector('[name="csrfmiddlewaretoken"]').value,
+              },
+              body: JSON.stringify({creation_id: selected.value}),
+            });
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.error || "The record could not be attributed.");
+            message.textContent = payload.message;
+            message.dataset.tone = "pass";
+            window.location.reload();
+          } catch (error) {
+            message.textContent = error.message;
+            message.dataset.tone = "fail";
+            submit.disabled = false;
+          }
+        });
+      });
+    })();
+  </script>
 {% endblock %}

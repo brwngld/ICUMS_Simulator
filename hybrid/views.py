@@ -12,6 +12,7 @@ from django.views.decorators.http import require_POST
 
 from core.admin_dashboard import render_student_page
 from onboarding.services import needs_disclaimer_acceptance
+from scenarios.bindings import VERIFY_RECORDS
 
 from . import attribution as attribution_services
 from . import journey_services
@@ -247,15 +248,48 @@ def journey_student(request, journey_id):
     required_roles = JourneyRecordRole.objects.filter(
         journey=journey, required=True
     ).order_by("order", "id")
-    role_rows = [
-        {
+    verified_by_step = {row["step"].pk: row["verified"] for row in rows}
+    review_mode = bool(request.session.get("simulator_review_user_id"))
+    role_rows = []
+    for role in required_roles:
+        satisfied, message = journey_services.role_satisfied(attempt, role)
+        association = journey_services.active_record(attempt, role)
+        binding = role.condition_bindings.select_related("condition__step").first()
+        step_verified = bool(
+            binding and verified_by_step.get(binding.condition.step_id, False)
+        )
+        if step_verified and satisfied:
+            state = "verified"
+            state_label = "Practical step verified"
+        elif association and satisfied:
+            state = "attributed"
+            state_label = "Record attributed but not yet verified"
+        elif association:
+            state = "ineligible"
+            state_label = "Record no longer eligible"
+        else:
+            state = "empty"
+            state_label = "No record attributed"
+        role_rows.append({
             "role": role,
-            "satisfied": journey_services.role_satisfied(attempt, role)[0],
-            "message": journey_services.role_satisfied(attempt, role)[1],
-            "association": journey_services.active_record(attempt, role),
-        }
-        for role in required_roles
-    ]
+            "record_type_label": VERIFY_RECORDS[role.record_kind][1],
+            "satisfied": satisfied,
+            "message": message,
+            "association": association,
+            "step_verified": step_verified,
+            "state": state,
+            "state_label": state_label,
+            "eligible": (
+                attribution_services.eligible_for_view(attempt, role)
+                if role.creation_mode == JourneyRecordRole.CreationMode.NEW and not review_mode
+                else []
+            ),
+            "can_attribute": (
+                role.creation_mode == JourneyRecordRole.CreationMode.NEW
+                and attempt.status == JourneyAttempt.Status.IN_PROGRESS
+                and not review_mode
+            ),
+        })
     attempt.refresh_from_db()
     complete = attempt.completed_at is not None
     current_step = attempt.current_journey_step.step if attempt.current_journey_step_id else None
@@ -272,6 +306,7 @@ def journey_student(request, journey_id):
         "role_rows": role_rows,
         "complete": complete,
         "current_step": current_step,
+        "review_mode": review_mode,
     })
 
 
@@ -302,6 +337,8 @@ def journey_advance(request, journey_id):
 def journey_role_eligible(request, journey_id, role_id):
     """The student's eligible, unattributed creations for one required NEW
     record role — server-generated only; the request supplies nothing."""
+    if request.session.get("simulator_review_user_id"):
+        return JsonResponse({"error": "Instructor review is view-only."}, status=403)
     journey = get_object_or_404(
         PracticalJourney.objects.select_related("course__programme_version__programme"),
         pk=journey_id,
@@ -320,6 +357,8 @@ def journey_role_eligible(request, journey_id, role_id):
 def journey_role_attribute(request, journey_id, role_id):
     """Attribute one ledger-backed creation to this role. Server-validated
     end to end; a refusal is a controlled JSON error, never a silent one."""
+    if request.session.get("simulator_review_user_id"):
+        return JsonResponse({"error": "Instructor review is view-only."}, status=403)
     journey = get_object_or_404(
         PracticalJourney.objects.select_related("course__programme_version__programme"),
         pk=journey_id,

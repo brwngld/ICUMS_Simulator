@@ -197,12 +197,38 @@ def attribute_creation(attempt, role, ledger_id, student):
 
 
 def eligible_for_view(attempt, role):
-    """Serialisable eligible rows for the (future) student interface."""
+    """Serialisable eligible rows for the student attribution interface.
+
+    The record itself is loaded only after the ownership/window query above
+    has declared its ledger row eligible.  These labels are presentation
+    hints; attribution still submits the opaque creation id and repeats every
+    ownership, freshness and claim check server-side.
+    """
+    model = VERIFY_RECORDS[role.record_kind][0]
+
+    def record_label(record):
+        fields_by_kind = {
+            "ucr": ("ucr_no", "temp_no", "user_reference"),
+            "boe": ("declaration_no", "reference", "trader_reference"),
+            "consignment": ("application_no", "reference"),
+            "mda": ("application_no", "reference"),
+        }
+        for field_name in fields_by_kind.get(role.record_kind, ()):
+            value = getattr(record, field_name, None)
+            if value:
+                return str(value)
+        return f"Record #{record.pk}"
+
+    creations = eligible_creations(attempt, role)
+    records = model.objects.in_bulk(row.record_id for row in creations)
     return [
         {
             "creation_id": row.pk,
             "record_id": row.record_id,
             "record_created_at": row.record_created_at,
+            "record_label": record_label(records[row.record_id]),
+            "record_status": records[row.record_id].get_status_display(),
         }
-        for row in eligible_creations(attempt, role)
+        for row in creations
+        if row.record_id in records
     ]

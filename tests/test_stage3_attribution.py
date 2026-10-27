@@ -13,6 +13,7 @@ import pytest
 from django.db import IntegrityError, transaction
 from django.test import Client
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import User
 from hybrid import attribution, journey_services
@@ -24,6 +25,7 @@ from hybrid.models import (
     JourneyConditionBinding,
     JourneyRecordAssociation,
     JourneyRecordRole,
+    LessonAttempt,
     PracticalJourney,
     PracticalStep,
     JourneyStep,
@@ -455,3 +457,182 @@ def test_the_eligible_listing_requires_the_student(client, db):
     # The project's 403 handler redirects authenticated portal users with a
     # warning instead of rendering a bare 403 page.
     assert response.status_code == 302
+
+
+# --- Checkpoint B: student attribution interface -----------------------------
+
+
+@pytest.mark.django_db
+def test_journey_page_displays_eligible_records_with_distinguishing_details(client, db):
+    world = _world(db, "attrui-list")
+    record = _create_ucr_for(world["student"], "TEMP-UI-001", exporter_name="ACME Trading")
+    client.force_login(world["student"])
+
+    response = client.get(reverse("hybrid-journey-student", args=[world["journey"].pk]))
+    html = response.content.decode()
+
+    assert response.status_code == 200
+    assert "Fresh declaration" in html
+    assert "UCR declaration" in html
+    assert "No record attributed" in html
+    assert "Select record" in html
+    assert record.temp_no in html
+    assert "Draft" in html
+
+
+@pytest.mark.django_db
+def test_journey_page_explains_when_no_eligible_record_exists(client, db):
+    world = _world(db, "attrui-empty")
+    client.force_login(world["student"])
+
+    response = client.get(reverse("hybrid-journey-student", args=[world["journey"].pk]))
+
+    assert "No eligible records are available" in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_successful_interface_attribution_refreshes_to_current_record_state(client, db):
+    world = _world(db, "attrui-success")
+    record = _create_ucr_for(world["student"], "TEMP-UI-002", exporter_name="ACME Trading")
+    client.force_login(world["student"])
+
+    response = client.post(
+        reverse("hybrid-journey-role-attribute", args=[world["journey"].pk, world["role"].pk]),
+        data=json.dumps({"creation_id": str(_ledger_of(record).pk)}),
+        content_type="application/json",
+    )
+    assert response.status_code == 200
+
+    page = client.get(reverse("hybrid-journey-student", args=[world["journey"].pk])).content.decode()
+    assert "Record attributed but not yet verified" in page
+    assert f"Current record: #{record.pk}" in page
+    assert "Replace record" in page
+    assert "Practical step verified" not in page
+
+
+@pytest.mark.django_db
+def test_interface_allows_backend_validated_replacement(client, db):
+    world = _world(db, "attrui-replace")
+    first = _create_ucr_for(world["student"], "TEMP-UI-003", exporter_name="ACME Trading")
+    second = _create_ucr_for(world["student"], "TEMP-UI-004", exporter_name="ACME Trading")
+    client.force_login(world["student"])
+    endpoint = reverse("hybrid-journey-role-attribute", args=[world["journey"].pk, world["role"].pk])
+
+    assert client.post(endpoint, data=json.dumps({"creation_id": str(_ledger_of(first).pk)}),
+                       content_type="application/json").status_code == 200
+    assert client.post(endpoint, data=json.dumps({"creation_id": str(_ledger_of(second).pk)}),
+                       content_type="application/json").status_code == 200
+
+    active = JourneyRecordAssociation.objects.get(
+        journey_attempt=world["attempt"], role=world["role"], is_active=True,
+    )
+    assert active.record_id == second.pk
+    assert JourneyRecordAssociation.objects.filter(
+        journey_attempt=world["attempt"], role=world["role"], is_active=False,
+        record_id=first.pk,
+    ).exists()
+
+
+@pytest.mark.django_db
+def test_stale_interface_selection_returns_a_controlled_error(client, db):
+    world = _world(db, "attrui-stale")
+    record = _create_ucr_for(world["student"], "TEMP-UI-005", exporter_name="ACME Trading")
+    client.force_login(world["student"])
+    JourneyAttempt.objects.filter(pk=world["attempt"].pk).update(
+        started_at=timezone.now() + timedelta(minutes=1),
+    )
+
+    response = client.post(
+        reverse("hybrid-journey-role-attribute", args=[world["journey"].pk, world["role"].pk]),
+        data=json.dumps({"creation_id": str(_ledger_of(record).pk)}),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "outside_window"
+    assert "before the step" in response.json()["error"]
+
+
+@pytest.mark.django_db
+def test_instructor_review_session_cannot_list_or_attribute_records(client, db):
+    world = _world(db, "attrui-review")
+    record = _create_ucr_for(world["student"], "TEMP-UI-006", exporter_name="ACME Trading")
+    client.force_login(world["student"])
+    session = client.session
+    session["simulator_review_user_id"] = str(world["student"].pk)
+    session.save()
+    eligible_url = reverse(
+        "hybrid-journey-role-eligible", args=[world["journey"].pk, world["role"].pk],
+    )
+    attribute_url = reverse(
+        "hybrid-journey-role-attribute", args=[world["journey"].pk, world["role"].pk],
+    )
+
+    assert client.get(eligible_url).status_code == 403
+    response = client.post(
+        attribute_url, data=json.dumps({"creation_id": str(_ledger_of(record).pk)}),
+        content_type="application/json",
+    )
+    assert response.status_code == 403
+    assert not JourneyRecordAssociation.objects.exists()
+    page = client.get(reverse("hybrid-journey-student", args=[world["journey"].pk])).content.decode()
+    assert "Instructor review is view-only" in page
+    assert "<form data-attribution-form" not in page
+
+
+@pytest.mark.django_db
+def test_attribution_interface_preserves_csrf_and_post_only_contract(client, db):
+    world = _world(db, "attrui-methods")
+    record = _create_ucr_for(world["student"], "TEMP-UI-007", exporter_name="ACME Trading")
+    endpoint = reverse(
+        "hybrid-journey-role-attribute", args=[world["journey"].pk, world["role"].pk],
+    )
+    enforcing = Client(enforce_csrf_checks=True)
+    enforcing.force_login(world["student"])
+
+    assert enforcing.get(endpoint).status_code == 405
+    response = enforcing.post(
+        endpoint, data=json.dumps({"creation_id": str(_ledger_of(record).pk)}),
+        content_type="application/json",
+    )
+    assert response.status_code == 403
+    assert not JourneyRecordAssociation.objects.exists()
+
+
+@pytest.mark.django_db
+def test_interface_distinguishes_attribution_from_step_verification(client, db):
+    world = _world(db, "attrui-state")
+    record = _create_ucr_for(world["student"], "TEMP-UI-008", exporter_name="ACME Trading")
+    attribution.attribute_creation(
+        world["attempt"], world["role"], _ledger_of(record).pk, world["student"],
+    )
+    client.force_login(world["student"])
+    journey_url = reverse("hybrid-journey-student", args=[world["journey"].pk])
+
+    before = client.get(journey_url).content.decode()
+    assert "Record attributed but not yet verified" in before
+    assert "Practical step verified" not in before
+
+    lesson_attempt = LessonAttempt.objects.create(
+        enrolment=world["enrolment"], lesson=world["step"].lesson,
+    )
+    StepEvent.objects.create(
+        attempt=lesson_attempt, step=world["step"], kind=StepEvent.Kind.VERIFIED,
+    )
+    after = client.get(journey_url).content.decode()
+    assert "Practical step verified" in after
+    assert "Record attributed but not yet verified" not in after
+
+
+@pytest.mark.django_db
+def test_existing_journey_step_content_still_renders_with_attribution_controls(client, db):
+    world = _world(db, "attrui-regression")
+    client.force_login(world["student"])
+
+    html = client.get(
+        reverse("hybrid-journey-student", args=[world["journey"].pk]),
+    ).content.decode()
+
+    assert world["journey"].title in html
+    assert world["step"].title in html
+    assert "Continue in the workspace" in html
