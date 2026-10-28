@@ -23,8 +23,7 @@ from uuid import UUID
 
 from django.core.exceptions import PermissionDenied
 
-from scenarios.bindings import VERIFY_RECORDS
-
+from .journey_provenance import check_provenance
 from .models import (
     JourneyAttempt,
     JourneyConditionBinding,
@@ -135,13 +134,6 @@ def _active_association(attempt, journey, role):
     return association, None
 
 
-def _record_available(student_id, record_kind, record_id):
-    if record_kind not in VERIFY_RECORDS:
-        return False
-    model = VERIFY_RECORDS[record_kind][0]
-    return model.objects.filter(pk=record_id, owner_id=student_id).exists()
-
-
 def current_verification(user, lesson_attempt, step):
     """``CurrentVerification`` when the recorded evidence still holds.
 
@@ -238,8 +230,9 @@ def current_verification(user, lesson_attempt, step):
         association, problem = _active_association(attempt, journey, role)
         if problem:
             return _not_current(problem, "The role's active record association is missing or invalid.")
-        if not _record_available(enrolment.student_id, association.record_kind, association.record_id):
-            return _not_current("record_unavailable", "The associated simulator record is unavailable.")
+        failure, _record = check_provenance(attempt, role, association)
+        if failure is not None:
+            return _not_current(failure.code, failure.message)
 
         condition_rows = [row for row in rows if row.condition_id == condition.pk]
         if not condition_rows:
