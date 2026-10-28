@@ -23,9 +23,11 @@ from hybrid.models import (
     JourneyDependency,
     JourneyRecordAssociation,
     JourneyRecordRole,
+    JourneyStep,
     LessonAttempt,
     PracticalJourney,
     PracticalStep,
+    StepEvent,
 )
 from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
 from scenarios.models import UcrDeclaration
@@ -209,11 +211,16 @@ def test_the_progression_ceiling_blocks_two_steps_at_once(client, db):
     client.force_login(student)
     _student_page(client, world["journey"])
 
-    # Evidence for step 2 without step 1 cannot move the position.
+    # A future step cannot acquire opening evidence before step 1.
     lesson_attempt_two = LessonAttempt.objects.create(
         enrolment=enrolment, lesson=world["lessons"][1], theory_acknowledged_at=timezone.now(),
     )
-    hybrid_verification.record_open(lesson_attempt_two, world["steps"][1])
+    with pytest.raises(hybrid_verification.JourneyOpeningError) as excinfo:
+        hybrid_verification.record_open(lesson_attempt_two, world["steps"][1])
+    assert excinfo.value.code == "step_not_current"
+    assert not StepEvent.objects.filter(
+        attempt=lesson_attempt_two, step=world["steps"][1], kind=StepEvent.Kind.OPENED,
+    ).exists()
     _response, messages_text = _advance(client, world["journey"])
     attempt = JourneyAttempt.objects.get(enrolment=enrolment, journey=world["journey"])
     assert attempt.current_journey_step.step.key == "sjs-1"
@@ -355,6 +362,9 @@ def test_an_unsatisfied_new_record_role_blocks_journey_completion(client, db):
     ]
     for lesson_attempt in lesson_attempts:
         for step in lesson_attempt.lesson.practical_steps.all():
+            JourneyAttempt.objects.filter(pk=attempt.pk).update(
+                current_journey_step=JourneyStep.objects.get(journey=world["journey"], step=step),
+            )
             hybrid_verification.record_open(lesson_attempt, step)
 
     assert journey_services.refresh_journey_completion(attempt) is False
@@ -406,6 +416,9 @@ def test_an_optional_unsatisfied_role_does_not_block_completion(client, db):
     ]
     for lesson_attempt in lesson_attempts:
         for step in lesson_attempt.lesson.practical_steps.all():
+            JourneyAttempt.objects.filter(pk=attempt.pk).update(
+                current_journey_step=JourneyStep.objects.get(journey=world["journey"], step=step),
+            )
             hybrid_verification.record_open(lesson_attempt, step)
 
     assert journey_services.refresh_journey_completion(attempt) is True

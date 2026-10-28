@@ -293,6 +293,9 @@ def test_completion_requires_evidence_roles_and_lessons(world):
     # The engine's evidence path (durable StepEvent stamps on this enrolment's
     # LessonAttempt) satisfies the steps one at a time.
     for lesson_attempt, step in zip(lesson_attempts, world["steps"]):
+        JourneyAttempt.objects.filter(pk=attempt.pk).update(
+            current_journey_step=JourneyStep.objects.get(journey=journey, step=step),
+        )
         hybrid_verification.record_open(lesson_attempt, step)
         hybrid_verification.mark_verified(lesson_attempt, step)
 
@@ -459,6 +462,9 @@ def test_an_incomplete_mandatory_step_blocks_journey_completion_despite_a_comple
     # LessonAttempts) unlocks completion.
     for lesson_attempt in lesson_attempts:
         for step in lesson_attempt.lesson.practical_steps.all():
+            JourneyAttempt.objects.filter(pk=attempt.pk).update(
+                current_journey_step=JourneyStep.objects.get(journey=journey, step=step),
+            )
             hybrid_verification.record_open(lesson_attempt, step)
     assert journey_services.refresh_journey_completion(attempt) is True
     attempt.refresh_from_db()

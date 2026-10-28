@@ -9,11 +9,36 @@ a new task. Only a passing check writes a ``verified`` event, and the partial
 unique constraint makes a second one impossible; the browser merely learns
 the result.
 """
+import uuid
+import time
+
+from django.db import IntegrityError, OperationalError, connection, transaction
 from django.utils import timezone
 
 from scenarios.bindings import VERIFY_RECORDS
 
-from .models import LessonAttempt, StepEvent, VerificationCondition
+from .models import (
+    JourneyAttempt,
+    JourneyDependency,
+    JourneyStep,
+    LessonAttempt,
+    PracticalStep,
+    StepEvent,
+    VerificationCondition,
+)
+
+
+OPENING_RETRY_LIMIT = 3
+OPENING_RETRY_BASE_DELAY = 0.01
+
+
+class JourneyOpeningError(Exception):
+    """Controlled refusal for an invalid journey-bound step opening."""
+
+    def __init__(self, message, code):
+        super().__init__(message)
+        self.message = message
+        self.code = code
 
 
 def step_conditions(step):
@@ -31,14 +56,229 @@ def opened_at(attempt, step):
     return event.occurred_at if event else attempt.started_at
 
 
-def record_open(attempt, step):
-    """Record (or refresh) the moment the learner entered the step."""
-    event, _created = StepEvent.objects.get_or_create(
-        attempt=attempt, step=step, kind=StepEvent.Kind.OPENED, defaults={"occurred_at": timezone.now()},
+def _opening_fail(message, code):
+    raise JourneyOpeningError(message, code)
+
+
+def _journey_opening_context(attempt, step):
+    """Discover optional journey context without taking locks.
+
+    A missing assignment is the only legacy signal. Once a step is assigned,
+    every missing or incoherent journey row is a controlled refusal and must
+    never fall through to timestamp-refresh behavior.
+    """
+    assignment = (
+        JourneyStep.objects.filter(step=step)
+        .select_related("journey__course", "step__lesson__module__course")
+        .first()
     )
-    if not _created:
-        StepEvent.objects.filter(pk=event.pk).update(occurred_at=timezone.now())
-    return event
+    if assignment is None:
+        return None
+    enrolment = attempt.enrolment
+    journey = assignment.journey
+    if step.lesson_id != attempt.lesson_id:
+        _opening_fail("The step does not belong to this lesson attempt.", "step_mismatch")
+    if (
+        journey.programme_version_id != enrolment.programme_version_id
+        or journey.course.programme_version_id != enrolment.programme_version_id
+        or step.lesson.module.course_id != journey.course_id
+    ):
+        _opening_fail("This journey does not match the learner's enrolment.", "programme_mismatch")
+    journey_attempt = JourneyAttempt.objects.filter(enrolment=enrolment, journey=journey).first()
+    if journey_attempt is None:
+        _opening_fail("No journey attempt is available for this learner.", "attempt_missing")
+    return assignment, journey_attempt
+
+
+def _require_openable(journey_attempt, assignment, opening_exists):
+    """Revalidate navigation authority while the journey attempt is locked."""
+    from . import journey_services
+
+    if journey_attempt.status == JourneyAttempt.Status.COMPLETED:
+        if opening_exists:
+            return
+        _opening_fail("This journey step is not currently available.", "journey_completed")
+    if journey_attempt.status != JourneyAttempt.Status.IN_PROGRESS:
+        _opening_fail("The journey attempt is not in progress.", "attempt_not_in_progress")
+
+    current = journey_attempt.current_journey_step
+    if current is None or current.journey_id != journey_attempt.journey_id:
+        _opening_fail("This journey step is not currently available.", "step_not_current")
+    if assignment.journey_order > current.journey_order:
+        _opening_fail("This journey step is not currently available.", "step_not_current")
+    if assignment.pk != current.pk:
+        if opening_exists:
+            return
+        _opening_fail("This journey step is not currently available.", "step_not_current")
+
+    rows = journey_services.journey_step_rows(journey_attempt)
+    target_index = next(
+        (index for index, row in enumerate(rows) if row["assignment"].pk == assignment.pk),
+        None,
+    )
+    if target_index is None:
+        _opening_fail("This step is not assigned to the journey.", "step_not_assigned")
+    if any(not row["satisfied"] for row in rows[:target_index]):
+        _opening_fail("This journey step is locked by earlier work.", "progression_blocked")
+
+    dependencies = JourneyDependency.objects.filter(
+        journey=journey_attempt.journey,
+        dependent_step=assignment,
+    ).select_related("predecessor_step", "required_record_role")
+    row_by_assignment = {row["assignment"].pk: row for row in rows}
+    for dependency in dependencies:
+        if dependency.dependency_type == JourneyDependency.DependencyType.RECORD_AVAILABLE:
+            role = dependency.required_record_role
+            if role is None or role.journey_id != journey_attempt.journey_id:
+                _opening_fail("This journey dependency is invalid.", "dependency_invalid")
+            if not journey_services.role_satisfied(journey_attempt, role)[0]:
+                _opening_fail("This journey step is waiting for a required record.", "dependency_blocked")
+        else:
+            predecessor = row_by_assignment.get(dependency.predecessor_step_id)
+            if predecessor is None or not predecessor["satisfied"]:
+                _opening_fail("This journey step is waiting for an earlier step.", "dependency_blocked")
+
+
+def _is_opened_singleton_collision(exc):
+    constraint_name = getattr(getattr(exc, "__cause__", None), "diag", None)
+    if constraint_name is not None:
+        return constraint_name.constraint_name == "unique_hybrid_step_opened"
+    message = str(exc).lower()
+    return (
+        "unique constraint failed" in message
+        and "hybrid_stepevent.attempt_id" in message
+        and "hybrid_stepevent.step_id" in message
+    )
+
+
+def _is_sqlite_opening_contention(exc):
+    if connection.vendor != "sqlite":
+        return False
+    message = str(exc).lower()
+    return "database is locked" in message or "database table is locked" in message
+
+
+def _create_opened_event(locked_attempt, step, *, generation):
+    """Create the singleton, or return the row that won its exact race.
+
+    The nested atomic block is a savepoint. An expected uniqueness collision
+    rolls back there, leaving the surrounding transaction usable for the
+    recovery read. Other integrity failures retain their original exception.
+    """
+    try:
+        with transaction.atomic():
+            return StepEvent.objects.create(
+                attempt=locked_attempt,
+                step=step,
+                kind=StepEvent.Kind.OPENED,
+                occurred_at=timezone.now(),
+                generation=generation,
+            )
+    except IntegrityError as exc:
+        if not _is_opened_singleton_collision(exc):
+            raise
+        winner = StepEvent.objects.filter(
+            attempt=locked_attempt,
+            step=step,
+            kind=StepEvent.Kind.OPENED,
+        ).first()
+        if winner is None:
+            raise
+        return winner
+
+
+def _record_legacy_open(attempt, step):
+    """Preserve the original timestamp-refresh behavior under row locks."""
+    with transaction.atomic():
+        locked_attempt = LessonAttempt.objects.select_for_update().get(pk=attempt.pk)
+        event = StepEvent.objects.select_for_update().filter(
+            attempt=locked_attempt, step=step, kind=StepEvent.Kind.OPENED,
+        ).first()
+        if event is None:
+            return _create_opened_event(locked_attempt, step, generation=None)
+        event.occurred_at = timezone.now()
+        event.save(update_fields=("occurred_at",))
+        return event
+
+
+def _record_open_once(attempt_id, step_id):
+    """Run one complete, freshly resolved opening transaction."""
+    attempt = LessonAttempt.objects.select_related(
+        "enrolment", "lesson__module__course",
+    ).get(pk=attempt_id)
+    step = PracticalStep.objects.select_related("lesson__module__course").get(pk=step_id)
+    discovered = _journey_opening_context(attempt, step)
+    if discovered is None:
+        return _record_legacy_open(attempt, step)
+
+    discovered_assignment, discovered_journey_attempt = discovered
+    with transaction.atomic():
+        journey_attempt = (
+            JourneyAttempt.objects.select_for_update()
+            .select_related("journey", "current_journey_step", "enrolment")
+            .get(pk=discovered_journey_attempt.pk)
+        )
+        locked_attempt = (
+            LessonAttempt.objects.select_for_update()
+            .select_related("enrolment", "lesson__module__course")
+            .get(pk=attempt.pk)
+        )
+        assignment = (
+            JourneyStep.objects.select_related("journey__course", "step__lesson__module__course")
+            .filter(pk=discovered_assignment.pk, step=step)
+            .first()
+        )
+        if assignment is None:
+            _opening_fail("This step is not assigned to the journey.", "step_not_assigned")
+        if step.lesson_id != locked_attempt.lesson_id:
+            _opening_fail("The step does not belong to this lesson attempt.", "step_mismatch")
+        if (
+            journey_attempt.enrolment_id != locked_attempt.enrolment_id
+            or journey_attempt.journey_id != assignment.journey_id
+            or assignment.journey.programme_version_id != locked_attempt.enrolment.programme_version_id
+            or assignment.journey.course_id != locked_attempt.lesson.module.course_id
+        ):
+            _opening_fail("This journey does not match the learner's enrolment.", "programme_mismatch")
+
+        event = StepEvent.objects.select_for_update().filter(
+            attempt=locked_attempt, step=step, kind=StepEvent.Kind.OPENED,
+        ).first()
+        _require_openable(journey_attempt, assignment, event is not None)
+        if journey_attempt.status == JourneyAttempt.Status.COMPLETED:
+            return event
+        if event is None:
+            return _create_opened_event(locked_attempt, step, generation=uuid.uuid4())
+        if event.generation is None:
+            candidate = uuid.uuid4()
+            StepEvent.objects.filter(pk=event.pk, generation__isnull=True).update(
+                generation=candidate,
+            )
+            event.refresh_from_db(fields=("generation", "occurred_at"))
+        return event
+
+
+def record_open(attempt, step):
+    """Record a legacy visit or return a journey step's stable generation.
+
+    Journey context is discovered before the transaction and then resolved
+    again after locking JourneyAttempt -> LessonAttempt -> StepEvent. Ordinary
+    navigation never rotates a journey opening or refreshes its timestamp.
+    SQLite lock contention retries the complete operation from scalar IDs, so
+    every attempt reloads and reauthorizes current database state.
+    """
+    attempt_id, step_id = attempt.pk, step.pk
+    for retry_index in range(OPENING_RETRY_LIMIT):
+        try:
+            return _record_open_once(attempt_id, step_id)
+        except OperationalError as exc:
+            if not _is_sqlite_opening_contention(exc):
+                raise
+            if retry_index + 1 == OPENING_RETRY_LIMIT:
+                _opening_fail(
+                    "This journey step is not currently available.",
+                    "opening_contention",
+                )
+            time.sleep(OPENING_RETRY_BASE_DELAY * (retry_index + 1))
 
 
 def is_verified(attempt, step):

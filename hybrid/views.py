@@ -169,7 +169,10 @@ def step_open(request, attempt_id, step_index):
     attempt, step, error = _attempt_and_step(request, attempt_id, step_index)
     if error:
         return error
-    verification.record_open(attempt, step)
+    try:
+        verification.record_open(attempt, step)
+    except verification.JourneyOpeningError as exc:
+        return JsonResponse({"ok": False, "error": exc.message, "code": exc.code}, status=403)
     return JsonResponse({"ok": True})
 
 

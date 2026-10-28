@@ -144,9 +144,9 @@ def _reuse_record_at_step_two(world, temp_no="TEMP-SHARED-9"):
     record = _record(world, temp_no)
     _open(world, "create")
     _attribute(world, record)
+    step2, lesson_attempt2 = _make_second_step_reachable(world)
     _open(world, "submit")
     _touch(record)
-    step2, lesson_attempt2 = _make_second_step_reachable(world)
     return step2, lesson_attempt2, record
 
 
@@ -174,7 +174,12 @@ def test_record_created_at_step_one_survives_later_step_openings(db):
     satisfied, message = journey_services.role_satisfied(world["attempt"], world["role"])
     assert satisfied, message
 
-    for name in ("submit", "verify"):
+    for previous, name in (("create", "submit"), ("submit", "verify")):
+        previous_step, _previous_assignment = world["steps"][previous]
+        verification.mark_verified(world["lesson_attempts"][previous], previous_step)
+        JourneyAttempt.objects.filter(pk=world["attempt"].pk).update(
+            current_journey_step=world["steps"][name][1],
+        )
         _open(world, name)
         world["attempt"].refresh_from_db()
         satisfied, message = journey_services.role_satisfied(world["attempt"], world["role"])
@@ -195,6 +200,8 @@ def test_reopening_a_shared_role_step_keeps_the_record_available(db):
     _open(world, "create")
     record = _record(world, "TEMP-SHARED-2")
     _attribute(world, record)
+    _make_second_step_reachable(world)
+    _open(world, "submit")
 
     for _repeat in range(3):
         _open(world, "create")
@@ -206,8 +213,13 @@ def test_reopening_a_shared_role_step_keeps_the_record_available(db):
     assert not JourneyRecordAssociation.objects.filter(
         journey_attempt=world["attempt"], role=world["role"], is_active=False,
     ).exists()
-    # Availability is not verification: re-entry writes no VERIFIED event.
-    assert not StepEvent.objects.filter(kind=StepEvent.Kind.VERIFIED).exists()
+    # The earlier VERIFIED event is the progression prerequisite; re-entry
+    # itself must not verify the current step.
+    assert not StepEvent.objects.filter(
+        attempt=world["lesson_attempts"]["submit"],
+        step=world["steps"]["submit"][0],
+        kind=StepEvent.Kind.VERIFIED,
+    ).exists()
 
 
 @pytest.mark.django_db
@@ -286,30 +298,28 @@ def test_the_resolver_accepts_a_reused_record(db):
     record = _record(world, "TEMP-SHARED-5")
     _attribute(world, record)
 
+    step2, lesson_attempt2 = _make_second_step_reachable(world)
     _open(world, "submit")
     _touch(record)
-    step2, lesson_attempt2 = _make_second_step_reachable(world)
 
     context = resolve_journey_verification(world["student"], lesson_attempt2, step2)
     assert [selection.record_id for selection in context.selections] == [record.pk]
 
 
 @pytest.mark.django_db
-def test_reopening_a_step_refuses_stale_step_verification(db):
-    """Reuse never shortcuts the step itself: re-entering step 2 without
-    working the record again leaves this visit's verification stale."""
+def test_reopening_a_step_keeps_the_existing_verification_window(db):
+    """Ordinary re-entry does not rotate the opening or make fresh work stale."""
     world = _shared_world(db, "shared-stale")
     _open(world, "create")
     record = _record(world, "TEMP-SHARED-6")
     _attribute(world, record)
+    step2, lesson_attempt2 = _make_second_step_reachable(world)
     _open(world, "submit")
     _touch(record)
-    step2, lesson_attempt2 = _make_second_step_reachable(world)
 
     _open(world, "submit")
-    with pytest.raises(JourneyVerificationResolutionError) as excinfo:
-        resolve_journey_verification(world["student"], lesson_attempt2, step2)
-    assert excinfo.value.code == "record_stale"
+    context = resolve_journey_verification(world["student"], lesson_attempt2, step2)
+    assert [selection.record_id for selection in context.selections] == [record.pk]
 
 
 @pytest.mark.django_db
