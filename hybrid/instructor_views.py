@@ -14,12 +14,14 @@ from django.db import transaction
 from django.db.models import ProtectedError
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
+from django.utils.text import slugify
 
 from core.admin_dashboard import render_student_page
 from instructor_portal.ordering import _move
 from instructor_portal.views import _require_instructor, _unique_slug
 from learning.rich_text import plain_text
 from onboarding.models import Programme, ProgrammeVersion
+from scenarios.bindings import VERIFY_RECORDS
 
 from . import journey_services
 from .forms import (
@@ -100,11 +102,26 @@ def _activity_card(step, post=None):
     rewritten by a stale page. A row the posted page never carried — one added
     since the page was built — is rendered straight from the database and left
     alone, rather than refused for fields nobody was shown.
+
+    The card also carries the journey side of the activity: the journey it
+    runs inside, and for each saved-record check the record role it is bound
+    to. That is read-only here — the controls below it post the organizer's own
+    services, so the editor and the organizer can never disagree about a
+    binding.
     """
     step_prefix = f"step-{step.pk}"
+    assignment = JourneyStep.objects.filter(step=step).select_related("journey").first()
     checks = []
     for condition in step.conditions.order_by("order", "id"):
         prefix = f"cond-{condition.pk}"
+        # A check is born before its record and status are chosen, and only a
+        # registered record kind can be described or given a role.
+        registered = condition.record_kind in VERIFY_RECORDS
+        bindable = (
+            assignment is not None
+            and condition.kind == VerificationCondition.Kind.SAVED_RECORD
+            and registered
+        )
         checks.append({
             "condition": condition,
             "form": VerificationConditionForm(
@@ -112,6 +129,15 @@ def _activity_card(step, post=None):
                 instance=condition,
                 prefix=prefix,
             ),
+            "binding": JourneyConditionBinding.objects.filter(condition=condition).select_related("role").first(),
+            "record_label": VERIFY_RECORDS[condition.record_kind][1] if registered else "",
+            "summary": (
+                condition.describe() if registered
+                else "A saved record — choose the record and its status above."
+            ),
+            "roles": list(
+                assignment.journey.record_roles.filter(record_kind=condition.record_kind).order_by("order", "id")
+            ) if bindable else [],
         })
     return {
         "step": step,
@@ -121,7 +147,92 @@ def _activity_card(step, post=None):
             prefix=step_prefix,
         ),
         "checks": checks,
+        # The checks a record role can be bound to; navigation checks follow the
+        # journey's step order on their own and never appear in that list.
+        "record_checks": [
+            entry for entry in checks if entry["condition"].kind == VerificationCondition.Kind.SAVED_RECORD
+        ],
+        "assignment": assignment,
+        "journey": assignment.journey if assignment else None,
     }
+
+
+#: The card's journey controls. They change journey structure, so they run
+#: through the organizer's services and never touch the models directly.
+_JOURNEY_ACTIONS = ("assign_journey", "unassign_journey", "bind_role", "unbind_role", "create_role_and_bind")
+
+
+def _step_of(lesson, post):
+    return get_object_or_404(PracticalStep, pk=post.get("step_id"), lesson=lesson)
+
+
+def _condition_of(lesson, post):
+    return get_object_or_404(
+        VerificationCondition, pk=post.get("condition_id"), step__lesson=lesson,
+    )
+
+
+def _journey_action(request, lesson, action):
+    """Run one of the card's journey controls and say what happened.
+
+    The services own every guard — draft edition, same course, matching record
+    kind, a step assigned before its check can bind — so a control here is
+    exactly the organizer's own action, reached from the card instead of a
+    second page.
+    """
+    post = request.POST
+    if action == "assign_journey":
+        step = _step_of(lesson, post)
+        journey = get_object_or_404(
+            PracticalJourney, pk=post.get("journey_id"), course=lesson.module.course,
+        )
+        journey_services.assign_step(journey, step)
+        return f"“{step.title}” now runs inside {journey.title}."
+    if action == "unassign_journey":
+        step = _step_of(lesson, post)
+        assignment = JourneyStep.objects.filter(step=step).select_related("journey").first()
+        if assignment is None:
+            raise ValidationError("That activity is not in a practical journey.")
+        journey_services.unassign_step(assignment.journey, step)
+        return f"“{step.title}” left {assignment.journey.title}."
+    if action == "bind_role":
+        condition = _condition_of(lesson, post)
+        role = get_object_or_404(
+            JourneyRecordRole, pk=post.get("role_id"), journey__course=lesson.module.course,
+        )
+        current = JourneyConditionBinding.objects.filter(condition=condition).first()
+        if current and current.role_id != role.pk:
+            # One check can name one record, so re-binding replaces the old
+            # pairing rather than leaving a check pointing at two roles.
+            journey_services.unbind_condition(current)
+        journey_services.bind_condition(condition, role)
+        return f"Check bound to the record role “{role.label}”."
+    if action == "unbind_role":
+        binding = get_object_or_404(
+            JourneyConditionBinding, pk=post.get("binding_id"), condition__step__lesson=lesson,
+        )
+        journey_services.unbind_condition(binding)
+        return "Check unbound — nothing certifies it until it is bound again."
+    # create_role_and_bind: the instructor names the role, so nothing here is
+    # guessed. Its record kind is the check's own; a journey that needs shared
+    # or reused roles is configured in the organizer.
+    condition = _condition_of(lesson, post)
+    assignment = JourneyStep.objects.filter(step=condition.step).select_related("journey").first()
+    if assignment is None:
+        raise ValidationError("Put this activity in a practical journey first.")
+    label = (post.get("label") or "").strip()
+    if not label:
+        raise ValidationError("Name the record role you are creating.")
+    role = journey_services.create_record_role(
+        assignment.journey,
+        # A role's key is the longest thing a label can become, and the column
+        # holds 60 characters, so the derived key is cut well inside that.
+        key=_unique_slug(JourneyRecordRole, "key", slugify(label)[:40] or "role", journey=assignment.journey),
+        label=label,
+        record_kind=condition.record_kind,
+    )
+    journey_services.bind_condition(condition, role)
+    return f"Record role “{label}” created and bound to the check."
 
 
 def _renumber(queryset):
@@ -463,6 +574,14 @@ def lesson_edit(request, lesson_id):
                 request.POST.get("direction"),
             )
             return redirect(_editor_url(lesson, "activities"))
+        if action in _JOURNEY_ACTIONS:
+            try:
+                outcome = _journey_action(request, lesson, action)
+            except (PermissionDenied, ValidationError) as error:
+                messages.error(request, _error_text(error))
+            else:
+                messages.success(request, outcome)
+            return redirect(_editor_url(lesson, "activities"))
         if action == "save_activity":
             step = get_object_or_404(PracticalStep, pk=request.POST.get("step_id"), lesson=lesson)
             card = _activity_card(step, request.POST)
@@ -498,6 +617,7 @@ def lesson_edit(request, lesson_id):
         "theory_form": theory_form,
         "activity_cards": [cards[step.pk] for step in steps],
         "step_count": len(steps),
+        "course_journeys": list(lesson.module.course.practical_journeys.order_by("order", "title")),
         "has_theory": bool(plain_text(lesson.theory).strip()),
         "issues": lesson_issues(lesson),
         "course_blockers_list": edition_blockers(lesson.module.course.programme_version),

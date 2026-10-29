@@ -82,6 +82,75 @@
             <button class="authoring-secondary" type="submit" form="add-cond-record-{{ step.pk }}">+ Add saved-record check</button>
             <button class="authoring-secondary" type="submit" form="add-cond-screen-{{ step.pk }}">+ Add navigation check</button>
           </div>
+
+          <h3>Practical journey and record role</h3>
+          <div class="hyb-condition-group hyb-condition-form">
+            <p>{% if card.journey %}Runs inside <a href="{% url 'hybrid-journey-detail' card.journey.pk %}">{{ card.journey.title }}</a>.{% else %}Not in a practical journey yet.{% endif %}</p>
+            {% for check in card.record_checks %}
+              <article class="authoring-item">
+                <span class="authoring-section-icon">{{ forloop.counter }}</span>
+                <div class="authoring-lesson-list">
+                  <p><strong>{{ check.summary }}</strong></p>
+                  {% if check.binding %}
+                    <p class="helptext">Bound to record role “{{ check.binding.role.label }}”.</p>
+                  {% elif card.journey %}
+                    <p class="helptext">Not bound to a record role — the learner's own record cannot be attributed to this check.</p>
+                  {% else %}
+                    <p class="helptext">Add this activity to a practical journey, then bind the record it checks.</p>
+                  {% endif %}
+                  {% if card.journey and check.roles %}
+                    <form method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" class="authoring-form hyb-create-form">{% csrf_token %}
+                      <input type="hidden" name="action" value="bind_role">
+                      <input type="hidden" name="condition_id" value="{{ check.condition.pk }}">
+                      <label for="bind-role-{{ check.condition.pk }}">Record role</label>
+                      <select id="bind-role-{{ check.condition.pk }}" name="role_id">{% for role in check.roles %}<option value="{{ role.pk }}"{% if check.binding.role.pk == role.pk %} selected{% endif %}>{{ role.label }}</option>{% endfor %}</select>
+                      <button class="authoring-secondary" type="submit">{% if check.binding %}Change binding{% else %}Bind to record role{% endif %}</button>
+                    </form>
+                  {% elif card.journey and check.record_label and not check.binding %}
+                    <form method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" class="authoring-form hyb-create-form">{% csrf_token %}
+                      <input type="hidden" name="action" value="create_role_and_bind">
+                      <input type="hidden" name="condition_id" value="{{ check.condition.pk }}">
+                      <label for="new-role-{{ check.condition.pk }}">Name the record role</label>
+                      <input id="new-role-{{ check.condition.pk }}" type="text" name="label" required maxlength="180" placeholder="Your UCR">
+                      <button class="authoring-secondary" type="submit">Create role and bind</button>
+                      <p class="helptext">This journey has no “{{ check.record_label }}” role yet. The learner creates the record it names.</p>
+                    </form>
+                  {% endif %}
+                  {% if check.binding %}
+                    <form method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" class="authoring-form">{% csrf_token %}
+                      <input type="hidden" name="action" value="unbind_role">
+                      <input type="hidden" name="binding_id" value="{{ check.binding.pk }}">
+                      <button class="authoring-secondary" type="submit">Unbind</button>
+                    </form>
+                  {% endif %}
+                </div>
+              </article>
+            {% empty %}
+              <p class="authoring-empty">No saved-record checks — navigation checks follow the journey's step order by themselves.</p>
+            {% endfor %}
+            <details>
+              <summary>Advanced journey settings</summary>
+              <p class="helptext">Step order, dependencies and roles shared between activities are configured in the journey organizer.</p>
+              {% if card.journey %}
+                <form method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" class="authoring-form hyb-create-form">{% csrf_token %}
+                  <input type="hidden" name="action" value="unassign_journey">
+                  <input type="hidden" name="step_id" value="{{ step.pk }}">
+                  <button class="authoring-secondary" type="submit">Remove from {{ card.journey.title }}</button>
+                </form>
+              {% elif course_journeys %}
+                <form method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" class="authoring-form hyb-create-form">{% csrf_token %}
+                  <input type="hidden" name="action" value="assign_journey">
+                  <input type="hidden" name="step_id" value="{{ step.pk }}">
+                  <label for="assign-journey-{{ step.pk }}">Practical journey</label>
+                  <select id="assign-journey-{{ step.pk }}" name="journey_id">{% for journey in course_journeys %}<option value="{{ journey.pk }}">{{ journey.title }}</option>{% endfor %}</select>
+                  <button class="authoring-secondary" type="submit">Assign to journey</button>
+                </form>
+              {% else %}
+                <p class="helptext">This course has no practical journey yet.</p>
+              {% endif %}
+              <a class="authoring-secondary" href="{% url 'hybrid-course-journeys' lesson.module.course.pk %}">Open the journey organizer</a>
+            </details>
+          </div>
         </article>
       {% endwith %}{% empty %}
         <p class="authoring-card authoring-empty">No practical activities yet — add the first one below.</p>

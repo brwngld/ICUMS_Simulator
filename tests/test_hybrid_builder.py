@@ -6,10 +6,13 @@ from django.contrib.messages import get_messages
 from django.urls import reverse
 
 from accounts.models import User
+from hybrid import journey_services
 from hybrid.models import (
     HybridCourse,
     HybridLesson,
     HybridModule,
+    JourneyConditionBinding,
+    JourneyRecordRole,
     JourneyStep,
     PracticalJourney,
     PracticalStep,
@@ -497,6 +500,18 @@ def _add_condition(client, step, kind="saved_record"):
     return VerificationCondition.objects.filter(step=step).order_by("-order").first()
 
 
+def _saved_check(client, step, record_status="ucr:draft"):
+    """A saved-record check the instructor has filled in — the state a check
+    reaches once its card is saved, and the only one a record role can bind to."""
+    condition = _add_condition(client, step)
+    client.post(
+        reverse("hybrid-lesson-edit", args=[step.lesson.pk]),
+        _card_post(step) | _check_post(condition, [("ucr:exporter_name", "ACME Trading")], record_status=record_status),
+    )
+    condition.refresh_from_db()
+    return condition
+
+
 @pytest.mark.django_db
 def test_a_saved_value_is_chosen_from_the_record_not_written_as_json(client, db):
     instructor = _instructor(db)
@@ -697,6 +712,205 @@ def test_columns_that_cannot_be_pinned_exactly_are_not_offered(client, db):
     html = client.get(f"{reverse('hybrid-lesson-edit', args=[step.lesson.pk])}?tab=activities").content.decode()
     for column in ("ucr:documents", "consignment:shipment_date", "consignment:exchange_rate", "boe:form_data"):
         assert f'value="{column}"' not in html
+
+
+# --- Journey and record role inside the activity card -----------------------------
+
+
+def _card_journey(step, code="card-journey"):
+    """A journey of the card's own course, so the card can assign to it."""
+    course = step.lesson.module.course
+    return PracticalJourney.objects.create(
+        programme_version=course.programme_version, course=course,
+        code=code, title=f"Journey {code}", order=1,
+    )
+
+
+def _assigned(step, journey):
+    return journey_services.assign_step(journey, step)
+
+
+def _role(journey, key, label, record_kind="ucr"):
+    return journey_services.create_record_role(journey, key=key, label=label, record_kind=record_kind)
+
+
+def _editor(step):
+    return reverse("hybrid-lesson-edit", args=[step.lesson.pk])
+
+
+@pytest.mark.django_db
+def test_an_activity_is_assigned_to_a_journey_from_its_card(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "card-assign")
+    journey = _card_journey(step)
+    client.force_login(instructor)
+
+    response = client.post(_editor(step), {"action": "assign_journey", "step_id": step.pk, "journey_id": journey.pk})
+    assert response.status_code == 302
+    assert JourneyStep.objects.filter(journey=journey, step=step).exists()
+
+    html = client.get(f"{_editor(step)}?tab=activities").content.decode()
+    assert journey.title in html
+    assert reverse("hybrid-journey-detail", args=[journey.pk]) in html
+
+    client.post(_editor(step), {"action": "unassign_journey", "step_id": step.pk})
+    assert not JourneyStep.objects.filter(step=step).exists()
+
+
+@pytest.mark.django_db
+def test_a_journey_of_another_course_is_never_assigned(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "card-foreign")
+    other = _card_journey(_condition_step(db, "card-foreign-other"), code="foreign-journey")
+    client.force_login(instructor)
+    response = client.post(_editor(step), {"action": "assign_journey", "step_id": step.pk, "journey_id": other.pk})
+    assert response.status_code == 404
+    assert not JourneyStep.objects.filter(step=step).exists()
+
+
+@pytest.mark.django_db
+def test_a_check_is_bound_from_the_activity_card(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "card-bind")
+    journey = _card_journey(step)
+    _assigned(step, journey)
+    role = _role(journey, "primary-ucr", "Your UCR")
+    client.force_login(instructor)
+    condition = _saved_check(client, step)
+
+    response = client.post(_editor(step), {"action": "bind_role", "condition_id": condition.pk, "role_id": role.pk})
+    assert response.status_code == 302
+    binding = JourneyConditionBinding.objects.get(condition=condition)
+    assert binding.role == role
+
+    html = client.get(f"{_editor(step)}?tab=activities").content.decode()
+    assert "Bound to record role “Your UCR”." in html
+
+
+@pytest.mark.django_db
+def test_a_check_is_only_bound_to_a_role_of_its_own_record(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "card-kind")
+    journey = _card_journey(step)
+    _assigned(step, journey)
+    wrong = _role(journey, "the-boe", "The BOE", record_kind="boe")
+    client.force_login(instructor)
+    condition = _saved_check(client, step)
+
+    response = client.post(_editor(step), {"action": "bind_role", "condition_id": condition.pk, "role_id": wrong.pk})
+    assert response.status_code == 302
+    assert not JourneyConditionBinding.objects.filter(condition=condition).exists()
+
+    # A card never offers the mismatched role, so the instructor cannot pick it.
+    html = client.get(f"{_editor(step)}?tab=activities").content.decode()
+    assert f'value="{wrong.pk}"' not in html
+
+
+@pytest.mark.django_db
+def test_rebinding_a_check_moves_it_to_the_other_role(client, db):
+    """One check names one record, so the second binding replaces the first
+    instead of leaving the check pointing at two roles."""
+    instructor = _instructor(db)
+    step = _condition_step(db, "card-rebind")
+    journey = _card_journey(step)
+    _assigned(step, journey)
+    first = _role(journey, "first", "First UCR")
+    second = _role(journey, "second", "Second UCR")
+    client.force_login(instructor)
+    condition = _saved_check(client, step)
+
+    client.post(_editor(step), {"action": "bind_role", "condition_id": condition.pk, "role_id": first.pk})
+    client.post(_editor(step), {"action": "bind_role", "condition_id": condition.pk, "role_id": second.pk})
+
+    binding = JourneyConditionBinding.objects.get(condition=condition)
+    assert (JourneyConditionBinding.objects.count(), binding.role) == (1, second)
+
+    client.post(_editor(step), {"action": "unbind_role", "binding_id": binding.pk})
+    assert not JourneyConditionBinding.objects.filter(condition=condition).exists()
+
+
+@pytest.mark.django_db
+def test_a_named_role_is_created_and_bound_from_the_card(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "card-new-role")
+    journey = _card_journey(step)
+    _assigned(step, journey)
+    client.force_login(instructor)
+    condition = _saved_check(client, step)
+
+    response = client.post(
+        _editor(step), {"action": "create_role_and_bind", "condition_id": condition.pk, "label": "Your UCR"},
+    )
+    assert response.status_code == 302
+    role = JourneyRecordRole.objects.get(journey=journey)
+    assert (role.label, role.key, role.record_kind) == ("Your UCR", "your-ucr", "ucr")
+    assert JourneyConditionBinding.objects.get(condition=condition).role == role
+
+
+@pytest.mark.django_db
+def test_no_role_is_invented_without_a_name(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "card-no-name")
+    journey = _card_journey(step)
+    _assigned(step, journey)
+    client.force_login(instructor)
+    condition = _saved_check(client, step)
+
+    response = client.post(_editor(step), {"action": "create_role_and_bind", "condition_id": condition.pk, "label": "  "})
+    assert response.status_code == 302
+    assert not JourneyRecordRole.objects.filter(journey=journey).exists()
+    assert not JourneyConditionBinding.objects.exists()
+
+
+@pytest.mark.django_db
+def test_a_journey_that_already_names_the_record_is_not_given_a_second_role(client, db):
+    """The guided creation only appears when nothing in the journey can hold
+    this record; with a matching role present the card asks which one."""
+    instructor = _instructor(db)
+    step = _condition_step(db, "card-no-double")
+    journey = _card_journey(step)
+    _assigned(step, journey)
+    _role(journey, "primary-ucr", "Your UCR")
+    client.force_login(instructor)
+    _saved_check(client, step)
+
+    html = client.get(f"{_editor(step)}?tab=activities").content.decode()
+    assert 'value="create_role_and_bind"' not in html
+    assert 'value="bind_role"' in html
+
+
+@pytest.mark.django_db
+def test_a_check_that_has_no_record_yet_is_not_offered_a_role(client, db):
+    """A half-authored saved-record check names no record, so there is nothing
+    for a role to answer for until the card is saved with one."""
+    instructor = _instructor(db)
+    step = _condition_step(db, "card-half")
+    journey = _card_journey(step)
+    _assigned(step, journey)
+    _role(journey, "primary-ucr", "Your UCR")
+    client.force_login(instructor)
+    _add_condition(client, step)
+
+    html = client.get(f"{_editor(step)}?tab=activities").content.decode()
+    assert "choose the record and its status above" in html
+    assert 'value="bind_role"' not in html
+
+
+@pytest.mark.django_db
+def test_a_navigation_check_is_never_offered_a_record_role(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "card-navigation")
+    journey = _card_journey(step)
+    _assigned(step, journey)
+    _role(journey, "primary-ucr", "Your UCR")
+    client.force_login(instructor)
+    condition = _add_condition(client, step, kind="screen_opened")
+
+    client.post(_editor(step), {"action": "bind_role", "condition_id": condition.pk, "role_id": JourneyRecordRole.objects.get().pk})
+    assert not JourneyConditionBinding.objects.exists()
+
+    html = client.get(f"{_editor(step)}?tab=activities").content.decode()
+    assert 'value="bind_role"' not in html
 
 
 # --- Preview --------------------------------------------------------------------

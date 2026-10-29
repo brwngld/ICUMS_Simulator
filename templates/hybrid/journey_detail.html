@@ -62,7 +62,7 @@
       <button class="authoring-primary" type="submit">Assign step</button>
     </form>
     {% else %}
-    <p class="helptext">Every practical step in this course is already assigned. Add steps in the lessons' Practical journey tab.</p>
+    <p class="helptext">Every practical step in this course is already assigned. Add steps in a lesson's Practical activities stage.</p>
     {% endif %}
   </section>
 
@@ -139,7 +139,7 @@
   </section>
 
   <section class="authoring-card">
-    <div class="authoring-editor-header"><div><h2>Checkpoints on record roles</h2><p>Saved-record checkpoints from the lessons' steps, bound to the journey's record roles. Conditions themselves are authored in each lesson's Simulator &amp; Verification tab.</p></div></div>
+    <div class="authoring-editor-header"><div><h2>Checkpoints on record roles</h2><p>Saved-record checkpoints from the lessons' steps, bound to the journey's record roles. Conditions themselves are authored inside each activity's card.</p></div></div>
     {% for row in condition_rows %}
       <div class="authoring-lesson-list"><h3>{{ row.assignment.step.title }}</h3></div>
       <div class="authoring-item-list">
