@@ -6,7 +6,7 @@ from django.contrib.messages import get_messages
 from django.urls import reverse
 
 from accounts.models import User
-from hybrid import journey_services
+from hybrid import journey_services, publishing
 from hybrid.models import (
     HybridCourse,
     HybridLesson,
@@ -911,6 +911,106 @@ def test_a_navigation_check_is_never_offered_a_record_role(client, db):
 
     html = client.get(f"{_editor(step)}?tab=activities").content.decode()
     assert 'value="bind_role"' not in html
+
+
+# --- Publication readiness --------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_review_names_a_check_the_journey_cannot_attribute(client, db):
+    """A saved-record check inside a journey is resolved through its record role
+    at runtime, so Review & Publish names the check and links to the card that
+    can bind it — and stops naming it once it is bound."""
+    instructor = _instructor(db)
+    step = _condition_step(db, "review-attribute")
+    journey = _card_journey(step)
+    _assigned(step, journey)
+    client.force_login(instructor)
+    condition = _saved_check(client, step)
+
+    html = client.get(f"{_editor(step)}?tab=review").content.decode()
+    assert "Checks the journey cannot attribute" in html
+    assert f"?tab=activities#activity-{step.pk}" in html
+    assert reverse("hybrid-journey-detail", args=[journey.pk]) in html
+
+    role = _role(journey, "primary-ucr", "Your UCR")
+    client.post(_editor(step), {"action": "bind_role", "condition_id": condition.pk, "role_id": role.pk})
+
+    html = client.get(f"{_editor(step)}?tab=review").content.decode()
+    assert "Checks the journey cannot attribute" not in html
+
+
+@pytest.mark.django_db
+def test_a_check_outside_a_journey_is_not_reported_as_unattributable(client, db):
+    """The lesson workspace checks a saved record by kind, status and saved
+    values — no role involved — so a check the instructor never put in a journey
+    is not a Review problem."""
+    instructor = _instructor(db)
+    step = _condition_step(db, "review-unassigned")
+    client.force_login(instructor)
+    _saved_check(client, step)
+
+    html = client.get(f"{_editor(step)}?tab=review").content.decode()
+    assert "Checks the journey cannot attribute" not in html
+
+
+@pytest.mark.django_db
+def test_an_unbound_check_holds_the_edition_back_until_the_card_binds_it(client, db):
+    """The whole loop Batch 5 closes: the lesson is authored in the builder, the
+    edition refuses publication while its journey cannot attribute the check, and
+    the guided role on the activity card is what clears the blocker."""
+    instructor = _instructor(db)
+    step = _condition_step(db, "gate-card")
+    lesson = step.lesson
+    version = lesson.module.course.programme_version
+    journey = _card_journey(step)
+    _assigned(step, journey)
+    client.force_login(instructor)
+
+    client.post(_editor(step), _lesson_post(summary="What the lesson covers.", stage="details"))
+    _saved_check(client, step)
+
+    blockers = publishing.edition_blockers(version)
+    assert len(blockers) == 1
+    assert "not bound to a record role" in blockers[0]
+
+    response = client.post(
+        reverse("hybrid-builder"), {"action": "publish_edition", "version_id": version.pk},
+    )
+    messages = " ".join(str(message) for message in get_messages(response.wsgi_request))
+    assert "not ready to publish" in messages
+    assert "not bound to a record role" in messages
+    version.refresh_from_db()
+    assert version.status == ProgrammeVersion.Status.DRAFT
+
+    client.post(
+        _editor(step), {"action": "create_role_and_bind", "condition_id": step.conditions.get().pk,
+                        "label": "Your UCR"},
+    )
+    assert publishing.edition_blockers(version) == []
+
+    response = client.post(
+        reverse("hybrid-builder"), {"action": "publish_edition", "version_id": version.pk},
+    )
+    messages = " ".join(str(message) for message in get_messages(response.wsgi_request))
+    assert "published with 1 course" in messages
+    version.refresh_from_db()
+    assert version.status == ProgrammeVersion.Status.PUBLISHED
+
+
+@pytest.mark.django_db
+def test_review_points_publishing_at_the_edition_not_this_lesson(client, db):
+    """The editor has no publish control of its own: it says so and hands the
+    instructor to the builder index, where the edition is published."""
+    instructor = _instructor(db)
+    step = _condition_step(db, "review-edition")
+    client.force_login(instructor)
+    _saved_check(client, step)
+
+    html = client.get(f"{_editor(step)}?tab=review").content.decode()
+    assert "never one lesson" in html
+    assert reverse("hybrid-builder") in html
+    assert 'value="publish_edition"' not in html
 
 
 # --- Preview --------------------------------------------------------------------

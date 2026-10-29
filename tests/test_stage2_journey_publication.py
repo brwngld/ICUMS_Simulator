@@ -1,11 +1,12 @@
 """Stage 2 Checkpoint 6: journey-aware publication and clone-to-draft.
 
 Publication validates every practical journey in the edition — its structure,
-its dependencies, and whether its verification conditions can be evaluated at
-all. Clone-to-draft copies journey structure onto the new edition with every
-step, role, condition and dependency reference remapped, and never copies what
-a learner has done: attempts, step events and record associations stay on the
-edition the learner is enrolled on.
+its dependencies, whether its verification conditions can be evaluated at all,
+and whether every saved-record check on a journey step names the record role the
+runtime reads it through. Clone-to-draft copies journey structure onto the new
+edition with every step, role, condition and dependency reference remapped, and
+never copies what a learner has done: attempts, step events and record
+associations stay on the edition the learner is enrolled on.
 """
 import pytest
 from django.contrib.auth.models import Group
@@ -169,8 +170,8 @@ def test_complete_journeys_clone_onto_the_new_edition(db):
     world = _edition("clonejourney", courses=2)
     first = _journey(world, 1, title="First course journey")
     second = _journey(world, 2, title="Second course journey")
-    published, skipped, warnings = publishing.publish_edition(world["version"])
-    assert (skipped, warnings) == ([], [])
+    published, skipped = publishing.publish_edition(world["version"])
+    assert skipped == []
     assert len(published) == 2
 
     draft = publishing.clone_to_draft(world["version"])
@@ -347,11 +348,15 @@ def test_an_empty_journey_blocks_publication(db):
 
 @pytest.mark.django_db
 def test_a_journey_without_record_roles_blocks_publication(db):
+    """The structural list comes first, then the check it leaves unattributed:
+    the journey needs a role before its saved-record condition can point at one."""
     world = _edition("noroles")
     _journey(world, role=False, binding=False)
     assert publishing.edition_blockers(world["version"]) == [
         'Course “noroles course 1”: Journey “Declaration journey”: '
-        "No record roles are defined for this journey."
+        "No record roles are defined for this journey. "
+        'Journey “Declaration journey”: Step 1 ("Step 1.1"): '
+        "a saved-record condition is not bound to a record role."
     ]
 
 
@@ -422,9 +427,9 @@ def test_a_required_new_record_role_publishes(db):
     )
     assert publishing.edition_blockers(world["version"]) == []
 
-    published, skipped, warnings = publishing.publish_edition(world["version"])
+    published, skipped = publishing.publish_edition(world["version"])
     assert [course.pk for course in published] == [journey.course.pk]
-    assert (skipped, warnings) == ([], [])
+    assert skipped == []
 
 
 @pytest.mark.django_db
@@ -464,8 +469,8 @@ def test_a_journey_on_a_module_less_course_still_blocks_publication(db):
     journey_services.assign_step(journey, step)
     assert publishing.edition_blockers(world["version"]) == []
 
-    published, skipped, warnings = publishing.publish_edition(world["version"])
-    assert course in published and skipped == [] and warnings == []
+    published, skipped = publishing.publish_edition(world["version"])
+    assert course in published and skipped == []
     for row in (course, module, lesson):
         row.refresh_from_db()
     assert course.is_published and lesson.is_published and module.is_published
@@ -474,9 +479,9 @@ def test_a_journey_on_a_module_less_course_still_blocks_publication(db):
 @pytest.mark.django_db
 def test_journey_publication_blockers_name_structure_then_conditions(db):
     """The per-journey blocker list the edition gate and the organizer both
-    read: structural issues first, then the conditions the engine cannot check.
-    A required "new" record role is absent from both — the creation ledger
-    backs it."""
+    read: structural issues first, then the conditions the engine cannot check,
+    then the ones it cannot attribute. A required "new" record role is absent
+    from all three — the creation ledger backs it."""
     world = _edition("blockerlist")
     journey = _journey(world)
     journey_services.create_record_role(
@@ -499,14 +504,15 @@ def test_journey_publication_blockers_name_structure_then_conditions(db):
         required_status="draft", order=1,
     )
     blockers = publishing.journey_publication_blockers(journey)
-    assert len(blockers) == 3
+    assert len(blockers) == 4
     assert "does not follow the journey order" in blockers[0]
     assert "The dependency graph contains a cycle." in blockers[1]
     assert "not an approved simulator record" in blockers[2]
+    assert "not bound to a record role" in blockers[3]
 
 
 @pytest.mark.django_db
-def test_an_optional_new_record_role_publishes_without_a_warning(db):
+def test_an_optional_new_record_role_publishes(db):
     world = _edition("optionalnew")
     journey = _journey(world)
     journey_services.create_record_role(
@@ -515,35 +521,68 @@ def test_an_optional_new_record_role_publishes_without_a_warning(db):
     )
     assert publishing.edition_blockers(world["version"]) == []
 
-    published, skipped, warnings = publishing.publish_edition(world["version"])
+    published, skipped = publishing.publish_edition(world["version"])
     assert [course.pk for course in published] == [journey.course.pk]
     assert skipped == []
-    assert warnings == []
 
 
 @pytest.mark.django_db
-def test_an_unbound_saved_record_condition_warns_because_it_is_still_verifiable(db):
-    """The verification engine checks a saved-record condition by record kind,
-    status and saved values, so an unbound one is a note, not a blocker."""
+def test_an_unbound_saved_record_condition_blocks_publication(db):
+    """Inside a journey the runtime resolves a saved-record check through its
+    binding: without one, ``journey_verification`` refuses the step
+    (``binding_missing``) and the learner could never clear it. So the check is
+    a blocker until the instructor names the record it reads.
+
+    Only checks on journey-assigned steps block; the same condition on a step
+    that belongs to no journey is verified at lesson level, which needs no role.
+    """
     world = _edition("unbound")
     journey = _journey(world, binding=False)
-    assert publishing.journey_publication_blockers(journey) == []
-    warnings = publishing.journey_publication_warnings(journey)
-    assert len(warnings) == 1
-    assert "not bound to a record role" in warnings[0]
+    blockers = publishing.journey_publication_blockers(journey)
+    assert len(blockers) == 1
+    assert "not bound to a record role" in blockers[0]
+    assert publishing.edition_blockers(world["version"]) == [
+        f"Course “{journey.course.title}”: Journey “{journey.title}”: " + blockers[0]
+    ]
 
     condition = _course_steps(world, journey.course)[0].conditions.get()
     journey_services.bind_condition(condition, journey.record_roles.get())
-    assert publishing.journey_publication_warnings(journey) == []
+    assert publishing.journey_publication_blockers(journey) == []
+    assert publishing.edition_blockers(world["version"]) == []
+
+
+@pytest.mark.django_db
+def test_a_saved_record_check_on_an_unassigned_step_does_not_block(db):
+    """A lesson's own workspace verifies a saved-record condition by record kind,
+    status and saved values, with no journey and no role involved — so an
+    unbound check that no journey carries stays publishable."""
+    world = _edition("unassignedcheck")
+    journey = _journey(world, dependency=False)
+    unassigned = _course_steps(world, journey.course)[1]
+    journey.step_assignments.filter(step=unassigned).delete()
+    VerificationCondition.objects.create(
+        step=unassigned, kind=VerificationCondition.Kind.SAVED_RECORD, record_kind="ucr",
+        required_status="draft", order=1,
+    )
+    assert publishing.journey_publication_blockers(journey) == []
+    assert publishing.edition_blockers(world["version"]) == []
+
+    published, skipped = publishing.publish_edition(world["version"])
+    assert skipped == []
+    assert [course.pk for course in published] == [journey.course.pk]
 
 
 @pytest.mark.django_db
 def test_a_condition_on_an_unregistered_record_kind_blocks_publication(db):
-    """An unbound condition only warns while the verification engine can still
-    check it; a record kind outside the registry can never be checked, so the
-    step could never clear and publication is blocked."""
+    """A record kind outside the registry can never be checked, so the step
+    could never clear and publication is blocked.
+
+    The same condition is also named as unbound — no role can be created for an
+    unregistered kind, so the instructor fixes the record first and the binding
+    note becomes actionable only after that. Both sentences are true, and the
+    one the editor can act on comes second."""
     world = _edition("unregistered")
-    journey = _journey(world, binding=False)
+    journey = _journey(world)
     step = _course_steps(world, journey.course)[1]
     VerificationCondition.objects.create(
         step=step, kind=VerificationCondition.Kind.SAVED_RECORD, record_kind="manifest",
@@ -553,7 +592,7 @@ def test_a_condition_on_an_unregistered_record_kind_blocks_publication(db):
     assert len(blockers) == 1
     assert f'step “{step.title}” has a saved-record condition on “manifest”' in blockers[0]
     assert "not an approved simulator record" in blockers[0]
-    assert publishing.journey_publication_warnings(journey) == []
+    assert "not bound to a record role" in blockers[0]
 
 
 @pytest.mark.django_db
@@ -562,9 +601,9 @@ def test_an_existing_record_journey_publishes(db):
     journey = _journey(world, start_mode=PracticalJourney.StartMode.EXISTING_RECORD)
     assert publishing.edition_blockers(world["version"]) == []
 
-    published, skipped, warnings = publishing.publish_edition(world["version"])
+    published, skipped = publishing.publish_edition(world["version"])
     assert [course.pk for course in published] == [journey.course.pk]
-    assert (skipped, warnings) == ([], [])
+    assert skipped == []
     assert all(lesson.is_published for lesson in HybridLesson.objects.filter(module__course=journey.course))
     assert ProgrammeVersion.objects.get(pk=world["version"].pk).status == ProgrammeVersion.Status.PUBLISHED
 
@@ -607,7 +646,7 @@ def test_republishing_a_published_edition_changes_nothing(db):
     second = publishing.publish_edition(world["version"])
 
     assert [course.pk for course in second[0]] == [course.pk for course in first[0]]
-    assert second[1] == [] and second[2] == []
+    assert second[1] == []
     assert ProgrammeVersion.objects.get(pk=world["version"].pk).published_at == published_at
     assert _authored_rows(world["version"].pk) == rows_before
     assert PracticalJourney.objects.filter(programme_version=world["version"]).count() == 1
@@ -682,23 +721,36 @@ def test_the_publish_action_names_the_blocking_journey(client, db):
 
 
 @pytest.mark.django_db
-def test_the_publish_action_carries_the_journey_warnings_of_a_published_edition(client, db):
+def test_the_publish_action_refuses_a_journey_that_cannot_attribute_a_check(client, db):
+    """The edition gate and the service agree with the per-journey list: an
+    unbound saved-record check holds publication, so the instructor is told what
+    to bind instead of shipping a journey the runtime would refuse."""
     instructor = _instructor(db)
-    world = _edition("actionwarnings")
-    _journey(world, binding=False)
+    world = _edition("actionunbound")
+    journey = _journey(world, binding=False)
     client.force_login(instructor)
     response = client.post(
         reverse("hybrid-builder"), {"action": "publish_edition", "version_id": world["version"].pk},
     )
-    messages = [
-        (message.level, str(message)) for message in get_messages(response.wsgi_request)
-    ]
+    messages = " ".join(str(message) for message in get_messages(response.wsgi_request))
 
+    assert "not ready to publish" in messages
+    assert "Declaration journey" in messages
+    assert "not bound to a record role" in messages
+    world["version"].refresh_from_db()
+    assert world["version"].status == ProgrammeVersion.Status.DRAFT
+    assert not HybridCourse.objects.filter(programme_version=world["version"], is_published=True).exists()
+
+    journey_services.bind_condition(
+        _course_steps(world, journey.course)[0].conditions.get(), journey.record_roles.get()
+    )
+    response = client.post(
+        reverse("hybrid-builder"), {"action": "publish_edition", "version_id": world["version"].pk},
+    )
+    messages = " ".join(str(message) for message in get_messages(response.wsgi_request))
+    assert "published with 1 course" in messages
     world["version"].refresh_from_db()
     assert world["version"].status == ProgrammeVersion.Status.PUBLISHED
-    assert any("published with 1 course" in text for _level, text in messages)
-    journey_texts = [text for _level, text in messages if "not bound" in text]
-    assert len(journey_texts) == 1
 
 
 # --- Checkpoint 6 corrections: direct service calls cannot bypass the gates ------------
@@ -729,7 +781,7 @@ def test_a_direct_service_publish_refuses_a_journey_outside_the_edition(db):
 @pytest.mark.django_db
 def test_a_direct_service_publish_refuses_an_unverifiable_condition(db):
     world = _edition("directunverifiable")
-    journey = _journey(world, binding=False)
+    journey = _journey(world)
     step = _course_steps(world, journey.course)[1]
     VerificationCondition.objects.create(
         step=step, kind=VerificationCondition.Kind.SAVED_RECORD, record_kind="manifest",
@@ -781,11 +833,10 @@ def test_the_service_preserves_the_partial_publication_contract(db):
         title="Unfinished lesson", order=99, summary="", theory="",
     )
 
-    published, skipped, warnings = publishing.publish_edition(world["version"])
+    published, skipped = publishing.publish_edition(world["version"])
 
     assert [course.pk for course in published] == [ready.pk]
     assert [course.pk for course in skipped] == [unfinished.pk]
-    assert warnings == []
     world["version"].refresh_from_db()
     assert world["version"].status == ProgrammeVersion.Status.PUBLISHED
     unfinished.refresh_from_db()

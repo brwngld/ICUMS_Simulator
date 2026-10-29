@@ -92,7 +92,11 @@ def journey_publication_blockers(journey):
     the same list the organizer's readiness view reads, so the two surfaces can
     never disagree about structure. Then runtime satisfiability: a saved-record
     condition the verification engine cannot even evaluate blocks, because
-    nothing could ever clear the step.
+    nothing could ever clear the step, and a saved-record condition with no
+    record role binding blocks for the same reason — inside a journey the engine
+    resolves the check through its binding and refuses the step without one
+    (``journey_verification`` fails closed with ``binding_missing``), so
+    publishing it would promise a learner a step they can never clear.
 
     A required record role with creation mode "new" no longer blocks. It used
     to, while the simulator schema carried no creation provenance; the creation
@@ -106,32 +110,16 @@ def journey_publication_blockers(journey):
     """
     blockers = list(journey_services.structural_issues(journey))
     blockers.extend(unverifiable_condition_issues(journey))
+    blockers.extend(journey_services.unbound_condition_issues(journey))
     return blockers
-
-
-def journey_publication_warnings(journey):
-    """Non-blocking publication notes for this journey: saved-record conditions
-    not bound to record roles. Unbound conditions only earn a note while the
-    verification engine can still check them on its own — a condition it cannot
-    check is a blocker, see ``unverifiable_condition_issues``.
-
-    Optional "new" record roles used to be listed here as not yet verifiable;
-    the creation ledger covers them, the same way it covers required ones."""
-    unbound = journey_services.unbound_condition_issues(journey)
-    # A saved-record condition the verification engine cannot check at all is a
-    # blocker, not a note: calling it a warning would tell the instructor a
-    # learner can still clear the step.
-    if unbound and not unverifiable_condition_issues(journey):
-        return unbound
-    return []
 
 
 def unverifiable_condition_issues(journey):
     """Saved-record conditions on this journey's steps that the verification
     engine cannot evaluate at all, because their record kind is not in the
     approved registry. Bounded by what ``hybrid.verification`` actually reads:
-    a registered kind is always checkable, bound to a role or not, so an
-    unbound condition only warns."""
+    only a registered kind can be checked, so a binding cannot rescue one that
+    is not."""
     issues = []
     for assignment in journey.step_assignments.select_related("step").all():
         uncheckable = [
@@ -217,24 +205,24 @@ def edition_blockers(version):
 def publish_edition(version):
     """Flip a draft edition to published, publishing ready courses only.
 
-    Returns (published_courses, skipped_courses, warnings). Warnings carry
-    journey executability and binding notes for the published courses — they
-    never block. Idempotent for an already published edition (re-running
-    refreshes nothing but is harmless).
+    Returns (published_courses, skipped_courses). There is no third tier of
+    notes: everything the instructor has to act on before a learner could clear
+    a step is a blocker, and a saved-record check with no record role is one —
+    the journey engine refuses such a step at runtime.
 
     Raises ``ValidationError`` when any journey of the edition — carried or
     unattributed — fails its publication checks (invalid structure, a
     course/version reference outside the edition, a verification condition the
-    engine cannot evaluate). Journey-integrity failures block the whole edition, so this
-    refusal applies to direct service calls exactly as it does through the
-    organizer's edition gate; nothing is written when it raises. The
-    course-skip path is unaffected: only lesson-completeness blockers send a
-    course to ``skipped_courses``, and the edition still publishes around them
-    once its journeys are sound.
+    engine cannot evaluate, or a saved-record condition no role answers for).
+    Journey-integrity failures block the whole edition, so this refusal applies
+    to direct service calls exactly as it does through the organizer's edition
+    gate; nothing is written when it raises. The course-skip path is unaffected:
+    only lesson-completeness blockers send a course to ``skipped_courses``, and
+    the edition still publishes around them once its journeys are sound.
     """
     if version.status == ProgrammeVersion.Status.PUBLISHED:
         courses = list(version.hybrid_courses.filter(is_published=True))
-        return courses, [], []
+        return courses, []
     journey_blockers = edition_journey_blockers(version)
     if journey_blockers:
         raise ValidationError(
@@ -259,14 +247,7 @@ def publish_edition(version):
     version.status = ProgrammeVersion.Status.PUBLISHED
     version.published_at = timezone.now()
     version.save(update_fields=("status", "published_at"))
-    warnings = []
-    for course in published:
-        for journey in course.practical_journeys.order_by("order", "title"):
-            warnings.extend(
-                f"Journey “{journey.title}”: {warning}"
-                for warning in journey_publication_warnings(journey)
-            )
-    return published, skipped, warnings
+    return published, skipped
 
 
 @transaction.atomic

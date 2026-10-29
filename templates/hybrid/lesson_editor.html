@@ -39,7 +39,7 @@
     <div class="authoring-card"><div class="authoring-editor-header"><div><h2>Practical activities</h2><p>What the learner does in the simulator, in this order. Each activity saves on its own.</p></div><span class="authoring-status">{{ step_count }} activity{{ step_count|pluralize }}</span></div></div>
     <div class="authoring-item-list">
       {% for card in activity_cards %}{% with step=card.step step_form=card.form %}
-        <article class="authoring-card">
+        <article class="authoring-card" id="activity-{{ step.pk }}">
           <div class="authoring-editor-header"><div><h2>{{ forloop.counter }}. {{ step.title }}</h2><p>The numbered task the learner works through in the simulator.</p></div><span class="authoring-status">{{ card.checks|length }} check{{ card.checks|length|pluralize }}</span></div>
           <form method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" class="authoring-form">{% csrf_token %}
             <input type="hidden" name="action" value="save_activity">
@@ -165,6 +165,15 @@
     <div class="authoring-readiness-list">
       {% if issues %}{% for issue in issues %}<div><span class="authoring-readiness-marker">•</span><span><strong>To do</strong><small>{{ issue }}</small></span></div>{% endfor %}{% else %}<div><span class="authoring-readiness-marker complete">✓</span><span><strong>Draft ready</strong><small>Nothing is missing at lesson level.</small></span></div>{% endif %}
     </div>
+    {% if binding_rows %}
+      <h3>Checks the journey cannot attribute</h3>
+      <ul class="authoring-readiness-list">
+        {% for row in binding_rows %}
+          <li><span class="authoring-readiness-marker">•</span><span><strong>{{ row.step.title }}</strong><small>{{ row.condition.describe }} has no record role, so {{ row.journey.title }} cannot verify it. <a href="{% url 'hybrid-lesson-edit' lesson.pk %}?tab=activities#activity-{{ row.step.pk }}">Bind it on the activity</a> · <a href="{% url 'hybrid-journey-detail' row.journey.pk %}">Open {{ row.journey.title }}</a></small></span></li>
+        {% endfor %}
+      </ul>
+      <p class="helptext">A saved-record check the journey cannot attribute holds the whole edition back from publication.</p>
+    {% endif %}
     <h3>Edition readiness</h3>
     {% if course_blockers_list %}
       <ul class="authoring-readiness-list">{% for blocker in course_blockers_list %}<li><span class="authoring-readiness-marker">•</span><span><small>{{ blocker }}</small></span></li>{% endfor %}</ul>
@@ -172,6 +181,7 @@
     {% else %}
       <p class="helptext">Every lesson in this edition is ready — publish the edition from the Theory &amp; Practical builder index. Publishing covers the whole edition, not this lesson alone.</p>
     {% endif %}
+    <a class="authoring-secondary" href="{% url 'hybrid-builder' %}">Theory &amp; Practical builder index</a>
     <a class="authoring-secondary" href="{% url 'hybrid-lesson-preview' lesson.pk %}">Preview as student</a>
   </section>
 

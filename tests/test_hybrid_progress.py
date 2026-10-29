@@ -304,7 +304,7 @@ def test_publishing_flips_ready_courses_and_leaves_unfinished_ones(db):
     version.save(update_fields=("status",))
     draft_course = HybridCourse.objects.create(programme_version=version, code="empty-course", title="Empty", order=2)
 
-    published, skipped, warnings = publishing.publish_edition(version)
+    published, skipped = publishing.publish_edition(version)
     version.refresh_from_db()
     assert version.status == ProgrammeVersion.Status.PUBLISHED
     assert version.published_at is not None
@@ -356,8 +356,8 @@ def test_a_published_editions_journeys_come_along_with_the_clone(db):
     journey_services.add_dependency(
         journey, assignments[0], assignments[1], JourneyDependency.DependencyType.STEP_COMPLETED,
     )
-    published, skipped, warnings = publishing.publish_edition(version)
-    assert (skipped, warnings) == ([], [])
+    published, skipped = publishing.publish_edition(version)
+    assert skipped == []
 
     draft = publishing.clone_to_draft(version)
     copied = PracticalJourney.objects.get(programme_version=draft, code=journey.code)

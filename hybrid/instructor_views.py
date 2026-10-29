@@ -235,6 +235,37 @@ def _journey_action(request, lesson, action):
     return f"Record role “{label}” created and bound to the check."
 
 
+def _unbound_record_checks(lesson):
+    """The lesson's saved-record checks that a journey will refuse to evaluate
+    because no record role answers for them.
+
+    Review & Publish names each one and links back to the card that can bind it,
+    because the publication gate now refuses the edition over it. A check on an
+    activity that is in no journey is not listed: the lesson workspace verifies
+    that one against the learner's own records without a role, so nothing is
+    missing until the activity joins a journey.
+    """
+    journeys = {
+        assignment.step_id: assignment.journey
+        for assignment in JourneyStep.objects.filter(step__lesson=lesson).select_related("journey")
+    }
+    bound = set(
+        JourneyConditionBinding.objects.filter(condition__step__lesson=lesson).values_list("condition_id", flat=True)
+    )
+    rows = []
+    for step in lesson.practical_steps.order_by("order", "id"):
+        journey = journeys.get(step.pk)
+        if journey is None:
+            continue
+        for condition in step.conditions.filter(kind=VerificationCondition.Kind.SAVED_RECORD):
+            # An unregistered record kind is already refused as an unverifiable
+            # condition, and a check that has no record chosen yet is half-saved.
+            if condition.pk in bound or condition.record_kind not in VERIFY_RECORDS:
+                continue
+            rows.append({"step": step, "condition": condition, "journey": journey})
+    return rows
+
+
 def _renumber(queryset):
     """Compact order values back to 1..N after a removal."""
     for position, item in enumerate(queryset, start=1):
@@ -286,11 +317,9 @@ def builder_index(request):
             if blockers:
                 messages.error(request, "This edition is not ready to publish: " + " ".join(blockers))
             else:
-                published, skipped, warnings = publish_edition(version)
+                published, skipped = publish_edition(version)
                 note = f" {len(skipped)} unfinished course(s) stayed unpublished." if skipped else ""
                 messages.success(request, f"Edition v{version.version} published with {len(published)} course(s).{note}")
-                for warning in warnings:
-                    messages.warning(request, warning)
             return redirect("hybrid-builder")
         if action == "new_draft":
             version = get_object_or_404(
@@ -620,6 +649,7 @@ def lesson_edit(request, lesson_id):
         "course_journeys": list(lesson.module.course.practical_journeys.order_by("order", "title")),
         "has_theory": bool(plain_text(lesson.theory).strip()),
         "issues": lesson_issues(lesson),
+        "binding_rows": _unbound_record_checks(lesson),
         "course_blockers_list": edition_blockers(lesson.module.course.programme_version),
         "active_tab": _lesson_stage(request),
     }, status=status)
