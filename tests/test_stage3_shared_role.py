@@ -19,6 +19,7 @@ from hybrid import attribution, journey_services, verification
 from hybrid.journey_verification import (
     JourneyVerificationResolutionError,
     resolve_journey_verification,
+    verify_journey_step,
 )
 from hybrid.models import (
     HybridCourse,
@@ -132,7 +133,8 @@ def _make_second_step_reachable(world):
     current, reachable step for the resolver."""
     step1, _assignment1 = world["steps"]["create"]
     step2, assignment2 = world["steps"]["submit"]
-    verification.mark_verified(world["lesson_attempts"]["create"], step1)
+    result = verify_journey_step(world["student"], world["lesson_attempts"]["create"], step1)
+    assert result["passed"], result
     world["attempt"].current_journey_step = assignment2
     world["attempt"].save(update_fields=("current_journey_step",))
     return step2, world["lesson_attempts"]["submit"]
@@ -141,8 +143,8 @@ def _make_second_step_reachable(world):
 def _reuse_record_at_step_two(world, temp_no="TEMP-SHARED-9"):
     """Attribute a step-1 record, work it at step 2, and make step 2 current —
     the shared setup for the later-step and fail-closed tests."""
-    record = _record(world, temp_no)
     _open(world, "create")
+    record = _record(world, temp_no)
     _attribute(world, record)
     step2, lesson_attempt2 = _make_second_step_reachable(world)
     _open(world, "submit")
@@ -176,7 +178,9 @@ def test_record_created_at_step_one_survives_later_step_openings(db):
 
     for previous, name in (("create", "submit"), ("submit", "verify")):
         previous_step, _previous_assignment = world["steps"][previous]
-        verification.mark_verified(world["lesson_attempts"][previous], previous_step)
+        _touch(record)
+        result = verify_journey_step(world["student"], world["lesson_attempts"][previous], previous_step)
+        assert result["passed"], result
         JourneyAttempt.objects.filter(pk=world["attempt"].pk).update(
             current_journey_step=world["steps"][name][1],
         )
@@ -359,6 +363,9 @@ def test_a_removed_condition_binding_raises_rather_than_falling_back(db):
 
 @pytest.mark.django_db
 def test_a_missing_active_association_raises_rather_than_falling_back(db):
+    """Deactivating the shared role's only association also invalidates step
+    1's evidence, so the refusal lands on the progression ceiling — still a
+    controlled journey refusal, never a legacy owner-wide lookup."""
     world = _shared_world(db, "shared-fallback-association")
     step2, lesson_attempt2, _record_row = _reuse_record_at_step_two(world)
     JourneyRecordAssociation.objects.filter(
@@ -367,18 +374,20 @@ def test_a_missing_active_association_raises_rather_than_falling_back(db):
 
     with pytest.raises(JourneyVerificationResolutionError) as excinfo:
         resolve_journey_verification(world["student"], lesson_attempt2, step2)
-    assert excinfo.value.code == "association_missing"
+    assert excinfo.value.code == "progression_blocked"
 
 
 @pytest.mark.django_db
 def test_a_deleted_attributed_record_raises_rather_than_falling_back(db):
+    """A deleted record leaves step 1's evidence conflicted, which locks the
+    current step at the progression ceiling."""
     world = _shared_world(db, "shared-fallback-record")
     step2, lesson_attempt2, record = _reuse_record_at_step_two(world)
     record.delete()
 
     with pytest.raises(JourneyVerificationResolutionError) as excinfo:
         resolve_journey_verification(world["student"], lesson_attempt2, step2)
-    assert excinfo.value.code == "record_unavailable"
+    assert excinfo.value.code == "progression_blocked"
 
 
 @pytest.mark.django_db

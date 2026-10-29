@@ -286,28 +286,40 @@
         setFeedback(current, "pending", "Verification is not connected in this preview.");
         return;
       }
-      setFeedback(current, "", "Checking…");
-      post("/check/" + current + "/").then(function (result) {
-        if (!result.ok) {
-          setFeedback(current, "fail", "The check could not run. Try again.");
-          return;
-        }
-        renderResults(current, result.data.results || []);
-        if (result.data.passed) {
-          satisfied.add(current);
-          updateJourney();
-          refreshButtons();
-        }
-        if (result.data.lesson_complete) {
-          var journey = root.querySelector("[data-hyb-journey]");
-          if (journey && !journey.parentElement.querySelector(".hyb-done-note")) {
-            var note = document.createElement("p");
-            note.className = "hyb-done-note";
-            note.textContent = "Lesson complete — every step is verified and the theory is acknowledged.";
-            journey.parentElement.appendChild(note);
+      var index = current;
+      /* The opening request and the check are posted independently, so the
+         check can arrive while the server is still recording the opening.
+         That refusal is explicitly retryable; wait it out a couple of times
+         before surfacing anything to the learner. */
+      function check(retriesLeft) {
+        post("/check/" + index + "/").then(function (result) {
+          if (!result.ok && result.data.code === "opening_pending" && retriesLeft > 0) {
+            window.setTimeout(function () { check(retriesLeft - 1); }, 250);
+            return;
           }
-        }
-      });
+          if (!result.ok) {
+            setFeedback(index, "fail", result.data.error || "The check could not run. Try again.");
+            return;
+          }
+          renderResults(index, result.data.results || []);
+          if (result.data.passed) {
+            satisfied.add(index);
+            updateJourney();
+            refreshButtons();
+          }
+          if (result.data.lesson_complete) {
+            var journey = root.querySelector("[data-hyb-journey]");
+            if (journey && !journey.parentElement.querySelector(".hyb-done-note")) {
+              var note = document.createElement("p");
+              note.className = "hyb-done-note";
+              note.textContent = "Lesson complete — every step is verified and the theory is acknowledged.";
+              journey.parentElement.appendChild(note);
+            }
+          }
+        });
+      }
+      setFeedback(index, "", "Checking…");
+      check(2);
     });
   }
   if (hintButton) {

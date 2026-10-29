@@ -15,7 +15,7 @@ from onboarding.services import needs_disclaimer_acceptance
 from scenarios.bindings import VERIFY_RECORDS
 
 from . import attribution as attribution_services
-from . import journey_services
+from . import journey_services, journey_verification
 from . import services
 from . import verification
 from .models import (
@@ -173,6 +173,9 @@ def step_open(request, attempt_id, step_index):
         verification.record_open(attempt, step)
     except verification.JourneyOpeningError as exc:
         return JsonResponse({"ok": False, "error": exc.message, "code": exc.code}, status=403)
+    # A condition-free step is satisfied by being opened, so entering it can be
+    # the last thing a lesson was waiting for.
+    verification.refresh_completion(attempt)
     return JsonResponse({"ok": True})
 
 
@@ -180,28 +183,41 @@ def step_open(request, attempt_id, step_index):
 @require_POST
 def step_check(request, attempt_id, step_index):
     """Run the step's conditions entirely server-side; a pass writes the
-    durable verified stamp and may complete the lesson."""
+    durable verified stamp and may complete the lesson.
+
+    A step assigned to a journey is checked by the exact-record journey
+    engine, which re-resolves the step's evidence under its locks, records the
+    immutable evidence rows and refreshes both completion signals in the same
+    transaction. Anything else keeps the legacy owner-wide engine unchanged.
+    """
     attempt, step, error = _attempt_and_step(request, attempt_id, step_index)
     if error:
         return error
-    result = verification.verify_step(attempt, step)
-    if result["passed"]:
-        attempt.current_step = step
-        attempt.save(update_fields=("current_step",))
-    lesson_complete = verification.refresh_completion(attempt)
-    return JsonResponse({**result, "lesson_complete": lesson_complete})
+    try:
+        result = journey_verification.verify_journey_step(request.user, attempt, step)
+    except journey_verification.JourneyVerificationPending as exc:
+        return JsonResponse({"ok": False, "error": exc.message, "code": exc.code}, status=409)
+    except journey_verification.JourneyVerificationResolutionError as exc:
+        return JsonResponse({"ok": False, "error": exc.message, "code": exc.code}, status=403)
+    if result is None:
+        result = verification.verify_step(attempt, step)
+        if result["passed"]:
+            attempt.current_step = step
+            attempt.save(update_fields=("current_step",))
+        result["lesson_complete"] = verification.refresh_completion(attempt)
+    return JsonResponse(result)
 
 
 @login_required
 @require_POST
 def step_advance(request, attempt_id, step_index):
     """The server-side half of step sequencing: a step that declares
-    verification holds the journey until it passes (hiding the button is not
-    the enforcement)."""
+    verification holds the journey until its current evidence passes (hiding
+    the button is not the enforcement)."""
     attempt, step, error = _attempt_and_step(request, attempt_id, step_index)
     if error:
         return error
-    if verification.step_requires_verification(step) and not verification.is_verified(attempt, step):
+    if verification.step_requires_verification(step) and not verification.step_satisfied(attempt, step):
         return JsonResponse(
             {"allowed": False, "message": "This step must pass “Check my work” before the next one opens."},
             status=403,

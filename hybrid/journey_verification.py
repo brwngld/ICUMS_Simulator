@@ -1,23 +1,29 @@
-"""Read-only resolution and exact-record evaluation for journey verification.
+"""Resolution, exact-record evaluation and the Check My Work writer for
+journey verification.
 
-This checkpoint stops before Check My Work integration: the module proves
-which exact simulator record a journey step authorizes, can revalidate that
-selection under the agreed row locks, and evaluates one condition against the
-resolved record. It never writes a ``StepEvent`` or a
-``JourneyVerificationEvidence`` row. Every identifier is derived from the
-server-resolved lesson attempt and practical step; no journey, role,
-association or record identifier is accepted from a browser.
+The resolver proves which exact simulator record a journey step authorizes,
+the revalidation repeats that judgement under the agreed row locks, and the
+evaluator judges one condition against the resolved record. ``verify_journey_step``
+composes those three read-only steps into the single journey verification
+transaction: a pass writes one immutable ``JourneyVerificationEvidence`` row
+per saved condition, the compatible ``VERIFIED`` ``StepEvent`` and the lesson
+and journey completion signals, all inside the locks the revalidation holds.
+Every identifier is derived from the server-resolved lesson attempt and
+practical step; no journey, role, association or record identifier is accepted
+from a browser.
 """
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
 from django.core.exceptions import PermissionDenied
-from django.db import transaction
+from django.db import OperationalError, transaction
+from django.utils import timezone
 
 from scenarios.bindings import VERIFY_RECORDS
 
-from . import journey_services, verification
+from . import journey_evidence, journey_services, verification
 from .journey_provenance import check_provenance
 from .models import (
     JourneyAttempt,
@@ -25,11 +31,19 @@ from .models import (
     JourneyDependency,
     JourneyRecordAssociation,
     JourneyStep,
+    JourneyVerificationEvidence,
     LessonAttempt,
     PracticalStep,
     StepEvent,
     VerificationCondition,
 )
+
+# Check My Work can arrive while the workspace's opening request is still
+# committing, and two checks can contend for SQLite's database-wide write
+# lock. A short, bounded retry absorbs both; past it the opening refusal is
+# explicitly retryable rather than a hard failure.
+VERIFY_RETRY_ATTEMPTS = 3
+VERIFY_RETRY_BASE_DELAY = 0.05
 
 
 class JourneyVerificationResolutionError(Exception):
@@ -39,6 +53,10 @@ class JourneyVerificationResolutionError(Exception):
         super().__init__(message)
         self.message = message
         self.code = code
+
+
+class JourneyVerificationPending(JourneyVerificationResolutionError):
+    """The step's opening has not persisted yet; the caller may retry."""
 
 
 @dataclass(frozen=True)
@@ -76,14 +94,16 @@ class LockedJourneyVerification:
 
     ``records`` pairs each saved condition with the one record its active
     association authorizes, so a caller evaluates conditions without ever
-    querying the learner's records again. The locks protect a subsequent
-    write only while the caller's surrounding transaction remains open.
+    querying the learner's records again. ``opening`` is the persisted OPENED
+    event the evidence is bound to. The locks protect a subsequent write only
+    while the caller's surrounding transaction remains open.
     """
 
     context: JourneyVerificationContext
     opening_generation: UUID
     opening_occurred_at: datetime
     records: tuple[tuple[UUID, object], ...]
+    opening: object = None
 
     def record_for(self, condition):
         return next(
@@ -375,6 +395,7 @@ def revalidate_journey_verification(user, lesson_attempt, step):
             opening_generation=opening.generation,
             opening_occurred_at=opening.occurred_at,
             records=tuple(records),
+            opening=opening,
         )
 
 
@@ -440,3 +461,137 @@ def evaluate_exact_condition(condition, *, opening, selection=None, record=None)
             False, "record_stale", "The attributed record predates the current verification window.",
         )
     return ExactConditionResult(True, None, "Verified.")
+
+
+def _evaluate_locked(locked, step):
+    """Evaluate every condition against the locked, exact-record context."""
+    results = []
+    for condition in verification.step_conditions(step):
+        outcome = evaluate_exact_condition(
+            condition,
+            opening=locked.opening,
+            selection=locked.context.selection_for(condition),
+            record=locked.record_for(condition),
+        )
+        results.append({
+            "label": condition.describe(),
+            "passed": outcome.passed,
+            "message": outcome.message,
+        })
+    passed = bool(results) and all(result["passed"] for result in results)
+    return results, passed
+
+
+def _record_evidence(locked, step):
+    """Append one immutable evidence row per saved condition that just passed.
+
+    ``unique_evidence_identity`` absorbs a repeated success; a row is only ever
+    added when the whole step passed, so a partial pass records nothing.
+    """
+    now = timezone.now()
+    for condition in verification.step_conditions(step):
+        if condition.kind != VerificationCondition.Kind.SAVED_RECORD:
+            continue
+        selection = locked.context.selection_for(condition)
+        JourneyVerificationEvidence.objects.get_or_create(
+            lesson_attempt_id=locked.context.lesson_attempt_id,
+            journey_step_id=locked.context.journey_step_id,
+            condition=condition,
+            opening_generation=locked.opening_generation,
+            condition_fingerprint=journey_evidence.condition_fingerprint(condition),
+            association_id=selection.association_id,
+            defaults={
+                "journey_attempt_id": locked.context.journey_attempt_id,
+                "role_id": selection.role_id,
+                "record_kind": selection.record_kind,
+                "record_id": selection.record_id,
+                "opening_occurred_at": locked.opening_occurred_at,
+                "verified_at": now,
+            },
+        )
+
+
+def _write_verification(locked, step):
+    """Record the outcome inside the caller's lock-holding transaction."""
+    results, passed = _evaluate_locked(locked, step)
+    lesson_attempt = LessonAttempt.objects.get(pk=locked.context.lesson_attempt_id)
+    attempt = JourneyAttempt.objects.get(pk=locked.context.journey_attempt_id)
+    if passed:
+        _record_evidence(locked, step)
+        verification.mark_verified(lesson_attempt, step)
+        lesson_attempt.current_step = step
+        lesson_attempt.save(update_fields=("current_step",))
+    lesson_complete = verification.refresh_completion(lesson_attempt)
+    journey_complete = journey_services.refresh_journey_completion(attempt)
+    return {
+        "passed": passed,
+        "results": results,
+        "lesson_complete": lesson_complete,
+        "journey_complete": journey_complete,
+    }
+
+
+def _completed_replay(user, lesson_attempt, step, refusal):
+    """A finished journey still answers Check My Work with its live evidence.
+
+    Read-only and write-free: if the recorded evidence still holds, repeating
+    the click reports the same success instead of surfacing the status refusal.
+    Anything else keeps the original controlled refusal.
+    """
+    current = journey_evidence.current_verification(user, lesson_attempt, step)
+    if not isinstance(current, journey_evidence.CurrentVerification):
+        raise refusal
+    assignment = JourneyStep.objects.filter(step=step).first()
+    attempt = (
+        JourneyAttempt.objects.filter(
+            enrolment_id=lesson_attempt.enrolment_id,
+            journey_id=assignment.journey_id,
+        ).first()
+        if assignment is not None
+        else None
+    )
+    return {
+        "passed": True,
+        "results": [
+            {"label": condition.describe(), "passed": True, "message": "Verified."}
+            for condition in verification.step_conditions(step)
+        ],
+        "lesson_complete": verification.refresh_completion(lesson_attempt),
+        "journey_complete": attempt is not None and attempt.completed_at is not None,
+    }
+
+
+def verify_journey_step(user, lesson_attempt, step):
+    """Run Check My Work for a journey-bound step, recording what passed.
+
+    Returns the legacy result shape plus ``lesson_complete`` and
+    ``journey_complete``, or ``None`` when the step is not assigned to a
+    journey — the three-way contract that leaves non-journey steps on the
+    legacy owner-wide engine. Revalidation, the evidence write, the VERIFIED
+    stamp and both completion evaluations run in one transaction with the
+    revalidation's locks still held, so a concurrent attribution, record
+    replacement or second check cannot interleave between them.
+
+    A step whose opening has not persisted yet is retried briefly and then
+    refused with the retryable ``opening_pending`` code. SQLite lock
+    contention restarts the whole operation from the caller's identifiers.
+    """
+    for attempt_index in range(VERIFY_RETRY_ATTEMPTS):
+        try:
+            with transaction.atomic():
+                locked = revalidate_journey_verification(user, lesson_attempt, step)
+                if locked is None:
+                    return None
+                return _write_verification(locked, step)
+        except OperationalError as exc:
+            if not verification.is_sqlite_contention(exc) or attempt_index + 1 == VERIFY_RETRY_ATTEMPTS:
+                raise
+            time.sleep(VERIFY_RETRY_BASE_DELAY * (attempt_index + 1))
+        except JourneyVerificationResolutionError as exc:
+            if exc.code == "attempt_not_in_progress":
+                return _completed_replay(user, lesson_attempt, step, exc)
+            if exc.code != "opening_missing":
+                raise
+            if attempt_index + 1 == VERIFY_RETRY_ATTEMPTS:
+                raise JourneyVerificationPending(exc.message, "opening_pending")
+            time.sleep(VERIFY_RETRY_BASE_DELAY * (attempt_index + 1))

@@ -1,11 +1,12 @@
 """Read-only verification state for journey-bound practical steps.
 
-Checkpoint 3.3.2 records what satisfied a step and answers whether that
-record still holds. Both halves are predicates only: this module never
-creates, updates or deletes a ``StepEvent`` or a
-``JourneyVerificationEvidence`` row, and the legacy ``verify_step`` path is
-untouched. Student endpoints still run the Checkpoint 1 resolver, so nothing
-here changes what a learner sees.
+This module is the read side only: it answers whether recorded evidence
+still holds. It never creates, updates or deletes a ``StepEvent`` or a
+``JourneyVerificationEvidence`` row — ``journey_verification.verify_journey_step``
+does the writing. The result is authoritative for progression and completion
+(``verification.step_satisfied`` and ``journey_services.journey_step_rows``),
+while the legacy ``verify_step`` path stays untouched for steps outside a
+journey.
 
 "Current" is deliberately strict and fail-closed. A step counts only when its
 opening generation, its condition text, its journey binding and its active
@@ -235,7 +236,14 @@ def current_verification(user, lesson_attempt, step):
             return _not_current(failure.code, failure.message)
 
         condition_rows = [row for row in rows if row.condition_id == condition.pk]
-        if not condition_rows:
+        # Rows recording an older fingerprint are superseded history, not a
+        # contradiction: a condition edited and then re-verified in the same
+        # opening leaves the stale row beside the live one. Only rows matching
+        # the current fingerprint can back this condition.
+        matching = [row for row in condition_rows if row.condition_fingerprint == fingerprint]
+        if not matching:
+            if condition_rows:
+                return _not_current("evidence_outdated", "The condition changed after it was evidenced.")
             if JourneyVerificationEvidence.objects.filter(
                 lesson_attempt=lesson_attempt,
                 journey_step=assignment,
@@ -246,17 +254,12 @@ def current_verification(user, lesson_attempt, step):
                     "The condition's evidence belongs to an earlier opening.",
                 )
             return _not_current("evidence_missing", "The condition has never been evidenced in this opening.")
-        if any(row.condition_fingerprint != fingerprint for row in condition_rows):
-            return _not_current("evidence_outdated", "The condition changed after it was evidenced.")
-        if any(
-            (row.role_id, row.association_id) != (role.pk, association.pk)
-            for row in condition_rows
-        ):
+        # The newest matching row is the authoritative claim: evidencing the
+        # same condition again after replacing the record leaves the older row
+        # as history, so only the latest one must name the active association.
+        row = max(matching, key=lambda candidate: (candidate.verified_at, candidate.id))
+        if (row.role_id, row.association_id) != (role.pk, association.pk):
             return _not_current("evidence_conflicted", "The evidence names a different record than the role.")
-        if len(condition_rows) > 1:
-            return _not_current("evidence_ambiguous", "More than one evidence identity backs the condition.")
-
-        row = condition_rows[0]
         if (
             row.journey_attempt_id != attempt.pk
             or row.journey_step_id != assignment.pk

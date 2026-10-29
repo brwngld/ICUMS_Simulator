@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from scenarios.bindings import VERIFY_RECORDS
 
+from . import journey_evidence
 from .models import (
     JourneyAttempt,
     JourneyDependency,
@@ -151,7 +152,7 @@ def _is_opened_singleton_collision(exc):
     )
 
 
-def _is_sqlite_opening_contention(exc):
+def is_sqlite_contention(exc):
     if connection.vendor != "sqlite":
         return False
     message = str(exc).lower()
@@ -271,7 +272,7 @@ def record_open(attempt, step):
         try:
             return _record_open_once(attempt_id, step_id)
         except OperationalError as exc:
-            if not _is_sqlite_opening_contention(exc):
+            if not is_sqlite_contention(exc):
                 raise
             if retry_index + 1 == OPENING_RETRY_LIMIT:
                 _opening_fail(
@@ -356,15 +357,29 @@ def verify_step(attempt, step):
     return {"passed": passed, "results": results}
 
 
+def step_satisfied(attempt, step):
+    """Whether this attempt currently satisfies one practical step.
+
+    A condition-free step asks for nothing. A step assigned to a journey is
+    judged by its current journey verification evidence, so a historical
+    ``VERIFIED`` stamp never authorizes progression once the record, the
+    condition or the opening it was earned under has changed. A step outside
+    every journey keeps the legacy ``VERIFIED`` rule unchanged.
+    """
+    if not step_requires_verification(step):
+        return True
+    if JourneyStep.objects.filter(step=step).exists():
+        return isinstance(
+            journey_evidence.current_verification(attempt.enrolment.student, attempt, step),
+            journey_evidence.CurrentVerification,
+        )
+    return is_verified(attempt, step)
+
+
 def satisfied_steps(attempt):
     """Which of the lesson's steps are satisfied (verified or condition-free)."""
-    steps = list(attempt.lesson.practical_steps.all())
-    verified = set(
-        StepEvent.objects.filter(attempt=attempt, kind=StepEvent.Kind.VERIFIED).values_list("step_id", flat=True)
-    )
     return {
-        step.pk for step in steps
-        if step.pk in verified or not step_requires_verification(step)
+        step.pk for step in attempt.lesson.practical_steps.all() if step_satisfied(attempt, step)
     }
 
 

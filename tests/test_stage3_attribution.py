@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from hybrid import attribution, journey_services, verification
+from hybrid.journey_verification import verify_journey_step
 from hybrid.models import (
     HybridCourse,
     HybridLesson,
@@ -628,9 +629,11 @@ def test_interface_distinguishes_attribution_from_step_verification(client, db):
     lesson_attempt = LessonAttempt.objects.create(
         enrolment=world["enrolment"], lesson=world["step"].lesson,
     )
-    StepEvent.objects.create(
-        attempt=lesson_attempt, step=world["step"], kind=StepEvent.Kind.VERIFIED,
-    )
+    verification.record_open(lesson_attempt, world["step"])
+    record.refresh_from_db()
+    record.save()
+    result = verify_journey_step(world["student"], lesson_attempt, world["step"])
+    assert result["passed"], result
     after = client.get(journey_url).content.decode()
     assert "Practical step verified" in after
     assert "Record attributed but not yet verified" not in after

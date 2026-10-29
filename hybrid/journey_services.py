@@ -31,10 +31,10 @@ retired editions refuse them.
 
 Deliberately out of scope
 -------------------------
-Journey-aware "Check my work" verification. Completion is evaluated from the
-existing per-lesson ``LessonAttempt`` completion signals plus required
-journey record roles; no journey condition is evaluated at runtime in this
-checkpoint.
+Evaluating a step's conditions. Completion is derived here from the current
+journey verification evidence the Check My Work writer recorded, the required
+journey record roles, and the existing per-lesson ``LessonAttempt`` completion
+signals — this module never evaluates a condition itself.
 """
 import re
 
@@ -45,6 +45,7 @@ from django.utils import timezone
 
 from scenarios.bindings import VERIFY_RECORDS
 
+from . import journey_evidence
 from .models import (
     HybridLesson,
     SimulatorRecordCreation,
@@ -167,12 +168,15 @@ def journey_step_rows(attempt):
     authoritative durable evidence, satisfaction, and the outstanding
     requirement.
 
-    Evidence rules (read-only; the workspace's Check-My-Work endpoint is the
-    only writer): a condition-bearing step is satisfied by a VERIFIED StepEvent
-    on this enrolment's own LessonAttempt for that exact step; a condition-free
-    step is satisfied by an OPENED StepEvent — the learner demonstrably entered
-    the step's screen. Evidence from another learner, lesson attempt or
-    curriculum version can never match these keys.
+    Evidence rules (read-only): a condition-bearing step is satisfied only by
+    current journey verification evidence — the recorded proof must still
+    match the step's opening generation, condition text, bound role and active
+    record association, so replacing the record, editing the condition or
+    reopening the step stops the step counting even though the historical
+    ``VERIFIED`` stamp remains. A condition-free step is satisfied by an
+    OPENED StepEvent — the learner demonstrably entered the step's screen.
+    Evidence from another learner, lesson attempt or curriculum version can
+    never match these keys.
     """
     rows = []
     for position, assignment in enumerate(ordered_assignments(attempt.journey), start=1):
@@ -180,14 +184,22 @@ def journey_step_rows(attempt):
             enrolment=attempt.enrolment, lesson=assignment.step.lesson
         ).first()
         verified = opened = False
+        requires_check = VerificationCondition.objects.filter(step=assignment.step).exists()
         if lesson_attempt is not None:
-            verified = StepEvent.objects.filter(
-                attempt=lesson_attempt, step=assignment.step, kind=StepEvent.Kind.VERIFIED
-            ).exists()
             opened = StepEvent.objects.filter(
                 attempt=lesson_attempt, step=assignment.step, kind=StepEvent.Kind.OPENED
             ).exists()
-        requires_check = VerificationCondition.objects.filter(step=assignment.step).exists()
+            if requires_check:
+                verified = isinstance(
+                    journey_evidence.current_verification(
+                        attempt.enrolment.student, lesson_attempt, assignment.step,
+                    ),
+                    journey_evidence.CurrentVerification,
+                )
+            else:
+                verified = StepEvent.objects.filter(
+                    attempt=lesson_attempt, step=assignment.step, kind=StepEvent.Kind.VERIFIED
+                ).exists()
         satisfied = verified if requires_check else opened
         if requires_check and not verified:
             requirement = "Pass Check my work on this step."
@@ -360,13 +372,14 @@ def journey_completion_state(attempt):
     """Authoritative journey completion state, read from durable evidence —
     never from lesson completion flags alone.
 
-    Steps: a condition-bearing step is satisfied only by a VERIFIED StepEvent
-    on this enrolment's LessonAttempt for that exact step; a condition-free
-    step is satisfied by having been opened (an OPENED StepEvent — the
-    learner demonstrably entered the step's screen). Roles: every required
-    record role must have an active association whose exact record still
-    exists and belongs to the learner. Lessons: the existing lesson completion
-    requirements (completion flag and theory acknowledgement) must also hold.
+    Steps: a condition-bearing step is satisfied only by current journey
+    verification evidence for that exact step (see ``journey_step_rows``); a
+    condition-free step is satisfied by having been opened (an OPENED
+    StepEvent — the learner demonstrably entered the step's screen). Roles:
+    every required record role must have an active association whose exact
+    record still exists and belongs to the learner. Lessons: the existing
+    lesson completion requirements (completion flag and theory acknowledgement)
+    must also hold.
     """
     rows = journey_step_rows(attempt)
     required_roles = list(
@@ -434,85 +447,6 @@ def refresh_journey_completion(attempt):
         attempt.save(update_fields=("completed_at", "status", "last_activity_at"))
         return True
     return False
-
-
-def advance_journey_attempt(attempt):
-    """Move ``current_journey_step`` to the next canonical step when the
-    learner's evidence allows it. The walk stops at the first unsatisfied
-    step, so nothing beyond the progression ceiling can ever be reached, and
-    dependency edges (step-completed, record-available) are enforced on the
-    target. POST-only callers; transactional and row-locked."""
-    with transaction.atomic():
-        locked = JourneyAttempt.objects.select_for_update().select_related(
-            "journey", "current_journey_step"
-        ).get(pk=attempt.pk)
-        rows = journey_step_rows(locked)
-        if not rows:
-            return locked, False, "This journey has no assigned steps yet."
-        current_index = 0
-        if locked.current_journey_step_id:
-            for index, row in enumerate(rows):
-                if row["assignment"].pk == locked.current_journey_step_id:
-                    current_index = index
-                    break
-        target = current_index + 1
-        if target >= len(rows):
-            return locked, False, "This is the final step of the journey."
-
-        # Progression ceiling: walk from the entry point; the first
-        # unsatisfied step locks everything after it.
-        reachable = [True]
-        for index in range(1, len(rows)):
-            reachable.append(reachable[index - 1] and rows[index - 1]["satisfied"])
-        if not reachable[target]:
-            message = (
-                '"' + rows[target]["step"].title + '" is locked until the earlier steps are complete.'
-            )
-            return locked, False, message
-
-        # Dependency edges into the target step.
-        for dependency in JourneyDependency.objects.filter(journey=locked.journey, dependent_step=rows[target]["assignment"]):
-            if dependency.dependency_type == JourneyDependency.DependencyType.RECORD_AVAILABLE:
-                role_ok, _message = role_satisfied(locked, dependency.required_record_role)
-                if not role_ok:
-                    message = (
-                        '"' + rows[target]["step"].title + '" needs the record role "'
-                        + dependency.required_record_role.label + '" satisfied first.'
-                    )
-                    return locked, False, message
-            else:
-                predecessor_row = next(
-                    (row for row in rows if row["assignment"].pk == dependency.predecessor_step_id), None,
-                )
-                if predecessor_row and not predecessor_row["satisfied"]:
-                    message = (
-                        '"' + predecessor_row["step"].title + '" must be completed first.'
-                    )
-                    return locked, False, message
-
-        locked.current_journey_step = rows[target]["assignment"]
-        locked.last_activity_at = timezone.now()
-        locked.save(update_fields=("current_journey_step", "last_activity_at"))
-
-        # Completion evaluation, on the POST that earned it: authoritative
-        # step evidence, required roles, and the existing lesson requirements.
-        rows_now = journey_step_rows(locked)
-        required_roles = JourneyRecordRole.objects.filter(journey=locked.journey, required=True)
-        roles_ok = all(role_satisfied(locked, role)[0] for role in required_roles)
-        lesson_rows = LessonAttempt.objects.filter(
-            enrolment=locked.enrolment,
-            lesson_id__in=[row["step"].lesson_id for row in rows_now],
-        )
-        lessons_complete = lesson_rows.count() == len(rows_now) and all(
-            attempt_row.completed_at is not None and attempt_row.theory_acknowledged_at is not None
-            for attempt_row in lesson_rows
-        )
-        if all(row["satisfied"] for row in rows_now) and roles_ok and lessons_complete:
-            if locked.completed_at is None:
-                locked.completed_at = timezone.now()
-                locked.status = JourneyAttempt.Status.COMPLETED
-                locked.save(update_fields=("completed_at", "status"))
-        return locked, True, "Step complete."
 
 
 # --- Record associations: exact identity, ownership, safe replacement ---------
@@ -827,6 +761,8 @@ def journey_advance(attempt):
     the first unsatisfied step locks everything after it — so no step beyond
     the learner's demonstrated position can ever be reached. Dependency edges
     (step-completed, record-available) are enforced on the target step.
+    Progression and completion are decided inside the one attempt row lock, so
+    the evidence completion is read from cannot change between them.
     """
     with transaction.atomic():
         locked = JourneyAttempt.objects.select_for_update().get(pk=attempt.pk)
@@ -843,6 +779,13 @@ def journey_advance(attempt):
 
         target = current_index + 1
         if target >= len(rows):
+            # Nothing left to advance to: the final step's own verification is
+            # what completes the journey, evaluated here under the same lock.
+            refresh_journey_completion(locked)
+            if locked.completed_at is not None:
+                return locked, True, (
+                    "Journey complete — every step is verified and all required records are in place."
+                )
             return locked, False, "This is the final step of the journey."
 
         reachable = [True]
@@ -874,22 +817,5 @@ def journey_advance(attempt):
         locked.current_journey_step = rows[target]["assignment"]
         locked.last_activity_at = timezone.now()
         locked.save(update_fields=("current_journey_step", "last_activity_at"))
-
-    # Completion evaluation, on the POST that earned it.
-    rows_now = journey_step_rows(locked)
-    required_roles = JourneyRecordRole.objects.filter(journey=locked.journey, required=True)
-    roles_ok = all(role_satisfied(locked, role)[0] for role in required_roles)
-    lesson_rows = LessonAttempt.objects.filter(
-        enrolment=locked.enrolment,
-        lesson_id__in=[row["step"].lesson_id for row in rows_now],
-    )
-    lessons_complete = lesson_rows.count() == len(rows_now) and all(
-        row.completed_at is not None and row.theory_acknowledged_at is not None
-        for row in lesson_rows
-    )
-    if all(row["satisfied"] for row in rows_now) and roles_ok and lessons_complete:
-        if locked.completed_at is None:
-            locked.completed_at = timezone.now()
-            locked.status = JourneyAttempt.Status.COMPLETED
-            locked.save(update_fields=("completed_at", "status"))
+        refresh_journey_completion(locked)
     return locked, True, "Advanced to the next step."
