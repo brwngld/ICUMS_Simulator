@@ -446,7 +446,9 @@ def test_conditions_can_be_authored_in_the_editor(client, db):
     saved = client.post(editor, {
         "action": "save_condition", "condition_id": condition.pk,
         "kind": "saved_record", "record_status": "ucr:draft",
-        "expected_fields": '{"exporter_name": "ACME Trading"}',
+        "value_rows": "2",
+        "check_0": "ucr:exporter_name", "value_0": "ACME Trading",
+        "check_1": "", "value_1": "",
     })
     assert saved.status_code == 302
     condition.refresh_from_db()
@@ -457,7 +459,10 @@ def test_conditions_can_be_authored_in_the_editor(client, db):
     # An unapproved status is refused by the registries and nothing changes.
     client.post(editor, {
         "action": "save_condition", "condition_id": condition.pk,
-        "kind": "saved_record", "record_status": "ucr:nonexistent", "expected_fields": "{}",
+        "kind": "saved_record", "record_status": "ucr:nonexistent",
+        "value_rows": "2",
+        "check_0": "ucr:exporter_name", "value_0": "ACME Trading",
+        "check_1": "", "value_1": "",
     })
     condition.refresh_from_db()
     assert condition.required_status == "draft"

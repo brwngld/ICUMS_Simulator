@@ -6,7 +6,7 @@ from django.contrib.messages import get_messages
 from django.urls import reverse
 
 from accounts.models import User
-from hybrid.models import HybridCourse, HybridLesson, HybridModule, PracticalStep
+from hybrid.models import HybridCourse, HybridLesson, HybridModule, PracticalStep, VerificationCondition
 from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
 
 
@@ -308,6 +308,136 @@ def test_the_review_tab_reports_what_is_missing(client, db):
     issues = " ".join(response.context["issues"])
     assert "No theory reading yet" in issues
     assert "No practical steps yet" in issues
+
+
+# --- Verification conditions -----------------------------------------------------
+
+
+def _condition_step(db, code="conditions"):
+    """A draft lesson's step with no conditions of its own yet."""
+    _, version = _hybrid_programme(code)
+    lesson = _lesson(_module(_course(version)))
+    return PracticalStep.objects.create(
+        lesson=lesson, key="check", title="File the declaration", order=1, screen="single-window-create-ucr",
+    )
+
+
+def _add_condition(client, step):
+    client.post(
+        reverse("hybrid-lesson-edit", args=[step.lesson.pk]),
+        {"action": "add_condition", "step_id": step.pk},
+    )
+    return VerificationCondition.objects.filter(step=step).order_by("-order").first()
+
+
+def _condition_post(condition, rows, record_status="ucr:draft"):
+    """The editor's own payload shape: one select and text box per saved value."""
+    data = {
+        "action": "save_condition", "condition_id": condition.pk,
+        "kind": "saved_record", "record_status": record_status,
+        "value_rows": str(len(rows)),
+    }
+    for index, (column, value) in enumerate(rows):
+        data[f"check_{index}"] = column
+        data[f"value_{index}"] = value
+    return data
+
+
+@pytest.mark.django_db
+def test_a_saved_value_is_chosen_from_the_record_not_written_as_json(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "cond-editor")
+    client.force_login(instructor)
+    condition = _add_condition(client, step)
+
+    response = client.post(
+        reverse("hybrid-lesson-edit", args=[step.lesson.pk]),
+        _condition_post(condition, [("ucr:exporter_name", "ACME Trading"), ("", "")]),
+    )
+    assert response.status_code == 302
+    condition.refresh_from_db()
+    assert condition.expected_fields == {"exporter_name": "ACME Trading"}
+
+    html = client.get(f"{reverse('hybrid-lesson-edit', args=[step.lesson.pk])}?tab=simulator").content.decode()
+    assert 'name="expected_fields"' not in html
+    assert 'value="ucr:exporter_name" selected' in html
+    assert "ACME Trading" in html
+
+
+@pytest.mark.django_db
+def test_a_number_and_a_flag_are_stored_as_the_record_holds_them(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "cond-types")
+    client.force_login(instructor)
+    editor = reverse("hybrid-lesson-edit", args=[step.lesson.pk])
+
+    flag = _add_condition(client, step)
+    client.post(editor, _condition_post(flag, [("ucr:show_provider", "yes")]))
+    flag.refresh_from_db()
+    assert flag.expected_fields == {"show_provider": True}
+
+    number = _add_condition(client, step)
+    client.post(
+        editor,
+        _condition_post(number, [("mda:monthly_sequence", "7")], record_status="mda:DR"),
+    )
+    number.refresh_from_db()
+    assert number.expected_fields == {"monthly_sequence": 7}
+
+
+@pytest.mark.django_db
+def test_a_flag_answered_with_prose_is_refused(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "cond-flag-word")
+    client.force_login(instructor)
+    condition = _add_condition(client, step)
+    client.post(
+        reverse("hybrid-lesson-edit", args=[step.lesson.pk]),
+        _condition_post(condition, [("ucr:show_provider", "probably")]),
+    )
+    condition.refresh_from_db()
+    assert condition.expected_fields == {}
+
+
+@pytest.mark.django_db
+def test_a_value_belongs_to_the_record_the_condition_checks(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "cond-mismatch")
+    client.force_login(instructor)
+    condition = _add_condition(client, step)
+    client.post(
+        reverse("hybrid-lesson-edit", args=[step.lesson.pk]),
+        _condition_post(condition, [("boe:declaration_no", "BOE-1")]),
+    )
+    condition.refresh_from_db()
+    assert (condition.record_kind, condition.expected_fields) == ("", {})
+
+
+@pytest.mark.django_db
+def test_clearing_a_row_stops_checking_that_saved_value(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "cond-clear")
+    client.force_login(instructor)
+    editor = reverse("hybrid-lesson-edit", args=[step.lesson.pk])
+    condition = _add_condition(client, step)
+    client.post(editor, _condition_post(condition, [("ucr:exporter_name", "ACME Trading")]))
+    condition.refresh_from_db()
+    assert condition.expected_fields == {"exporter_name": "ACME Trading"}
+
+    client.post(editor, _condition_post(condition, [("", "")]))
+    condition.refresh_from_db()
+    assert condition.expected_fields == {}
+
+
+@pytest.mark.django_db
+def test_columns_that_cannot_be_pinned_exactly_are_not_offered(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "cond-columns")
+    client.force_login(instructor)
+    _add_condition(client, step)
+    html = client.get(f"{reverse('hybrid-lesson-edit', args=[step.lesson.pk])}?tab=simulator").content.decode()
+    for column in ("ucr:documents", "consignment:shipment_date", "consignment:exchange_rate", "boe:form_data"):
+        assert f'value="{column}"' not in html
 
 
 # --- Preview --------------------------------------------------------------------

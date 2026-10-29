@@ -2,7 +2,7 @@
 {% block title %}Edit {{ lesson.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit lesson{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
 {% block content %}<div class="authoring hyb-builder">
-  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ lesson.module.course.title }} · {{ lesson.module.title }} · draft edition v{{ lesson.module.course.programme_version.version }}</p><h1>Edit Lesson — {{ lesson.title }}</h1><p>The learner sees this lesson in the Theory &amp; Practical workspace. Saving does not publish the edition.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-lesson-preview' lesson.pk %}">Student preview</a><a class="authoring-secondary" href="{% url 'hybrid-module-edit' lesson.module_id %}">Back to module</a></div></header>
+  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ lesson.module.course.title }} · {{ lesson.module.title }} · draft edition v{{ lesson.module.course.programme_version.version }}</p><h1>Edit Lesson — {{ lesson.title }}</h1><p>The learner sees this lesson in the Theory &amp; Practical workspace. Saving does not publish the edition.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-lesson-preview' lesson.pk %}">Student preview</a><a class="authoring-secondary" href="{% url 'hybrid-course-journeys' lesson.module.course.pk %}">Practical journeys</a><a class="authoring-secondary" href="{% url 'hybrid-module-edit' lesson.module_id %}">Back to module</a></div></header>
 
   {% comment %} The wrapping form saves lesson details, the continuous theory reading and
      the step rows together. Every per-row action (add/move/remove, conditions)
@@ -62,7 +62,7 @@
                 <input type="hidden" name="condition_id" value="{{ condition.pk }}">
                 {{ condition_form.kind.as_field_group }}
                 {{ condition_form.record_status.as_field_group }}
-                {{ condition_form.expected_fields.as_field_group }}
+                {% for row in condition_form.value_rows %}{{ row.check.as_field_group }}{{ row.value.as_field_group }}{% endfor %}<input type="hidden" name="value_rows" value="{{ condition_form.row_count }}">
                 <button class="authoring-secondary" type="submit">Save condition</button>
               </form>
             </div>

@@ -6,9 +6,14 @@ survives a simulator URL redesign: the target path is re-resolved with
 may be bound. The registry is the single approval point for new targets;
 keeping it separate from the simulator views means no simulator file needs
 to change when the guided engine adopts or retires a target.
+
+The same registry answers the authoring questions that go with a target:
+which record kinds can be verified, in which statuses, and which of their
+saved columns can be pinned to an exact value.
 """
 
 from django.core.exceptions import ValidationError
+from django.db.models import BooleanField, CharField, IntegerField, TextField
 
 from .models import BoeDeclaration, ConsignmentApplication, MdaConsignmentRequest, UcrDeclaration
 
@@ -44,6 +49,67 @@ def binding_route_choices():
 
 def _status_choices(model):
     return model._meta.get_field("status").choices
+
+
+#: Columns that describe the record's lifecycle rather than its content, so
+#: pinning an exact value to one would verify the engine, not the learner.
+_LIFECYCLE_COLUMNS = {"id", "status", "created_at", "updated_at", "submitted_at"}
+
+
+def _value_kind(field):
+    """How a form should accept this column's exact value, or None if it cannot.
+
+    Decimal, date and JSON columns are deliberately left out: their Python
+    values do not survive the JSON storage of a verification condition, so an
+    expectation typed for one could never compare equal to the saved record.
+    """
+    if isinstance(field, BooleanField):
+        return "boolean"
+    if isinstance(field, IntegerField):
+        return "number"
+    if isinstance(field, (CharField, TextField)):
+        return "text"
+    return None
+
+
+def checkable_fields(record_kind):
+    """Ordered ``(column, label, value_kind)`` triples for one record kind.
+
+    Only columns whose exact value can be typed and compared are listed, so a
+    form can offer a saved value only where verification can actually honour it.
+    """
+    model, _label = VERIFY_RECORDS[record_kind]
+    fields = []
+    for field in model._meta.fields:
+        if field.is_relation or field.name in _LIFECYCLE_COLUMNS:
+            continue
+        value_kind = _value_kind(field)
+        if value_kind is None:
+            continue
+        fields.append((field.name, str(field.verbose_name), value_kind))
+    return fields
+
+
+def verify_field_choices():
+    """Grouped ``kind:column`` choices for the exact-value editor.
+
+    Grouped by record kind rather than filtered to the condition's own, so the
+    select never has to be rebuilt by script and a mismatch is a server-side
+    error the instructor can read instead of a silently wrong expectation.
+    """
+    choices = [("", "— None —")]
+    for kind in VERIFY_RECORDS:
+        _model, label = VERIFY_RECORDS[kind]
+        choices.append(
+            (
+                label,
+                [
+                    (f"{kind}:{name}", column_label or name)
+                    for name, column_label, _value_kind in checkable_fields(kind)
+                ],
+            )
+        )
+    return choices
 
 
 def verify_status_choices():
