@@ -346,7 +346,6 @@ def _student_navigation(request):
                     {"title": "Instructor", "icon": "users", "icon_template": "core/nav_icons/instructor.html", "link": reverse("instructor-dashboard")},
                     {"title": "Students", "icon": "group", "link": reverse("instructor-student-list")},
                     {"title": "Theory builder", "icon": "edit_note", "icon_template": "core/nav_icons/theory_builder.html", "link": reverse("course-builder") + "?path=theory"},
-                    {"title": "Practical/Theory builder", "icon": "layers", "icon_template": "core/nav_icons/practical_builder.html", "link": reverse("practical-builder-index")},
                     {"title": "Theory & Practical builder", "icon": "school", "link": reverse("hybrid-builder")},
                 ],
             }

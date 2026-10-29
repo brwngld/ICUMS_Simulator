@@ -98,6 +98,70 @@ def test_the_builder_lists_hybrid_programmes_and_their_editions(client, db):
     assert "Draft edition" in html
 
 
+# --- Programme authoring -------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_the_builder_creates_a_hybrid_programme_with_a_draft_edition(client, db):
+    instructor = _instructor(db)
+    client.force_login(instructor)
+    response = client.post(
+        reverse("hybrid-builder"),
+        {"action": "create_programme", "name": "Coastal clearance", "code": "coastal-clearance"},
+    )
+    assert response.status_code == 302
+    programme = Programme.objects.get(code="coastal-clearance")
+    assert programme.learning_track == Programme.Track.HYBRID
+    assert programme.is_active is True
+    version = programme.versions.get()
+    assert (version.version, version.status) == (1, ProgrammeVersion.Status.DRAFT)
+
+
+@pytest.mark.django_db
+def test_a_programme_with_a_taken_code_is_rejected_without_creating(client, db):
+    instructor = _instructor(db)
+    programme, _ = _hybrid_programme("taken")
+    client.force_login(instructor)
+    response = client.post(
+        reverse("hybrid-builder"),
+        {"action": "create_programme", "name": "Lookalike", "code": programme.code},
+    )
+    assert response.status_code == 400
+    assert not Programme.objects.filter(name="Lookalike").exists()
+
+
+@pytest.mark.django_db
+def test_a_programme_post_does_not_validate_the_course_form(client, db):
+    """The two create cards are independent: a bare programme POST must not come
+    back complaining about the course title it was never meant to carry."""
+    _instructor(db)
+    client.force_login(User.objects.get(username="builder"))
+    response = client.post(reverse("hybrid-builder"), {"action": "create_programme", "name": "", "code": ""})
+    assert response.status_code == 400
+    html = response.content.decode()
+    assert "This field is required." in html
+    assert html.count("This field is required.") == 2  # programme name and code, nothing else
+
+
+@pytest.mark.django_db
+def test_instructor_navigation_offers_only_the_two_builders(client, db):
+    instructor = _instructor(db)
+    client.force_login(instructor)
+    html = client.get(reverse("dashboard")).content.decode()
+    assert "Theory builder" in html
+    assert "Theory & Practical builder" in html
+    assert "Practical/Theory builder" not in html
+
+
+@pytest.mark.django_db
+def test_the_instructor_dashboard_opens_the_hybrid_builder(client, db):
+    instructor = _instructor(db)
+    client.force_login(instructor)
+    html = client.get(reverse("instructor-dashboard")).content.decode()
+    assert reverse("hybrid-builder") in html
+    assert "path=combined" not in html
+
+
 # --- Course and module authoring -----------------------------------------------
 
 

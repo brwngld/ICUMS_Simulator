@@ -27,6 +27,7 @@ from .forms import (
     CourseEditForm,
     LessonDetailsForm,
     ModuleForm,
+    ProgrammeCreateForm,
     StepFormSet,
     TheoryForm,
     VerificationConditionForm,
@@ -53,6 +54,10 @@ from .publishing import (
 )
 
 TABS = ("details", "theory", "journey", "simulator", "review")
+
+#: Index POSTs that target neither create form, so both stay unbound and an
+#: error re-render never shows validation messages for the wrong form.
+_CARD_ACTIONS = ("publish_edition", "new_draft", "create_programme")
 
 
 def _draft_version(programme):
@@ -104,9 +109,21 @@ def builder_index(request):
         .prefetch_related("versions__hybrid_courses")
         .order_by("name")
     )
-    form = CourseCreateForm(request.POST or None)
+    action = request.POST.get("action") if request.method == "POST" else None
+    form = CourseCreateForm(request.POST if action not in _CARD_ACTIONS else None)
+    programme_form = ProgrammeCreateForm(request.POST if action == "create_programme" else None)
+    context = {"programmes": programmes, "form": form, "programme_form": programme_form}
     if request.method == "POST":
-        if request.POST.get("action") == "publish_edition":
+        if action == "create_programme":
+            if programme_form.is_valid():
+                programme = programme_form.save()
+                programme.learning_track = Programme.Track.HYBRID
+                programme.save(update_fields=("learning_track",))
+                version = _draft_version(programme)
+                messages.success(request, f"Programme created in a new draft edition v{version.version}.")
+                return redirect("hybrid-builder")
+            return render_student_page(request, "hybrid/builder_index.html", context, status=400)
+        if action == "publish_edition":
             version = get_object_or_404(
                 ProgrammeVersion,
                 pk=request.POST.get("version_id"),
@@ -123,7 +140,7 @@ def builder_index(request):
                 for warning in warnings:
                     messages.warning(request, warning)
             return redirect("hybrid-builder")
-        if request.POST.get("action") == "new_draft":
+        if action == "new_draft":
             version = get_object_or_404(
                 ProgrammeVersion,
                 pk=request.POST.get("version_id"),
@@ -148,10 +165,8 @@ def builder_index(request):
             )
             messages.success(request, "Course created." if not created else "Course created in a new draft edition.")
             return redirect("hybrid-course-edit", course_id=course.pk)
-        return render_student_page(
-            request, "hybrid/builder_index.html", {"programmes": programmes, "form": form}, status=400,
-        )
-    return render_student_page(request, "hybrid/builder_index.html", {"programmes": programmes, "form": form})
+        return render_student_page(request, "hybrid/builder_index.html", context, status=400)
+    return render_student_page(request, "hybrid/builder_index.html", context)
 
 
 def _ensure_draft_tracking(programme):

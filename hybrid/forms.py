@@ -16,6 +16,20 @@ from scenarios.bindings import binding_route_choices, verify_status_choices
 from .models import HybridModule, PracticalStep, VerificationCondition
 
 
+class ProgrammeCreateForm(forms.ModelForm):
+    """Open a Theory & Practical programme from inside the builder.
+
+    Only the two identifying fields are asked for; the learning track is fixed
+    by the view, so a builder-created programme can never land in the theory
+    system, and every other programme field keeps its existing default.
+    """
+
+    class Meta:
+        model = Programme
+        fields = ("name", "code")
+        labels = {"name": "Programme name", "code": "Programme code"}
+
+
 class CourseCreateForm(forms.Form):
     programme = forms.ModelChoiceField(
         queryset=Programme.objects.none(),

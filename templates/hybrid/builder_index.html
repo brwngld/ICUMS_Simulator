@@ -4,7 +4,16 @@
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
 
 {% block content %}<div class="authoring hyb-builder">
-  <header class="authoring-head"><div><p class="authoring-eyebrow">Instructor · Theory &amp; Practical</p><h1>Theory &amp; Practical builder</h1><p>Create courses, modules and combined theory-and-practical lessons for any approved simulator workflow. Draft editions are editable; published editions are read-only.</p></div></header>
+  <header class="authoring-head"><div><p class="authoring-eyebrow">Instructor · Theory &amp; Practical</p><h1>Theory &amp; Practical builder</h1><p>Create programmes, courses, modules and combined theory-and-practical lessons for any approved simulator workflow. Draft editions are editable; published editions are read-only.</p></div></header>
+
+  <section class="authoring-card">
+    <div class="authoring-editor-header"><div><h2>New programme</h2><p>A Theory &amp; Practical programme opens with a draft edition, ready for its first course.</p></div></div>
+    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}<input type="hidden" name="action" value="create_programme">
+      {{ programme_form.name.as_field_group }}
+      {{ programme_form.code.as_field_group }}
+      <button class="authoring-primary" type="submit">Create programme</button>
+    </form>
+  </section>
 
   <section class="authoring-card">
     <div class="authoring-editor-header"><div><h2>New course</h2><p>The course is created inside the programme's draft edition, reused or opened automatically.</p></div></div>
@@ -53,6 +62,6 @@
       {% endfor %}
     </section>
   {% empty %}
-    <section class="authoring-card"><p class="authoring-empty">No Theory &amp; Practical programmes exist yet. Ask an administrator to create a programme with the learning track set to “Theory &amp; Practical”.</p></section>
+    <section class="authoring-card"><p class="authoring-empty">No Theory &amp; Practical programmes yet — create the first above.</p></section>
   {% endfor %}
 </div>{% endblock %}

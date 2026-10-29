@@ -13,8 +13,6 @@
       <option value="published"{% if status_filter == 'published' %} selected{% endif %}>Published</option>
       <option value="retired"{% if status_filter == 'retired' %} selected{% endif %}>Retired</option>
     </select>
-    <a class="authoring-secondary{% if learning_path == 'theory' %} active{% endif %}" href="{% url 'course-builder' %}?path=theory">Theory</a>
-    <a class="authoring-secondary{% if learning_path == 'combined' %} active{% endif %}" href="{% url 'course-builder' %}?path=combined">Practical/Theory</a>
   </div>
   <table class="authoring-table authoring-courses-table">
     <thead><tr><th>Course</th><th>Difficulty</th><th>Modules</th><th>Lessons</th><th>Status</th><th>Actions</th></tr></thead>
