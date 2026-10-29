@@ -132,19 +132,21 @@ def _author(client):
     lesson = HybridLesson.objects.get(module=module, title="Create a UCR")
     editor = reverse("hybrid-lesson-edit", args=[lesson.pk])
 
-    client.post(editor, {"action": "add_step", "active_tab": "journey"})
+    client.post(editor, {"action": "add_step"})
     step = PracticalStep.objects.get(lesson=lesson)
     saved = client.post(editor, {
-        "title": lesson.title, "summary": lesson.summary, "active_tab": "journey",
+        "action": "save_lesson", "active_tab": "theory",
+        "title": lesson.title, "summary": lesson.summary,
         "form-body": "<p>The UCR declares the goods before anything moves.</p>",
-        "steps-TOTAL_FORMS": "1", "steps-INITIAL_FORMS": "1",
-        "steps-MIN_NUM_FORMS": "0", "steps-MAX_NUM_FORMS": "1000",
-        "steps-0-id": str(step.pk),
-        "steps-0-title": "Open the declaration form",
-        "steps-0-instruction": "Create a UCR whose exporter is ACME Trading, then save the draft.",
-        "steps-0-outcome": "A saved draft naming your exporter.",
-        "steps-0-hint": "The exporter block is below the regime choice.",
-        "steps-0-screen": "single-window-create-ucr",
+    })
+    assert saved.status_code == 302
+    saved = client.post(editor, {
+        "action": "save_activity", "step_id": str(step.pk), "active_tab": "activities",
+        f"step-{step.pk}-title": "Open the declaration form",
+        f"step-{step.pk}-instruction": "Create a UCR whose exporter is ACME Trading, then save the draft.",
+        f"step-{step.pk}-outcome": "A saved draft naming your exporter.",
+        f"step-{step.pk}-hint": "The exporter block is below the regime choice.",
+        f"step-{step.pk}-screen": "single-window-create-ucr",
     })
     assert saved.status_code == 302
     step.refresh_from_db()
@@ -157,9 +159,17 @@ def _author(client):
     client.post(editor, {"action": "add_condition", "step_id": step.pk, "kind": "saved_record"})
     condition = VerificationCondition.objects.get(step=step)
     client.post(editor, {
-        "action": "save_condition", "condition_id": condition.pk,
-        "kind": "saved_record", "record_status": "ucr:draft",
-        "value_rows": "1", "check_0": "ucr:exporter_name", "value_0": "ACME Trading",
+        "action": "save_activity", "step_id": str(step.pk), "active_tab": "activities",
+        f"step-{step.pk}-title": step.title,
+        f"step-{step.pk}-instruction": step.instruction,
+        f"step-{step.pk}-outcome": step.outcome,
+        f"step-{step.pk}-hint": step.hint,
+        f"step-{step.pk}-screen": step.screen,
+        f"cond-{condition.pk}-kind": "saved_record",
+        f"cond-{condition.pk}-record_status": "ucr:draft",
+        f"cond-{condition.pk}-value_rows": "1",
+        f"cond-{condition.pk}-check_0": "ucr:exporter_name",
+        f"cond-{condition.pk}-value_0": "ACME Trading",
     })
     condition.refresh_from_db()
     assert condition.expected_fields == {"exporter_name": "ACME Trading"}

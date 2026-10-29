@@ -27,6 +27,7 @@ from hybrid.models import (
 from hybrid import journey_services, publishing
 from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Enrolment, Programme, ProgrammeVersion
 from scenarios.models import UcrDeclaration
+from tests.test_hybrid_builder import _card_post, _check_post
 
 
 def _user(db, username, group_name="Student"):
@@ -438,34 +439,38 @@ def test_conditions_can_be_authored_in_the_editor(client, db):
     client.force_login(instructor)
     editor = reverse("hybrid-lesson-edit", args=[lesson.pk])
 
-    # The instructor names the check they mean, then fills in its record and values.
+    # The instructor names the check they mean, then fills in its record and
+    # values on the activity card it belongs to.
     client.post(editor, {"action": "add_condition", "step_id": step.pk, "kind": "screen_opened"})
     condition = VerificationCondition.objects.get(step=step)
     assert condition.kind == VerificationCondition.Kind.SCREEN_OPENED
 
-    saved = client.post(editor, {
-        "action": "save_condition", "condition_id": condition.pk,
-        "kind": "saved_record", "record_status": "ucr:draft",
-        "value_rows": "2",
-        "check_0": "ucr:exporter_name", "value_0": "ACME Trading",
-        "check_1": "", "value_1": "",
-    })
+    saved = client.post(
+        editor,
+        _card_post(step) | _check_post(
+            condition, [("ucr:exporter_name", "ACME Trading"), ("", "")],
+        ),
+    )
     assert saved.status_code == 302
     condition.refresh_from_db()
+    assert condition.kind == VerificationCondition.Kind.SAVED_RECORD
     assert condition.record_kind == "ucr"
     assert condition.required_status == "draft"
     assert condition.expected_fields == {"exporter_name": "ACME Trading"}
 
     # An unapproved status is refused by the registries and nothing changes.
-    client.post(editor, {
-        "action": "save_condition", "condition_id": condition.pk,
-        "kind": "saved_record", "record_status": "ucr:nonexistent",
-        "value_rows": "2",
-        "check_0": "ucr:exporter_name", "value_0": "ACME Trading",
-        "check_1": "", "value_1": "",
-    })
+    refused = client.post(
+        editor,
+        _card_post(step, title="Renamed while broken") | _check_post(
+            condition, [("ucr:exporter_name", "ACME Trading"), ("", "")],
+            record_status="ucr:nonexistent",
+        ),
+    )
+    assert refused.status_code == 400
     condition.refresh_from_db()
+    step.refresh_from_db()
     assert condition.required_status == "draft"
+    assert step.title == "Authored step"
 
     # Ordering and removal.
     other = VerificationCondition.objects.create(step=step, kind=VerificationCondition.Kind.SCREEN_OPENED, order=2)

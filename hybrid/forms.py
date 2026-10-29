@@ -135,6 +135,12 @@ class TheoryForm(forms.Form):
 
 
 class StepForm(forms.ModelForm):
+    """One practical activity.
+
+    Each activity card posts its own step form, prefixed with the step's id,
+    so editing one activity never validates or rewrites its siblings.
+    """
+
     class Meta:
         model = PracticalStep
         fields = ("title", "instruction", "outcome", "hint", "screen")
@@ -154,12 +160,6 @@ class StepForm(forms.ModelForm):
             label="Simulator screen",
             help_text="Developer-approved screens only. Blank keeps whatever screen the lesson already shows.",
         )
-
-
-class StepFormSet(forms.modelformset_factory(PracticalStep, form=StepForm, extra=0)):
-    def __init__(self, *args, **kwargs):
-        kwargs.setdefault("prefix", "steps")
-        super().__init__(*args, **kwargs)
 
 
 class VerificationConditionForm(forms.ModelForm):
@@ -199,14 +199,24 @@ class VerificationConditionForm(forms.ModelForm):
         self.original_keys = sorted(self.stored)
         self.fields["kind"] = forms.ChoiceField(
             choices=VerificationCondition.Kind.choices, label="Condition type",
+            initial=self.instance.kind or None,
         )
         self.fields["record_status"].choices = verify_status_choices()
         if self.instance.pk and self.instance.kind == VerificationCondition.Kind.SAVED_RECORD:
-            self.initial["record_status"] = f"{self.instance.record_kind}:{self.instance.required_status}"
+            # Blank until the instructor picks one: an empty half of the pair
+            # would otherwise be typed back as ":", which matches no option.
+            if self.instance.record_kind and self.instance.required_status:
+                self.initial["record_status"] = f"{self.instance.record_kind}:{self.instance.required_status}"
         # A bound form honours the row count the page was built with; extra rows
         # would report errors nobody can see, and a stale page must not delete
-        # values it never displayed.
+        # values it never displayed. The count travels as a field of this form,
+        # so several conditions on one page keep their own counts under their
+        # own prefixes.
         self.row_count = self._bound_row_count() if self.is_bound else len(self.original_keys) + _BLANK_VALUE_ROWS
+        self.fields["value_rows"] = forms.CharField(
+            required=False, widget=forms.HiddenInput(),
+        )
+        self.initial["value_rows"] = str(self.row_count)
         for index in range(self.row_count):
             self.fields[f"check_{index}"] = forms.ChoiceField(
                 required=False,
@@ -225,14 +235,18 @@ class VerificationConditionForm(forms.ModelForm):
 
     def _bound_row_count(self):
         try:
-            count = int(self.data.get("value_rows", ""))
+            count = int(self.data.get(self.add_prefix("value_rows"), ""))
         except (TypeError, ValueError):
             count = 0
         return max(0, min(count, _MAX_VALUE_ROWS))
 
     @property
-    def value_rows(self):
-        """The paired dropdowns and text boxes, in page order."""
+    def saved_value_rows(self):
+        """The paired dropdowns and text boxes, in page order.
+
+        Not named ``value_rows``: that is the hidden field carrying the count,
+        and a template asking the form for ``value_rows`` gets the field.
+        """
         return [
             {"check": self[f"check_{index}"], "value": self[f"value_{index}"]}
             for index in range(self.row_count)

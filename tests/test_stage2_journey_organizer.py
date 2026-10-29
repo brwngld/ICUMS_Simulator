@@ -424,14 +424,16 @@ def test_the_organizer_reports_unbound_conditions(client, db):
 
 
 @pytest.mark.django_db
-def test_the_lesson_editor_still_serves_all_five_tabs(client, db):
+def test_the_lesson_editor_still_serves_all_four_stages(client, db):
     instructor = _instructor(db)
     world = _world(db)
     lesson = world["lessons"][0]
     client.force_login(instructor)
     html = client.get(reverse("hybrid-lesson-edit", args=[lesson.pk])).content.decode()
-    for tab in ("details", "theory", "journey", "simulator", "review"):
-        assert f'data-authoring-tab="{tab}"' in html
+    for stage in ("details", "theory", "activities", "review"):
+        assert f'data-authoring-tab="{stage}"' in html
+    for retired in ("journey", "simulator"):
+        assert f'data-authoring-tab="{retired}"' not in html
 
 
 # --- Role-reference protection (Checkpoint 4 final verification) -----------------

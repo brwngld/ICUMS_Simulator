@@ -28,7 +28,7 @@ from .forms import (
     LessonDetailsForm,
     ModuleForm,
     ProgrammeCreateForm,
-    StepFormSet,
+    StepForm,
     TheoryForm,
     VerificationConditionForm,
 )
@@ -53,7 +53,10 @@ from .publishing import (
     publish_edition,
 )
 
-TABS = ("details", "theory", "journey", "simulator", "review")
+#: The lesson editor's four stages, in the order the instructor works through
+#: them. The query/post parameter is still called ``tab`` because the shared
+#: authoring tab script reads it.
+STAGES = ("details", "theory", "activities", "review")
 
 #: Index POSTs that target neither create form, so both stay unbound and an
 #: error re-render never shows validation messages for the wrong form.
@@ -77,10 +80,48 @@ def _draft_version(programme):
     return version
 
 
-def _lesson_issues(lesson):
-    """Deprecated alias — readiness lives in ``hybrid.publishing`` now, so the
-    publish sweep and the editor's Review tab can never disagree."""
-    return lesson_issues(lesson)
+def _lesson_stage(request):
+    """Which stage the editor should show: the one a refused save came from,
+    otherwise the one the page asked for."""
+    name = (request.POST.get("active_tab") if request.method == "POST" else request.GET.get("tab")) or ""
+    return name if name in STAGES else "details"
+
+
+def _editor_url(lesson, stage):
+    return f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab={stage}"
+
+
+def _activity_card(step, post=None):
+    """The one integrated card an activity gets in stage 3.
+
+    Each form is prefixed with its own row id, so a card's POST saves that
+    activity and its checks together and nothing else: no management form, no
+    re-validation of the sibling cards, and an untouched row cannot be
+    rewritten by a stale page. A row the posted page never carried — one added
+    since the page was built — is rendered straight from the database and left
+    alone, rather than refused for fields nobody was shown.
+    """
+    step_prefix = f"step-{step.pk}"
+    checks = []
+    for condition in step.conditions.order_by("order", "id"):
+        prefix = f"cond-{condition.pk}"
+        checks.append({
+            "condition": condition,
+            "form": VerificationConditionForm(
+                post if post is not None and f"{prefix}-kind" in post else None,
+                instance=condition,
+                prefix=prefix,
+            ),
+        })
+    return {
+        "step": step,
+        "form": StepForm(
+            post if post is not None and f"{step_prefix}-title" in post else None,
+            instance=step,
+            prefix=step_prefix,
+        ),
+        "checks": checks,
+    }
 
 
 def _renumber(queryset):
@@ -337,23 +378,29 @@ def module_edit(request, module_id):
 @login_required
 @transaction.atomic
 def lesson_edit(request, lesson_id):
-    """The five-tab lesson editor: Details, Theory, Practical Journey,
-    Simulator & Verification, Review.
+    """The four-stage lesson editor: Lesson Details, Theory & Guidance,
+    Practical Activities, Review & Publish.
 
-    One wrapping form saves the lesson details, the theory formset and the
-    step formset together, exactly like the theory builder's editor; the
-    add/move/remove buttons around the editor post their own small actions
-    and come straight back to the same tab.
+    Stages 1 and 2 are the lesson's own record and save together. Stage 3 is
+    one integrated card per ``PracticalStep``: the activity's instructions,
+    screen and every check hanging off it are saved by that card's own POST, so
+    editing one activity never validates or rewrites its siblings. Structural
+    actions (add, move, remove, and the check bookkeeping around a card) post
+    their own small forms and come straight back to the stage they belong to.
     """
     _require_instructor(request.user)
     lesson = _draft_lesson(lesson_id)
-    lesson_form = LessonDetailsForm(request.POST or None, initial={"title": lesson.title, "summary": lesson.summary})
-    theory_form = TheoryForm(request.POST or None, body=lesson.theory)
     steps = list(lesson.practical_steps.order_by("order", "id"))
-    steps_formset = StepFormSet(request.POST or None, queryset=lesson.practical_steps.order_by("order", "id"))
+    action = request.POST.get("action") if request.method == "POST" else None
+    # Only a lesson POST carries the lesson's own fields; binding the details
+    # and theory forms to any other action would light up errors nobody typed.
+    lesson_data = request.POST if action == "save_lesson" else None
+    lesson_form = LessonDetailsForm(lesson_data, initial={"title": lesson.title, "summary": lesson.summary})
+    theory_form = TheoryForm(lesson_data, body=lesson.theory)
+    cards = {step.pk: _activity_card(step) for step in steps}
+    status = 200
 
     if request.method == "POST":
-        action = request.POST.get("action")
         if action == "add_condition":
             step = get_object_or_404(PracticalStep, pk=request.POST.get("step_id"), lesson=lesson)
             # The instructor says which check they mean, so a record check is
@@ -362,24 +409,13 @@ def lesson_edit(request, lesson_id):
             kind = request.POST.get("kind", "")
             if kind not in VerificationCondition.Kind.values:
                 messages.error(request, "Choose the type of check to add.")
-                return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab=simulator")
+                return redirect(_editor_url(lesson, "activities"))
             VerificationCondition.objects.create(
                 step=step,
                 kind=kind,
                 order=step.conditions.count() + 1,
             )
-            return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab=simulator")
-        if action == "save_condition":
-            condition = get_object_or_404(
-                VerificationCondition, pk=request.POST.get("condition_id"), step__lesson=lesson,
-            )
-            condition_form = VerificationConditionForm(request.POST, instance=condition)
-            if condition_form.is_valid():
-                condition_form.save()
-                messages.success(request, "Condition updated.")
-            else:
-                messages.error(request, "The condition was not saved — check its type, record and expected values.")
-            return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab=simulator")
+            return redirect(_editor_url(lesson, "activities"))
         if action == "delete_condition":
             condition = get_object_or_404(
                 VerificationCondition, pk=request.POST.get("condition_id"), step__lesson=lesson,
@@ -387,7 +423,7 @@ def lesson_edit(request, lesson_id):
             step = condition.step
             condition.delete()
             _renumber(VerificationCondition.objects.filter(step=step).order_by("order", "id"))
-            return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab=simulator")
+            return redirect(_editor_url(lesson, "activities"))
         if action == "move_condition":
             condition = get_object_or_404(
                 VerificationCondition, pk=request.POST.get("condition_id"), step__lesson=lesson,
@@ -397,74 +433,75 @@ def lesson_edit(request, lesson_id):
                 condition,
                 request.POST.get("direction"),
             )
-            return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab=simulator")
+            return redirect(_editor_url(lesson, "activities"))
         if action == "add_step":
-            # A step is born as an editable placeholder, like the theory
+            # An activity is born as an editable card, like the theory
             # builder's sections; the instructor fills it in on the row.
             PracticalStep.objects.create(
                 lesson=lesson,
-                key=_unique_slug(PracticalStep, "key", "New step", lesson=lesson),
-                title="New step",
+                key=_unique_slug(PracticalStep, "key", "New activity", lesson=lesson),
+                title="New activity",
                 order=lesson.practical_steps.count() + 1,
             )
-            return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab=journey")
+            return redirect(_editor_url(lesson, "activities"))
         if action == "delete_step":
-            get_object_or_404(PracticalStep, pk=request.POST.get("step_id"), lesson=lesson).delete()
-            _renumber(PracticalStep.objects.filter(lesson=lesson).order_by("order", "id"))
-            return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab=journey")
+            step = get_object_or_404(PracticalStep, pk=request.POST.get("step_id"), lesson=lesson)
+            try:
+                step.delete()
+            except ProtectedError:
+                messages.error(
+                    request,
+                    f'“{step.title}” belongs to a practical journey — remove it from the journey first.',
+                )
+            else:
+                _renumber(PracticalStep.objects.filter(lesson=lesson).order_by("order", "id"))
+            return redirect(_editor_url(lesson, "activities"))
         if action == "move_step":
             _move(
                 PracticalStep.objects.filter(lesson=lesson).order_by("order", "id"),
                 get_object_or_404(PracticalStep, pk=request.POST.get("step_id"), lesson=lesson),
                 request.POST.get("direction"),
             )
-            return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab=journey")
+            return redirect(_editor_url(lesson, "activities"))
+        if action == "save_activity":
+            step = get_object_or_404(PracticalStep, pk=request.POST.get("step_id"), lesson=lesson)
+            card = _activity_card(step, request.POST)
+            # Only the forms this page actually carried are validated and saved:
+            # a check added since the page was built is neither rewritten by its
+            # absence nor refused for fields nobody was shown.
+            shown = [entry["form"] for entry in card["checks"] if entry["form"].is_bound]
+            if card["form"].is_valid() and all(form.is_valid() for form in shown):
+                card["form"].save()
+                for form in shown:
+                    form.save()
+                messages.success(request, "Activity updated.")
+                return redirect(_editor_url(lesson, "activities"))
+            # The refused card is re-rendered carrying its own errors; every
+            # other card keeps whatever the page was built with.
+            cards[step.pk] = card
+            messages.error(request, f'“{step.title}” was not saved — check the highlighted fields.')
+            status = 400
+        if action == "save_lesson":
+            if lesson_form.is_valid() and theory_form.is_valid():
+                lesson.title = lesson_form.cleaned_data["title"]
+                lesson.summary = lesson_form.cleaned_data["summary"]
+                lesson.theory = theory_form.cleaned_data["body"]
+                lesson.save(update_fields=("title", "summary", "theory"))
+                messages.success(request, "Lesson updated.")
+                return redirect(_editor_url(lesson, _lesson_stage(request)))
+            messages.error(request, "Check the highlighted fields — nothing was saved.")
+            status = 400
 
-        if lesson_form.is_valid() and theory_form.is_valid() and steps_formset.is_valid():
-            lesson.title = lesson_form.cleaned_data["title"]
-            lesson.summary = lesson_form.cleaned_data["summary"]
-            lesson.theory = theory_form.cleaned_data["body"]
-            lesson.save(update_fields=("title", "summary", "theory"))
-            steps_formset.save()
-            messages.success(request, "Lesson updated.")
-            active_tab = request.POST.get("active_tab", "details")
-            if active_tab not in TABS:
-                active_tab = "details"
-            return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab={active_tab}")
-        messages.error(request, "Check the highlighted fields — nothing was saved.")
-        active_tab = request.POST.get("active_tab", "details")
-        if active_tab not in TABS:
-            active_tab = "details"
-        status = 400
-    else:
-        active_tab = request.GET.get("tab", "details")
-        if active_tab not in TABS:
-            active_tab = "details"
-        status = 200
-
-    step_forms = list(steps_formset)
-    step_rows = [
-        {
-            "step": step,
-            "form": form,
-            "conditions": [
-                {"condition": condition, "form": VerificationConditionForm(instance=condition)}
-                for condition in step.conditions.order_by("order", "id")
-            ],
-        }
-        for step, form in zip(steps, step_forms)
-    ]
     return render_student_page(request, "hybrid/lesson_editor.html", {
         "lesson": lesson,
         "lesson_form": lesson_form,
         "theory_form": theory_form,
-        "steps_formset": steps_formset,
-        "step_rows": step_rows,
+        "activity_cards": [cards[step.pk] for step in steps],
         "step_count": len(steps),
         "has_theory": bool(plain_text(lesson.theory).strip()),
         "issues": lesson_issues(lesson),
         "course_blockers_list": edition_blockers(lesson.module.course.programme_version),
-        "active_tab": active_tab,
+        "active_tab": _lesson_stage(request),
     }, status=status)
 
 
