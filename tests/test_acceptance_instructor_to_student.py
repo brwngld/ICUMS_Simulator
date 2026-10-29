@@ -154,7 +154,7 @@ def _author(client):
         "single-window-create-ucr",
     )
 
-    client.post(editor, {"action": "add_condition", "step_id": step.pk})
+    client.post(editor, {"action": "add_condition", "step_id": step.pk, "kind": "saved_record"})
     condition = VerificationCondition.objects.get(step=step)
     client.post(editor, {
         "action": "save_condition", "condition_id": condition.pk,

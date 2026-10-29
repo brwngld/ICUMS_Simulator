@@ -310,6 +310,67 @@ def test_the_review_tab_reports_what_is_missing(client, db):
     assert "No practical steps yet" in issues
 
 
+# --- Authoring defects ------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_the_module_page_describes_theory_instead_of_counting_deleted_blocks(client, db):
+    """The block model is long gone; the row still has to say something true."""
+    instructor = _instructor(db)
+    _, version = _hybrid_programme("module-copy")
+    module = _module(_course(version))
+    written = _lesson(module, slug="written")
+    written.theory = "<p>Reading</p>"
+    written.save(update_fields=("theory",))
+    _lesson(module, slug="blank")
+    client.force_login(instructor)
+
+    html = client.get(reverse("hybrid-module-edit", args=[module.pk])).content.decode()
+    assert "theory block" not in html
+    assert "theory written" in html
+    assert "theory not written yet" in html
+
+
+@pytest.mark.django_db
+def test_a_step_has_one_simulator_screen_control(client, db):
+    instructor = _instructor(db)
+    _, version = _hybrid_programme("one-screen")
+    lesson = _lesson(_module(_course(version)))
+    PracticalStep.objects.create(lesson=lesson, key="open", title="Open", order=1)
+    client.force_login(instructor)
+
+    html = client.get(reverse("hybrid-lesson-edit", args=[lesson.pk])).content.decode()
+    assert html.count('name="steps-0-screen"') == 1
+
+
+@pytest.mark.django_db
+def test_a_new_check_is_created_as_the_type_the_instructor_chose(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "check-kinds")
+    client.force_login(instructor)
+    editor = reverse("hybrid-lesson-edit", args=[step.lesson.pk])
+
+    client.post(editor, {"action": "add_condition", "step_id": step.pk, "kind": "saved_record"})
+    client.post(editor, {"action": "add_condition", "step_id": step.pk, "kind": "screen_opened"})
+
+    kinds = list(VerificationCondition.objects.filter(step=step).order_by("order").values_list("kind", flat=True))
+    assert kinds == [VerificationCondition.Kind.SAVED_RECORD, VerificationCondition.Kind.SCREEN_OPENED]
+
+
+@pytest.mark.django_db
+def test_an_unrecognised_check_type_creates_no_row(client, db):
+    instructor = _instructor(db)
+    step = _condition_step(db, "bad-check-kind")
+    client.force_login(instructor)
+
+    response = client.post(
+        reverse("hybrid-lesson-edit", args=[step.lesson.pk]),
+        {"action": "add_condition", "step_id": step.pk, "kind": "manifest"},
+    )
+    assert response.status_code == 302
+    assert not VerificationCondition.objects.filter(step=step).exists()
+
+
 # --- Verification conditions -----------------------------------------------------
 
 
@@ -322,10 +383,10 @@ def _condition_step(db, code="conditions"):
     )
 
 
-def _add_condition(client, step):
+def _add_condition(client, step, kind="saved_record"):
     client.post(
         reverse("hybrid-lesson-edit", args=[step.lesson.pk]),
-        {"action": "add_condition", "step_id": step.pk},
+        {"action": "add_condition", "step_id": step.pk, "kind": kind},
     )
     return VerificationCondition.objects.filter(step=step).order_by("-order").first()
 

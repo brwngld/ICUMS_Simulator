@@ -438,8 +438,8 @@ def test_conditions_can_be_authored_in_the_editor(client, db):
     client.force_login(instructor)
     editor = reverse("hybrid-lesson-edit", args=[lesson.pk])
 
-    # A condition is born as screen-opened evidence, then rewritten as a saved-record check.
-    client.post(editor, {"action": "add_condition", "step_id": step.pk})
+    # The instructor names the check they mean, then fills in its record and values.
+    client.post(editor, {"action": "add_condition", "step_id": step.pk, "kind": "screen_opened"})
     condition = VerificationCondition.objects.get(step=step)
     assert condition.kind == VerificationCondition.Kind.SCREEN_OPENED
 

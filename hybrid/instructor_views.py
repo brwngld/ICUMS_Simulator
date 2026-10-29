@@ -273,6 +273,17 @@ def module_edit(request, module_id):
     _require_instructor(request.user)
     module = _draft_module(module_id)
     lessons = list(module.hybrid_lessons.order_by("order", "title"))
+    # The lesson list describes what each lesson holds. Theory is one rich-text
+    # field now, so the row reports whether it has been written rather than
+    # counting blocks that no longer exist.
+    lesson_rows = [
+        {
+            "lesson": lesson,
+            "step_count": lesson.practical_steps.count(),
+            "has_theory": bool(plain_text(lesson.theory).strip()),
+        }
+        for lesson in lessons
+    ]
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -318,6 +329,7 @@ def module_edit(request, module_id):
         "module": module,
         "form": form,
         "lessons": lessons,
+        "lesson_rows": lesson_rows,
         "lesson_form": LessonDetailsForm(),
     })
 
@@ -344,9 +356,16 @@ def lesson_edit(request, lesson_id):
         action = request.POST.get("action")
         if action == "add_condition":
             step = get_object_or_404(PracticalStep, pk=request.POST.get("step_id"), lesson=lesson)
+            # The instructor says which check they mean, so a record check is
+            # born as one instead of arriving as a navigation placeholder that
+            # has to be re-typed before it can be saved.
+            kind = request.POST.get("kind", "")
+            if kind not in VerificationCondition.Kind.values:
+                messages.error(request, "Choose the type of check to add.")
+                return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab=simulator")
             VerificationCondition.objects.create(
                 step=step,
-                kind=VerificationCondition.Kind.SCREEN_OPENED,
+                kind=kind,
                 order=step.conditions.count() + 1,
             )
             return redirect(f"{reverse('hybrid-lesson-edit', args=[lesson.pk])}?tab=simulator")

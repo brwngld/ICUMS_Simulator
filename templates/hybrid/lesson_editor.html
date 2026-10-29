@@ -32,13 +32,8 @@
     <section class="authoring-card authoring-panel" data-authoring-panel="journey" hidden>
       <div class="authoring-editor-header"><div><h2>Practical journey</h2><p>The numbered steps the learner follows in the simulator. Steps run in this order.</p></div><span class="authoring-status">{{ step_count }} step{{ step_count|pluralize }}</span></div>
       {{ steps_formset.management_form }}
-      <div class="authoring-item-list">{% for row in step_rows %}{% with step=row.step step_form=row.form %}<article class="authoring-item"><span class="authoring-section-icon">{{ forloop.counter }}</span><div class="authoring-lesson-list">{% for hidden in step_form.hidden_fields %}{{ hidden }}{% endfor %}{{ step_form.title.as_field_group }}{{ step_form.instruction.as_field_group }}{{ step_form.outcome.as_field_group }}{{ step_form.hint.as_field_group }}<p class="helptext">Simulator screen: <strong>{% if step.screen %}{{ step.screen_label }}{% else %}keeps the current screen{% endif %}</strong> — set it on the Simulator &amp; Verification tab.</p></div><div class="authoring-module-tools"><button class="authoring-secondary" type="submit" form="move-step-up-{{ step.pk }}" aria-label="Move step up">↑</button><button class="authoring-secondary" type="submit" form="move-step-down-{{ step.pk }}" aria-label="Move step down">↓</button><button class="authoring-secondary" type="submit" form="delete-step-{{ step.pk }}">Remove</button></div></article>{% endwith %}{% empty %}<p class="authoring-empty">No practical steps yet — add the first one below.</p>{% endfor %}</div>
+      <div class="authoring-item-list">{% for row in step_rows %}{% with step=row.step step_form=row.form %}<article class="authoring-item"><span class="authoring-section-icon">{{ forloop.counter }}</span><div class="authoring-lesson-list">{% for hidden in step_form.hidden_fields %}{{ hidden }}{% endfor %}{{ step_form.title.as_field_group }}{{ step_form.instruction.as_field_group }}{{ step_form.outcome.as_field_group }}{{ step_form.hint.as_field_group }}{{ step_form.screen.as_field_group }}</div><div class="authoring-module-tools"><button class="authoring-secondary" type="submit" form="move-step-up-{{ step.pk }}" aria-label="Move step up">↑</button><button class="authoring-secondary" type="submit" form="move-step-down-{{ step.pk }}" aria-label="Move step down">↓</button><button class="authoring-secondary" type="submit" form="delete-step-{{ step.pk }}">Remove</button></div></article>{% endwith %}{% empty %}<p class="authoring-empty">No practical steps yet — add the first one below.</p>{% endfor %}</div>
       <button class="authoring-secondary" type="submit" form="add-step-form">+ Add practical step</button>
-    </section>
-
-    <section class="authoring-card authoring-panel" data-authoring-panel="simulator" hidden>
-      <div class="authoring-editor-header"><div><h2>Simulator screens</h2><p>Which approved simulator screen each step opens. Saved with “Save lesson”.</p></div><span class="authoring-status">{{ step_count }} step{{ step_count|pluralize }}</span></div>
-      <div class="authoring-item-list">{% for row in step_rows %}<article class="authoring-item"><span class="authoring-section-icon">{{ forloop.counter }}</span><div class="authoring-lesson-list"><h3>{{ row.step.title }}</h3>{{ row.form.screen.as_field_group }}</div></article>{% empty %}<p class="authoring-empty">Add practical steps first — each one needs its simulator screen.</p>{% endfor %}</div>
     </section>
 
     <div class="authoring-sticky-actions"><a class="authoring-secondary" href="{% url 'hybrid-module-edit' lesson.module_id %}">Cancel</a><button class="authoring-primary" type="submit">Save lesson</button></div>
@@ -79,8 +74,10 @@
           <p class="authoring-empty">No conditions — this step passes “Check my work” as soon as its screen has been opened.</p>
         {% endfor %}
       </div>
-      <form id="add-cond-{{ step.pk }}" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="add_condition"><input type="hidden" name="step_id" value="{{ step.pk }}"></form>
-      <button class="authoring-secondary" type="submit" form="add-cond-{{ step.pk }}">+ Add condition to this step</button>
+      <form id="add-cond-record-{{ step.pk }}" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="add_condition"><input type="hidden" name="step_id" value="{{ step.pk }}"><input type="hidden" name="kind" value="saved_record"></form>
+      <button class="authoring-secondary" type="submit" form="add-cond-record-{{ step.pk }}">+ Add saved-record check</button>
+      <form id="add-cond-screen-{{ step.pk }}" method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="add_condition"><input type="hidden" name="step_id" value="{{ step.pk }}"><input type="hidden" name="kind" value="screen_opened"></form>
+      <button class="authoring-secondary" type="submit" form="add-cond-screen-{{ step.pk }}">+ Add navigation check</button>
     {% endwith %}{% endfor %}
     <p class="helptext">Saved-record conditions use the learner's own simulator records with the guided engine's ownership, freshness, status and exact-value rules. A browser can never certify them.</p>
   </section>
