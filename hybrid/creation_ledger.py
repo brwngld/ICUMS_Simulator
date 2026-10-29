@@ -21,8 +21,10 @@ nothing (no supported creation path uses them), and non-request callers
 (admin, shell) fail loudly instead of capturing. Fixture loads (``raw=True``)
 are not student creations and are skipped.
 
-The ledger is evidence only: nothing in the journey engine reads it, so it
-cannot by itself claim a journey role or complete a journey.
+The ledger is evidence only: it never assigns a record to a role or completes a
+step. ``journey_services.role_satisfied`` reads it to decide whether a
+created-in-journey association can prove its role, and refuses when no row
+exists.
 """
 import logging
 

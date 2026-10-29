@@ -1,8 +1,8 @@
 """Stage 2 Checkpoint 6: journey-aware publication and clone-to-draft.
 
 Publication validates every practical journey in the edition — its structure,
-its dependencies, and whether its record roles can be satisfied by the runtime
-at all. Clone-to-draft copies journey structure onto the new edition with every
+its dependencies, and whether its verification conditions can be evaluated at
+all. Clone-to-draft copies journey structure onto the new edition with every
 step, role, condition and dependency reference remapped, and never copies what
 a learner has done: attempts, step events and record associations stay on the
 edition the learner is enrolled on.
@@ -405,17 +405,26 @@ def test_a_journey_outside_the_editions_courses_blocks_publication(db):
 
 
 @pytest.mark.django_db
-def test_a_required_new_record_role_blocks_publication(db):
+def test_a_required_new_record_role_publishes(db):
+    """The flagship journey — the learner creates the record — is publishable.
+
+    The gate used to refuse every required "new" role while the simulator
+    carried no creation provenance. The creation ledger now writes an immutable
+    evidence row inside each approved record's own creation transaction and
+    ``role_satisfied`` reads it, so the mechanism exists and the journey can
+    ship. Fail-closed proof stays at runtime: a record with no ledger row leaves
+    the role open (see the student-gate tests)."""
     world = _edition("requirednew")
     journey = _journey(world)
     journey_services.create_record_role(
         journey, "fresh", "Freshly created declaration", "ucr",
         required=True, creation_mode=JourneyRecordRole.CreationMode.NEW,
     )
-    blockers = publishing.edition_blockers(world["version"])
-    assert len(blockers) == 1
-    assert 'required record role “Freshly created declaration” cannot be satisfied' in blockers[0]
-    assert "cannot yet verify that a record was created within a journey." in blockers[0]
+    assert publishing.edition_blockers(world["version"]) == []
+
+    published, skipped, warnings = publishing.publish_edition(world["version"])
+    assert [course.pk for course in published] == [journey.course.pk]
+    assert (skipped, warnings) == ([], [])
 
 
 @pytest.mark.django_db
@@ -436,8 +445,6 @@ def test_a_journey_on_a_module_less_course_still_blocks_publication(db):
     assert blockers == [
         "Add at least one module.",
         "Journey “Bare journey”: No practical steps are assigned to this journey.",
-        'Journey “Bare journey”: required record role “Fresh declaration” cannot be satisfied: '
-        "the system cannot yet verify that a record was created within a journey.",
     ]
     assert publishing.edition_blockers(world["version"]) == [
         f"Course “{course.title}”: " + " ".join(blockers),
@@ -455,7 +462,6 @@ def test_a_journey_on_a_module_less_course_still_blocks_publication(db):
         outcome="The record is saved.", screen=SCREEN, order=1,
     )
     journey_services.assign_step(journey, step)
-    journey_services.update_record_role(journey.record_roles.get(), {"creation_mode": "existing"})
     assert publishing.edition_blockers(world["version"]) == []
 
     published, skipped, warnings = publishing.publish_edition(world["version"])
@@ -466,19 +472,18 @@ def test_a_journey_on_a_module_less_course_still_blocks_publication(db):
 
 
 @pytest.mark.django_db
-def test_journey_publication_blockers_name_structure_then_roles(db):
+def test_journey_publication_blockers_name_structure_then_conditions(db):
     """The per-journey blocker list the edition gate and the organizer both
-    read: structural issues first, then the roles the runtime cannot satisfy."""
+    read: structural issues first, then the conditions the engine cannot check.
+    A required "new" record role is absent from both — the creation ledger
+    backs it."""
     world = _edition("blockerlist")
     journey = _journey(world)
     journey_services.create_record_role(
         journey, "fresh", "Fresh declaration", "ucr",
         required=True, creation_mode=JourneyRecordRole.CreationMode.NEW,
     )
-    assert publishing.journey_publication_blockers(journey) == [
-        'required record role “Fresh declaration” cannot be satisfied: the system '
-        "cannot yet verify that a record was created within a journey."
-    ]
+    assert publishing.journey_publication_blockers(journey) == []
 
     assignments = list(journey.step_assignments.order_by("journey_order"))
     JourneyDependency.objects.create(
@@ -488,15 +493,20 @@ def test_journey_publication_blockers_name_structure_then_roles(db):
         dependency_type=JourneyDependency.DependencyType.STEP_COMPLETED,
         order=journey.dependencies.count() + 1,
     )
+    step = assignments[1].step
+    VerificationCondition.objects.create(
+        step=step, kind=VerificationCondition.Kind.SAVED_RECORD, record_kind="manifest",
+        required_status="draft", order=1,
+    )
     blockers = publishing.journey_publication_blockers(journey)
     assert len(blockers) == 3
     assert "does not follow the journey order" in blockers[0]
     assert "The dependency graph contains a cycle." in blockers[1]
-    assert "Fresh declaration" in blockers[2]
+    assert "not an approved simulator record" in blockers[2]
 
 
 @pytest.mark.django_db
-def test_an_optional_new_record_role_warns_without_blocking(db):
+def test_an_optional_new_record_role_publishes_without_a_warning(db):
     world = _edition("optionalnew")
     journey = _journey(world)
     journey_services.create_record_role(
@@ -508,8 +518,7 @@ def test_an_optional_new_record_role_warns_without_blocking(db):
     published, skipped, warnings = publishing.publish_edition(world["version"])
     assert [course.pk for course in published] == [journey.course.pk]
     assert skipped == []
-    assert len(warnings) == 1
-    assert 'optional record role “Spare declaration” cannot currently be satisfied' in warnings[0]
+    assert warnings == []
 
 
 @pytest.mark.django_db
@@ -653,9 +662,10 @@ def test_the_publish_action_names_the_blocking_journey(client, db):
     instructor = _instructor(db)
     world = _edition("actionblockers")
     journey = _journey(world)
-    journey_services.create_record_role(
-        journey, "fresh", "Freshly created declaration", "ucr",
-        required=True, creation_mode=JourneyRecordRole.CreationMode.NEW,
+    step = _course_steps(world, journey.course)[1]
+    VerificationCondition.objects.create(
+        step=step, kind=VerificationCondition.Kind.SAVED_RECORD, record_kind="manifest",
+        required_status="draft", order=1,
     )
     client.force_login(instructor)
     response = client.post(
@@ -665,7 +675,7 @@ def test_the_publish_action_names_the_blocking_journey(client, db):
 
     assert "not ready to publish" in messages
     assert "Declaration journey" in messages
-    assert "Freshly created declaration" in messages
+    assert "not an approved simulator record" in messages
     world["version"].refresh_from_db()
     assert world["version"].status == ProgrammeVersion.Status.DRAFT
     assert not HybridCourse.objects.filter(programme_version=world["version"], is_published=True).exists()
@@ -675,11 +685,7 @@ def test_the_publish_action_names_the_blocking_journey(client, db):
 def test_the_publish_action_carries_the_journey_warnings_of_a_published_edition(client, db):
     instructor = _instructor(db)
     world = _edition("actionwarnings")
-    journey = _journey(world, binding=False)
-    journey_services.create_record_role(
-        journey, "spare", "Spare declaration", "ucr",
-        required=False, creation_mode=JourneyRecordRole.CreationMode.NEW,
-    )
+    _journey(world, binding=False)
     client.force_login(instructor)
     response = client.post(
         reverse("hybrid-builder"), {"action": "publish_edition", "version_id": world["version"].pk},
@@ -691,31 +697,11 @@ def test_the_publish_action_carries_the_journey_warnings_of_a_published_edition(
     world["version"].refresh_from_db()
     assert world["version"].status == ProgrammeVersion.Status.PUBLISHED
     assert any("published with 1 course" in text for _level, text in messages)
-    journey_texts = [text for _level, text in messages if "Spare declaration" in text or "not bound" in text]
-    assert len(journey_texts) == 2
+    journey_texts = [text for _level, text in messages if "not bound" in text]
+    assert len(journey_texts) == 1
 
 
 # --- Checkpoint 6 corrections: direct service calls cannot bypass the gates ------------
-
-
-@pytest.mark.django_db
-def test_a_direct_service_publish_refuses_a_required_new_record_role(db):
-    """publish_edition itself — not just the organizer's gate — refuses while a
-    required NEW record role cannot be satisfied."""
-    world = _edition("directnew")
-    journey = _journey(world)
-    journey_services.create_record_role(
-        journey, "fresh", "Freshly created declaration", "ucr",
-        required=True, creation_mode=JourneyRecordRole.CreationMode.NEW,
-    )
-
-    with pytest.raises(ValidationError) as excinfo:
-        publishing.publish_edition(world["version"])
-
-    assert "Freshly created declaration" in str(excinfo.value)
-    world["version"].refresh_from_db()
-    assert world["version"].status == ProgrammeVersion.Status.DRAFT
-    assert not HybridCourse.objects.filter(programme_version=world["version"], is_published=True).exists()
 
 
 @pytest.mark.django_db

@@ -61,8 +61,8 @@ def course_blockers(course):
 
     Journeys belonging to the course are validated with it: a journey sitting on
     another edition's course, one whose structure or dependencies are invalid,
-    or one whose required record roles cannot be satisfied under the current
-    runtime blocks publication of the whole edition.
+    or one carrying a verification condition the engine cannot evaluate blocks
+    publication of the whole edition.
     """
     blockers = []
     modules = list(course.hybrid_modules.order_by("order", "title"))
@@ -90,47 +90,40 @@ def journey_publication_blockers(journey):
 
     Structural integrity comes from ``journey_services.structural_issues`` —
     the same list the organizer's readiness view reads, so the two surfaces can
-    never disagree about structure. Then runtime satisfiability: a required
-    record role with creation mode “new” can never be satisfied, because the
-    simulator schema carries no authoritative creation provenance and role
-    satisfaction fails closed on created-in-journey associations — such a role
-    blocks publication until provenance support exists. Optional roles never
-    block; they warn. A saved-record condition the verification engine cannot
-    even evaluate blocks too, because nothing could ever clear the step.
+    never disagree about structure. Then runtime satisfiability: a saved-record
+    condition the verification engine cannot even evaluate blocks, because
+    nothing could ever clear the step.
+
+    A required record role with creation mode "new" no longer blocks. It used
+    to, while the simulator schema carried no creation provenance; the creation
+    ledger (``hybrid.creation_ledger``) now writes an immutable evidence row
+    inside every approved record's own creation transaction, and
+    ``journey_services.role_satisfied`` reads it. The runtime stays fail-closed:
+    a learner whose record has no ledger row leaves the role open, so publishing
+    such a journey is a statement that the mechanism exists, not that any
+    particular record was proven. Roles never block on their own — the steps
+    that bind them are what a learner has to clear.
     """
     blockers = list(journey_services.structural_issues(journey))
-    blockers.extend(
-        f'required record role “{role.label}” cannot be satisfied: the system '
-        "cannot yet verify that a record was created within a journey."
-        for role in journey.record_roles.filter(
-            required=True, creation_mode=JourneyRecordRole.CreationMode.NEW,
-        )
-    )
     blockers.extend(unverifiable_condition_issues(journey))
     return blockers
 
 
 def journey_publication_warnings(journey):
-    """Non-blocking publication notes for this journey: optional record roles
-    that cannot currently be satisfied, and saved-record conditions not bound
-    to record roles. Unbound conditions only earn a note while the verification
-    engine can still check them on its own — a condition it cannot check is a
-    blocker, see ``unverifiable_condition_issues``."""
+    """Non-blocking publication notes for this journey: saved-record conditions
+    not bound to record roles. Unbound conditions only earn a note while the
+    verification engine can still check them on its own — a condition it cannot
+    check is a blocker, see ``unverifiable_condition_issues``.
+
+    Optional "new" record roles used to be listed here as not yet verifiable;
+    the creation ledger covers them, the same way it covers required ones."""
     unbound = journey_services.unbound_condition_issues(journey)
-    warnings = []
-    for role in journey.record_roles.filter(
-        required=False, creation_mode=JourneyRecordRole.CreationMode.NEW,
-    ):
-        warnings.append(
-            f'optional record role “{role.label}” cannot currently be satisfied '
-            "(creation provenance is not yet verifiable)."
-        )
     # A saved-record condition the verification engine cannot check at all is a
     # blocker, not a note: calling it a warning would tell the instructor a
     # learner can still clear the step.
     if unbound and not unverifiable_condition_issues(journey):
-        warnings.extend(unbound)
-    return warnings
+        return unbound
+    return []
 
 
 def unverifiable_condition_issues(journey):
@@ -172,8 +165,8 @@ def journey_scope_issues(journey):
 def edition_journey_blockers(version, courses=None):
     """Journey-integrity blockers for every journey of the edition, carried or
     unattributed: invalid structure, a course/version reference pointing outside
-    the edition, a saved-record condition the verification engine cannot
-    evaluate, or a required NEW record role the runtime cannot satisfy.
+    the edition, or a saved-record condition the verification engine cannot
+    evaluate.
 
     These four block the whole edition, never one course: a journey spans
     lessons, so no course boundary contains the failure. This is the walk the
@@ -232,8 +225,7 @@ def publish_edition(version):
     Raises ``ValidationError`` when any journey of the edition — carried or
     unattributed — fails its publication checks (invalid structure, a
     course/version reference outside the edition, a verification condition the
-    engine cannot evaluate, a required NEW record role the runtime cannot
-    satisfy). Journey-integrity failures block the whole edition, so this
+    engine cannot evaluate). Journey-integrity failures block the whole edition, so this
     refusal applies to direct service calls exactly as it does through the
     organizer's edition gate; nothing is written when it raises. The
     course-skip path is unaffected: only lesson-completeness blockers send a
