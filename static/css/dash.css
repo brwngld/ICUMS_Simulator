@@ -1,7 +1,7 @@
 /* Shared dash components (panels, heads, cards, pills, steps…) used by
    the student/tutor shell and the simulator shell. Extracted verbatim
    from base_student.html so both surfaces render identically. */
-    .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #4236b6; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; }
+    .dash { --d-border: #e2e8f0; --d-muted: #64748b; --d-accent: #4236b6; --d-card-bg: #f8fafc; display: flex; flex-direction: column; gap: 1.25rem; width: 100%; max-width: 100%; min-width: 0; }
     /* Dark tokens mirror the admin overview reference (admin-dashboard.css). */
     html.dark .dash, html[data-theme="dark"] .dash { --d-border: var(--color-base-700, #334155); --d-muted: var(--color-font-subtle-dark, #94a3b8); --d-accent: var(--color-primary-400, #8a86de); --d-card-bg: var(--color-base-900, #0f172a); }
     .dash-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; flex-wrap: wrap; }
@@ -16,7 +16,7 @@
     .dash-card-label { margin-top: .35rem; color: var(--d-muted); font-size: .72rem; font-weight: 600; letter-spacing: .02em; }
     .dash-card-value { font-size: 1.5rem; font-weight: 750; letter-spacing: -.03em; line-height: 1.2; }
     .dash-card-sub { color: var(--d-muted); font-size: .7rem; }
-    .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1rem; }
+    .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1rem; min-width: 0; }
         .builder-flow-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(12.5rem, 1fr)); gap: 1rem; margin-bottom: .75rem; }
         .builder-step-panel { position: relative; display: flex; flex-direction: column; gap: .75rem; min-height: 11rem; }
         .builder-step-panel .builder-step-header { display: flex; align-items: flex-start; gap: .75rem; }
@@ -58,7 +58,7 @@
         .preview-step { display: inline-grid; place-items: center; width: 1.8rem; height: 1.8rem; border-radius: 50%; background: var(--d-accent); color: #fff; font-size: .66rem; font-weight: 700; }
         .preview-section-item strong { display: block; font-size: .78rem; }
         .preview-section-item small { display: block; margin-top: .15rem; color: var(--d-muted); line-height: 1.45; }
-        .dash-panel { padding: 1.1rem 1.2rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg); }
+        .dash-panel { min-width: 0; padding: 1.1rem 1.2rem; border: 1px solid var(--d-border); border-radius: .75rem; background: var(--d-card-bg); }
         @media (max-width: 70rem) { .builder-section-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .builder-workspace { grid-template-columns: 1fr; } .builder-preview-panel { position: static; } }
         @media (max-width: 40rem) { .builder-section-grid { grid-template-columns: 1fr; } }
     .dash-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: .75rem; margin-bottom: .75rem; border-bottom: 1px solid var(--d-border); }
@@ -394,7 +394,7 @@ html.dark .account-dialog-card, html[data-theme="dark"] .account-dialog-card { b
 .account-nav .ui-icon { width: 1rem; height: 1rem; }
 .account-content { display: grid; gap: 1.25rem; min-width: 0; }
 .account-id { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; background: color-mix(in srgb, var(--d-accent) 7%, var(--d-card-bg)); }
-.account-id-main { min-width: 14rem; }
+.account-id-main { min-width: min(14rem, 100%); }
 .account-id h2 { margin: 0; font-size: 1.25rem; }
 .account-avatar { display: grid; place-items: center; flex: none; width: 4.5rem; height: 4.5rem; border-radius: 50%; background: var(--d-accent); color: var(--color-base-50, #fff); font-size: 1.4rem; font-weight: 700; }
 .account-chips { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .5rem; }
@@ -436,6 +436,21 @@ html.dark .account-seg button[aria-pressed="true"], html[data-theme="dark"] .acc
 @media (max-width: 60rem) {
   .account-grid { grid-template-columns: 1fr; }
   .account-facts3 { grid-template-columns: 1fr; }
+}
+@media (max-width: 40rem) {
+  .account-row { align-items: stretch; flex-direction: column; }
+  .account-row form, .account-row select { width: 100%; max-width: 100%; min-width: 0; }
+  .account-row .account-seg { align-self: flex-start; max-width: 100%; flex-wrap: wrap; }
+}
+
+/* Instructor dashboard: filters collapse before their labels or controls can
+   force the page wider, while the roster owns its horizontal scrolling. */
+.roster-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.roster-filters > :is(input, select) { min-width: 0; width: 100%; }
+.roster-table-wrap { max-width: 100%; overflow-x: auto; }
+.roster-table-wrap .dash-table { display: table; min-width: 60rem; overflow: visible; white-space: normal; }
+@media (max-width: 48rem) {
+  .roster-filters { grid-template-columns: 1fr; }
 }
 
 /* Credential management page. */

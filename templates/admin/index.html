@@ -9,16 +9,16 @@
 
 {% block extrastyle %}
   {{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}?v=20261015-2">
+  <link rel="stylesheet" href="{% static 'css/admin-dashboard.css' %}?v=20261029-1">
 {% endblock %}
 
 {% block content %}
 {% load i18n static %}
 {# Shared Overview dashboard: rendered by the admin index and the student dashboard. #}
-<div class="dash">
+<div class="dash" role="main" aria-labelledby="admin-overview-title">
   <header class="dash-head">
     <div>
-      <h1>Overview</h1>
+      <h2 id="admin-overview-title">Overview</h2>
       <p>Everyone and everything in the ICUMS training workspace, at a glance. All figures are live platform data.</p>
     </div>
   </header>
