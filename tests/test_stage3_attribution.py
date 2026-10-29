@@ -367,7 +367,7 @@ def test_reopening_the_bound_step_keeps_the_attributed_record_valid(db):
     # 2. Re-entry does not push the claimability of this journey's creations:
     # a record made earlier in the attempt is still listed and still claims.
     second = _create_ucr_for(student, "TEMPREWIN2", exporter_name="OTHER TRADER")
-    ids = [row["record_id"] for row in attribution.eligible_for_view(attempt, world["role"])]
+    ids = [row["record_id"] for row in attribution.attributable_rows(attempt, world["role"])]
     assert second.pk in ids
     attribution.attribute_creation(attempt, world["role"], _ledger_of(second).pk, student)
     attempt.refresh_from_db()

@@ -236,7 +236,7 @@ def test_a_pre_attempt_record_is_ineligible_for_a_shared_role(db):
     world["attempt"].refresh_from_db()
     _open(world, "create")
 
-    ids = [row["record_id"] for row in attribution.eligible_for_view(world["attempt"], world["role"])]
+    ids = [row["record_id"] for row in attribution.attributable_rows(world["attempt"], world["role"])]
     assert record.pk not in ids
     with pytest.raises(attribution.AttributionError) as excinfo:
         _attribute(world, record)
@@ -253,7 +253,7 @@ def test_another_students_record_is_rejected_for_a_shared_role(db):
     )
     _open(world, "create")
 
-    ids = [row["record_id"] for row in attribution.eligible_for_view(world["attempt"], world["role"])]
+    ids = [row["record_id"] for row in attribution.attributable_rows(world["attempt"], world["role"])]
     assert theirs.pk not in ids
     with pytest.raises(PermissionDenied):
         attribution.attribute_creation(world["attempt"], world["role"], _ledger(theirs).pk, world["student"])
@@ -285,7 +285,7 @@ def test_a_record_claimed_by_another_journey_cannot_be_reused(db):
     attribution.attribute_creation(other_attempt, other_role, _ledger(claimed).pk, world["student"])
 
     _open(world, "create")
-    ids = [row["record_id"] for row in attribution.eligible_for_view(world["attempt"], world["role"])]
+    ids = [row["record_id"] for row in attribution.attributable_rows(world["attempt"], world["role"])]
     assert claimed.pk not in ids
     with pytest.raises(attribution.AttributionError) as excinfo:
         _attribute(world, claimed)

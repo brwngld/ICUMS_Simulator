@@ -57,6 +57,19 @@ def opened_at(attempt, step):
     return event.occurred_at if event else attempt.started_at
 
 
+def record_activity(record):
+    """The moment a record was last worked: its newest of update, submission or
+    creation. The verification engines and the learner's record picker read
+    freshness from here, so a row the picker calls fresh can never be refused as
+    stale by the check that follows it."""
+    moments = [
+        getattr(record, "updated_at", None),
+        getattr(record, "submitted_at", None),
+        getattr(record, "created_at", None),
+    ]
+    return max((moment for moment in moments if moment is not None), default=None)
+
+
 def _opening_fail(message, code):
     raise JourneyOpeningError(message, code)
 

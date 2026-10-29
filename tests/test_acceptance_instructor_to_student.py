@@ -315,3 +315,40 @@ def test_checking_the_same_step_twice_reuses_one_evidence_row(world, db):
     second = client.post(reverse("hybrid-step-check", args=[attempt.pk, 0])).json()
     assert first["passed"] is second["passed"] is True
     assert _evidence(world).count() == 1
+
+
+@pytest.mark.django_db
+def test_the_learner_answers_the_record_question_beside_the_screen(world, db):
+    """Batch 7's own step: on the workspace, next to the simulator frame, the
+    draft the learner just saved in the real form is offered for confirmation,
+    and confirming it there is what lets the check pass and the journey move."""
+    learner, client = _learner(db, "card-learner")
+    Enrolment.objects.create(student=learner, programme_version=world["version"])
+    _, attempt = _enter(client, learner, world)
+    record = _save_ucr(client)
+    creation = SimulatorRecordCreation.objects.get(record_kind="ucr", record_id=record.pk)
+
+    page = client.get(reverse("hybrid-workspace", args=[world["lesson"].pk])).content.decode()
+    assert "Required records" in page
+    assert 'data-attribution-key="creation_id"' in page
+    assert f'value="{creation.pk}"' in page
+
+    endpoint = reverse(
+        "hybrid-journey-role-attribute", args=[world["journey"].pk, world["role"].pk],
+    )
+    confirmed = client.post(
+        endpoint, data=json.dumps({"creation_id": str(creation.pk)}), content_type="application/json",
+    )
+    assert confirmed.json()["attributed"] is True
+    assert JourneyRecordAssociation.objects.filter(
+        journey_attempt__journey=world["journey"], is_active=True, record_id=record.pk,
+    ).count() == 1
+
+    assert client.post(reverse("hybrid-step-check", args=[attempt.pk, 0])).json()["passed"] is True
+    advanced = client.post(reverse("hybrid-step-advance", args=[attempt.pk, 0])).json()
+    assert advanced["journey_message"] == (
+        "Journey complete — every step is verified and all required records are in place."
+    )
+    assert JourneyAttempt.objects.get(
+        enrolment__student=learner, journey=world["journey"],
+    ).completed_at is not None

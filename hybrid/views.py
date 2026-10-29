@@ -23,13 +23,88 @@ from .models import (
     HybridLesson,
     JourneyAttempt,
     JourneyRecordRole,
+    JourneyStep,
     LessonAttempt,
     PracticalJourney,
 )
 from .publishing import learner_edition_progress
 
 
-def lesson_workspace_context(lesson, attempt=None):
+def _role_rows(attempt, roles, rows, review_mode):
+    """One record role as a learner sees it: what it holds, what it is still
+    waiting for, and which of the learner's records may be confirmed for it.
+
+    ``roles`` is the caller's selection — every required role of the journey on
+    the journey page, the roles bound to one step's checks in a workspace card —
+    and ``rows`` is that journey's step reading, which the caller already has, so
+    naming a role never re-evaluates the journey. Each role's freshness floor is
+    the opening moment of the step its check lives on: the same floor the check
+    reads, so a record the picker lists as current is a record the check measures
+    the same way. Instructor review renders the same rows with no choices.
+    """
+    by_step = {row["step"].pk: row for row in rows}
+    window_by_step = {}
+    out = []
+    for role in roles:
+        binding = role.condition_bindings.select_related("condition__step").first()
+        step_row = by_step.get(binding.condition.step_id) if binding else None
+        if step_row is None or step_row["lesson_attempt"] is None:
+            window_start = attempt.started_at
+        else:
+            window_start = window_by_step.setdefault(
+                step_row["step"].pk,
+                max(attempt.started_at, verification.opened_at(step_row["lesson_attempt"], step_row["step"])),
+            )
+        satisfied, message = journey_services.role_satisfied(attempt, role)
+        association = journey_services.active_record(attempt, role)
+        step_verified = bool(step_row and step_row["verified"])
+        if step_verified and satisfied:
+            row_state = "verified"
+            state_label = "Practical step verified"
+        elif association and satisfied:
+            row_state = "attributed"
+            state_label = "Record attributed but not yet verified"
+        elif association:
+            row_state = "ineligible"
+            state_label = "Record no longer eligible"
+        else:
+            row_state = "empty"
+            state_label = "No record attributed"
+        out.append({
+            "role": role,
+            "record_type_label": VERIFY_RECORDS[role.record_kind][1],
+            "satisfied": satisfied,
+            "message": message,
+            "association": association,
+            "step_verified": step_verified,
+            "state": row_state,
+            "state_label": state_label,
+            "eligible": (
+                [] if review_mode
+                else attribution_services.attributable_rows(attempt, role, window_start=window_start)
+            ),
+            "can_attribute": (
+                attempt.status == JourneyAttempt.Status.IN_PROGRESS and not review_mode
+            ),
+        })
+    return out
+
+
+def _lesson_journeys(lesson):
+    """The journey each of this lesson's practical steps runs inside, keyed by
+    step id.
+
+    A step no journey has claimed stays an ordinary lesson step: the workspace
+    gives it no record confirmation and the lesson engine keeps checking it
+    against the learner's own records, exactly as it always has.
+    """
+    return {
+        assignment.step_id: assignment.journey
+        for assignment in JourneyStep.objects.filter(step__lesson=lesson).select_related("journey")
+    }
+
+
+def lesson_workspace_context(lesson, attempt=None, review_mode=False):
     """Everything the workspace template needs to render one lesson.
 
     Shared by the student workspace (published content, enrolment-scoped)
@@ -37,14 +112,43 @@ def lesson_workspace_context(lesson, attempt=None):
     The attempt snapshot is what lets the browser resume exactly where the
     server says the learner stands; the preview passes no attempt, which puts
     the workspace's step controls into their inert preview mode.
+
+    A step the curriculum assigns to a journey is worked *inside* that journey,
+    so opening the lesson opens the journey attempt too: ``started_at`` is the
+    floor of the record-creation window, and a record the learner makes after
+    reading the task only counts if the attempt already exists. Review mode
+    renders the same page without writing anything.
     """
+    journey_by_step = _lesson_journeys(lesson) if attempt is not None else {}
+    journeys = {journey.pk: journey for journey in journey_by_step.values()}
+    journey_attempts = {}
+    if journeys and not review_mode:
+        journey_attempts = {
+            pk: journey_services.get_or_create_attempt(attempt.enrolment, journey)
+            for pk, journey in journeys.items()
+        }
+    rows_by_journey = {
+        pk: journey_services.journey_step_rows(journey_attempt)
+        for pk, journey_attempt in journey_attempts.items()
+    }
     step_views = []
     for index, step in enumerate(lesson.practical_steps.all()):
+        journey = journey_by_step.get(step.pk)
+        journey_attempt = journey_attempts.get(journey.pk) if journey else None
         step_views.append({
             "index": index,
             "step": step,
             "screen_url": reverse(step.screen) if step.screen else "",
             "screen_label": step.screen_label(),
+            "journey": journey,
+            "role_rows": [] if journey_attempt is None else _role_rows(
+                journey_attempt,
+                JourneyRecordRole.objects.filter(
+                    journey=journey, condition_bindings__condition__step=step,
+                ).distinct().order_by("order", "id"),
+                rows_by_journey[journey.pk],
+                review_mode,
+            ),
         })
     # A lesson whose steps all omit a screen frames the simulator portal.
     frame_url = next(
@@ -58,6 +162,7 @@ def lesson_workspace_context(lesson, attempt=None):
         "step_views": step_views,
         "frame_url": frame_url,
         "attempt": None,
+        "review_mode": review_mode,
     }
     if attempt is not None:
         context["attempt"] = verification.attempt_snapshot(attempt)
@@ -149,7 +254,12 @@ def workspace(request, lesson_id):
     enrolment = services.enrolment_for_request(request)
     lesson = _edition_lesson(enrolment, lesson_id)
     attempt = services.get_or_create_attempt(enrolment, lesson)
-    return render_student_page(request, "hybrid/workspace.html", lesson_workspace_context(lesson, attempt))
+    review_mode = bool(request.session.get("simulator_review_user_id"))
+    return render_student_page(
+        request,
+        "hybrid/workspace.html",
+        lesson_workspace_context(lesson, attempt, review_mode=review_mode),
+    )
 
 
 def _attempt_and_step(request, attempt_id, step_index):
@@ -210,6 +320,29 @@ def step_check(request, attempt_id, step_index):
     return JsonResponse(result)
 
 
+def _advance_journey(lesson_attempt, step):
+    """Move the journey position with the lesson position, and report the
+    journey's own word on it.
+
+    Next is how the learner says "this activity is done", so a step worked
+    inside a journey has to advance that journey too — left behind, the next
+    journey-checked step would refuse as ``step_not_current`` while the lesson
+    itself had moved on. The journey engine owns the ceiling and the
+    dependencies, so this can only ever be refused by the learner's own
+    outstanding evidence; its sentence is returned for the card to show.
+    """
+    assignment = JourneyStep.objects.filter(step=step).select_related("journey").first()
+    if assignment is None:
+        return ""
+    journey_attempt = JourneyAttempt.objects.filter(
+        enrolment=lesson_attempt.enrolment, journey=assignment.journey,
+    ).first()
+    if journey_attempt is None:
+        return ""
+    _locked, _moved, message = journey_services.journey_advance(journey_attempt)
+    return message
+
+
 @login_required
 @require_POST
 def step_advance(request, attempt_id, step_index):
@@ -228,7 +361,7 @@ def step_advance(request, attempt_id, step_index):
     if step_index + 1 < len(steps):
         attempt.current_step = steps[step_index + 1]
         attempt.save(update_fields=("current_step",))
-    return JsonResponse({"allowed": True})
+    return JsonResponse({"allowed": True, "journey_message": _advance_journey(attempt, step)})
 
 
 @login_required
@@ -266,51 +399,13 @@ def journey_student(request, journey_id):
         raise PermissionDenied("This journey belongs to a different programme version.")
     attempt = journey_services.get_or_create_attempt(enrolment, journey)
     rows = journey_services.journey_step_rows(attempt)
-    required_roles = JourneyRecordRole.objects.filter(
-        journey=journey, required=True
-    ).order_by("order", "id")
-    verified_by_step = {row["step"].pk: row["verified"] for row in rows}
     review_mode = bool(request.session.get("simulator_review_user_id"))
-    role_rows = []
-    for role in required_roles:
-        satisfied, message = journey_services.role_satisfied(attempt, role)
-        association = journey_services.active_record(attempt, role)
-        binding = role.condition_bindings.select_related("condition__step").first()
-        step_verified = bool(
-            binding and verified_by_step.get(binding.condition.step_id, False)
-        )
-        if step_verified and satisfied:
-            state = "verified"
-            state_label = "Practical step verified"
-        elif association and satisfied:
-            state = "attributed"
-            state_label = "Record attributed but not yet verified"
-        elif association:
-            state = "ineligible"
-            state_label = "Record no longer eligible"
-        else:
-            state = "empty"
-            state_label = "No record attributed"
-        role_rows.append({
-            "role": role,
-            "record_type_label": VERIFY_RECORDS[role.record_kind][1],
-            "satisfied": satisfied,
-            "message": message,
-            "association": association,
-            "step_verified": step_verified,
-            "state": state,
-            "state_label": state_label,
-            "eligible": (
-                attribution_services.eligible_for_view(attempt, role)
-                if role.creation_mode == JourneyRecordRole.CreationMode.NEW and not review_mode
-                else []
-            ),
-            "can_attribute": (
-                role.creation_mode == JourneyRecordRole.CreationMode.NEW
-                and attempt.status == JourneyAttempt.Status.IN_PROGRESS
-                and not review_mode
-            ),
-        })
+    role_rows = _role_rows(
+        attempt,
+        JourneyRecordRole.objects.filter(journey=journey, required=True).order_by("order", "id"),
+        rows,
+        review_mode,
+    )
     attempt.refresh_from_db()
     complete = attempt.completed_at is not None
     current_step = attempt.current_journey_step.step if attempt.current_journey_step_id else None
@@ -356,8 +451,8 @@ def journey_advance(request, journey_id):
 
 @login_required
 def journey_role_eligible(request, journey_id, role_id):
-    """The student's eligible, unattributed creations for one required NEW
-    record role — server-generated only; the request supplies nothing."""
+    """The records this learner may confirm for one required record role —
+    server-generated only; the request supplies nothing."""
     if request.session.get("simulator_review_user_id"):
         return JsonResponse({"error": "Instructor review is view-only."}, status=403)
     journey = get_object_or_404(
@@ -369,14 +464,15 @@ def journey_role_eligible(request, journey_id, role_id):
         raise PermissionDenied("This journey belongs to a different programme version.")
     attempt = get_object_or_404(JourneyAttempt, enrolment=enrolment, journey=journey)
     role = get_object_or_404(JourneyRecordRole, pk=role_id, journey=journey)
-    rows = attribution_services.eligible_for_view(attempt, role)
+    rows = attribution_services.attributable_rows(attempt, role)
     return JsonResponse({"role_id": str(role.pk), "eligible": rows})
 
 
 @login_required
 @require_POST
 def journey_role_attribute(request, journey_id, role_id):
-    """Attribute one ledger-backed creation to this role. Server-validated
+    """Confirm one record for this role — a creation the learner made inside the
+    journey, or an existing record the role asks them to reuse. Server-validated
     end to end; a refusal is a controlled JSON error, never a silent one."""
     if request.session.get("simulator_review_user_id"):
         return JsonResponse({"error": "Instructor review is view-only."}, status=403)
@@ -393,11 +489,14 @@ def journey_role_attribute(request, journey_id, role_id):
         payload = json.loads(request.body.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({"error": "The request body is not valid JSON."}, status=400)
-    creation_id = payload.get("creation_id")
-    if not creation_id:
-        return JsonResponse({"error": "Select a creation to attribute."}, status=400)
     try:
-        attribution_services.attribute_creation(attempt, role, creation_id, request.user)
+        attribution_services.attribute_record(
+            attempt,
+            role,
+            creation_id=payload.get("creation_id"),
+            record_id=payload.get("record_id"),
+            student=request.user,
+        )
     except attribution_services.AttributionError as exc:
         return JsonResponse({"error": exc.message, "code": exc.code}, status=exc.status)
     except PermissionDenied as exc:

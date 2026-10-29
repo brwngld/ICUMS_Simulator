@@ -125,15 +125,6 @@ def _fail(message, code):
     raise JourneyVerificationResolutionError(message, code)
 
 
-def _record_activity(record):
-    moments = [
-        getattr(record, "updated_at", None),
-        getattr(record, "submitted_at", None),
-        getattr(record, "created_at", None),
-    ]
-    return max((moment for moment in moments if moment is not None), default=None)
-
-
 def _require_reachable(attempt, assignment):
     """Require the assignment to be the attempt's current, reachable step."""
     if attempt.current_journey_step_id != assignment.pk:
@@ -224,7 +215,7 @@ def _resolve_selection(attempt, lesson_attempt, assignment, condition, *, for_up
         )
     opened = verification.opened_at(lesson_attempt, assignment.step)
     freshness_floor = max(attempt.started_at, opened)
-    activity = _record_activity(record)
+    activity = verification.record_activity(record)
     if activity is None or activity < freshness_floor:
         _fail("The attributed record predates the current verification window.", "record_stale")
     # A creation-window refusal is only raised after freshness, preserving the
@@ -455,7 +446,7 @@ def evaluate_exact_condition(condition, *, opening, selection=None, record=None)
                 False, "record_fields_mismatch", "A required saved value does not match.",
             )
 
-    activity = _record_activity(record)
+    activity = verification.record_activity(record)
     if activity is None or activity < selection.freshness_floor:
         return ExactConditionResult(
             False, "record_stale", "The attributed record predates the current verification window.",

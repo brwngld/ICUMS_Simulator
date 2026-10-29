@@ -86,6 +86,61 @@ Practice Desk geometry into hybrid-owned assets; the desk itself is untouched.
                 {% if item.step.hint %}
                   <div class="hyb-hint" data-hyb-hint="{{ item.index }}" hidden><strong>Hint</strong><div class="lrn-copy">{{ item.step.hint|linebreaks }}</div></div>
                 {% endif %}
+                {% if item.role_rows %}
+                  <section class="hyb-records">
+                    <p class="hyb-card-label">Required records</p>
+                    <ul class="hyb-journey">
+                      {% for role_row in item.role_rows %}
+                        <li class="{% if role_row.step_verified %}done{% elif role_row.association %}now{% endif %}" data-role-row="{{ role_row.role.pk }}">
+                          <span>{% if role_row.step_verified %}✓{% elif role_row.association %}•{% else %}○{% endif %}</span>
+                          <div>
+                            <strong>{{ role_row.role.label }}</strong>
+                            <small>{{ role_row.record_type_label }} · {{ role_row.role.get_creation_mode_display }}</small>
+                            <p class="hyb-feedback" data-role-state>{{ role_row.state_label }}</p>
+                            {% if role_row.association %}
+                              <p class="hyb-feedback">Current record: #{{ role_row.association.record_id }} · {{ role_row.association.get_assignment_source_display }}</p>
+                            {% else %}
+                              <p class="hyb-feedback">{{ role_row.message }}</p>
+                            {% endif %}
+                            {% if role_row.state == "ineligible" %}<p class="hyb-feedback" data-tone="fail">{{ role_row.message }}</p>{% endif %}
+
+                            {% if role_row.can_attribute %}
+                              <button class="dash-secondary" type="button" data-record-select aria-expanded="false" aria-controls="step-{{ item.index }}-record-options-{{ role_row.role.pk }}">
+                                {% if role_row.association %}Replace record{% else %}Select record{% endif %}
+                              </button>
+                              <div id="step-{{ item.index }}-record-options-{{ role_row.role.pk }}" data-record-options hidden>
+                                {% if role_row.eligible %}
+                                  <form data-attribution-form data-endpoint="{% url 'hybrid-journey-role-attribute' item.journey.pk role_row.role.pk %}">
+                                    {% csrf_token %}
+                                    <fieldset>
+                                      <legend>Select an eligible {{ role_row.record_type_label|lower }}</legend>
+                                      {% for record in role_row.eligible %}
+                                        <label>
+                                          <input type="radio" name="record_choice" required
+                                                 data-attribution-key="{% if record.creation_id %}creation_id{% else %}record_id{% endif %}"
+                                                 value="{{ record.creation_id|default:record.record_id }}"
+                                                 {% if record.chosen %}checked{% endif %}>
+                                          {{ record.record_label }} · {{ record.record_status }} · created {{ record.record_created_at|date:"j M Y, H:i" }}
+                                          {% if not record.in_window %}· Changed before this step.{% endif %}
+                                        </label>
+                                      {% endfor %}
+                                    </fieldset>
+                                    <button class="dash-primary" type="submit">Use selected record</button>
+                                    <p class="hyb-feedback" data-attribution-message role="status" aria-live="polite"></p>
+                                  </form>
+                                {% else %}
+                                  <p class="hyb-feedback" role="status">No eligible records are available. Create the required record in the simulator, then return to this page.</p>
+                                {% endif %}
+                              </div>
+                            {% elif review_mode %}
+                              <p class="hyb-feedback">Instructor review is view-only.</p>
+                            {% endif %}
+                          </div>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  </section>
+                {% endif %}
                 <p class="hyb-feedback" data-hyb-feedback="{{ item.index }}" role="status">Complete the step in the simulator, then check your work.</p>
               </article>
             {% endfor %}
@@ -120,4 +175,5 @@ Practice Desk geometry into hybrid-owned assets; the desk itself is untouched.
     </div>
   </div>
   <script src="{% static 'js/hybrid-workspace.js' %}?v=20261023-1" defer></script>
+  <script src="{% static 'js/hybrid-attribution.js' %}?v=20261029-1" defer></script>
 {% endblock %}

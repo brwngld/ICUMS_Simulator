@@ -1,4 +1,5 @@
 {% extends "core/base_student.html" %}
+{% load static %}
 
 {% comment %}
 The learner's view of one published practical journey: canonical step order
@@ -83,8 +84,12 @@ displays and links.
                           <legend>Select an eligible {{ role_row.record_type_label|lower }}</legend>
                           {% for record in role_row.eligible %}
                             <label>
-                              <input type="radio" name="creation_id" value="{{ record.creation_id }}" required>
+                              <input type="radio" name="record_choice" required
+                                     data-attribution-key="{% if record.creation_id %}creation_id{% else %}record_id{% endif %}"
+                                     value="{{ record.creation_id|default:record.record_id }}"
+                                     {% if record.chosen %}checked{% endif %}>
                               {{ record.record_label }} · {{ record.record_status }} · created {{ record.record_created_at|date:"j M Y, H:i" }}
+                              {% if not record.in_window %}· Changed before this step.{% endif %}
                             </label>
                           {% endfor %}
                         </fieldset>
@@ -105,53 +110,5 @@ displays and links.
       </section>
     {% endif %}
   </div>
-  <script>
-    (() => {
-      document.querySelectorAll("[data-record-select]").forEach((button) => {
-        const panel = document.getElementById(button.getAttribute("aria-controls"));
-        button.addEventListener("click", () => {
-          const opening = panel.hidden;
-          panel.hidden = !opening;
-          button.setAttribute("aria-expanded", String(opening));
-          if (opening) panel.querySelector("input, button")?.focus();
-        });
-      });
-
-      document.querySelectorAll("[data-attribution-form]").forEach((form) => {
-        form.addEventListener("submit", async (event) => {
-          event.preventDefault();
-          const message = form.querySelector("[data-attribution-message]");
-          const submit = form.querySelector('button[type="submit"]');
-          const selected = form.querySelector('input[name="creation_id"]:checked');
-          if (!selected) {
-            message.textContent = "Select a record before continuing.";
-            message.dataset.tone = "fail";
-            return;
-          }
-          submit.disabled = true;
-          message.textContent = "Saving record selection…";
-          message.dataset.tone = "pending";
-          try {
-            const response = await fetch(form.dataset.endpoint, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": form.querySelector('[name="csrfmiddlewaretoken"]').value,
-              },
-              body: JSON.stringify({creation_id: selected.value}),
-            });
-            const payload = await response.json();
-            if (!response.ok) throw new Error(payload.error || "The record could not be attributed.");
-            message.textContent = payload.message;
-            message.dataset.tone = "pass";
-            window.location.reload();
-          } catch (error) {
-            message.textContent = error.message;
-            message.dataset.tone = "fail";
-            submit.disabled = false;
-          }
-        });
-      });
-    })();
-  </script>
+  <script src="{% static 'js/hybrid-attribution.js' %}?v=20261029-1" defer></script>
 {% endblock %}
