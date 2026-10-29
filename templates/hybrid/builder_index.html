@@ -17,8 +17,14 @@
 
   <section class="authoring-card">
     <div class="authoring-editor-header"><div><h2>New course</h2><p>The course is created inside the programme's draft edition, reused or opened automatically.</p></div></div>
-    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
-      {{ form.programme.as_field_group }}
+    <form method="post" class="authoring-form hyb-create-form" action="{% url 'hybrid-builder' %}{% if selected_programme %}?programme={{ selected_programme.pk }}{% endif %}">{% csrf_token %}
+      {% if selected_programme %}
+        {{ form.programme.as_hidden }}
+        {# The name is the way out of the context: it links back to the unscoped page. #}
+        <p class="helptext">{{ form.programme.label }}: <a href="{% url 'hybrid-builder' %}"><strong>{{ selected_programme.name }}</strong></a></p>
+      {% else %}
+        {{ form.programme.as_field_group }}
+      {% endif %}
       {{ form.title.as_field_group }}
       {{ form.description.as_field_group }}
       <button class="authoring-primary" type="submit">Create course</button>
@@ -38,6 +44,7 @@
             </div>
             {% if version.status == "draft" %}
               <div class="authoring-module-tools hyb-course-row">
+                <a class="authoring-secondary" href="{% url 'hybrid-builder' %}?programme={{ programme.pk }}">New course</a>
                 {% for course in version.hybrid_courses.all %}
                   <a class="authoring-secondary" href="{% url 'hybrid-course-edit' course.pk %}">{{ course.title }}</a>
                 {% empty %}

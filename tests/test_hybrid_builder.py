@@ -265,6 +265,102 @@ def test_a_module_with_lessons_cannot_be_silently_deleted(client, db):
     assert HybridModule.objects.filter(pk=module.pk).exists()
 
 
+# --- Contextual creation -----------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_a_selected_programme_is_carried_instead_of_asked_again(client, db):
+    """Clicking through from a programme row scopes the create-course card: the
+    page carries the programme it already knows instead of rendering a select."""
+    instructor = _instructor(db)
+    programme, _ = _hybrid_programme("carried")
+    client.force_login(instructor)
+    scoped = client.get(reverse("hybrid-builder"), {"programme": programme.pk}).content.decode()
+    assert "<select" not in scoped
+    assert 'name="programme"' in scoped
+    assert programme.name in scoped
+    assert "<select" in client.get(reverse("hybrid-builder")).content.decode()
+
+
+@pytest.mark.django_db
+def test_a_scoped_course_lands_in_the_selected_programme(client, db):
+    instructor = _instructor(db)
+    programme, version = _hybrid_programme("landing")
+    client.force_login(instructor)
+    response = client.post(
+        f"{reverse('hybrid-builder')}?programme={programme.pk}",
+        {"programme": programme.pk, "title": "Scoped course", "description": ""},
+    )
+    assert response.status_code == 302
+    course = HybridCourse.objects.get(title="Scoped course")
+    assert course.programme_version == version
+    assert course.programme_version.programme == programme
+
+
+@pytest.mark.django_db
+def test_a_scoped_course_post_cannot_move_to_another_programme(client, db):
+    """The scoped queryset is the boundary: another live hybrid programme the
+    page never selected is refused rather than silently honoured."""
+    instructor = _instructor(db)
+    scoped, _ = _hybrid_programme("scoped")
+    other, _ = _hybrid_programme("not-selected")
+    client.force_login(instructor)
+    response = client.post(
+        f"{reverse('hybrid-builder')}?programme={scoped.pk}",
+        {"programme": other.pk, "title": "Wrong home", "description": ""},
+    )
+    assert response.status_code == 400
+    assert not HybridCourse.objects.filter(title="Wrong home").exists()
+
+
+@pytest.mark.django_db
+def test_the_course_page_creates_a_journey(client, db):
+    """The course page is a shortcut to the organizer's own create flow, so the
+    instructor does not need a second page visit to start a journey."""
+    instructor = _instructor(db)
+    _, version = _hybrid_programme("journey-home")
+    course = _course(version)
+    client.force_login(instructor)
+    response = client.post(
+        reverse("hybrid-course-edit", args=[course.pk]),
+        {"action": "create_journey", "title": "Cargo to clearance", "description": "", "start_mode": "new_record"},
+    )
+    assert response.status_code == 302
+    journey = PracticalJourney.objects.get(course=course, title="Cargo to clearance")
+    assert journey.programme_version == version
+    assert journey.start_mode == "new_record"
+    assert response.url == reverse("hybrid-journey-detail", args=[journey.pk])
+
+
+@pytest.mark.django_db
+def test_a_journey_post_without_a_title_creates_nothing(client, db):
+    instructor = _instructor(db)
+    _, version = _hybrid_programme("journey-blank")
+    course = _course(version)
+    client.force_login(instructor)
+    response = client.post(
+        reverse("hybrid-course-edit", args=[course.pk]),
+        {"action": "create_journey", "title": "", "description": "", "start_mode": "new_record"},
+    )
+    assert response.status_code == 302
+    assert response.url == reverse("hybrid-course-edit", args=[course.pk])
+    assert not PracticalJourney.objects.filter(course=course).exists()
+    assert [message.message for message in get_messages(response.wsgi_request)] == [
+        "The journey needs a title."
+    ]
+
+
+@pytest.mark.django_db
+def test_the_course_page_offers_the_journey_form(client, db):
+    instructor = _instructor(db)
+    _, version = _hybrid_programme("journey-form")
+    course = _course(version)
+    client.force_login(instructor)
+    html = client.get(reverse("hybrid-course-edit", args=[course.pk])).content.decode()
+    assert 'value="create_journey"' in html
+    assert 'name="start_mode"' in html
+
+
 # --- The four-stage lesson editor -------------------------------------------------
 
 

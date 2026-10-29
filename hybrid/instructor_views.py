@@ -295,7 +295,20 @@ def builder_index(request):
     action = request.POST.get("action") if request.method == "POST" else None
     form = CourseCreateForm(request.POST if action not in _CARD_ACTIONS else None)
     programme_form = ProgrammeCreateForm(request.POST if action == "create_programme" else None)
+    # A course created from an edition's row already knows its programme, so the
+    # page carries that through the query string and the form stops asking again.
+    # Scoping the field's queryset to the one programme is also the boundary: a
+    # posted pk for any other programme fails validation instead of landing.
     context = {"programmes": programmes, "form": form, "programme_form": programme_form}
+    selected = Programme.objects.filter(
+        pk=request.GET.get("programme"), learning_track=Programme.Track.HYBRID,
+    ).first()
+    if selected is not None:
+        # The hidden input must carry the contextual pk, so the unbound form is
+        # initialised with it; the scoped queryset is what refuses a forged value.
+        form.fields["programme"].queryset = Programme.objects.filter(pk=selected.pk)
+        form.fields["programme"].initial = selected.pk
+        context["selected_programme"] = selected
     if request.method == "POST":
         if action == "create_programme":
             if programme_form.is_valid():
@@ -391,6 +404,27 @@ def course_edit(request, course_id):
 
     if request.method == "POST":
         action = request.POST.get("action")
+        if action == "create_journey":
+            # The same form and service the journey organizer uses, so the
+            # course page is a shortcut to the workflow rather than a second one.
+            journey_form = JourneyCreateForm(request.POST)
+            if journey_form.is_valid():
+                try:
+                    journey = journey_services.create_journey(
+                        course.programme_version,
+                        course,
+                        title=journey_form.cleaned_data["title"],
+                        description=journey_form.cleaned_data["description"],
+                        start_mode=journey_form.cleaned_data["start_mode"],
+                    )
+                except (PermissionDenied, ValidationError) as error:
+                    messages.error(request, _error_text(error))
+                else:
+                    messages.success(request, "Journey created.")
+                    return redirect("hybrid-journey-detail", journey_id=journey.pk)
+            else:
+                messages.error(request, "The journey needs a title.")
+            return redirect("hybrid-course-edit", course_id=course.pk)
         if action == "create_module":
             form = ModuleForm(request.POST)
             if form.is_valid():
@@ -437,6 +471,7 @@ def course_edit(request, course_id):
         "form": form,
         "modules": modules,
         "module_form": ModuleForm(),
+        "journey_form": JourneyCreateForm(),
         "journeys": [
             {
                 "journey": journey,

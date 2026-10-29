@@ -28,7 +28,15 @@
         <p class="authoring-empty">No practical journeys yet.</p>
       {% endfor %}
     </div>
-    <p class="helptext"><a href="{% url 'hybrid-course-journeys' course.pk %}">Open the journey organizer</a> to create a journey, assign steps, and configure roles, dependencies and checkpoints.</p>
+    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
+      <input type="hidden" name="action" value="create_journey">
+      <h3>New journey</h3>
+      {{ journey_form.title.as_field_group }}
+      {{ journey_form.description.as_field_group }}
+      {{ journey_form.start_mode.as_field_group }}
+      <button class="authoring-primary" type="submit">Create journey</button>
+    </form>
+    <p class="helptext"><a href="{% url 'hybrid-course-journeys' course.pk %}">Open the journey organizer</a> to assign steps and configure roles, dependencies and checkpoints.</p>
   </section>
 
   <section class="authoring-card">
