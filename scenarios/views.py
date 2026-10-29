@@ -111,18 +111,19 @@ def _safe_simulator_next(request):
 
 
 def _frame_for_practice_desk(request, response):
-    """Let the practice-desk spike frame one simulator page from this origin.
+    """Let this origin frame a simulator page inside a guided-practice pane.
 
-    Temporary: the desk prototype shows a real simulator page inside a side
-    panel, and the global ``X_FRAME_OPTIONS = "DENY"`` would block it. The
-    permission is granted per response, only when the browser itself reports
+    The permission is granted per response, only when the browser itself reports
     that this document is being loaded as a frame (``Sec-Fetch-Dest: iframe``),
     so it survives the simulator's own POST-then-redirect navigation (save a
     draft, land on its detail page) that a query-string marker could not.
     ``DENY`` stays the default for every other request and for the rest of the
     site; Django's clickjacking middleware leaves a header that the view has
-    already set alone, so no settings change is involved. Discarding the desk
-    reverts this function and the two calls beneath it.
+    already set alone, so no settings change is involved.
+
+    The name still points at the /test desk spike that introduced it, but the
+    shipped Theory & Practical workspace (``hybrid-workspace``) depends on the
+    same behaviour, so removing the desk does not make this dead code.
     """
     if request.method == "GET" and request.headers.get("Sec-Fetch-Dest", "") == "iframe":
         response.headers["X-Frame-Options"] = "SAMEORIGIN"
