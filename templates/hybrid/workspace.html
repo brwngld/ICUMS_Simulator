@@ -1,5 +1,5 @@
 {% extends "core/base_student.html" %}
-{% load static %}
+{% load static rich_content %}
 
 {% comment %}
 Theory & Practical workspace: the lesson's reading and practical journey
@@ -48,7 +48,7 @@ Practice Desk geometry into hybrid-owned assets; the desk itself is untouched.
           {% if theory %}
             <article class="hyb-card">
               <p class="hyb-card-label">Theory</p>
-              <div class="hyb-card-body"><div class="lrn-copy">{{ theory }}</div></div>
+              <div class="hyb-card-body"><div class="lrn-copy">{{ theory|rich_content }}</div></div>
               {% if attempt %}
                 <div class="hyb-acknowledge">
                   {% if attempt.theory_acknowledged %}

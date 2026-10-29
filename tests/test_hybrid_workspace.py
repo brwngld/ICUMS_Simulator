@@ -107,6 +107,11 @@ def test_only_the_current_step_card_is_visible(client, db):
     assert 'data-hyb-step-card="1" data-screen-url' in html
     assert "hidden" in html
     assert "Step 1 of 2" in html
+    # The theory reading is rich text, so it renders through the same safe-body
+    # filter every other learner page uses; escaped source would show the learner
+    # the markup itself.
+    assert "<p>Read this before the steps.</p>" in html
+    assert "&lt;p&gt;Read this" not in html
 
 
 @pytest.mark.django_db

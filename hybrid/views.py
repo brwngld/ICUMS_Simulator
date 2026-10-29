@@ -113,14 +113,16 @@ def roadmap(request):
         course__is_published=True,
     ).order_by("course__order", "order", "title"):
         attempt = JourneyAttempt.objects.filter(enrolment=enrolment, journey=journey).first()
-        position_total = JourneyRecordRole.objects.filter(journey=journey).count()
         rows = journey_services.journey_step_rows(attempt) if attempt else None
         journeys.append({
             "journey": journey,
             "attempt_exists": attempt is not None,
             "complete": attempt is not None and attempt.completed_at is not None,
+            # Before an attempt exists there are no rows to count, and the card
+            # still has to name the journey's size: the assigned steps are the
+            # total, and the learner is standing at the first one.
             "current_position": (sum(1 for row in rows if row["satisfied"]) + 1) if rows else 1,
-            "position_total": len(rows) if rows else 0,
+            "position_total": (len(rows) if rows else journey.step_assignments.count()),
         })
     return render_student_page(request, "hybrid/roadmap.html", {
         "title": "Theory & Practical",

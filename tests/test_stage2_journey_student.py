@@ -164,6 +164,9 @@ def test_the_roadmap_links_the_journey_with_start_resume_and_status(client, db):
 
     html = client.get(reverse("hybrid-roadmap")).content.decode()
     assert "Start journey" in html
+    # Before an attempt exists there are no step rows to count, and the card
+    # still has to name the journey's size: the assigned steps are the total.
+    assert "Step 1 of 2" in html
 
     attempt = journey_services.get_or_create_attempt(enrolment, world["journey"])
     lesson_attempt = LessonAttempt.objects.create(
