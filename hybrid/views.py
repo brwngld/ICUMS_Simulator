@@ -225,8 +225,13 @@ def roadmap(request):
             "complete": attempt is not None and attempt.completed_at is not None,
             # Before an attempt exists there are no rows to count, and the card
             # still has to name the journey's size: the assigned steps are the
-            # total, and the learner is standing at the first one.
-            "current_position": (sum(1 for row in rows if row["satisfied"]) + 1) if rows else 1,
+            # total, and the learner is standing at the first one. Once every
+            # step is satisfied the learner is still read as standing on the
+            # last one — the journey card says "Journey complete" only when the
+            # whole journey has actually closed, and the two must not disagree.
+            "current_position": (
+                min(sum(1 for row in rows if row["satisfied"]) + 1, len(rows)) if rows else 1
+            ),
             "position_total": (len(rows) if rows else journey.step_assignments.count()),
         })
     return render_student_page(request, "hybrid/roadmap.html", {
@@ -329,18 +334,19 @@ def _advance_journey(lesson_attempt, step):
     journey-checked step would refuse as ``step_not_current`` while the lesson
     itself had moved on. The journey engine owns the ceiling and the
     dependencies, so this can only ever be refused by the learner's own
-    outstanding evidence; its sentence is returned for the card to show.
+    outstanding evidence; the pair is ``(moved, sentence)``, and the card is
+    what reads the sentence back to the learner.
     """
     assignment = JourneyStep.objects.filter(step=step).select_related("journey").first()
     if assignment is None:
-        return ""
+        return False, ""
     journey_attempt = JourneyAttempt.objects.filter(
         enrolment=lesson_attempt.enrolment, journey=assignment.journey,
     ).first()
     if journey_attempt is None:
-        return ""
-    _locked, _moved, message = journey_services.journey_advance(journey_attempt)
-    return message
+        return False, ""
+    _locked, moved, message = journey_services.journey_advance(journey_attempt)
+    return moved, message
 
 
 @login_required
@@ -361,7 +367,8 @@ def step_advance(request, attempt_id, step_index):
     if step_index + 1 < len(steps):
         attempt.current_step = steps[step_index + 1]
         attempt.save(update_fields=("current_step",))
-    return JsonResponse({"allowed": True, "journey_message": _advance_journey(attempt, step)})
+    moved, message = _advance_journey(attempt, step)
+    return JsonResponse({"allowed": True, "journey_moved": moved, "journey_message": message})
 
 
 @login_required

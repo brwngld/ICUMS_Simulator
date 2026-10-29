@@ -482,6 +482,7 @@ def test_confirming_the_record_lets_the_step_pass_and_the_journey_move(client, d
 
     advanced = _post(client, "advance", lesson_attempt, 0)
     assert advanced.status_code == 200
+    assert advanced.json()["journey_moved"] is True
     assert advanced.json()["journey_message"] == "Advanced to the next step."
     attempt = JourneyAttempt.objects.get(enrolment=world["enrolment"], journey=world["journey"])
     assert attempt.current_journey_step_id == world["assignment_two"].pk
@@ -517,6 +518,7 @@ def test_the_journey_reports_its_own_refusal_when_the_next_step_waits(client, db
     advanced = _post(client, "advance", lesson_attempt, 0)
 
     assert advanced.json()["allowed"] is True
+    assert advanced.json()["journey_moved"] is False
     assert "Attach the packing list" in advanced.json()["journey_message"]
     assert "record role" in advanced.json()["journey_message"]
     attempt = JourneyAttempt.objects.get(enrolment=world["enrolment"], journey=world["journey"])
@@ -541,3 +543,26 @@ def test_a_step_of_an_unassigned_lesson_keeps_the_legacy_engine(client, db):
 
     assert checked.json()["passed"] is True
     assert "journey_complete" not in checked.json()
+    advanced = _post(client, "advance", lesson_attempt, 0)
+    assert advanced.json()["allowed"] is True
+    assert advanced.json()["journey_moved"] is False
+    assert advanced.json()["journey_message"] == ""
+
+
+@pytest.mark.django_db
+def test_the_roadmap_never_names_a_step_past_the_last_one(client, db):
+    """Every step verified while the journey itself is still open would read as
+    "Step 2 of 1": the position is where the learner stands, so it stops at the
+    last step and the journey's own completion stays the journey's word."""
+    world = _world(db, "conf-count")
+    JourneyStep.objects.filter(journey=world["journey"], step=world["second"]).delete()
+    lesson_attempt = _open_workspace(client, world)
+    _post(client, "open", lesson_attempt, 0)
+    record = _declaration(world["learner"], "TEMP-CONF-22")
+    _confirm(client, world, {"record_id": record.pk})
+    assert _post(client, "check", lesson_attempt, 0).json()["passed"] is True
+
+    page = client.get(reverse("hybrid-roadmap")).content.decode()
+
+    assert "Step 1 of 1" in page
+    assert "Step 2 of 1" not in page

@@ -201,6 +201,20 @@
     feedback.innerHTML = html;
   }
 
+  /* Server sentences are plain text, so they never reach the card as markup. */
+  function setFeedbackText(index, tone, text) {
+    var feedback = root.querySelector('[data-hyb-feedback="' + index + '"]');
+    if (!feedback) {
+      return;
+    }
+    if (tone) {
+      feedback.setAttribute("data-tone", tone);
+    } else {
+      feedback.removeAttribute("data-tone");
+    }
+    feedback.textContent = text;
+  }
+
   function renderResults(index, results) {
     var items = results.map(function (result) {
       return '<li class="' + (result.passed ? "passed" : "failed") + '"><strong>' +
@@ -273,7 +287,14 @@
       }
       post("/advance/" + current + "/").then(function (result) {
         if (result.ok && result.data.allowed) {
+          var held = result.data.journey_moved === false && result.data.journey_message;
           show(current + 1);
+          /* The lesson moved; the journey did not. Its own sentence names what
+             is still outstanding, so the learner hears the reason instead of
+             finding the next check refusing. */
+          if (held) {
+            setFeedbackText(current, "pending", result.data.journey_message);
+          }
         } else {
           setFeedback(current, "fail", result.data.message || "The next step is locked for now.");
         }
