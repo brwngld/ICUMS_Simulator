@@ -33,7 +33,6 @@ from onboarding.models import Enrolment, Programme, ProgrammeVersion
 from scenarios.models import UcrDeclaration
 
 
-HYBRID_MIGRATION_0008 = ("hybrid", "0008_journey_verification_evidence")
 
 
 def _world(db, seed="opening", *, with_evidence=False):
@@ -291,7 +290,11 @@ def _threaded_open(attempt_id, step_id, barrier):
 
 def _ensure_generation_schema():
     """Repair migration-test ordering before opening separate connections."""
-    MigrationExecutor(connection).migrate([HYBRID_MIGRATION_0008])
+    # Migrate the hybrid app to its latest migration — what ``migrate hybrid``
+    # does. Pinning an ancestor would roll newer migrations back out of the
+    # shared test database, breaking every suite that runs afterwards.
+    executor = MigrationExecutor(connection)
+    executor.migrate([key for key in executor.loader.graph.leaf_nodes() if key[0] == "hybrid"])
 
 
 @pytest.mark.django_db(transaction=True)

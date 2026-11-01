@@ -48,7 +48,6 @@ from scenarios.models import UcrDeclaration
 SCREEN = "single-window-overview"
 EXISTING = JourneyRecordRole.CreationMode.EXISTING
 NEW = JourneyRecordRole.CreationMode.NEW
-EVIDENCE_MIGRATION = ("hybrid", "0008_journey_verification_evidence")
 
 
 def _world(db, seed, *, creation_mode=EXISTING, extra_condition=False, free_step=True):
@@ -632,7 +631,11 @@ def _threaded_check(attempt_id, step_id, student_id, barrier):
 @pytest.mark.django_db(transaction=True)
 def test_concurrent_checks_record_a_single_evidence_row(transactional_db):
     # Repair migration-test ordering before opening separate connections.
-    MigrationExecutor(connection).migrate([EVIDENCE_MIGRATION])
+    # Migrate the hybrid app to its latest migration — what ``migrate hybrid``
+    # does. Pinning an ancestor would roll newer migrations back out of the
+    # shared test database, breaking every suite that runs afterwards.
+    executor = MigrationExecutor(connection)
+    executor.migrate([key for key in executor.loader.graph.leaf_nodes() if key[0] == "hybrid"])
     world = _world(transactional_db, "flow-concurrent")
     verification.record_open(world["attempts"]["one"], world["steps"]["one"])
     _attribute(world, "one", _record(world, "TEMP-FLOW-CONCURRENT"))
