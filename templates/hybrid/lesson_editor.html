@@ -36,7 +36,7 @@
      form saves the activity text, its simulator screen and every check hanging
      off it in one POST. {% endcomment %}
   <section class="authoring-panel" data-authoring-panel="activities" hidden>
-    <div class="authoring-card"><div class="authoring-editor-header"><div><h2>Practical activities</h2><p>What the learner does in the simulator, in this order. Each activity saves on its own.</p></div><span class="authoring-status">{{ step_count }} activity{{ step_count|pluralize }}</span></div></div>
+    <div class="authoring-card"><div class="authoring-editor-header"><div><h2>Practical activities</h2><p>What the learner does in the simulator, in this order. Each activity saves on its own.</p></div><span class="authoring-status"><a href="{% url 'hybrid-lesson-demonstration-studio' lesson.pk %}">Open Demonstration Studio →</a></span></div></div>
     <div class="authoring-item-list">
       {% for card in activity_cards %}{% with step=card.step step_form=card.form %}
         <article class="authoring-card" id="activity-{{ step.pk }}">

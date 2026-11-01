@@ -248,7 +248,12 @@ def test_modules_and_lessons_are_created_under_the_draft(client, db):
         {"action": "create_lesson", "title": "First journey", "summary": "About the journey."},
     )
     assert response.status_code == 302
-    assert reverse("hybrid-lesson-edit", args=[HybridLesson.objects.get(module=module, title="First journey").pk]) in response.url
+    # Interactive Practical lessons open in the Demonstration Studio — the
+    # primary authoring workspace — rather than the legacy editor.
+    assert reverse(
+        "hybrid-lesson-demonstration-studio",
+        args=[HybridLesson.objects.get(module=module, title="First journey").pk],
+    ) in response.url
     lesson = HybridLesson.objects.get(module=module, title="First journey")
     assert lesson.slug == "first-journey"
 

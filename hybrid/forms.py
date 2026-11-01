@@ -18,7 +18,7 @@ from scenarios.bindings import (
     verify_status_choices,
 )
 
-from .models import HybridModule, PracticalStep, VerificationCondition
+from .models import HybridLesson, HybridModule, PracticalStep, VerificationCondition
 
 #: Empty saved-value rows offered with every condition, so two expectations can
 #: be authored in one save without the page having to grow rows by script.
@@ -106,8 +106,31 @@ class ModuleForm(forms.Form):
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
 
+class _MaterialPendingSelect(forms.Select):
+    """Type selector whose Guided Material Study option is shown but disabled.
+
+    The type exists on the model, but its authoring workspace does not yet —
+    the option stays visible (so the direction is known) while refusing to be
+    chosen until the Material Studio is ready.
+    """
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        if value == HybridLesson.Kind.GUIDED_MATERIAL_STUDY:
+            option["attrs"]["disabled"] = True
+        return option
+
+
 class LessonDetailsForm(forms.Form):
     title = forms.CharField(max_length=180, label="Lesson title")
+    kind = forms.ChoiceField(
+        choices=HybridLesson.Kind.choices,
+        initial=HybridLesson.Kind.INTERACTIVE_PRACTICAL,
+        label="Lesson type",
+        widget=_MaterialPendingSelect,
+        required=False,
+        help_text="Interactive Practical lessons are built in the Demonstration Studio.",
+    )
     summary = forms.CharField(
         required=False,
         widget=forms.Textarea(attrs={"rows": 3}),

@@ -98,7 +98,19 @@ class HybridModule(models.Model):
 
 
 class HybridLesson(models.Model):
-    """One lesson: theory reading plus a practical journey, in module order."""
+    """One lesson in module order, of one of two authoring types.
+
+    ``Kind.INTERACTIVE_PRACTICAL`` lessons are authored in the Demonstration
+    Studio: theory plus a simulator demonstration with practical steps and
+    verification. ``Kind.GUIDED_MATERIAL_STUDY`` lessons (theory plus attached
+    learning materials and optional quizzes) have their type stored now; their
+    authoring workspace is still to come, and they cannot be created from the
+    instructor UI or published until it exists.
+    """
+
+    class Kind(models.TextChoices):
+        INTERACTIVE_PRACTICAL = "interactive_practical", "Interactive Practical"
+        GUIDED_MATERIAL_STUDY = "guided_material_study", "Guided Material Study"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     module = models.ForeignKey(
@@ -112,6 +124,15 @@ class HybridLesson(models.Model):
     theory = models.TextField(
         blank=True,
         help_text="One continuous rich-text reading for the lesson's theory panel. Sanitised on save.",
+    )
+    kind = models.CharField(
+        max_length=30,
+        choices=Kind.choices,
+        default=Kind.INTERACTIVE_PRACTICAL,
+        help_text=(
+            "Interactive Practical lessons are authored in the Demonstration Studio. "
+            "Guided Material Study awaits the Material Studio and cannot be created or published yet."
+        ),
     )
     order = models.PositiveIntegerField(default=1)
     is_published = models.BooleanField(default=False)

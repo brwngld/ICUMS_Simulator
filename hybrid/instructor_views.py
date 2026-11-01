@@ -8,6 +8,7 @@ content a learner is enrolled on can never be silently modified.
 Publication itself (the draft→published sweep and clone-to-draft) is Stage 4.
 """
 from django.contrib import messages
+from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
@@ -489,12 +490,14 @@ def module_edit(request, module_id):
     _require_instructor(request.user)
     module = _draft_module(module_id)
     lessons = list(module.hybrid_lessons.order_by("order", "title"))
-    # The lesson list describes what each lesson holds. Theory is one rich-text
-    # field now, so the row reports whether it has been written rather than
-    # counting blocks that no longer exist.
+    # The lesson list describes what each lesson holds: its type, whether the
+    # theory has been written, and — for Interactive Practical lessons — the
+    # step count, since those are what open in the Demonstration Studio.
     lesson_rows = [
         {
             "lesson": lesson,
+            "is_interactive": lesson.kind == HybridLesson.Kind.INTERACTIVE_PRACTICAL,
+            "kind_label": lesson.get_kind_display(),
             "step_count": lesson.practical_steps.count(),
             "has_theory": bool(plain_text(lesson.theory).strip()),
         }
@@ -506,15 +509,29 @@ def module_edit(request, module_id):
         if action == "create_lesson":
             form = LessonDetailsForm(request.POST)
             if form.is_valid():
+                # A POST from before the type existed (or with the select
+                # blank) means Interactive Practical — the only type the
+                # builder has ever created.
+                kind = form.cleaned_data["kind"] or HybridLesson.Kind.INTERACTIVE_PRACTICAL
+                if kind == HybridLesson.Kind.GUIDED_MATERIAL_STUDY:
+                    # The type is stored on the model, but its Material Studio
+                    # does not exist yet — refuse even a posted (disabled)
+                    # option so no incomplete authoring path can start.
+                    messages.error(
+                        request,
+                        "Guided Material Study is not available yet — the Material Studio is still to come.",
+                    )
+                    return redirect("hybrid-module-edit", module_id=module.pk)
                 lesson = HybridLesson.objects.create(
                     module=module,
                     slug=_unique_slug(HybridLesson, "slug", form.cleaned_data["title"], module=module),
                     title=form.cleaned_data["title"],
                     summary=form.cleaned_data["summary"],
+                    kind=kind,
                     order=module.hybrid_lessons.count() + 1,
                 )
-                messages.success(request, "Lesson created — build it out in the editor.")
-                return redirect("hybrid-lesson-edit", lesson_id=lesson.pk)
+                messages.success(request, "Interactive Practical lesson created — continue in the Demonstration Studio.")
+                return redirect("hybrid-lesson-demonstration-studio", lesson_id=lesson.pk)
             messages.error(request, "The lesson needs a title.")
             return redirect("hybrid-module-edit", module_id=module.pk)
         if action == "move_lesson":
@@ -552,6 +569,26 @@ def module_edit(request, module_id):
 
 @login_required
 @transaction.atomic
+def lesson_demonstration_studio(request, lesson_id):
+    """Stage 1 Instructor Demonstration Studio for one draft lesson.
+
+    Renders the approved client-side demonstration prototype scoped to this
+    lesson. Recording is simulated in the browser only: nothing here writes
+    demonstrations, captured actions or any backend state. Draft-scoped like
+    the rest of the instructor builder."""
+    _require_instructor(request.user)
+    lesson = _draft_lesson(lesson_id)
+    if request.method != "GET":
+        return HttpResponse(status=405)
+    context = {
+        "title": f"Demonstration Studio · {lesson.title}",
+        "lesson": lesson,
+        "step_count": lesson.practical_steps.count(),
+        "course_title": lesson.module.course.title,
+    }
+    return render_student_page(request, "hybrid/demonstration_studio.html", context)
+
+
 def lesson_edit(request, lesson_id):
     """The four-stage lesson editor: Lesson Details, Theory & Guidance,
     Practical Activities, Review & Publish.

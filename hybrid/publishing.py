@@ -291,6 +291,7 @@ def clone_to_draft(version):
                     title=lesson.title,
                     summary=lesson.summary,
                     theory=lesson.theory,
+                    kind=lesson.kind,
                     order=lesson.order,
                 )
                 for step in lesson.practical_steps.order_by("order", "id"):

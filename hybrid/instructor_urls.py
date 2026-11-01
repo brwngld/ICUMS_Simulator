@@ -14,5 +14,6 @@ urlpatterns = [
     path("journeys/<uuid:journey_id>/", instructor_views.journey_detail, name="hybrid-journey-detail"),
     path("modules/<uuid:module_id>/edit/", instructor_views.module_edit, name="hybrid-module-edit"),
     path("lessons/<uuid:lesson_id>/edit/", instructor_views.lesson_edit, name="hybrid-lesson-edit"),
+    path("lessons/<uuid:lesson_id>/demonstration-studio/", instructor_views.lesson_demonstration_studio, name="hybrid-lesson-demonstration-studio"),
     path("lessons/<uuid:lesson_id>/preview/", instructor_views.lesson_preview, name="hybrid-lesson-preview"),
 ]
