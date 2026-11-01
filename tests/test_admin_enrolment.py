@@ -96,9 +96,17 @@ def test_monthly_password_is_hashed_and_shown_once(client):
     assert refused.url == reverse("simulator-portal")
 
     # The dashboard never shows the password again, only its masked state.
+    # Signing in through the simulator does not reveal the credential — only the
+    # student's own credential page does — so the roster still renders the
+    # awaiting-reveal wording here.
+    credential.refresh_from_db()
+    assert credential.revealed_at is None
+    assert credential.password_state == "awaiting_reveal"
     dashboard = iclient.get(reverse("instructor-dashboard"))
+    html = dashboard.content.decode()
     assert raw_password.encode() not in dashboard.content
-    assert b"shown once" in dashboard.content
+    assert "Password issued — the student views it once on their credential page" in html
+    assert "Password viewed by the student" not in html
 
 
 @pytest.mark.django_db
