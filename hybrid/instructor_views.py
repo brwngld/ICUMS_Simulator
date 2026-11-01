@@ -51,6 +51,7 @@ from .models import (
 )
 from .publishing import (
     clone_to_draft,
+    course_blockers,
     edition_blockers,
     lesson_issues,
     publish_edition,
@@ -348,47 +349,169 @@ def builder_index(request):
                 return redirect("hybrid-builder")
             return render_student_page(request, template_name, context, status=400)
         if action == "publish_edition":
-            version = get_object_or_404(
-                ProgrammeVersion,
-                pk=request.POST.get("version_id"),
-                programme__learning_track=Programme.Track.HYBRID,
-                status=ProgrammeVersion.Status.DRAFT,
-            )
-            blockers = edition_blockers(version)
-            if blockers:
-                messages.error(request, "This edition is not ready to publish: " + " ".join(blockers))
-            else:
-                published, skipped = publish_edition(version)
-                note = f" {len(skipped)} unfinished course(s) stayed unpublished." if skipped else ""
-                messages.success(request, f"Edition v{version.version} published with {len(published)} course(s).{note}")
+            _publish_edition_action(request, request.POST.get("version_id"))
             return redirect("hybrid-builder")
         if action == "new_draft":
-            version = get_object_or_404(
-                ProgrammeVersion,
-                pk=request.POST.get("version_id"),
-                programme__learning_track=Programme.Track.HYBRID,
-                status=ProgrammeVersion.Status.PUBLISHED,
-            )
-            draft = clone_to_draft(version)
-            messages.success(
-                request,
-                f"New draft edition v{draft.version} created — the published edition keeps serving enrolled learners.",
-            )
+            _new_draft_action(request, request.POST.get("version_id"))
             return redirect("hybrid-builder")
         if form.is_valid():
-            programme = form.cleaned_data["programme"]
-            version, created = _ensure_draft_tracking(programme)
-            course = HybridCourse.objects.create(
-                programme_version=version,
-                code=_unique_slug(HybridCourse, "code", form.cleaned_data["title"], programme_version=version),
-                title=form.cleaned_data["title"],
-                description=form.cleaned_data["description"],
-                order=version.hybrid_courses.count() + 1,
-            )
+            course, created = _create_course_in_open_draft(form.cleaned_data["programme"], form)
             messages.success(request, "Course created." if not created else "Course created in a new draft edition.")
             return redirect("hybrid-course-edit", course_id=course.pk)
         return render_student_page(request, template_name, context, status=400)
     return render_student_page(request, template_name, context)
+
+
+def _publish_edition_action(request, version_id, programme=None):
+    """The publish_edition POST action, shared by the landing and workspace.
+
+    Refuses anything that is not an open draft of the programme's track (or of
+    the given programme, when one is pinned), reports readiness blockers
+    instead of publishing, and lets :func:`publishing.publish_edition` speak
+    for the publication rules. Returns the version (draft even when refused).
+    """
+    guards = {"pk": version_id, "status": ProgrammeVersion.Status.DRAFT}
+    if programme is not None:
+        guards["programme"] = programme
+    else:
+        guards["programme__learning_track"] = Programme.Track.HYBRID
+    version = get_object_or_404(ProgrammeVersion, **guards)
+    blockers = edition_blockers(version)
+    if blockers:
+        messages.error(request, "This edition is not ready to publish: " + " ".join(blockers))
+    else:
+        published, skipped = publish_edition(version)
+        note = f" {len(skipped)} unfinished course(s) stayed unpublished." if skipped else ""
+        messages.success(request, f"Edition v{version.version} published with {len(published)} course(s).{note}")
+    return version
+
+
+def _new_draft_action(request, version_id, programme=None):
+    """The new_draft POST action, shared by the landing and workspace.
+
+    Clones a published edition into a fresh draft via
+    :func:`publishing.clone_to_draft`; anything that is not a published
+    edition of the track (or of the pinned programme) 404s. Returns the draft.
+    """
+    guards = {"pk": version_id, "status": ProgrammeVersion.Status.PUBLISHED}
+    if programme is not None:
+        guards["programme"] = programme
+    else:
+        guards["programme__learning_track"] = Programme.Track.HYBRID
+    version = get_object_or_404(ProgrammeVersion, **guards)
+    draft = clone_to_draft(version)
+    messages.success(
+        request,
+        f"New draft edition v{draft.version} created — the published edition keeps serving enrolled learners.",
+    )
+    return draft
+
+
+def _create_course_in_open_draft(programme, form):
+    """Create the validated form's course in the programme's open draft.
+
+    Reuses the draft when one is open, exactly like every other authoring
+    entry point. Returns ``(course, created)`` where ``created`` says whether
+    a new draft edition had to be opened for it.
+    """
+    version, created = _ensure_draft_tracking(programme)
+    course = HybridCourse.objects.create(
+        programme_version=version,
+        code=_unique_slug(HybridCourse, "code", form.cleaned_data["title"], programme_version=version),
+        title=form.cleaned_data["title"],
+        description=form.cleaned_data["description"],
+        order=version.hybrid_courses.count() + 1,
+    )
+    return course, created
+
+
+@login_required
+@transaction.atomic
+def programme_detail(request, programme_id):
+    """The instructor workspace for one Theory & Practical programme (UI 2).
+
+    Reached from the landing's Manage programme action. Shows the programme's
+    editions and the selected edition's courses and statistics; edition
+    selection is read-only navigation, course creation reuses the landing's
+    form and guards, and publish / new-draft reuse the exact actions the
+    builder has always used — pinned to this programme.
+    """
+    _require_instructor(request.user)
+    programme = get_object_or_404(
+        Programme.objects.filter(learning_track=Programme.Track.HYBRID, is_active=True),
+        pk=programme_id,
+    )
+    # The hidden input carries the workspace's programme; the scoped queryset
+    # is the boundary: a posted pk for any other programme fails validation.
+    form = CourseCreateForm()
+    form.fields["programme"].queryset = Programme.objects.filter(pk=programme.pk)
+    form.fields["programme"].initial = programme.pk
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "create_course":
+            form = CourseCreateForm(request.POST)
+            form.fields["programme"].queryset = Programme.objects.filter(pk=programme.pk)
+            if form.is_valid():
+                course, created = _create_course_in_open_draft(programme, form)
+                messages.success(request, "Course created." if not created else "Course created in a new draft edition.")
+                return redirect("hybrid-course-edit", course_id=course.pk)
+            return render_student_page(
+                request, "hybrid/programme_detail.html", _workspace_context(request, programme, form), status=400,
+            )
+        if action == "publish_edition":
+            _publish_edition_action(request, request.POST.get("version_id"), programme=programme)
+            return redirect("hybrid-programme-detail", programme_id=programme.pk)
+        if action == "new_draft":
+            _new_draft_action(request, request.POST.get("version_id"), programme=programme)
+            return redirect("hybrid-programme-detail", programme_id=programme.pk)
+        return redirect("hybrid-programme-detail", programme_id=programme.pk)
+    return render_student_page(request, "hybrid/programme_detail.html", _workspace_context(request, programme, form))
+
+
+def _workspace_context(request, programme, form):
+    """Everything the workspace template needs, edition-scoped.
+
+    ``?edition=<version>`` selects which edition's courses and statistics are
+    shown; without it the programme's current edition (its open draft, else
+    its latest published edition, else the newest edition kept) is shown.
+    """
+    editions = []
+    for version in reversed(list(programme.versions.all())):
+        row = {
+            "version": version, "version_number": version.version, "status": version.status,
+            "published_at": version.published_at, **_edition_counts(version),
+        }
+        if version.status == ProgrammeVersion.Status.DRAFT:
+            row["blockers"] = edition_blockers(version)
+        editions.append(row)
+    current = _current_edition(programme)
+    if current is None and editions:
+        current = editions[0]["version"]
+    requested = request.GET.get("edition")
+    selected = None
+    if requested is not None:
+        selected = next((row for row in editions if str(row["version_number"]) == requested), None)
+    if selected is None:
+        selected = next((row for row in editions if current is not None and row["version"] is current), editions[0] if editions else None)
+    courses = []
+    if selected is not None:
+        for course in selected["version"].hybrid_courses.order_by("order", "title"):
+            modules = list(course.hybrid_modules.order_by("order", "title"))
+            courses.append({
+                "course": course,
+                "modules": len(modules),
+                "lessons": sum(len(module.hybrid_lessons.all()) for module in modules),
+                "blockers": course_blockers(course) if selected["status"] == ProgrammeVersion.Status.DRAFT else [],
+            })
+    return {
+        "programme": programme,
+        "form": form,
+        "editions": editions,
+        "has_open_draft": any(row["status"] == ProgrammeVersion.Status.DRAFT for row in editions),
+        "selected": selected,
+        "selected_is_draft": selected is not None and selected["status"] == ProgrammeVersion.Status.DRAFT,
+        "courses": courses,
+    }
 
 
 def _edition_counts(version):

@@ -9,6 +9,7 @@ from . import instructor_views
 
 urlpatterns = [
     path("", instructor_views.builder_index, name="hybrid-builder"),
+    path("programmes/<uuid:programme_id>/", instructor_views.programme_detail, name="hybrid-programme-detail"),
     path("courses/<uuid:course_id>/edit/", instructor_views.course_edit, name="hybrid-course-edit"),
     path("courses/<uuid:course_id>/journeys/", instructor_views.course_journeys, name="hybrid-course-journeys"),
     path("journeys/<uuid:journey_id>/", instructor_views.journey_detail, name="hybrid-journey-detail"),

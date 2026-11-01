@@ -1,0 +1,370 @@
+/* Instructor Programme Workspace (UI 2, approved prototype:
+   docs/ui-reference/icums_instructor_programme_workspace.html).
+
+   Scoped to .hyb-workspace and composed from the frozen Unfold palette
+   variables and the shared authoring-* design system: no new colours, fonts
+   or type sizes. Dark mode follows the shell's html.dark variables. The
+   modal chrome (.authoring-course-modal, .authoring-modal-head,
+   .authoring-modal-close) comes from instructor-theory-builder.css. */
+
+/* --- Breadcrumbs + back link ------------------------------------------------- */
+.hyb-workspace .ws-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.7rem;
+  color: var(--au-muted, var(--color-base-500));
+  font-size: 0.72rem;
+}
+
+.hyb-workspace .ws-crumbs a { color: var(--au-accent)!important; font-weight: 700; }
+.hyb-workspace .ws-crumbs a:hover { text-decoration: underline; }
+.hyb-workspace .ws-crumb-sep { color: var(--color-base-400); }
+.hyb-workspace .ws-crumb-here { color: var(--color-font-default-light); font-weight: 650; }
+html.dark .hyb-workspace .ws-crumb-here { color: var(--color-font-default-dark); }
+
+/* --- Status chips --------------------------------------------------------------- */
+.hyb-workspace .ws-chip {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0.22rem 0.55rem;
+  border-radius: 99px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.hyb-workspace .ws-chip--draft {
+  background: color-mix(in srgb, var(--color-warning-500, #c99a2e) 14%, transparent);
+  color: #92591b;
+}
+
+html.dark .hyb-workspace .ws-chip--draft {
+  background: color-mix(in srgb, var(--color-warning-500, #c99a2e) 22%, transparent);
+  color: #f2d889;
+}
+
+.hyb-workspace .ws-chip--published {
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+  color: #166534;
+}
+
+html.dark .hyb-workspace .ws-chip--published {
+  background: color-mix(in srgb, #22c55e 18%, transparent);
+  color: #86efac;
+}
+
+.hyb-workspace .ws-chip--retired {
+  background: color-mix(in srgb, var(--color-base-400, #94a3b8) 14%, transparent);
+  color: var(--color-base-500, #64748b);
+}
+
+html.dark .hyb-workspace .ws-chip--retired { color: var(--color-base-300, #cbd5e1); }
+
+.hyb-workspace .ws-chip--viewing {
+  background: color-mix(in srgb, var(--color-primary-600) 12%, transparent);
+  color: var(--color-primary-600);
+}
+
+html.dark .hyb-workspace .ws-chip--viewing {
+  background: color-mix(in srgb, var(--color-primary-500) 18%, transparent);
+  color: var(--color-primary-300);
+}
+
+.hyb-workspace .authoring-actions .ws-chip { margin-top: 0.35rem; }
+
+/* --- Overview tiles ------------------------------------------------------------------ */
+.hyb-workspace .ws-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.hyb-workspace .ws-stat { display: flex; align-items: center; gap: 0.8rem; padding: 1rem 1.1rem; }
+
+.hyb-workspace .ws-stat-icon {
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  flex: 0 0 2.3rem;
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--color-primary-600) 10%, transparent);
+  color: var(--color-primary-600);
+}
+
+html.dark .hyb-workspace .ws-stat-icon {
+  background: color-mix(in srgb, var(--color-primary-500) 16%, transparent);
+  color: var(--color-primary-400);
+}
+
+.hyb-workspace .ws-stat-figures { min-width: 0; }
+
+.hyb-workspace .ws-stat b {
+  display: block;
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.hyb-workspace .ws-stat-label {
+  display: block;
+  color: var(--color-font-subtle-light, var(--color-base-500));
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+html.dark .hyb-workspace .ws-stat-label { color: var(--color-font-subtle-dark, var(--color-base-400)); }
+.hyb-workspace .ws-stat-note { font-weight: 400; }
+
+/* --- Panels ------------------------------------------------------------------------------ */
+.hyb-workspace .ws-panel + .ws-panel { margin-top: 1.25rem; }
+
+/* --- Editions -------------------------------------------------------------------------------- */
+.hyb-workspace .ws-editions { display: grid; gap: 0.55rem; }
+
+.hyb-workspace .ws-edition {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--au-border, var(--color-base-200));
+  border-left: 3px solid transparent;
+  border-radius: 0.55rem;
+  background: var(--au-soft, var(--color-base-50));
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.hyb-workspace .ws-edition:hover { background: color-mix(in srgb, var(--au-accent, var(--color-primary-600)) 5%, var(--au-soft, var(--color-base-50))); }
+
+.hyb-workspace .ws-edition--viewing {
+  border-color: var(--au-accent, var(--color-primary-600));
+  background: color-mix(in srgb, var(--au-accent, var(--color-primary-600)) 7%, var(--au-soft, var(--color-base-50)));
+}
+
+.hyb-workspace .ws-edition--draft { border-left-color: var(--color-warning-500, #c99a2e); }
+.hyb-workspace .ws-edition--published { border-left-color: var(--color-success-500, #3d9970); }
+.hyb-workspace .ws-edition--retired { border-left-color: var(--color-base-400, #94a3b8); opacity: 0.62; }
+
+.hyb-workspace .ws-edition-ver { font-size: 0.7rem; font-weight: 800; color: var(--au-muted, var(--color-base-500)); }
+
+.hyb-workspace .ws-edition-what b { display: block; color: var(--color-font-default-light); font-size: 0.78rem; font-weight: 700; }
+html.dark .hyb-workspace .ws-edition-what b { color: var(--color-font-default-dark); }
+
+.hyb-workspace .ws-edition-what p {
+  margin: 0.1rem 0 0;
+  color: var(--au-muted, var(--color-base-500));
+  font-size: 0.72rem;
+}
+
+.hyb-workspace .ws-edition-tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.hyb-workspace .ws-inline-form { display: contents; }
+.hyb-workspace .ws-readonly-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--au-muted, var(--color-base-500));
+  font-size: 0.66rem;
+  font-weight: 650;
+}
+
+/* --- Publication readiness ----------------------------------------------------------------------- */
+.hyb-workspace .ws-readiness {
+  margin: -0.2rem 0 0 1.5rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--au-border, var(--color-base-200));
+  border-radius: 0.5rem;
+  background: var(--au-surface, #fff);
+}
+
+.hyb-workspace .ws-readiness-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.hyb-workspace .ws-readiness-marker {
+  display: grid;
+  place-items: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 50%;
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.hyb-workspace .ws-readiness--ready .ws-readiness-marker { background: var(--color-success-500, #3d9970); color: #fff; }
+
+.hyb-workspace .ws-readiness--blocked .ws-readiness-marker {
+  background: color-mix(in srgb, var(--color-warning-500, #c99a2e) 22%, transparent);
+  color: #92591b;
+}
+
+html.dark .hyb-workspace .ws-readiness--blocked .ws-readiness-marker { color: #f2d889; }
+
+.hyb-workspace .ws-readiness-details { margin-top: 0.45rem; }
+.hyb-workspace .ws-readiness-details summary {
+  cursor: pointer;
+  color: var(--au-accent, var(--color-primary-600));
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+.hyb-workspace .ws-readiness-details ul {
+  margin: 0.45rem 0 0;
+  padding-left: 1.15rem;
+  color: var(--au-muted, var(--color-base-500));
+  font-size: 0.68rem;
+  line-height: 1.6;
+}
+
+/* --- Read-only banner ------------------------------------------------------------------------------ */
+.hyb-workspace .ws-readonly-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--color-success-500, #3d9970) 40%, var(--au-border, var(--color-base-200)));
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, #22c55e 8%, var(--au-surface, #fff));
+  font-size: 0.74rem;
+}
+
+.hyb-workspace .ws-readonly-banner b { font-weight: 750; }
+.hyb-workspace .ws-banner-actions { margin-left: auto; }
+
+/* --- Course cards -------------------------------------------------------------------------------------- */
+.hyb-workspace .ws-course-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+  gap: 1.2rem;
+  margin-top: 1rem;
+}
+
+.hyb-workspace .ws-course-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  animation: app-rise 0.5s cubic-bezier(0.22, 0.9, 0.3, 1) backwards;
+}
+
+.hyb-workspace .ws-course-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--au-accent, var(--color-primary-600)) 35%, var(--au-border, var(--color-base-200)));
+  box-shadow: var(--shadow-lift, 0 12px 26px #1014261a);
+}
+
+.hyb-workspace .ws-course-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.hyb-workspace .ws-course-card h3 { margin: 0.05rem 0 0; font-size: 0.95rem; line-height: 1.3; }
+
+.hyb-workspace .ws-course-code {
+  margin: 0.15rem 0 0;
+  color: var(--au-muted, var(--color-base-500));
+  font-size: 0.66rem;
+}
+
+.hyb-workspace .ws-course-code code {
+  font: inherit;
+  padding: 0.08rem 0.35rem;
+  border: 1px solid var(--au-border, var(--color-base-200));
+  border-radius: 0.35rem;
+  background: var(--au-soft, var(--color-base-50));
+}
+
+.hyb-workspace .ws-course-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+  color: var(--au-muted, var(--color-base-500));
+  font-size: 0.68rem;
+}
+
+.hyb-workspace .ws-course-meta b { color: var(--color-font-default-light); font-weight: 650; }
+html.dark .hyb-workspace .ws-course-meta b { color: var(--color-font-default-dark); }
+
+.hyb-workspace .ws-course-notready { color: #92591b; font-weight: 700; }
+html.dark .hyb-workspace .ws-course-notready { color: #f2d889; }
+
+.hyb-workspace .ws-course-foot { margin-top: auto; display: flex; justify-content: flex-end; padding-top: 0.2rem; }
+.hyb-workspace .ws-course-foot .authoring-primary { text-decoration: none; gap: 0.4rem; }
+.hyb-workspace .ws-course-foot .authoring-secondary { cursor: default; }
+
+/* --- Empty states ------------------------------------------------------------------------------------------- */
+.hyb-workspace .ws-empty { padding: 3rem 1.5rem; text-align: center; }
+
+.hyb-workspace .ws-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  margin: 0 auto 0.8rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--au-accent, var(--color-primary-600)) 10%, transparent);
+  color: var(--au-accent, var(--color-primary-600));
+}
+
+.hyb-workspace .ws-empty h2 { margin: 0 0 0.3rem; font-size: 1rem; }
+.hyb-workspace .ws-empty p { max-width: 46ch; margin: 0 auto 1rem; color: var(--au-muted, var(--color-base-500)); font-size: 0.76rem; }
+.hyb-workspace .ws-empty-note { margin: 1rem 0 0; color: var(--au-muted, var(--color-base-500)); font-size: 0.74rem; text-align: center; }
+
+/* --- Dialog ---------------------------------------------------------------------------------------------------- */
+.hyb-workspace .ws-course-dialog .helptext { margin: -0.55rem 0 0.85rem; }
+.hyb-workspace .ws-modal-actions { margin-top: 1.1rem; }
+.hyb-workspace .ws-modal-actions .authoring-secondary { text-decoration: none; }
+
+/* Without JavaScript the dialog renders with the plain open attribute, which
+   places it in the page flow — centre it like the modal it becomes (Unfold's
+   own dialog rules apply a -50% translate, so anchor to the midpoint). */
+dialog.ws-course-dialog[open] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  translate: -50% -50%;
+  height: fit-content;
+}
+
+dialog.ws-course-dialog::backdrop { background: #0f172a80; }
+
+/* --- Responsive ---------------------------------------------------------------------------------------------------- */
+@media (max-width: 68rem) {
+  .hyb-workspace .ws-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 40rem) {
+  .hyb-workspace .ws-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+  .hyb-workspace .ws-stat { padding: 0.8rem 0.9rem; }
+  .hyb-workspace .ws-stat b { font-size: 1.2rem; }
+  .hyb-workspace .authoring-head { display: block; }
+  .hyb-workspace .authoring-actions { justify-content: flex-start; margin-top: 0.75rem; }
+  .hyb-workspace .ws-edition { grid-template-columns: auto minmax(0, 1fr); }
+  .hyb-workspace .ws-edition-tools { grid-column: 1 / -1; justify-content: flex-start; }
+  .hyb-workspace .ws-readiness { margin-left: 0; }
+  .hyb-workspace .ws-course-foot .authoring-primary { flex: 1; justify-content: center; }
+  .hyb-workspace .ws-modal-actions .authoring-primary { flex: 1; }
+  .hyb-workspace .ws-banner-actions { margin-left: 0; }
+}

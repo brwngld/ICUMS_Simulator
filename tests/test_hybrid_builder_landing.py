@@ -257,12 +257,12 @@ def test_creating_a_programme_requires_a_csrf_token(db):
 
 
 @pytest.mark.django_db
-def test_manage_programme_links_to_the_scoped_route(client, db):
+def test_manage_programme_opens_the_workspace(client, db):
     instructor = _instructor(db)
     programme, _ = _hybrid_programme("managed")
     client.force_login(instructor)
     html = client.get(reverse("hybrid-builder")).content.decode()
-    assert f'href="{reverse("hybrid-builder")}?programme={programme.pk}"' in html
+    assert f'href="{reverse("hybrid-programme-detail", args=[programme.pk])}"' in html
 
 
 @pytest.mark.django_db

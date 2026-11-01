@@ -1,0 +1,205 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Programme workspace · {{ programme.name }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Programme workspace{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/hybrid-programme-workspace.css' %}?v=20261101-1">{% endblock %}
+
+{% comment %}
+The instructor Programme Workspace (UI 2), reached from the Curriculum
+Builder landing's Manage programme action. Edition selection is read-only
+navigation (?edition=<version>); course creation reuses CourseCreateForm and
+the shared create_course path; publish / new-draft reuse the builder's exact
+POST actions pinned to this programme. Without JavaScript the Add course
+dialog renders open (it also reopens on validation errors).
+{% endcomment %}
+
+{% block content %}<div class="authoring hyb-workspace">
+  <a class="authoring-back-link" href="{% url 'hybrid-builder' %}">
+    <svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+    Curriculum Builder
+  </a>
+  <nav class="ws-crumbs" aria-label="Breadcrumb">
+    <a href="{% url 'hybrid-builder' %}">Curriculum Builder</a>
+    <span class="ws-crumb-sep" aria-hidden="true">→</span>
+    <span class="ws-crumb-here">{{ programme.name }}</span>
+  </nav>
+
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">Theory &amp; Practical · Programme</p>
+      <h1>{{ programme.name }}</h1>
+      <p>Programme code · <strong>{{ programme.code }}</strong> — {% if selected %}managing {{ selected.status }} edition v{{ selected.version_number }}.{% else %}no editions yet.{% endif %} Published editions stay read-only; retired editions are kept for the record.</p>
+    </div>
+    <div class="authoring-actions">
+      {% if selected %}<span class="ws-chip ws-chip--viewing">Managing v{{ selected.version_number }} · {{ selected.status|title }}</span>{% endif %}
+      {% for edition in editions %}<span class="ws-chip ws-chip--{{ edition.status }}">v{{ edition.version_number }} · {{ edition.status|title }}</span>{% endfor %}
+    </div>
+  </header>
+
+  {% if selected %}
+    <section class="ws-stat-grid" aria-label="Programme overview">
+      <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="book" %}</span><span class="ws-stat-figures"><b>{{ selected.courses }}</b><span class="ws-stat-label">Courses <span class="ws-stat-note">· edition v{{ selected.version_number }}</span></span></span></div>
+      <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="box" %}</span><span class="ws-stat-figures"><b>{{ selected.modules }}</b><span class="ws-stat-label">Modules <span class="ws-stat-note">· edition v{{ selected.version_number }}</span></span></span></div>
+      <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="layers" %}</span><span class="ws-stat-figures"><b>{{ selected.lessons }}</b><span class="ws-stat-label">Lessons <span class="ws-stat-note">· edition v{{ selected.version_number }}</span></span></span></div>
+      <div class="authoring-card ws-stat"><span class="ws-stat-icon"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 4 10 4.5L12 13 2 8.5Z"/><path d="M6 10.7V15c0 1.66 2.7 3 6 3s6-1.34 6-3v-4.3"/><path d="M22 8.5V13"/></svg></span><span class="ws-stat-figures"><b>{{ editions|length }}</b><span class="ws-stat-label">Editions kept</span></span></div>
+    </section>
+
+    <section class="authoring-card ws-panel" aria-label="Editions and publishing">
+      <div class="authoring-editor-header">
+        <div>
+          <h2>Editions &amp; publishing</h2>
+          <p>Publishing is all-or-nothing per edition. Select an edition to view its courses below.</p>
+        </div>
+        <span class="ws-chip ws-chip--viewing">{{ editions|length }} edition{{ editions|length|pluralize }}</span>
+      </div>
+      <div class="ws-editions">
+        {% for edition in editions %}
+          <div class="ws-edition ws-edition--{{ edition.status }}{% if edition == selected %} ws-edition--viewing{% endif %}">
+            <span class="ws-edition-ver">v{{ edition.version_number }}</span>
+            <div class="ws-edition-what">
+              <b>{{ edition.status|title }} edition{% if edition.status == "draft" %} — current{% endif %}</b>
+              <p>{{ edition.courses }} course{{ edition.courses|pluralize }} · {{ edition.modules }} module{{ edition.modules|pluralize }} · {{ edition.lessons }} lesson{{ edition.lessons|pluralize }}{% if edition.status == "published" and edition.published_at %} · published {{ edition.published_at|date:"j M Y" }}{% endif %}</p>
+            </div>
+            <div class="ws-edition-tools">
+              {% if edition.status == "draft" %}
+                <form method="post" action="{% url 'hybrid-programme-detail' programme.pk %}" class="ws-inline-form">{% csrf_token %}<input type="hidden" name="action" value="publish_edition"><input type="hidden" name="version_id" value="{{ edition.version.pk }}"><button class="authoring-primary" type="submit">Publish edition</button></form>
+              {% elif edition.status == "published" %}
+                <span class="ws-readonly-note"><svg class="ui-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Read-only</span>
+                {% if not has_open_draft %}
+                  <form method="post" action="{% url 'hybrid-programme-detail' programme.pk %}" class="ws-inline-form">{% csrf_token %}<input type="hidden" name="action" value="new_draft"><input type="hidden" name="version_id" value="{{ edition.version.pk }}"><button class="authoring-primary" type="submit">New draft from this edition</button></form>
+                {% endif %}
+              {% endif %}
+              <a class="authoring-secondary" href="?edition={{ edition.version_number }}" aria-pressed="{% if edition == selected %}true{% else %}false{% endif %}">{% if edition == selected %}Viewing courses{% else %}View courses{% endif %}</a>
+            </div>
+          </div>
+          {% if edition == selected and selected.status == "draft" %}
+            <div class="ws-readiness {% if selected.blockers %}ws-readiness--blocked{% else %}ws-readiness--ready{% endif %}">
+              <div class="ws-readiness-head"><span class="ws-readiness-marker" aria-hidden="true">{% if selected.blockers %}!{% else %}✓{% endif %}</span>
+                {% if selected.blockers %}Not ready to publish — resolve {{ selected.blockers|length }} item{{ selected.blockers|length|pluralize }} below{% if selected.courses %} ({{ selected.courses }} course{{ selected.courses|pluralize }} in the edition){% endif %}{% else %}Ready to publish — every course in this edition is ready{% endif %}
+              </div>
+              {% if selected.blockers %}
+                <details class="ws-readiness-details">
+                  <summary>Show details</summary>
+                  <ul>{% for blocker in selected.blockers %}<li>{{ blocker }}</li>{% endfor %}</ul>
+                </details>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="authoring-card ws-panel" aria-label="Courses">
+      <div class="authoring-editor-header">
+        <div>
+          <h2>Courses</h2>
+          <p>{% if selected.status == "draft" %}Courses in draft edition v{{ selected.version_number }} — editable until the edition publishes.{% elif selected.status == "published" %}Courses in published edition v{{ selected.version_number }} — read-only.{% else %}Courses in retired edition v{{ selected.version_number }} — kept for the record.{% endif %}</p>
+        </div>
+        <div class="authoring-actions">
+          {% if selected.status == "draft" %}
+            <a class="authoring-primary" href="?edition={{ selected.version_number }}&amp;new=course" data-open-course-dialog><svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>Add course</a>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if selected.status != "draft" %}
+        <div class="ws-readonly-banner">
+          <span>{% if selected.status == "published" %}<b>Viewing published edition v{{ selected.version_number }}.</b> Its courses are read-only — publishing made this edition the learners' copy.{% else %}<b>Viewing retired edition v{{ selected.version_number }}.</b> Retired editions are kept for the record and cannot be edited.{% endif %}</span>
+          <span class="ws-banner-actions"><a class="authoring-secondary" href="{% url 'hybrid-programme-detail' programme.pk %}">Back to the current edition</a></span>
+        </div>
+      {% endif %}
+
+      {% if courses %}
+        <div class="ws-course-grid">
+          {% for row in courses %}
+            <article class="authoring-card ws-course-card">
+              <div class="ws-course-top">
+                <div>
+                  <h3>{{ row.course.title }}</h3>
+                  <p class="ws-course-code">Course code · <code>{{ row.course.code }}</code></p>
+                </div>
+                <span class="ws-chip {% if row.course.is_published %}ws-chip--published{% else %}ws-chip--draft{% endif %}">{% if row.course.is_published %}Published{% else %}Draft{% endif %}</span>
+              </div>
+              <div class="ws-course-meta">
+                <span><b>{{ row.modules }}</b> module{{ row.modules|pluralize }}</span>
+                <span><b>{{ row.lessons }}</b> lesson{{ row.lessons|pluralize }}</span>
+                {% if selected_is_draft and row.blockers %}<span class="ws-course-notready">Not publish-ready</span>{% endif %}
+              </div>
+              <div class="ws-course-foot">
+                {% if selected.status == "draft" %}
+                  <a class="authoring-primary" href="{% url 'hybrid-course-edit' row.course.pk %}">Manage course<svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></a>
+                {% else %}
+                  <span class="authoring-secondary" title="Published editions are read-only">Manage course</span>
+                {% endif %}
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% elif selected.status == "draft" %}
+        <div class="authoring-card ws-empty">
+          <span class="ws-empty-icon" aria-hidden="true"><svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+          <h2>No courses in this edition yet</h2>
+          <p>The draft edition is empty. Add the first course to begin building this programme's curriculum.</p>
+          <a class="authoring-primary" href="?edition={{ selected.version_number }}&amp;new=course" data-open-course-dialog>Add course</a>
+        </div>
+      {% else %}
+        <p class="ws-empty-note">This edition holds no courses.</p>
+      {% endif %}
+    </section>
+  {% else %}
+    <section class="authoring-card ws-empty">
+      <span class="ws-empty-icon" aria-hidden="true"><svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 4 10 4.5L12 13 2 8.5Z"/><path d="M6 10.7V15c0 1.66 2.7 3 6 3s6-1.34 6-3v-4.3"/><path d="M22 8.5V13"/></svg></span>
+      <h2>No editions yet</h2>
+      <p>This programme has no editions. Create one from the Theory &amp; Practical builder.</p>
+      <a class="authoring-secondary" href="{% url 'hybrid-builder' %}">Back to Curriculum Builder</a>
+    </section>
+  {% endif %}
+
+  <dialog id="course-dialog" class="authoring-course-modal ws-course-dialog" aria-labelledby="course-dialog-title" {% if form.errors %}open data-has-errors{% elif request.GET.new == "course" %}open{% endif %}>
+    <form method="post" action="{% url 'hybrid-programme-detail' programme.pk %}{% if selected %}?edition={{ selected.version_number }}{% endif %}" class="authoring-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_course">
+      {{ form.programme.as_hidden }}
+      <div class="authoring-modal-head">
+        <div>
+          <h2 id="course-dialog-title">Add course</h2>
+          <p>{% if selected %}The course is created inside draft edition v{{ selected.version_number }}.{% else %}The course is created inside the programme's draft edition.{% endif %}</p>
+        </div>
+        <button class="authoring-modal-close" type="button" data-close-course-dialog aria-label="Close dialog">×</button>
+      </div>
+      {{ form.title.as_field_group }}
+      <p class="helptext">Shown to instructors and learners across the programme.</p>
+      {{ form.description.as_field_group }}
+      <div class="form-actions ws-modal-actions">
+        <a class="authoring-secondary" href="{% url 'hybrid-programme-detail' programme.pk %}{% if selected %}?edition={{ selected.version_number }}{% endif %}">Cancel</a>
+        <button class="authoring-primary" type="submit">Create course</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+  (() => {
+    const dialog = document.getElementById("course-dialog");
+    if (!dialog) return;
+    document.querySelectorAll("[data-open-course-dialog]").forEach((el) => {
+      el.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (!dialog.open) dialog.showModal();
+      });
+    });
+    document.querySelectorAll("[data-close-course-dialog]").forEach((el) => {
+      el.addEventListener("click", () => dialog.close());
+    });
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+    if (dialog.open) {
+      // Promote a server-rendered open dialog (no-JS fallback or validation
+      // errors) to a modal one, and land focus on the first invalid field.
+      dialog.close();
+      dialog.showModal();
+      const invalid = dialog.querySelector('[aria-invalid="true"]');
+      (invalid || dialog.querySelector("input:not([type=hidden]), textarea")).focus();
+    }
+  })();
+  </script>
+</div>{% endblock %}

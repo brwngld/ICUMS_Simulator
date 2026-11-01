@@ -78,7 +78,7 @@ experience and lives in builder_programme.html.
               {% endfor %}
             </div>
             <div class="hyb-card-foot">
-              <a class="authoring-primary" href="{% url 'hybrid-builder' %}?programme={{ row.programme.pk }}">Manage programme<svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></a>
+              <a class="authoring-primary" href="{% url 'hybrid-programme-detail' row.programme.pk %}">Manage programme<svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></a>
             </div>
           </article>
         {% endfor %}
