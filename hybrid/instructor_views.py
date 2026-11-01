@@ -12,7 +12,7 @@ from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.text import slugify
@@ -286,11 +286,18 @@ def _course_row(course):
 @login_required
 @transaction.atomic
 def builder_index(request):
-    """Every Theory & Practical programme, its editions and courses."""
+    """The Theory & Practical programme dashboard, or one programme's page.
+
+    Without ``?programme=`` this is the approved landing (UI 1): summary
+    statistics, search, a Draft/Published filter, programme cards and the
+    New-programme dialog — the same ``ProgrammeCreateForm`` and
+    ``create_programme`` action as before. ``?programme=<pk>`` renders the
+    long-standing programme-scoped authoring page unchanged.
+    """
     _require_instructor(request.user)
     programmes = (
         Programme.objects.filter(learning_track=Programme.Track.HYBRID, is_active=True)
-        .prefetch_related("versions__hybrid_courses")
+        .prefetch_related("versions__hybrid_courses__hybrid_modules__hybrid_lessons")
         .order_by("name")
     )
     action = request.POST.get("action") if request.method == "POST" else None
@@ -310,6 +317,26 @@ def builder_index(request):
         form.fields["programme"].queryset = Programme.objects.filter(pk=selected.pk)
         form.fields["programme"].initial = selected.pk
         context["selected_programme"] = selected
+    template_name = "hybrid/builder_programme.html" if selected is not None else "hybrid/builder_index.html"
+    # Landing context: search, status filter and summary statistics. The
+    # statistics count each programme's current edition — the open draft if one
+    # exists, otherwise its latest published edition — so a programme cloned
+    # into a new draft is never counted twice and retired editions never count.
+    query = (request.GET.get("q") or "").strip()
+    status_filter = request.GET.get("status") or ""
+    total_count = programmes.count()
+    visible = programmes
+    if query:
+        visible = visible.filter(Q(name__icontains=query) | Q(code__icontains=query))
+    if status_filter in {ProgrammeVersion.Status.DRAFT, ProgrammeVersion.Status.PUBLISHED}:
+        visible = visible.filter(versions__status=status_filter).distinct()
+    context.update(
+        query=query,
+        status_filter=status_filter,
+        total_count=total_count,
+        programme_rows=[_landing_row(p) for p in visible],
+        landing_stats=_landing_stats(programmes),
+    )
     if request.method == "POST":
         if action == "create_programme":
             if programme_form.is_valid():
@@ -319,7 +346,7 @@ def builder_index(request):
                 version = _draft_version(programme)
                 messages.success(request, f"Programme created in a new draft edition v{version.version}.")
                 return redirect("hybrid-builder")
-            return render_student_page(request, "hybrid/builder_index.html", context, status=400)
+            return render_student_page(request, template_name, context, status=400)
         if action == "publish_edition":
             version = get_object_or_404(
                 ProgrammeVersion,
@@ -360,8 +387,55 @@ def builder_index(request):
             )
             messages.success(request, "Course created." if not created else "Course created in a new draft edition.")
             return redirect("hybrid-course-edit", course_id=course.pk)
-        return render_student_page(request, "hybrid/builder_index.html", context, status=400)
-    return render_student_page(request, "hybrid/builder_index.html", context)
+        return render_student_page(request, template_name, context, status=400)
+    return render_student_page(request, template_name, context)
+
+
+def _edition_counts(version):
+    """Course, module and lesson totals for one edition, from the prefetch."""
+    courses = list(version.hybrid_courses.all())
+    modules = sum(len(course.hybrid_modules.all()) for course in courses)
+    lessons = sum(
+        len(module.hybrid_lessons.all())
+        for course in courses
+        for module in course.hybrid_modules.all()
+    )
+    return {"courses": len(courses), "modules": modules, "lessons": lessons}
+
+
+def _landing_row(programme):
+    """One card's data: every non-retired edition, newest first, with counts."""
+    editions = [
+        {"version": version.version, "status": version.status, **_edition_counts(version)}
+        for version in reversed(list(programme.versions.all()))
+        if version.status != ProgrammeVersion.Status.RETIRED
+    ]
+    return {"programme": programme, "editions": editions}
+
+
+def _current_edition(programme):
+    """The edition the tiles count: the open draft, else the latest published.
+
+    Picks the same draft ``_ensure_draft_tracking`` reuses (the first under the
+    model's version ordering), so what the tiles count is what course creation
+    lands in."""
+    drafts = [v for v in programme.versions.all() if v.status == ProgrammeVersion.Status.DRAFT]
+    if drafts:
+        return drafts[0]
+    published = [v for v in programme.versions.all() if v.status == ProgrammeVersion.Status.PUBLISHED]
+    return max(published, key=lambda v: v.version) if published else None
+
+
+def _landing_stats(programmes):
+    """Programme, course, module and lesson totals across current editions."""
+    totals = {"programmes": 0, "courses": 0, "modules": 0, "lessons": 0}
+    for programme in programmes:
+        totals["programmes"] += 1
+        edition = _current_edition(programme)
+        if edition is not None:
+            for key, value in _edition_counts(edition).items():
+                totals[key] += value
+    return totals
 
 
 def _ensure_draft_tracking(programme):

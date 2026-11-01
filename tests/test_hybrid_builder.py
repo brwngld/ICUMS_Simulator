@@ -275,8 +275,9 @@ def test_a_module_with_lessons_cannot_be_silently_deleted(client, db):
 
 @pytest.mark.django_db
 def test_a_selected_programme_is_carried_instead_of_asked_again(client, db):
-    """Clicking through from a programme row scopes the create-course card: the
-    page carries the programme it already knows instead of rendering a select."""
+    """Clicking through from a programme card scopes the create-course page: the
+    scoped page carries the programme it already knows instead of rendering a
+    select, and the approved landing carries no course form at all."""
     instructor = _instructor(db)
     programme, _ = _hybrid_programme("carried")
     client.force_login(instructor)
@@ -284,7 +285,9 @@ def test_a_selected_programme_is_carried_instead_of_asked_again(client, db):
     assert "<select" not in scoped
     assert 'name="programme"' in scoped
     assert programme.name in scoped
-    assert "<select" in client.get(reverse("hybrid-builder")).content.decode()
+    landing = client.get(reverse("hybrid-builder")).content.decode()
+    assert "Create course" not in landing
+    assert "<select" not in landing
 
 
 @pytest.mark.django_db

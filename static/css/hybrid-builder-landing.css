@@ -1,0 +1,321 @@
+/* Theory & Practical builder landing (UI 1, approved prototype:
+   docs/ui-reference/icums_instructor_curriculum_builder.html).
+
+   Scoped to .hyb-landing and composed from the frozen Unfold palette
+   variables and the shared authoring-* design system: no new colours, fonts
+   or type sizes. Dark mode follows the shell's html.dark variables. */
+
+/* --- Summary tiles --------------------------------------------------------- */
+.hyb-landing .stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.hyb-landing .stat {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 1rem 1.1rem;
+}
+
+.hyb-landing .stat-icon {
+  display: grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  flex: 0 0 2.3rem;
+  border-radius: 0.65rem;
+  background: color-mix(in srgb, var(--color-primary-600) 10%, transparent);
+  color: var(--color-primary-600);
+}
+
+html.dark .hyb-landing .stat-icon {
+  background: color-mix(in srgb, var(--color-primary-500) 16%, transparent);
+  color: var(--color-primary-400);
+}
+
+.hyb-landing .stat-figures { min-width: 0; }
+
+.hyb-landing .stat b {
+  display: block;
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.hyb-landing .stat-label {
+  display: block;
+  color: var(--color-font-subtle-light, var(--color-base-500));
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+html.dark .hyb-landing .stat-label { color: var(--color-font-subtle-dark, var(--color-base-400)); }
+
+.hyb-landing .stat-note { font-weight: 400; }
+
+/* --- Toolbar: search + status filter ---------------------------------------- */
+.hyb-landing .hyb-toolbar { padding: 0.7rem 0.8rem; }
+
+.hyb-landing .hyb-toolbar-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.hyb-landing .hyb-search {
+  position: relative;
+  flex: 1 1 16rem;
+  min-width: 13rem;
+}
+
+.hyb-landing .hyb-search-icon {
+  position: absolute;
+  left: 0.6rem;
+  top: 50%;
+  translate: 0 -50%;
+  display: inline-flex;
+  color: var(--color-base-400);
+}
+
+.hyb-landing .hyb-search-icon .ui-icon { width: 0.85rem; height: 0.85rem; }
+
+.hyb-landing .hyb-search input {
+  width: 100%;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.7rem 0.45rem 2rem;
+  font-size: 0.72rem;
+}
+
+.hyb-landing .hyb-segments {
+  display: inline-flex;
+  gap: 0.15rem;
+  padding: 0.22rem;
+  border: 1px solid var(--au-border);
+  border-radius: 0.6rem;
+  background: var(--au-soft);
+}
+
+.hyb-landing .hyb-segments button {
+  min-height: 1.85rem;
+  padding: 0.2rem 0.8rem;
+  border: 0;
+  border-radius: 0.42rem;
+  background: transparent;
+  color: var(--au-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.hyb-landing .hyb-segments button:hover { color: var(--au-accent); }
+
+.hyb-landing .hyb-segments button[aria-pressed="true"] {
+  background: var(--au-surface);
+  color: var(--au-accent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.hyb-landing .hyb-count {
+  margin-left: auto;
+  color: var(--au-muted);
+  font-size: 0.68rem;
+}
+
+/* --- Programme cards ---------------------------------------------------------- */
+.hyb-landing .hyb-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+  gap: 1.2rem;
+  margin-top: 1rem;
+}
+
+.hyb-landing .hyb-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  animation: app-rise 0.5s cubic-bezier(0.22, 0.9, 0.3, 1) backwards;
+}
+
+.hyb-landing .hyb-card:nth-child(1) { animation-delay: 0.05s; }
+.hyb-landing .hyb-card:nth-child(2) { animation-delay: 0.12s; }
+.hyb-landing .hyb-card:nth-child(3) { animation-delay: 0.19s; }
+.hyb-landing .hyb-card:nth-child(4) { animation-delay: 0.26s; }
+.hyb-landing .hyb-card:nth-child(n + 5) { animation-delay: 0.33s; }
+
+.hyb-landing .hyb-card:hover {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--au-accent) 35%, var(--au-border));
+  box-shadow: var(--shadow-lift);
+}
+
+.hyb-landing .hyb-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.hyb-landing .hyb-card h3 { margin: 0.05rem 0 0; font-size: 0.95rem; line-height: 1.3; }
+
+.hyb-landing .hyb-card-code {
+  margin: 0.15rem 0 0;
+  color: var(--au-muted);
+  font-size: 0.66rem;
+}
+
+.hyb-landing .hyb-card-code code {
+  font: inherit;
+  padding: 0.08rem 0.35rem;
+  border: 1px solid var(--au-border);
+  border-radius: 0.35rem;
+  background: var(--au-soft);
+}
+
+.hyb-landing .hyb-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: flex-end;
+}
+
+.hyb-landing .hyb-chip {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0.22rem 0.55rem;
+  border-radius: 99px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.hyb-landing .hyb-chip--draft {
+  background: color-mix(in srgb, var(--color-warning-500, #c99a2e) 14%, transparent);
+  color: #92591b;
+}
+
+html.dark .hyb-landing .hyb-chip--draft {
+  background: color-mix(in srgb, var(--color-warning-500, #c99a2e) 22%, transparent);
+  color: #f2d889;
+}
+
+.hyb-landing .hyb-chip--published {
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+  color: #166534;
+}
+
+html.dark .hyb-landing .hyb-chip--published {
+  background: color-mix(in srgb, #22c55e 18%, transparent);
+  color: #86efac;
+}
+
+.hyb-landing .hyb-editions { display: grid; gap: 0.45rem; }
+
+.hyb-landing .hyb-edition {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--au-border);
+  border-left: 3px solid transparent;
+  border-radius: 0.5rem;
+  background: var(--au-soft);
+}
+
+.hyb-landing .hyb-edition--draft { border-left-color: var(--color-warning-500, #c99a2e); }
+.hyb-landing .hyb-edition--published { border-left-color: var(--color-success-500, #3d9970); }
+
+.hyb-landing .hyb-edition-ver { font-size: 0.66rem; font-weight: 800; color: var(--au-muted); }
+
+.hyb-landing .hyb-edition p {
+  margin: 0;
+  color: var(--au-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.hyb-landing .hyb-edition b { color: var(--color-font-default-light); font-weight: 650; }
+html.dark .hyb-landing .hyb-edition b { color: var(--color-font-default-dark); }
+
+.hyb-landing .hyb-card-foot {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.2rem;
+}
+
+.hyb-landing .hyb-card-foot .authoring-primary { text-decoration: none; gap: 0.4rem; }
+
+/* --- Empty and no-results states ------------------------------------------------ */
+.hyb-landing .hyb-empty {
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.hyb-landing .hyb-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 3.2rem;
+  height: 3.2rem;
+  margin: 0 auto 0.8rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--au-accent) 10%, transparent);
+  color: var(--au-accent);
+}
+
+.hyb-landing .hyb-empty h2 { margin: 0 0 0.3rem; font-size: 1rem; }
+
+.hyb-landing .hyb-empty p {
+  max-width: 44ch;
+  margin: 0 auto 1rem;
+  color: var(--au-muted);
+  font-size: 0.76rem;
+}
+
+/* --- New programme dialog --------------------------------------------------------- */
+/* The modal chrome (.authoring-course-modal, .authoring-modal-head,
+   .authoring-modal-close) comes from instructor-theory-builder.css. */
+dialog.hyb-programme-dialog::backdrop { background: #0f172a80; }
+
+/* Without JavaScript the dialog renders with the plain open attribute, which
+   places it in the page flow — centre it like the modal it becomes (Unfold's
+   own dialog rules apply a -50% translate, so anchor to the midpoint). */
+dialog.hyb-programme-dialog[open] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  translate: -50% -50%;
+  height: fit-content;
+}
+
+.hyb-landing .hyb-modal-body { margin-top: 0.25rem; }
+
+.hyb-landing .hyb-modal-body .helptext { margin: -0.55rem 0 0.85rem; }
+
+.hyb-landing .hyb-modal-actions { margin-top: 1.1rem; }
+
+.hyb-landing .hyb-modal-actions .authoring-secondary { text-decoration: none; }
+
+/* --- Responsive ---------------------------------------------------------------- */
+@media (max-width: 68rem) {
+  .hyb-landing .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 40rem) {
+  .hyb-landing .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+  .hyb-landing .stat { padding: 0.8rem 0.9rem; }
+  .hyb-landing .stat b { font-size: 1.2rem; }
+  .hyb-landing .hyb-count { flex-basis: 100%; margin-left: 0; }
+  .hyb-landing .hyb-segments { width: 100%; justify-content: stretch; }
+  .hyb-landing .hyb-segments button { flex: 1; }
+  .hyb-landing .hyb-card-foot .authoring-primary { flex: 1; }
+  .hyb-landing .hyb-modal-actions .authoring-primary { flex: 1; }
+}
