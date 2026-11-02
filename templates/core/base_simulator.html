@@ -73,13 +73,15 @@ that do not set them.
     html.dark .sim-skip-link { background: var(--color-base-800, #1e293b); color: var(--color-font-default-dark, #cbd5e1); }
     .sim-skip-link:focus { top: 1rem; }
     /* Identity row above the menu (reference: the official top bar carries the
-       crest and wordmark). Same surfaces as the menu row below it. */
-    .sim-brandbar { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; max-width: 100rem; margin: 0 auto .5rem; width: 100%; padding: .45rem .7rem; background: #fff; border: 1px solid #e2e8f0; border-radius: .75rem; }
+       crest and wordmark). Same surfaces as the menu row below it. The row has
+       no bottom padding: the menu tabs sit on the card's bottom border, which
+       is the baseline they underline. */
+    .sim-brandbar { display: flex; flex-wrap: wrap; align-items: center; gap: .8rem; max-width: 100rem; margin: 0 auto .5rem; width: 100%; padding: .45rem .7rem 0; background: #fff; border: 1px solid #e2e8f0; border-radius: .75rem; }
     html.dark .sim-brandbar { background: #172033; border-color: #2b3950; }
-    .sim-brand-logo { display: flex; align-items: center; padding: .1rem .3rem; border-radius: .5rem; }
+    .sim-brand-logo { display: flex; align-items: center; padding: .1rem .3rem .5rem; border-radius: .5rem; }
     html.dark .sim-brand-logo { background: #fff; }
-    .sim-brand-logo img { display: block; height: 2.7rem; width: auto; }
-    .sim-brand-side { display: flex; align-items: center; gap: .45rem; margin-left: auto; flex-wrap: wrap; }
+    .sim-brand-logo img { display: block; height: 1.55rem; width: auto; }
+    .sim-brand-side { display: flex; align-items: center; gap: .45rem; margin-left: auto; margin-bottom: .45rem; flex-wrap: wrap; }
     .sim-brand-side form { display: flex; }
     @media (max-width: 40rem) { .sim-brand-side { margin-left: 0; } }
     /* Header identity (replaces the admin greeting): same eyebrow/title
@@ -89,34 +91,43 @@ that do not set them.
     .sim-header-eyebrow:empty { display: none; }
     .sim-header-title { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Service-area menu, now carried inside the identity row: one line,
-       never wrapping; the arrows page through it when it overflows. */
-    .sim-brand-nav { display: flex; align-items: center; gap: .2rem; flex: 1 1 auto; min-width: 0; }
-    /* Logged-out stand-in for the service-area menu: same metrics, but it
-       sits beside the logo rather than stretching across the row. */
-    .sim-more-info { flex: 0 0 auto; display: flex; align-items: center; padding: .42rem .7rem; border-radius: .5rem; font-size: .76rem; font-weight: 650; color: #475569; text-decoration: none; white-space: nowrap; }
+       never wrapping; the arrows page through it when it overflows. The zero
+       flex-basis is what keeps it on the crest's line — with an auto basis the
+       row's full content width forces flex-wrap to drop it to a second line
+       before any shrinking happens. Stretches to the card's bottom border so
+       the tabs reach their baseline. */
+    .sim-brand-nav { display: flex; align-items: stretch; align-self: stretch; gap: .2rem; flex: 1 1 0; min-width: 0; }
+    /* Logged-out stand-in for the service-area menu: a tab of the same
+       metrics, but it sits beside the crest rather than stretching across the row. */
+    .sim-more-info { flex: 0 0 auto; align-self: center; display: flex; align-items: center; padding: .55rem .85rem; border-radius: .45rem .45rem 0 0; font-size: .8rem; font-weight: 650; color: #475569; text-decoration: none; white-space: nowrap; }
     html.dark .sim-more-info { color: #aab4ca; }
-    .sim-more-info:hover { color: #4236b6; background: #eef0fd; }
-    html.dark .sim-more-info:hover { color: var(--color-primary-300); background: var(--color-primary-950); }
-    .sim-nav-arrow { flex: none; display: flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; padding: 0; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; color: #475569; cursor: pointer; }
+    .sim-more-info:hover { color: #4236b6; }
+    html.dark .sim-more-info:hover { color: var(--color-primary-300); }
+    .sim-nav-arrow { flex: none; align-self: center; display: flex; align-items: center; justify-content: center; width: 1.6rem; height: 1.6rem; padding: 0; border: 1px solid #e2e8f0; border-radius: .5rem; background: #fff; color: #475569; cursor: pointer; }
     html.dark .sim-nav-arrow { background: #172033; border-color: #2b3950; color: #aab4ca; }
     .sim-nav-arrow:hover { color: #4236b6; background: #eef0fd; }
     html.dark .sim-nav-arrow:hover { color: var(--color-primary-300); background: var(--color-primary-950); }
     .sim-nav-arrow[hidden] { display: none; }
+    /* While the row overflows both arrow slots keep their width, even the one
+       that is not applicable at this end: appearing and disappearing from the
+       same flex line takes width away from the menu and puts it back, which
+       re-cuts the label the last press had just revealed. */
+    .sim-nav-arrow.is-ghost { visibility: hidden; }
     .sim-nav-arrow .material-symbols-outlined { font-size: 1.1rem; }
-    /* Logged-in simulator top menu (reference 004): a single-line menu
-       bar — items share the row evenly and never wrap into sentences;
-       narrow screens scroll the row instead. */
-    .sim-top-nav { display: flex; flex-wrap: nowrap; align-items: stretch; justify-content: space-between; gap: .15rem; flex: 1 1 auto; min-width: 0; margin: 0; padding: .1rem; overflow-x: auto; scrollbar-width: none; }
-    .sim-top-nav a { flex: 1 0 auto; display: flex; align-items: center; justify-content: center; padding: .42rem .5rem; border-radius: .5rem; font-size: .76rem; font-weight: 650; color: #475569; text-decoration: none; white-space: nowrap; }
+    /* Logged-in simulator top menu (reference 004): a real tab bar — items
+       take their natural width, left-aligned, and sit on the card's bottom
+       border; only the current one marks itself, with the accent underline.
+       Narrow screens scroll the row instead. */
+    .sim-top-nav { display: flex; flex-wrap: nowrap; align-items: stretch; justify-content: flex-start; gap: .15rem; flex: 1 1 auto; min-width: 0; margin: 0; padding: .1rem 0 0; overflow-x: auto; scrollbar-width: none; }
+    .sim-top-nav a { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; padding: .55rem .85rem; border-radius: .45rem .45rem 0 0; font-size: .8rem; font-weight: 650; color: #475569; text-decoration: none; white-space: nowrap; }
     html.dark .sim-top-nav a { color: #aab4ca; }
-    .sim-top-nav a:hover { color: #4236b6; background: #eef0fd; }
-    html.dark .sim-top-nav a:hover { color: var(--color-primary-300); background: var(--color-primary-950); }
-    .sim-top-nav a[aria-current="page"] { color: #4236b6; background: #eef0fd; box-shadow: inset 0 -2px 0 #4236b6; }
-    html.dark .sim-top-nav a[aria-current="page"] { color: var(--color-primary-300); background: var(--color-primary-900); box-shadow: inset 0 -2px 0 var(--color-primary-400); }
-    @media (max-width: 60rem) { .sim-top-nav { justify-content: flex-start; } .sim-top-nav a { flex: 0 0 auto; padding: .42rem .8rem; } }
+    .sim-top-nav a:hover { color: #4236b6; }
+    html.dark .sim-top-nav a:hover { color: var(--color-primary-300); }
+    .sim-top-nav a[aria-current="page"] { color: #4236b6; box-shadow: inset 0 -2px 0 #4236b6; }
+    html.dark .sim-top-nav a[aria-current="page"] { color: var(--color-primary-300); box-shadow: inset 0 -2px 0 var(--color-primary-400); }
     /* Narrow screens: the menu takes the whole second line, so the lockup
        and the sign-in control keep the first. */
-    @media (max-width: 60rem) { .sim-brand-nav { order: 2; flex: 1 0 100%; } .sim-brand-side { order: 1; } }
+    @media (max-width: 60rem) { .sim-brand-nav { order: 2; flex: 1 0 100%; } .sim-brand-side { order: 1; margin-bottom: 0; } .sim-brand-logo { padding-bottom: .1rem; } }
   </style>
   {% block simulator_style %}{% endblock %}
 {% endblock %}
@@ -159,12 +170,29 @@ that do not set them.
         var scrollable = nav.scrollWidth - nav.clientWidth > 1;
         Array.prototype.forEach.call(arrows, function (arrow) {
           var direction = Number(arrow.getAttribute("data-sim-nav"));
-          arrow.hidden = !scrollable || (direction < 0 ? nav.scrollLeft <= 1 : nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 1);
+          arrow.hidden = !scrollable;
+          arrow.classList.toggle("is-ghost", direction < 0 ? nav.scrollLeft <= 1 : nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 1);
         });
+      };
+      // One press brings the next cut-off tab fully into view. A fixed share of
+      // the row width overshoots: the whole overflow is usually smaller than
+      // one press, which lands mid-label on both edges at once.
+      var step = function (direction) {
+        var box = nav.getBoundingClientRect();
+        var delta = 0;
+        Array.prototype.forEach.call(nav.querySelectorAll("a"), function (tab) {
+          var edge = tab.getBoundingClientRect();
+          if (direction > 0) {
+            if (!delta && edge.right > box.right + 1) delta = edge.right - box.right;
+          } else if (edge.left < box.left - 1) {
+            delta = edge.left - box.left;
+          }
+        });
+        return delta;
       };
       Array.prototype.forEach.call(arrows, function (arrow) {
         arrow.addEventListener("click", function () {
-          nav.scrollBy({ left: nav.clientWidth * 0.75 * Number(arrow.getAttribute("data-sim-nav")), behavior: "smooth" });
+          nav.scrollBy({ left: step(Number(arrow.getAttribute("data-sim-nav"))), behavior: "smooth" });
         });
       });
       nav.addEventListener("scroll", refresh);
