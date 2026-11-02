@@ -1,0 +1,54 @@
+/* Course and Module workspaces (UI 3, approved prototype:
+   docs/ui-reference/icums_instructor_course_workspace.html).
+
+   Both pages reuse the Programme Workspace's .hyb-workspace component styles
+   (static/css/hybrid-programme-workspace.css): stat tiles, edition-style
+   chips, cards, readiness strip and empty states. This file only adds what
+   those pages need beyond it — ordering controls, removal-confirmation
+   dialogs, and dialog centring for every dialog on these pages. */
+
+/* Every dialog on these pages centres like the modals they become — with or
+   without JavaScript (Unfold's own dialog rules apply a -50% translate, so
+   anchor to the midpoint). */
+.hyb-workspace dialog[open] {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  margin: 0;
+  translate: -50% -50%;
+  height: fit-content;
+}
+
+.hyb-workspace dialog::backdrop { background: #0f172a80; }
+
+.hyb-workspace .ws-confirm-dialog { width: min(92vw, 30rem); }
+
+/* Ordering controls on module and lesson cards. */
+.hyb-workspace .ws-move { display: inline-flex; gap: 0.25rem; margin-right: auto; }
+
+.hyb-workspace .ws-move button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--au-border, var(--color-base-200));
+  border-radius: 0.45rem;
+  background: var(--au-surface, #fff);
+  color: var(--au-muted, var(--color-base-500));
+  cursor: pointer;
+}
+
+.hyb-workspace .ws-move button:hover { color: var(--au-accent, var(--color-primary-600)); border-color: var(--au-accent, var(--color-primary-600)); }
+.hyb-workspace .ws-move button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.hyb-workspace .ws-confirm-name { font-weight: 700; }
+
+.hyb-workspace .ws-modal-actions { margin-top: 1.1rem; }
+.hyb-workspace .ws-modal-actions .authoring-secondary { text-decoration: none; }
+.hyb-workspace .ws-course-dialog .helptext { margin: -0.55rem 0 0.85rem; }
+
+@media (max-width: 40rem) {
+  .hyb-workspace .ws-course-foot .authoring-primary { flex: 1; justify-content: center; }
+  .hyb-workspace .ws-modal-actions .authoring-primary { flex: 1; }
+}

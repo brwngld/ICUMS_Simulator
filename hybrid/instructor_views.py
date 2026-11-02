@@ -599,6 +599,34 @@ def course_edit(request, course_id):
     _require_instructor(request.user)
     course = _draft_course(course_id)
     modules = list(course.hybrid_modules.order_by("order", "title"))
+    form = CourseEditForm(initial={"title": course.title, "description": course.description})
+    module_form = ModuleForm()
+    journey_form = JourneyCreateForm()
+
+    def _render(status=200):
+        return render_student_page(request, "hybrid/course_detail.html", {
+            "course": course,
+            "form": form,
+            "modules": modules,
+            "module_form": module_form,
+            "journey_form": journey_form,
+            "journeys": [
+                {
+                    "journey": journey,
+                    "issue_count": len(journey_services.structural_issues(journey))
+                    + len(journey_services.unbound_condition_issues(journey)),
+                }
+                for journey in course.practical_journeys.order_by("order", "title")
+            ],
+            "lesson_count": sum(module.hybrid_lessons.count() for module in modules),
+            "blockers": course_blockers(course),
+            # ?confirm=module-<pk> opens that module's removal confirmation
+            # without JavaScript; with JavaScript the Remove control opens the
+            # same dialog directly.
+            "confirm_module": next(
+                (module for module in modules if request.GET.get("confirm") == f"module-{module.pk}"), None,
+            ),
+        }, status=status)
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -624,19 +652,19 @@ def course_edit(request, course_id):
                 messages.error(request, "The journey needs a title.")
             return redirect("hybrid-course-edit", course_id=course.pk)
         if action == "create_module":
-            form = ModuleForm(request.POST)
-            if form.is_valid():
+            module_form = ModuleForm(request.POST)
+            if module_form.is_valid():
                 HybridModule.objects.create(
                     course=course,
-                    code=_unique_slug(HybridModule, "code", form.cleaned_data["title"], course=course),
-                    title=form.cleaned_data["title"],
-                    description=form.cleaned_data["description"],
+                    code=_unique_slug(HybridModule, "code", module_form.cleaned_data["title"], course=course),
+                    title=module_form.cleaned_data["title"],
+                    description=module_form.cleaned_data["description"],
                     order=course.hybrid_modules.count() + 1,
                 )
                 messages.success(request, "Module created.")
                 return redirect("hybrid-course-edit", course_id=course.pk)
-            messages.error(request, "The module needs a title.")
-            return redirect("hybrid-course-edit", course_id=course.pk)
+            # The Add-module dialog reopens with the errors and entered values.
+            return _render(status=400)
         if action == "move_module":
             module = get_object_or_404(HybridModule, pk=request.POST.get("module_id"), course=course)
             _move(
@@ -664,21 +692,7 @@ def course_edit(request, course_id):
     else:
         form = CourseEditForm(initial={"title": course.title, "description": course.description})
 
-    return render_student_page(request, "hybrid/course_detail.html", {
-        "course": course,
-        "form": form,
-        "modules": modules,
-        "module_form": ModuleForm(),
-        "journey_form": JourneyCreateForm(),
-        "journeys": [
-            {
-                "journey": journey,
-                "issue_count": len(journey_services.structural_issues(journey))
-                + len(journey_services.unbound_condition_issues(journey)),
-            }
-            for journey in course.practical_journeys.order_by("order", "title")
-        ],
-    })
+    return _render()
 
 
 @login_required
@@ -689,7 +703,8 @@ def module_edit(request, module_id):
     lessons = list(module.hybrid_lessons.order_by("order", "title"))
     # The lesson list describes what each lesson holds: its type, whether the
     # theory has been written, and — for Interactive Practical lessons — the
-    # step count, since those are what open in the Demonstration Studio.
+    # step count and what publication still wants from it, since those are
+    # what open in the Demonstration Studio.
     lesson_rows = [
         {
             "lesson": lesson,
@@ -697,19 +712,43 @@ def module_edit(request, module_id):
             "kind_label": lesson.get_kind_display(),
             "step_count": lesson.practical_steps.count(),
             "has_theory": bool(plain_text(lesson.theory).strip()),
+            "issues": lesson_issues(lesson)
+            if lesson.kind == HybridLesson.Kind.INTERACTIVE_PRACTICAL
+            else [],
         }
         for lesson in lessons
     ]
+    form = ModuleForm(initial={"title": module.title, "description": module.description})
+    lesson_form = LessonDetailsForm()
+
+    def _render(status=200):
+        return render_student_page(request, "hybrid/module_detail.html", {
+            "module": module,
+            "form": form,
+            "lessons": lessons,
+            "lesson_rows": lesson_rows,
+            "lesson_form": lesson_form,
+            "interactive_count": sum(1 for row in lesson_rows if row["is_interactive"]),
+            "theory_count": sum(1 for row in lesson_rows if row["has_theory"]),
+            "not_ready_count": sum(1 for row in lesson_rows if row["issues"]),
+            # ?confirm=lesson-<pk> opens that lesson's removal confirmation
+            # without JavaScript; with JavaScript the Remove control opens the
+            # same dialog directly.
+            "confirm_lesson": next(
+                (row["lesson"] for row in lesson_rows if request.GET.get("confirm") == f"lesson-{row['lesson'].pk}"),
+                None,
+            ),
+        }, status=status)
 
     if request.method == "POST":
         action = request.POST.get("action")
         if action == "create_lesson":
-            form = LessonDetailsForm(request.POST)
-            if form.is_valid():
+            lesson_form = LessonDetailsForm(request.POST)
+            if lesson_form.is_valid():
                 # A POST from before the type existed (or with the select
                 # blank) means Interactive Practical — the only type the
                 # builder has ever created.
-                kind = form.cleaned_data["kind"] or HybridLesson.Kind.INTERACTIVE_PRACTICAL
+                kind = lesson_form.cleaned_data["kind"] or HybridLesson.Kind.INTERACTIVE_PRACTICAL
                 if kind == HybridLesson.Kind.GUIDED_MATERIAL_STUDY:
                     # The type is stored on the model, but its Material Studio
                     # does not exist yet — refuse even a posted (disabled)
@@ -721,16 +760,16 @@ def module_edit(request, module_id):
                     return redirect("hybrid-module-edit", module_id=module.pk)
                 lesson = HybridLesson.objects.create(
                     module=module,
-                    slug=_unique_slug(HybridLesson, "slug", form.cleaned_data["title"], module=module),
-                    title=form.cleaned_data["title"],
-                    summary=form.cleaned_data["summary"],
+                    slug=_unique_slug(HybridLesson, "slug", lesson_form.cleaned_data["title"], module=module),
+                    title=lesson_form.cleaned_data["title"],
+                    summary=lesson_form.cleaned_data["summary"],
                     kind=kind,
                     order=module.hybrid_lessons.count() + 1,
                 )
                 messages.success(request, "Interactive Practical lesson created — continue in the Demonstration Studio.")
                 return redirect("hybrid-lesson-demonstration-studio", lesson_id=lesson.pk)
-            messages.error(request, "The lesson needs a title.")
-            return redirect("hybrid-module-edit", module_id=module.pk)
+            # The Add-lesson dialog reopens with the errors and entered values.
+            return _render(status=400)
         if action == "move_lesson":
             lesson = get_object_or_404(HybridLesson, pk=request.POST.get("lesson_id"), module=module)
             _move(
@@ -755,13 +794,7 @@ def module_edit(request, module_id):
     else:
         form = ModuleForm(initial={"title": module.title, "description": module.description})
 
-    return render_student_page(request, "hybrid/module_detail.html", {
-        "module": module,
-        "form": form,
-        "lessons": lessons,
-        "lesson_rows": lesson_rows,
-        "lesson_form": LessonDetailsForm(),
-    })
+    return _render()
 
 
 @login_required

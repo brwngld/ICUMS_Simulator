@@ -1,34 +1,133 @@
 {% extends "core/base_student.html" %}{% load static %}
 
-{% block title %}Edit {{ course.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit course{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
+{% block title %}Course workspace · {{ course.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Course workspace{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/hybrid-programme-workspace.css' %}?v=20261101-1"><link rel="stylesheet" href="{% static 'css/hybrid-course-module-workspace.css' %}?v=20261101-1">{% endblock %}
 
-{% block content %}<div class="authoring hyb-builder">
-  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ course.programme_version.programme.name }} · draft edition v{{ course.programme_version.version }}</p><h1>{{ course.title }}</h1><p>Group the course into modules; modules hold the lessons.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-builder' %}">All courses</a></div></header>
+{% comment %}
+The instructor Course Workspace (UI 3), reached from the Programme
+Workspace's Manage course action. Everything here posts to the same
+course_edit actions the builder has always used: course details,
+create_module (Add-module dialog), move_module, delete_module (with a
+removal confirmation that also works without JavaScript via
+?confirm=module-<pk>), and create_journey. Only draft editions render here.
+{% endcomment %}
 
-  <section class="authoring-card">
-    <div class="authoring-editor-header"><div><h2>Course details</h2><p>The persisted course record.</p></div><span class="authoring-status">Draft</span></div>
-    <form method="post" class="authoring-form">{% csrf_token %}
-      {{ form.title.as_field_group }}
-      {{ form.description.as_field_group }}
-      <button class="authoring-primary" type="submit">Save course</button>
-    </form>
+{% block content %}<div class="authoring hyb-workspace">
+  <a class="authoring-back-link" href="{% url 'hybrid-programme-detail' course.programme_version.programme_id %}">
+    <svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+    Programme workspace
+  </a>
+  <nav class="ws-crumbs" aria-label="Breadcrumb">
+    <a href="{% url 'hybrid-programme-detail' course.programme_version.programme_id %}">Programme workspace</a>
+    <span class="ws-crumb-sep" aria-hidden="true">→</span>
+    <span class="ws-crumb-here">{{ course.title }}</span>
+  </nav>
+
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">Theory &amp; Practical · Course · draft edition v{{ course.programme_version.version }}</p>
+      <h1>{{ course.title }}</h1>
+      <p>Course code · <strong>{{ course.code }}</strong> — group the course into modules; modules hold the lessons. Only draft editions can be edited.</p>
+    </div>
+    <div class="authoring-actions"><span class="ws-chip ws-chip--draft">Draft course</span></div>
+  </header>
+
+  <section class="ws-stat-grid" aria-label="Course overview">
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="box" %}</span><span class="ws-stat-figures"><b>{{ modules|length }}</b><span class="ws-stat-label">Modules</span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="book" %}</span><span class="ws-stat-figures"><b>{{ lesson_count }}</b><span class="ws-stat-label">Lessons</span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="layers" %}</span><span class="ws-stat-figures"><b>{{ journeys|length }}</b><span class="ws-stat-label">Practical journeys</span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="assignment" %}</span><span class="ws-stat-figures"><b>{{ blockers|length }}</b><span class="ws-stat-label">Items to resolve</span></span></div>
   </section>
 
-  <section class="authoring-card">
-    <div class="authoring-editor-header"><div><h2>Practical journeys</h2><p>Cross-lesson practical workflows. Order follows the curriculum; structure changes happen in the organizer.</p></div><span class="authoring-status">{{ journeys|length }} journey{{ journeys|length|pluralize }}</span></div>
-    <div class="authoring-item-list">
-      {% for row in journeys %}
-        <article class="authoring-item">
-          <span class="authoring-section-icon">{{ forloop.counter }}</span>
-          <div><h3>{{ row.journey.title }}</h3><p>{{ row.journey.get_start_mode_display }} · {{ row.issue_count }} outstanding requirement{{ row.issue_count|pluralize }}</p></div>
-          <div class="authoring-module-tools"><a class="authoring-secondary" href="{% url 'hybrid-journey-detail' row.journey.pk %}">Open organizer</a></div>
-        </article>
-      {% empty %}
-        <p class="authoring-empty">No practical journeys yet.</p>
-      {% endfor %}
+  <section class="authoring-card ws-panel" aria-label="Publication readiness">
+    <div class="ws-readiness {% if blockers %}ws-readiness--blocked{% else %}ws-readiness--ready{% endif %}">
+      <div class="ws-readiness-head"><span class="ws-readiness-marker" aria-hidden="true">{% if blockers %}!{% else %}✓{% endif %}</span>
+        {% if blockers %}Not ready to publish — {{ blockers|length }} item{{ blockers|length|pluralize }} to resolve.{% else %}Ready to publish — this course has nothing outstanding.{% endif %}
+      </div>
+      {% if blockers %}
+        <details class="ws-readiness-details">
+          <summary>Show details</summary>
+          <ul>{% for blocker in blockers %}<li>{{ blocker }}</li>{% endfor %}</ul>
+        </details>
+      {% endif %}
     </div>
-    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
+  </section>
+
+  <section class="authoring-card ws-panel" aria-label="Modules">
+    <div class="authoring-editor-header">
+      <div>
+        <h2>Modules</h2>
+        <p>Learners take modules in the order shown. Open a module to manage its lessons.</p>
+      </div>
+      <div class="authoring-actions">
+        <a class="authoring-primary" href="?new=module" data-open-module-dialog><svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>Add module</a>
+      </div>
+    </div>
+    {% if modules %}
+      <div class="ws-course-grid">
+        {% for module in modules %}
+          <article class="authoring-card ws-course-card">
+            <div class="ws-course-top">
+              <div>
+                <h3>{{ module.title }}</h3>
+                <p class="ws-course-code">Module code · <code>{{ module.code }}</code></p>
+              </div>
+              <span class="ws-chip ws-chip--draft">Draft</span>
+            </div>
+            <div class="ws-course-meta">
+              <span><b>{{ module.hybrid_lessons.count }}</b> lesson{{ module.hybrid_lessons.count|pluralize }}</span>
+              {% if module.hybrid_lessons.count == 0 %}<span class="ws-course-notready">No lessons yet</span>{% endif %}
+            </div>
+            <div class="ws-course-foot">
+              <span class="ws-move">
+                <form id="move-module-up-{{ module.pk }}" method="post" action="{% url 'hybrid-course-edit' course.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_module"><input type="hidden" name="module_id" value="{{ module.pk }}"><input type="hidden" name="direction" value="up"></form>
+                <button type="submit" form="move-module-up-{{ module.pk }}" aria-label="Move module up" {% if forloop.first %}disabled{% endif %}>↑</button>
+                <form id="move-module-down-{{ module.pk }}" method="post" action="{% url 'hybrid-course-edit' course.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_module"><input type="hidden" name="module_id" value="{{ module.pk }}"><input type="hidden" name="direction" value="down"></form>
+                <button type="submit" form="move-module-down-{{ module.pk }}" aria-label="Move module down" {% if forloop.last %}disabled{% endif %}>↓</button>
+              </span>
+              <a class="authoring-primary" href="{% url 'hybrid-module-edit' module.pk %}">Open module<svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></a>
+              <a class="authoring-secondary" href="?confirm=module-{{ module.pk }}" data-confirm="confirm-module-{{ module.pk }}">Remove</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="authoring-card ws-empty">
+        <span class="ws-empty-icon" aria-hidden="true"><svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+        <h2>No modules yet</h2>
+        <p>Modules group lessons into the order learners take them. Add the first one.</p>
+        <a class="authoring-primary" href="?new=module" data-open-module-dialog>Add module</a>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="authoring-card ws-panel" aria-label="Practical journeys">
+    <div class="authoring-editor-header">
+      <div>
+        <h2>Practical journeys</h2>
+        <p>Cross-lesson practical workflows. Order follows the curriculum; structure changes happen in the organizer.</p>
+      </div>
+      <span class="ws-chip ws-chip--viewing">{{ journeys|length }} journey{{ journeys|length|pluralize }}</span>
+    </div>
+    {% if journeys %}
+      <div class="ws-editions">
+        {% for row in journeys %}
+          <div class="ws-edition">
+            <span class="ws-edition-ver">{{ forloop.counter }}</span>
+            <div class="ws-edition-what">
+              <b>{{ row.journey.title }}</b>
+              <p>{{ row.journey.get_start_mode_display }} · {{ row.issue_count }} outstanding requirement{{ row.issue_count|pluralize }}</p>
+            </div>
+            <div class="ws-edition-tools">
+              <a class="authoring-primary" href="{% url 'hybrid-journey-detail' row.journey.pk %}">Open organizer</a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="ws-empty-note">No practical journeys yet.</p>
+    {% endif %}
+    <form method="post" action="{% url 'hybrid-course-edit' course.pk %}" class="authoring-form hyb-create-form">{% csrf_token %}
       <input type="hidden" name="action" value="create_journey">
       <h3>New journey</h3>
       {{ journey_form.title.as_field_group }}
@@ -39,32 +138,98 @@
     <p class="helptext"><a href="{% url 'hybrid-course-journeys' course.pk %}">Open the journey organizer</a> to assign steps and configure roles, dependencies and checkpoints.</p>
   </section>
 
-  <section class="authoring-card">
-    <div class="authoring-editor-header"><div><h2>Modules</h2><p>Learners take modules in the order shown.</p></div><span class="authoring-status">{{ modules|length }} module{{ modules|length|pluralize }}</span></div>
-    <div class="authoring-item-list">
-      {% for module in modules %}
-        <article class="authoring-item">
-          <span class="authoring-section-icon">{{ forloop.counter }}</span>
-          <div><h3>{{ module.title }}</h3><p>{{ module.hybrid_lessons.count }} lesson{{ module.hybrid_lessons.count|pluralize }}</p></div>
-          <div class="authoring-module-tools">
-            <a class="authoring-secondary" href="{% url 'hybrid-module-edit' module.pk %}">Open module</a>
-            <form id="move-module-up-{{ module.pk }}" method="post" action="{% url 'hybrid-course-edit' course.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_module"><input type="hidden" name="module_id" value="{{ module.pk }}"><input type="hidden" name="direction" value="up"></form>
-            <form id="move-module-down-{{ module.pk }}" method="post" action="{% url 'hybrid-course-edit' course.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="move_module"><input type="hidden" name="module_id" value="{{ module.pk }}"><input type="hidden" name="direction" value="down"></form>
-            <button class="authoring-secondary" type="submit" form="move-module-down-{{ module.pk }}" aria-label="Move module down">↓</button>
-            <form id="delete-module-{{ module.pk }}" method="post" action="{% url 'hybrid-course-edit' course.pk %}" hidden>{% csrf_token %}<input type="hidden" name="action" value="delete_module"><input type="hidden" name="module_id" value="{{ module.pk }}"></form>
-            <button class="authoring-secondary" type="submit" form="delete-module-{{ module.pk }}">Remove</button>
-          </div>
-        </article>
-      {% empty %}
-        <p class="authoring-empty">No modules yet.</p>
-      {% endfor %}
+  <section class="authoring-card ws-panel" aria-label="Course details">
+    <div class="authoring-editor-header">
+      <div>
+        <h2>Course details</h2>
+        <p>The persisted course record.</p>
+      </div>
+      <span class="ws-chip ws-chip--draft">Draft</span>
     </div>
-    <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
-      <input type="hidden" name="action" value="create_module">
-      <h3>Add a module</h3>
-      {{ module_form.title.as_field_group }}
-      {{ module_form.description.as_field_group }}
-      <button class="authoring-primary" type="submit">Add module</button>
+    <form method="post" action="{% url 'hybrid-course-edit' course.pk %}" class="authoring-form">{% csrf_token %}
+      {{ form.title.as_field_group }}
+      {{ form.description.as_field_group }}
+      <button class="authoring-primary" type="submit">Save course</button>
     </form>
   </section>
+
+  {% for module in modules %}
+    <dialog id="confirm-module-{{ module.pk }}" class="authoring-course-modal ws-confirm-dialog" aria-labelledby="confirm-module-title-{{ module.pk }}" {% if confirm_module == module %}open{% endif %}>
+      <form method="post" action="{% url 'hybrid-course-edit' course.pk %}" class="authoring-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_module">
+        <input type="hidden" name="module_id" value="{{ module.pk }}">
+        <div class="authoring-modal-head">
+          <div>
+            <h2 id="confirm-module-title-{{ module.pk }}">Remove module?</h2>
+            <p>You are removing <span class="ws-confirm-name">{{ module.title }}</span> from this course.</p>
+          </div>
+          <button class="authoring-modal-close" type="button" data-close-module-confirm aria-label="Close dialog">×</button>
+        </div>
+        <p class="ws-empty-note" style="text-align:left">A module that still has lessons cannot be removed until its lessons are gone.</p>
+        <div class="form-actions ws-modal-actions">
+          <a class="authoring-secondary" href="{% url 'hybrid-course-edit' course.pk %}">Cancel</a>
+          <button class="authoring-primary" type="submit">Remove module</button>
+        </div>
+      </form>
+    </dialog>
+  {% endfor %}
+
+  <dialog id="module-dialog" class="authoring-course-modal ws-course-dialog" aria-labelledby="module-dialog-title" {% if module_form.errors %}open data-has-errors{% elif request.GET.new == "module" %}open{% endif %}>
+    <form method="post" action="{% url 'hybrid-course-edit' course.pk %}" class="authoring-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_module">
+      <div class="authoring-modal-head">
+        <div>
+          <h2 id="module-dialog-title">Add module</h2>
+          <p>Modules group lessons into the order learners take them.</p>
+        </div>
+        <button class="authoring-modal-close" type="button" data-close-module-dialog aria-label="Close dialog">×</button>
+      </div>
+      {{ module_form.title.as_field_group }}
+      <p class="helptext">Shown to instructors and learners across the course.</p>
+      {{ module_form.description.as_field_group }}
+      <div class="form-actions ws-modal-actions">
+        <a class="authoring-secondary" href="{% url 'hybrid-course-edit' course.pk %}">Cancel</a>
+        <button class="authoring-primary" type="submit">Create module</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+  (() => {
+    const open = (id) => {
+      const dialog = document.getElementById(id);
+      if (dialog && !dialog.open) dialog.showModal();
+      return dialog;
+    };
+    document.querySelectorAll("[data-open-module-dialog]").forEach((el) => {
+      el.addEventListener("click", (event) => {
+        event.preventDefault();
+        const dialog = open("module-dialog");
+        if (dialog) dialog.querySelector("input:not([type=hidden])").focus();
+      });
+    });
+    document.querySelectorAll("[data-close-module-dialog]").forEach((el) => {
+      el.addEventListener("click", () => document.getElementById("module-dialog").close());
+    });
+    document.querySelectorAll("[data-confirm]").forEach((el) => {
+      el.addEventListener("click", (event) => {
+        event.preventDefault();
+        open(el.dataset.confirm);
+      });
+    });
+    document.querySelectorAll("[data-close-module-confirm]").forEach((el) => {
+      el.addEventListener("click", () => el.closest("dialog").close());
+    });
+    // Promote a server-rendered open dialog (no-JS fallback or validation
+    // errors) to a modal one, and land focus on the first invalid field.
+    document.querySelectorAll(".hyb-workspace dialog[open]").forEach((dialog) => {
+      dialog.close();
+      dialog.showModal();
+      const invalid = dialog.querySelector('[aria-invalid="true"]');
+      (invalid || dialog.querySelector("input:not([type=hidden])")).focus();
+    });
+  })();
+  </script>
 </div>{% endblock %}
