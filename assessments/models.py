@@ -9,7 +9,7 @@ from onboarding.models import Enrolment, ProgrammeVersion
 
 class Question(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.SlugField(max_length=80, unique=True)
+    code = models.SlugField(max_length=160, unique=True)
 
     def __str__(self):
         return self.code
@@ -40,7 +40,7 @@ class QuestionVersion(models.Model):
 class AnswerOption(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     question_version = models.ForeignKey(QuestionVersion, on_delete=models.CASCADE, related_name="options")
-    label = models.CharField(max_length=300)
+    label = models.CharField(max_length=600)
     is_correct = models.BooleanField(default=False)
     order = models.PositiveIntegerField(default=1)
 
