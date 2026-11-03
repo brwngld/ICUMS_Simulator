@@ -9,6 +9,7 @@ View site, Log out) is reachable on narrow screens.
 
 import pytest
 from django.contrib.auth.models import Group
+from django.templatetags.static import static
 from django.urls import reverse
 
 from accounts.models import User
@@ -19,7 +20,7 @@ def test_register_page_matches_the_unfold_login_design(client):
     response = client.get(reverse("register"))
     assert response.status_code == 200
     body = response.content.decode()
-    assert "unfold/css/styles.css" in body
+    assert static("unfold/css/styles.css") in body
     assert "unfold-theme-colors" in body
     assert "app.css" not in body
     assert "ICUMS Simulator" in body

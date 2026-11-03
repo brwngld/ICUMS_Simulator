@@ -6,6 +6,7 @@ import base64
 import pytest
 from django.contrib.auth.models import Group
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.templatetags.static import static
 from django.urls import reverse
 
 from accounts.models import User
@@ -115,13 +116,13 @@ def test_learner_sees_cover_on_module_and_course_overview(client, author):
     assert module_page.status_code == 200
     assert b"mod-hero-image" in module_page.content
     assert author["module"].cover_image.url.encode() in module_page.content
-    assert b"image/default-module.png" not in module_page.content
+    assert static("image/default-module.png").encode() not in module_page.content
 
     course_page = client.get(reverse("roadmap"))
     assert course_page.status_code == 200
     assert b"course-module-thumb" in course_page.content
     assert author["programme"].cover_image.url.encode() in course_page.content
-    assert b"image/default-course.png" not in course_page.content
+    assert static("image/default-course.png").encode() not in course_page.content
 
 
 @pytest.mark.django_db
@@ -129,9 +130,9 @@ def test_learner_without_cover_sees_no_broken_image(client, author):
     learner = _publish_for_learner(author)
     client.force_login(learner)
     module_page = client.get(reverse("module-overview", args=[author["module"].code]))
-    assert b"image/default-module.png" in module_page.content
+    assert static("image/default-module.png").encode() in module_page.content
     assert b'src=""' not in module_page.content
     course_page = client.get(reverse("roadmap"))
-    assert b"image/default-course.png" in course_page.content
+    assert static("image/default-course.png").encode() in course_page.content
     assert b"course-module-thumb" not in course_page.content
     assert b"course-module-number" in course_page.content

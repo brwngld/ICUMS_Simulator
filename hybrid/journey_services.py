@@ -109,6 +109,10 @@ def assign_step(journey, step):
     _require_draft_version(journey)
     _require_same_course(journey, step)
     with transaction.atomic():
+        # Serialise appends to this journey: two concurrent assignments would
+        # otherwise read the same highest order and collide on
+        # (journey, journey_order).
+        PracticalJourney.objects.select_for_update().get(pk=journey.pk)
         if JourneyStep.objects.filter(step=step).exists():
             raise ValidationError({"step": "This practical step is already assigned to a journey."})
         # Append past the current end (the check constraint floors orders at 1);

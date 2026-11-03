@@ -29,6 +29,22 @@ def protected_counts():
         }
 
 
+@pytest.fixture(autouse=True)
+def _schema_back_at_the_leaves(transactional_db):
+    """Put the schema back where the rest of the suite expects to find it.
+
+    The tests below migrate *backwards* on purpose. A target is the whole desired
+    state, so when they finish the database sits at hybrid 0005 and every later
+    migration — in this app and in any app that depends on it — is unapplied. The
+    test that did it never notices, but a later test opening its own connection
+    does, which is why Stage 3 carried an inline repair. Forwarding to every app's
+    leaf in teardown removes the ordering rule instead of compensating for it.
+    """
+    yield
+    executor = MigrationExecutor(connection)
+    executor.migrate(executor.loader.graph.leaf_nodes())
+
+
 @pytest.mark.django_db(transaction=True)
 def test_empty_journey_tables_reverse_and_reapply_without_touching_legacy_rows():
     before = protected_counts()
@@ -65,3 +81,11 @@ def test_populated_journey_tables_refuse_destructive_reverse_migration():
         MigrationExecutor(connection).migrate([MIGRATION_0004])
 
     assert PracticalJourney.objects.filter(code="protected").exists()
+
+
+@pytest.mark.django_db
+def test_the_schema_is_left_at_every_leaf_for_the_rest_of_the_suite():
+    """The teardown above is the fix: no later test has to repair the schema."""
+    executor = MigrationExecutor(connection)
+    applied = set(executor.loader.applied_migrations)
+    assert set(executor.loader.graph.leaf_nodes()) <= applied

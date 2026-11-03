@@ -6,8 +6,6 @@ from threading import Barrier
 
 import pytest
 from django.db import IntegrityError, OperationalError, close_old_connections, transaction
-from django.db import connection
-from django.db.migrations.executor import MigrationExecutor
 from django.urls import reverse
 from django.utils import timezone
 
@@ -83,7 +81,7 @@ def _world(db, seed="opening", *, with_evidence=False):
 
     if with_evidence:
         record = UcrDeclaration.objects.create(
-            owner=student, temp_no=f"{seed}-ucr", status="draft",
+            owner=student, temp_no=f"{seed}-ucr"[:20], status="draft",
             exporter_name="ACME Trading", regime="CO",
         )
         association = journey_services.assign_record(
@@ -288,19 +286,9 @@ def _threaded_open(attempt_id, step_id, barrier):
         close_old_connections()
 
 
-def _ensure_generation_schema():
-    """Repair migration-test ordering before opening separate connections."""
-    # Migrate the hybrid app to its latest migration — what ``migrate hybrid``
-    # does. Pinning an ancestor would roll newer migrations back out of the
-    # shared test database, breaking every suite that runs afterwards.
-    executor = MigrationExecutor(connection)
-    executor.migrate([key for key in executor.loader.graph.leaf_nodes() if key[0] == "hybrid"])
-
-
 @pytest.mark.django_db(transaction=True)
 def test_concurrent_first_opening_returns_the_one_persisted_generation(transactional_db):
     """Actual simultaneous SQLite requests; each worker owns its connection."""
-    _ensure_generation_schema()
     world = _world(transactional_db, "opening-concurrent-first")
     barrier = Barrier(2)
 
@@ -330,7 +318,6 @@ def test_concurrent_first_opening_returns_the_one_persisted_generation(transacti
 @pytest.mark.django_db(transaction=True)
 def test_concurrent_null_generation_adoption_observes_one_persisted_uuid(transactional_db):
     """Actual simultaneous SQLite adoption; compare-and-set chooses one UUID."""
-    _ensure_generation_schema()
     world = _world(transactional_db, "opening-concurrent-adopt")
     original_time = timezone.now() - timedelta(days=1)
     StepEvent.objects.create(
@@ -375,8 +362,25 @@ def test_singleton_uniqueness_collision_refetches_the_winning_row(db):
     assert recovered.occurred_at == winner.occurred_at
 
 
+class _DriverLock(OperationalError):
+    def __init__(self, code):
+        super().__init__(f"simulated {code}")
+        self.pgcode = code
+
+
+def _contention_error():
+    """The refusal the running backend raises when a statement loses a lock."""
+    from django.db import connection
+
+    if connection.vendor == "postgresql":
+        error = OperationalError("could not obtain lock on relation")
+        error.__cause__ = _DriverLock("55P03")
+        return error
+    return OperationalError("database is locked")
+
+
 @pytest.mark.django_db
-def test_expected_sqlite_contention_retries_the_complete_operation(db, monkeypatch):
+def test_expected_database_contention_retries_the_complete_operation(db, monkeypatch):
     """Deterministic fault injection for the bounded retry contract."""
     world = _world(db, "opening-retry")
     original = verification._record_open_once
@@ -385,7 +389,7 @@ def test_expected_sqlite_contention_retries_the_complete_operation(db, monkeypat
     def contended(attempt_id, step_id):
         calls.append((attempt_id, step_id))
         if len(calls) < 3:
-            raise OperationalError("database is locked")
+            raise _contention_error()
         return original(attempt_id, step_id)
 
     monkeypatch.setattr(verification, "_record_open_once", contended)
@@ -398,13 +402,13 @@ def test_expected_sqlite_contention_retries_the_complete_operation(db, monkeypat
 
 
 @pytest.mark.django_db
-def test_sqlite_contention_retry_exhaustion_is_a_controlled_refusal(db, monkeypatch):
+def test_contention_retry_exhaustion_is_a_controlled_refusal(db, monkeypatch):
     world = _world(db, "opening-retry-exhausted")
     calls = []
 
     def always_locked(attempt_id, step_id):
         calls.append((attempt_id, step_id))
-        raise OperationalError("database table is locked")
+        raise _contention_error()
 
     monkeypatch.setattr(verification, "_record_open_once", always_locked)
     monkeypatch.setattr(verification.time, "sleep", lambda _delay: None)

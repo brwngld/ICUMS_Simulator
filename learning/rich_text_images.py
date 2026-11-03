@@ -83,8 +83,12 @@ def media_names(*bodies: str) -> set[str]:
 
 
 def is_referenced(name: str) -> bool:
-    """True when any lesson body still points at this media file, in any edition."""
-    return ContentBlock.objects.filter(body__contains=name).exists()
+    """True when any lesson body still points at this media file, in any edition.
+
+    ``icontains`` because SQLite's ``LIKE`` was always case-insensitive for ASCII
+    and a case-only mismatch must keep the file, not delete it.
+    """
+    return ContentBlock.objects.filter(body__icontains=name).exists()
 
 
 def prune_lesson(lesson) -> int:

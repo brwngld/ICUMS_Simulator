@@ -101,7 +101,7 @@ def _world(db, seed="evidence", *, conditions=("saved",), other_step_condition=F
     journey_attempt.save(update_fields=("current_journey_step",))
 
     record = UcrDeclaration.objects.create(
-        owner=student, temp_no=f"{seed}-ucr", status="draft",
+        owner=student, temp_no=f"{seed}-ucr"[:20], status="draft",
         exporter_name="ACME Trading", regime="CO",
     )
     association = journey_services.assign_record(

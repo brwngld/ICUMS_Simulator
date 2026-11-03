@@ -24,6 +24,7 @@ import re
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.templatetags.static import static
 from django.urls import reverse
 
 User = get_user_model()
@@ -90,7 +91,7 @@ def test_the_service_menu_lives_inside_the_identity_row(client):
     _author_client(client)
     body = client.get(reverse("simulator-portal")).content.decode()
     row = _identity_row(body)
-    assert "brand-lockup.png" in row
+    assert static("image/brand-lockup.png") in row
     assert row.index('class="sim-brand-logo"') < row.index('class="sim-top-nav"')
     assert row.index('data-sim-nav="-1"') < row.index('class="sim-top-nav"') < row.index('data-sim-nav="1"')
     assert row.count('class="sim-nav-arrow"') == 2

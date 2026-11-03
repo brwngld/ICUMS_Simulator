@@ -513,3 +513,63 @@ def test_mda_dialog_route_keeps_its_own_atomic_on_capture_failure(client, db, mo
     assert sorted(SimulatorRecordCreation.objects.values_list("record_kind", flat=True)) == [
         "consignment", "ucr",
     ]
+
+
+@pytest.mark.django_db
+def test_mda_dialog_route_reallocates_after_a_monthly_sequence_collision(client, db, monkeypatch):
+    """A concurrent creation can claim the month number between this request's
+    read and its insert; the unique constraint refuses the loser, and the route
+    re-runs the allocation instead of failing with an integrity error."""
+    from scenarios import views as scenario_views
+
+    user = _user(db, "route-mda-race", staff=True)
+    _staff_client(client, user)
+    ucr = _submitted_ucr(user, "KGHTESTUCRMDA2")
+    application = ConsignmentApplication.objects.create(
+        owner=user, ucr=ucr, application_no="APPMDA2",
+        status=ConsignmentApplication.Status.DRAFT,
+    )
+    agency = MdaAgency.objects.create(code="MOTIX", name="Ministry of Trade")
+    mda_application = MdaApplication.objects.create(mda=agency, code="IDF", name="IDF")
+    process = MdaProcess.objects.create(application=mda_application, code="P1", name="Process")
+
+    real_allocate = scenario_views._allocate_mda_application_number
+    taken = real_allocate(agency.code, mda_application.code)
+    MdaConsignmentRequest.objects.create(
+        consignment_application=application,
+        owner=user,
+        mda=agency,
+        application=mda_application,
+        process=process,
+        consignment_type="SG",
+        application_no=taken[0],
+        sequence_month=taken[1],
+        monthly_sequence=taken[2],
+    )
+
+    calls = {"count": 0}
+
+    def raced_allocate(mda_code, application_code):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return taken
+        return real_allocate(mda_code, application_code)
+
+    monkeypatch.setattr(scenario_views, "_allocate_mda_application_number", raced_allocate)
+
+    response = client.post(
+        "/practical/single-window/application/consignment-document/mda-requests/",
+        data=json.dumps({
+            "consignment_application_id": application.pk,
+            "mda_id": agency.pk,
+            "application_id": mda_application.pk,
+            "process_id": process.pk,
+            "consignment_type": "SG",
+        }),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 201
+    assert calls["count"] == 2
+    created = MdaConsignmentRequest.objects.exclude(application_no=taken[0]).get()
+    assert (created.sequence_month, created.monthly_sequence) == (taken[1], taken[2] + 1)

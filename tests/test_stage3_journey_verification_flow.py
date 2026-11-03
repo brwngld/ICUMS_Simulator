@@ -12,8 +12,7 @@ from datetime import timedelta
 from threading import Barrier
 
 import pytest
-from django.db import close_old_connections, connection
-from django.db.migrations.executor import MigrationExecutor
+from django.db import close_old_connections
 from django.urls import reverse
 
 from accounts.models import User
@@ -276,7 +275,7 @@ def test_a_step_without_an_attributed_record_fails_closed(client, db):
     world = _world(db, "flow-unattributed")
     client.force_login(world["student"])
     assert _open(client, world, "one").status_code == 200
-    _record(world, "TEMP-FLOW-UNATTRIBUTED")
+    _record(world, "TEMP-FLOW-UNATTR")
 
     response = _check(client, world, "one")
 
@@ -630,12 +629,6 @@ def _threaded_check(attempt_id, step_id, student_id, barrier):
 
 @pytest.mark.django_db(transaction=True)
 def test_concurrent_checks_record_a_single_evidence_row(transactional_db):
-    # Repair migration-test ordering before opening separate connections.
-    # Migrate the hybrid app to its latest migration — what ``migrate hybrid``
-    # does. Pinning an ancestor would roll newer migrations back out of the
-    # shared test database, breaking every suite that runs afterwards.
-    executor = MigrationExecutor(connection)
-    executor.migrate([key for key in executor.loader.graph.leaf_nodes() if key[0] == "hybrid"])
     world = _world(transactional_db, "flow-concurrent")
     verification.record_open(world["attempts"]["one"], world["steps"]["one"])
     _attribute(world, "one", _record(world, "TEMP-FLOW-CONCURRENT"))

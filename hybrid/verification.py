@@ -32,6 +32,12 @@ from .models import (
 OPENING_RETRY_LIMIT = 3
 OPENING_RETRY_BASE_DELAY = 0.01
 
+#: PostgreSQL SQLSTATEs meaning "collision — the statement may be re-run".
+#: ``40001`` serialization failure, ``40P01`` deadlock detector, ``55P03`` the
+#: caller gave up waiting on a lock. Everything else travels untouched, because
+#: retrying a constraint violation or a syntax error only hides a defect.
+_POSTGRES_CONTENTION_CODES = frozenset({"40001", "40P01", "55P03"})
+
 
 class JourneyOpeningError(Exception):
     """Controlled refusal for an invalid journey-bound step opening."""
@@ -172,6 +178,38 @@ def is_sqlite_contention(exc):
     return "database is locked" in message or "database table is locked" in message
 
 
+def _sqlstate(error):
+    """The driver's own error code, under either name the drivers use.
+
+    Django rebuilds driver exceptions (``django/db/utils.py``) and hangs the
+    original off ``__cause__``; only the cause carries ``pgcode``/``sqlstate``.
+    Reading the top-level exception alone would never see a real PostgreSQL
+    collision.
+    """
+    for _ in range(5):
+        if error is None:
+            return None
+        code = getattr(error, "pgcode", None) or getattr(error, "sqlstate", None)
+        if code:
+            return code
+        error = error.__cause__
+    return None
+
+
+def is_database_contention(error):
+    """Would re-running this statement be honest?
+
+    The two engines report a collision differently: SQLite only in the message,
+    PostgreSQL only in the SQLSTATE. A driver that reports neither is never
+    treated as contended, so an unexpected error cannot be swallowed by a retry.
+    """
+    if connection.vendor == "sqlite":
+        return is_sqlite_contention(error)
+    if connection.vendor == "postgresql":
+        return _sqlstate(error) in _POSTGRES_CONTENTION_CODES
+    return False
+
+
 def _create_opened_event(locked_attempt, step, *, generation):
     """Create the singleton, or return the row that won its exact race.
 
@@ -227,8 +265,10 @@ def _record_open_once(attempt_id, step_id):
 
     discovered_assignment, discovered_journey_attempt = discovered
     with transaction.atomic():
+        # current_journey_step is nullable, and PostgreSQL refuses FOR UPDATE on
+        # the nullable side of an outer join; only the attempt row needs the lock.
         journey_attempt = (
-            JourneyAttempt.objects.select_for_update()
+            JourneyAttempt.objects.select_for_update(of=("self",))
             .select_related("journey", "current_journey_step", "enrolment")
             .get(pk=discovered_journey_attempt.pk)
         )
@@ -277,7 +317,7 @@ def record_open(attempt, step):
     Journey context is discovered before the transaction and then resolved
     again after locking JourneyAttempt -> LessonAttempt -> StepEvent. Ordinary
     navigation never rotates a journey opening or refreshes its timestamp.
-    SQLite lock contention retries the complete operation from scalar IDs, so
+    Database contention retries the complete operation from scalar IDs, so
     every attempt reloads and reauthorizes current database state.
     """
     attempt_id, step_id = attempt.pk, step.pk
@@ -285,7 +325,7 @@ def record_open(attempt, step):
         try:
             return _record_open_once(attempt_id, step_id)
         except OperationalError as exc:
-            if not is_sqlite_contention(exc):
+            if not is_database_contention(exc):
                 raise
             if retry_index + 1 == OPENING_RETRY_LIMIT:
                 _opening_fail(

@@ -8,6 +8,7 @@ is static/css/instructor-portal.css, scoped by the .portal-main wrapper.
 """
 import pytest
 from django.contrib.auth.models import Group
+from django.templatetags.static import static
 from django.urls import reverse
 
 from accounts.models import User
@@ -16,7 +17,7 @@ from learning.models import ContentBlock, Lesson, Module
 from onboarding.models import Enrolment, Programme, ProgrammeVersion
 from scenarios.models import Scenario, ScenarioState, ScenarioVersion
 
-SHARED_CSS = "css/instructor-portal.css"
+SHARED_CSS = static("css/instructor-portal.css")
 
 
 def make_instructor(username):

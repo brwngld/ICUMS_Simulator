@@ -201,7 +201,9 @@ def test_amend_page_prefills_country_code_and_name():
     client = Client()
     client.force_login(owner)
 
-    page = client.get(reverse("ucr-amend", args=(record.pk,)))
+    # Amend is addressed by the UCR's own id; the MDA request's id only happened
+    # to equal it under SQLite's per-table sequences in a fresh database.
+    page = client.get(reverse("ucr-amend", args=(ucr.pk,)))
     html = page.content.decode()
     # Amend follows the submitted view: countries render as merged display values.
     assert 'id="ucr-exporter-country" value="CN, China"' in html

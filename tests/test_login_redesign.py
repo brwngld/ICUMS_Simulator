@@ -9,6 +9,7 @@ and audit behaviour are unchanged.
 """
 
 import pytest
+from django.templatetags.static import static
 from django.urls import reverse
 
 from accounts.models import User
@@ -20,7 +21,7 @@ def test_login_page_is_built_on_the_unfold_design_system(client):
     assert response.status_code == 200
     body = response.content.decode()
     # Unfold assets and palette, not the legacy app shell.
-    assert "unfold/css/styles.css" in body
+    assert static("unfold/css/styles.css") in body
     assert "unfold-theme-colors" in body
     assert "app.css" not in body
     assert "app-shell.js" not in body

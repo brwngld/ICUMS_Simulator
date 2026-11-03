@@ -1,8 +1,6 @@
-"""Temporary VPS deployment settings: SQLite data, Waitress, external binding.
+"""VPS deployment settings: PostgreSQL, Waitress, external binding.
 
-Intended for short-lived training runs on a single Ubuntu server. Not a
-replacement for the Phase 6 hosted-deployment gate (PostgreSQL, HTTPS,
-hardened secrets) — treat anything built on this module as temporary.
+Intended for training runs on a single Ubuntu server.
 """
 
 import os
@@ -20,6 +18,27 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 ALLOWED_HOSTS = [host.strip() for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if host.strip()]
 if not ALLOWED_HOSTS:
     raise ImproperlyConfigured("DJANGO_ALLOWED_HOSTS must be set for VPS serving (e.g. your domain or VPS IP).")
+
+
+def required_environment_value(name):
+    value = os.environ.get(name)
+    if not value:
+        raise ImproperlyConfigured(f"{name} must be set for VPS serving.")
+    return value
+
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": required_environment_value("POSTGRES_DB"),
+        "USER": required_environment_value("POSTGRES_USER"),
+        "PASSWORD": required_environment_value("POSTGRES_PASSWORD"),
+        "HOST": required_environment_value("POSTGRES_HOST"),
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": 60,
+        "CONN_HEALTH_CHECKS": True,
+    }
+}
 
 CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if origin.strip()]
 

@@ -3,6 +3,7 @@ import re
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Max
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -10,6 +11,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from core.admin_dashboard import render_student_page
+from onboarding.models import Enrolment
 from onboarding.services import enrolment_for_request, needs_disclaimer_acceptance, programme_href
 from progress.models import LessonProgress, ModuleProgress
 from assessments.models import Assessment, LessonCheck, LessonCheckResponse, TheoryAttempt
@@ -605,8 +607,14 @@ def lesson_detail(request, module_code, lesson_slug, section=None, part=None):
             if selected is None:
                 messages.error(request, "Choose an answer before checking your response.")
             else:
-                previous = LessonCheckResponse.objects.filter(enrolment=enrolment, lesson_check=check).aggregate(value=Max("attempt_number"))["value"] or 0
-                LessonCheckResponse.objects.create(enrolment=enrolment, lesson_check=check, attempt_number=previous + 1, selected_option=selected, is_correct=selected.is_correct)
+                # The enrolment row serialises one learner's submissions so two
+                # answers cannot both read the same highest attempt number and
+                # collide on the (enrolment, lesson_check, attempt_number)
+                # constraint.
+                with transaction.atomic():
+                    Enrolment.objects.select_for_update().get(pk=enrolment.pk)
+                    previous = LessonCheckResponse.objects.filter(enrolment=enrolment, lesson_check=check).aggregate(value=Max("attempt_number"))["value"] or 0
+                    LessonCheckResponse.objects.create(enrolment=enrolment, lesson_check=check, attempt_number=previous + 1, selected_option=selected, is_correct=selected.is_correct)
                 messages.success(request, "Correct. " + check.question_version.explanation if selected.is_correct else "Review this point. " + check.question_version.explanation)
             # The learner stays on the question they answered so the feedback
             # sits next to it.

@@ -14,6 +14,7 @@ from datetime import timedelta
 import pytest
 from django.contrib.auth.models import Group
 from django.core.exceptions import PermissionDenied
+from django.templatetags.static import static
 from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
@@ -404,7 +405,7 @@ def test_the_step_card_lists_the_records_this_step_is_about(client, db):
     assert reverse(
         "hybrid-journey-role-attribute", args=[world["journey"].pk, world["role"].pk],
     ) in page
-    assert "js/hybrid-attribution.js" in page
+    assert static("js/hybrid-attribution.js") in page
 
 
 @pytest.mark.django_db
@@ -435,7 +436,7 @@ def test_the_journey_page_offers_the_same_choices(client, db):
 
     assert 'data-attribution-key="creation_id"' in page
     assert f'value="{_creation_of(record).pk}"' in page
-    assert "js/hybrid-attribution.js" in page
+    assert static("js/hybrid-attribution.js") in page
 
 
 @pytest.mark.django_db

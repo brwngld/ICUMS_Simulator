@@ -7,6 +7,7 @@ a greyed-out form.
 """
 import pytest
 from django.contrib.auth import get_user_model
+from django.templatetags.static import static
 from django.test import Client
 from django.urls import reverse
 
@@ -86,7 +87,7 @@ def test_submitted_mda_renders_uniform_form_with_view_mode_badge():
     assert "window.appReadOnly = true" in html
     assert 'class="view-mode-badge"' in html
     assert "View mode" in html
-    assert "application-form.js?v=20261012-5" in html
+    assert f'{static("js/application-form.js")}?v=20261012-5' in html
     for marker in SHARED_FIELD_MARKERS:
         assert marker in html
 

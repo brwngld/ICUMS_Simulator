@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from django.templatetags.static import static
 from django.urls import reverse_lazy
 
@@ -13,6 +14,8 @@ def _model_perm(app_label, model_name):
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 LOCAL_DATA_DIR = BASE_DIR / "local_data"
+
+load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.environ.get(
     "DJANGO_SECRET_KEY",

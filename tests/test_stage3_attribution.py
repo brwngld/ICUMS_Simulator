@@ -268,6 +268,35 @@ def test_a_record_claimed_by_another_attempt_cannot_be_reclaimed(db):
             )
 
 
+class _PgConstraint:
+    def __init__(self, name):
+        self.constraint_name = name
+
+
+class _PgCause(Exception):
+    def __init__(self, name):
+        super().__init__(name)
+        self.diag = _PgConstraint(name)
+
+
+def test_claim_collision_classifier_matches_only_the_claim_constraints():
+    postgres_claim = IntegrityError("duplicate key value violates unique constraint")
+    postgres_claim.__cause__ = _PgCause("unique_created_in_journey_record_claim")
+    assert attribution._is_claim_collision(postgres_claim)
+
+    postgres_other = IntegrityError("duplicate key value violates unique constraint")
+    postgres_other.__cause__ = _PgCause("hybrid_journeyrecordassociation_pkey")
+    assert not attribution._is_claim_collision(postgres_other)
+
+    sqlite_claim = IntegrityError(
+        "UNIQUE constraint failed: hybrid_journeyrecordassociation.record_kind, "
+        "hybrid_journeyrecordassociation.record_id"
+    )
+    assert attribution._is_claim_collision(sqlite_claim)
+
+    assert not attribution._is_claim_collision(IntegrityError("FOREIGN KEY constraint failed"))
+
+
 @pytest.mark.django_db
 def test_replacement_releases_the_old_claim_and_keeps_history(db):
     world = _world(db, "attrreplace")

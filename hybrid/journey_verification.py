@@ -564,8 +564,8 @@ def verify_journey_step(user, lesson_attempt, step):
     replacement or second check cannot interleave between them.
 
     A step whose opening has not persisted yet is retried briefly and then
-    refused with the retryable ``opening_pending`` code. SQLite lock
-    contention restarts the whole operation from the caller's identifiers.
+    refused with the retryable ``opening_pending`` code. Database contention
+    restarts the whole operation from the caller's identifiers.
     """
     for attempt_index in range(VERIFY_RETRY_ATTEMPTS):
         try:
@@ -575,7 +575,7 @@ def verify_journey_step(user, lesson_attempt, step):
                     return None
                 return _write_verification(locked, step)
         except OperationalError as exc:
-            if not verification.is_sqlite_contention(exc) or attempt_index + 1 == VERIFY_RETRY_ATTEMPTS:
+            if not verification.is_database_contention(exc) or attempt_index + 1 == VERIFY_RETRY_ATTEMPTS:
                 raise
             time.sleep(VERIFY_RETRY_BASE_DELAY * (attempt_index + 1))
         except JourneyVerificationResolutionError as exc:

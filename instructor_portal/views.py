@@ -2131,7 +2131,12 @@ def student_profile(request, user_id):
 @transaction.atomic
 def enrolment_withdraw(request, enrolment_id):
     _require_instructor(request.user)
-    enrolment = get_object_or_404(_instructor_enrolments(request.user).select_for_update(), pk=enrolment_id)
+    # enrolled_by is nullable, and PostgreSQL refuses FOR UPDATE on the nullable
+    # side of an outer join; only the enrolment row needs the lock.
+    enrolment = get_object_or_404(
+        _instructor_enrolments(request.user).select_for_update(of=("self",)),
+        pk=enrolment_id,
+    )
     if enrolment.status == Enrolment.Status.ACTIVE:
         enrolment.status = Enrolment.Status.WITHDRAWN
         enrolment.save(update_fields=("status",))

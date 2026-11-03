@@ -122,7 +122,7 @@ def _world(db, seed, *, conditions=("saved",), creation_mode=EXISTING, two_steps
         generation=uuid.uuid4(),
     )
     record = UcrDeclaration.objects.create(
-        owner=student, temp_no=f"{seed}-ucr", status="draft",
+        owner=student, temp_no=f"{seed}-ucr"[:20], status="draft",
         exporter_name="ACME Trading", regime="CO",
     )
     if creation_mode == EXISTING:

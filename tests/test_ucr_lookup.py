@@ -8,6 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import override_settings
 from django.db import IntegrityError, transaction
 from django.forms.models import inlineformset_factory
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
 
@@ -136,7 +137,7 @@ def test_training_stakeholder_admin_shows_name_roles_and_generation_choice(clien
     assert b"Generate code automatically" in response.content
     assert b"Primary name (required)" in response.content
     assert b"Additional names" in response.content
-    assert b"admin/js/training-stakeholder.js" in response.content
+    assert static("admin/js/training-stakeholder.js").encode() in response.content
 
 
 @pytest.mark.django_db
@@ -376,7 +377,7 @@ def test_ucr_page_wires_save_submit_and_csrf(client):
     assert b"ucrCsrfToken" in response.content
     assert reverse("ucr-save").encode() in response.content
     assert reverse("ucr-submit").encode() in response.content
-    assert b"dialog-pagination.js" in response.content
+    assert static("js/dialog-pagination.js").encode() in response.content
 
 
 @pytest.mark.django_db

@@ -1,6 +1,7 @@
 from html.parser import HTMLParser
 
 import pytest
+from django.templatetags.static import static
 from django.urls import reverse
 
 from accounts.models import User
@@ -174,11 +175,11 @@ def test_clearance_workspace_opens_create_boe_with_regime_lookup(client):
         args=(CustomsRegime.objects.get(code="40").pk,),
     ))
     assert regime_admin.status_code == 200
-    assert b"admin/css/customs-procedure-code.css" in regime_admin.content
+    assert static("admin/css/customs-procedure-code.css").encode() in regime_admin.content
     assert b'rows="2"' in regime_admin.content
     cpc_admin = client.get(reverse("admin:scenarios_customsprocedurecode_add"))
     assert cpc_admin.status_code == 200
-    assert b"admin/css/customs-procedure-code.css" in cpc_admin.content
+    assert static("admin/css/customs-procedure-code.css").encode() in cpc_admin.content
     assert b'rows="2"' in cpc_admin.content
 
 
@@ -245,9 +246,9 @@ def test_create_opt_in_out_frontend_preview(client):
     for item in (b"GFZA, Ghana Free Zone Authority", b"GSA, Ghana Standards Authority", b'id="opt-branch"', b"Product Group Fee", b"Importer Address"):
         assert item in response.content
     assert b'id="mda-branch-dialog"' in response.content
-    assert b"opt-in-out-branches.js" in response.content
+    assert static("js/opt-in-out-branches.js").encode() in response.content
     assert b'id="gsa-product-dialog"' in response.content
-    assert b"opt-in-out-gsa-products.js" in response.content
+    assert static("js/opt-in-out-gsa-products.js").encode() in response.content
     assert b'id="submit-opt"' in response.content
     assert b"FOR PERSONAL EFFECTS" in response.content
 

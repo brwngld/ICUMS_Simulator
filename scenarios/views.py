@@ -4,7 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.validators import validate_email
 from django.http import HttpResponse, JsonResponse, FileResponse
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q, Max
 from django.db.models.functions import Coalesce
 from django.db.models import Case, IntegerField, Value, When
@@ -1491,6 +1491,33 @@ def application_mda_options(request):
     return JsonResponse({"results": results})
 
 
+#: A concurrent creation can read the same highest month sequence before either
+#: insert lands; the unique constraint refuses the loser, and re-running the
+#: whole allocation picks up the winner's row.
+MDA_SEQUENCE_RETRY_ATTEMPTS = 3
+
+
+def _is_monthly_sequence_collision(exc):
+    """Did this insert lose the per-month allocation race, and nothing else?
+
+    PostgreSQL names the violated constraint on the driver exception (which
+    Django keeps on ``__cause__``); SQLite reports the table and columns in the
+    message. Any other integrity failure must propagate.
+    """
+    diag = getattr(getattr(exc, "__cause__", None), "diag", None)
+    constraint_name = getattr(diag, "constraint_name", None)
+    if constraint_name:
+        return constraint_name in {
+            "unique_mda_monthly_sequence",
+            "scenarios_mdaconsignmentrequest_application_no_key",
+        }
+    message = str(exc).lower()
+    return "unique constraint failed" in message and (
+        "mdaconsignmentrequest.sequence_month" in message
+        or "mdaconsignmentrequest.application_no" in message
+    )
+
+
 def _allocate_mda_application_number(mda_code, application_code):
     """Generate a fictional 21-character number using one sequence per month."""
     cleaned_mda = "".join(character for character in mda_code.upper() if character.isalnum())
@@ -1525,22 +1552,35 @@ def application_mda_request_create(request):
         snapshot["ucr_no"] = consignment_application.ucr.ucr_no
         snapshot = json.loads(json.dumps(snapshot, cls=DjangoJSONEncoder))
         with transaction.atomic():
-            number, sequence_month, monthly_sequence = _allocate_mda_application_number(mda.code, application.code)
-            record = MdaConsignmentRequest(
-                consignment_application=consignment_application,
-                owner=consignment_application.owner,
-                mda=mda,
-                application=application,
-                process=process,
-                consignment_type=payload.get("consignment_type", ""),
-                master_no=str(payload.get("master_no", "")).strip(),
-                application_no=number,
-                sequence_month=sequence_month,
-                monthly_sequence=monthly_sequence,
-                form_data=snapshot,
-            )
-            record.full_clean()
-            record.save()
+            for allocation_attempt in range(MDA_SEQUENCE_RETRY_ATTEMPTS):
+                number, sequence_month, monthly_sequence = _allocate_mda_application_number(
+                    mda.code, application.code,
+                )
+                record = MdaConsignmentRequest(
+                    consignment_application=consignment_application,
+                    owner=consignment_application.owner,
+                    mda=mda,
+                    application=application,
+                    process=process,
+                    consignment_type=payload.get("consignment_type", ""),
+                    master_no=str(payload.get("master_no", "")).strip(),
+                    application_no=number,
+                    sequence_month=sequence_month,
+                    monthly_sequence=monthly_sequence,
+                    form_data=snapshot,
+                )
+                # The three generated numbers are checked by the database: a
+                # duplicate here is a lost allocation race to retry, not user
+                # input to reject.
+                record.full_clean(exclude=("application_no", "sequence_month", "monthly_sequence"))
+                try:
+                    with transaction.atomic():
+                        record.save()
+                except IntegrityError as exc:
+                    if not _is_monthly_sequence_collision(exc) or allocation_attempt + 1 == MDA_SEQUENCE_RETRY_ATTEMPTS:
+                        raise
+                    continue
+                break
     except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({"error": "The request body is not valid JSON."}, status=400)
     except ValidationError as exc:

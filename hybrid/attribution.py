@@ -21,7 +21,7 @@ freshness is the separate, narrower question the verification engines own — th
 bound the record's *activity* to the one step being checked.
 Concurrency: the caller's transaction holds the
 attempt row lock; the partial unique constraint
-``unique_active_created_in_journey_claim`` is the cross-attempt
+``unique_created_in_journey_record_claim`` is the cross-attempt
 record-claim gate on both SQLite and PostgreSQL — a race is refused by the
 database and surfaced as a controlled ``AttributionError``.
 """
@@ -50,10 +50,32 @@ class AttributionError(Exception):
         self.code = code
 
 
+#: Constraints whose violation means another transaction won the claim race.
+_CLAIM_CONSTRAINTS = frozenset({
+    "unique_created_in_journey_record_claim",
+    "unique_active_record_per_role",
+})
+
+
+def _is_claim_collision(exc):
+    """Is this integrity failure the claim race, not some other defect?
+
+    PostgreSQL names the violated constraint on the driver exception, which
+    Django keeps only on ``__cause__``; SQLite reports the table and columns in
+    the message instead. Anything unrecognised must propagate.
+    """
+    diag = getattr(getattr(exc, "__cause__", None), "diag", None)
+    constraint_name = getattr(diag, "constraint_name", None)
+    if constraint_name:
+        return constraint_name in _CLAIM_CONSTRAINTS
+    message = str(exc).lower()
+    return "unique constraint failed" in message and "journeyrecordassociation" in message
+
+
 def _claim_exists(record_kind, record_id):
     """True when the record has ever been claimed as created-in-journey —
     superseded claims count: a claimed record cannot be re-claimed by another
-    attempt (database constraint ``unique_active_created_in_journey_claim``
+    attempt (database constraint ``unique_created_in_journey_record_claim``
     enforces the same rule, superseded rows included)."""
     return JourneyRecordAssociation.objects.filter(
         record_kind=record_kind,
@@ -150,12 +172,12 @@ def attribute_creation(attempt, role, ledger_id, student):
                     assignment_source=JourneyRecordAssociation.AssignmentSource.CREATED_IN_JOURNEY,
                     assigned_by=student,
                 )
-        except IntegrityError:
-            # The per-record claim constraint lost a race with another
-            # attempt: surface it as the controlled refusal. The savepoint
-            # keeps the surrounding transaction usable for the refusal.
-            # Anything else — a missing ledger table, a broken FK — must
-            # propagate rather than be reported as a lost race.
+        except IntegrityError as exc:
+            # Only the claim constraints mean another attempt won this record's
+            # race; the savepoint keeps the surrounding transaction usable for
+            # the refusal. A missing ledger table or a broken FK must propagate.
+            if not _is_claim_collision(exc):
+                raise
             raise AttributionError(
                 "This creation was just attributed to another journey.",
                 status=409, code="already_claimed",
