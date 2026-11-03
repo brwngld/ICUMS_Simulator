@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demonstration Studio · UI 4 concept · ICUMS Simulator — UI prototype</title>
+<style>
+/* ============================================================================
+   UI 4 — Demonstration Studio concept, grounded in real capabilities.
+   Builds on the approved studio's visual foundation (tabs, simulator panel,
+   capture timeline) and the frozen UNFOLD palette.
+
+   Honest by design: the simulator panel is a representative mock (the
+   production studio embeds the real Django simulator); every capture and
+   validation action here is simulated and labelled. No recording, no backend.
+   ========================================================================== */
+:root {
+  color-scheme: light;
+  --base-50:#f8fafc; --base-100:#f1f5f9; --base-200:#e2e8f0; --base-300:#cbd5e1;
+  --base-400:#94a3b8; --base-500:#64748b; --base-700:#334155; --base-800:#1e293b;
+  --base-900:#0f172a; --base-950:#0a0f1e;
+  --primary-50:#eef0fd; --primary-200:#c7cdf7; --primary-400:#8a86de; --primary-500:#5145cd;
+  --primary-600:#4236b6; --primary-700:#383093; --primary-900:#2b2860;
+  --ds-bg:#f5f6fa; --ds-surface:#fff; --ds-text:#20283a; --ds-muted:#667085;
+  --ds-border:#dfe3ed; --ds-purple:#5942ba; --ds-soft:#f0edff;
+  --ds-green:#167b57; --ds-red:#b52f3b; --ds-amber:#92591b; --ds-shadow:0 8px 24px #20283a0a;
+}
+html.dark, html[data-theme="dark"] {
+  color-scheme: dark;
+  --ds-bg:#0f172a; --ds-surface:#172033; --ds-text:#edf1ff; --ds-muted:#aab4ca;
+  --ds-border:#2b3950; --ds-purple:#8a86de; --ds-soft:#2b2860; --ds-shadow:0 8px 24px #00000059;
+  --ds-amber:#f2d889;
+}
+* { box-sizing:border-box; }
+[hidden] { display:none!important; }
+body { margin:0; background:var(--ds-bg); color:var(--ds-text); font:14px/1.5 system-ui, "Segoe UI", sans-serif; }
+button, input, select, textarea, a { font:inherit; color:inherit; }
+button { cursor:pointer; }
+:focus-visible { outline:3px solid #ffbf47; outline-offset:2px; border-radius:.35rem; }
+h1 { font-size:24px; letter-spacing:-.03em; margin:4px 0; }
+h2 { font-size:17px; margin:0 0 6px; }
+h3 { font-size:14px; margin:0 0 6px; }
+p { margin:4px 0 12px; }
+.muted { color:var(--ds-muted); }
+.small { font-size:12px; }
+
+.shell { display:flex; flex-direction:column; min-height:100vh; }
+.topbar { display:flex; align-items:center; gap:12px; height:56px; padding:0 20px; background:var(--ds-surface); border-bottom:1px solid var(--ds-border); position:sticky; top:0; z-index:20; }
+.topbar .crumb a { color:var(--ds-purple); font-weight:700; text-decoration:none; }
+.topbar .crumb a:hover { text-decoration:underline; }
+.topbar h1 { font-size:16px; margin:0; }
+.topbar-right { margin-left:auto; display:flex; gap:8px; align-items:center; }
+.env-badge { padding:4px 9px; border-radius:7px; background:#fef3c7; color:#92400e; font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; }
+html.dark .env-badge { background:#3c321c; color:#f2d889; }
+.theme-toggle { border:1px solid var(--ds-border); background:var(--ds-surface); color:var(--ds-muted); border-radius:8px; padding:6px 10px; }
+.proto-banner { margin:16px 20px 0; padding:9px 14px; border:1px dashed var(--ds-border); border-radius:10px; background:color-mix(in srgb, var(--ds-purple) 4%, var(--ds-surface)); color:var(--ds-muted); font-size:12px; }
+.proto-banner strong { color:var(--ds-text); }
+.content { flex:1; padding:16px 20px 40px; }
+
+.studio { max-width:1500px; margin:0 auto; }
+.head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:14px 0 18px; flex-wrap:wrap; }
+.pill { display:inline-flex; align-items:center; border-radius:99px; background:var(--ds-soft); color:var(--ds-purple); padding:5px 10px; font-size:12px; font-weight:700; white-space:nowrap; }
+.pill--amber { background:color-mix(in srgb, #c99a2e 16%, transparent); color:var(--ds-amber); }
+.pill--green { background:color-mix(in srgb, #22c55e 14%, transparent); color:var(--ds-green); }
+html.dark .pill--green { color:#86efac; }
+.tabs { display:flex; gap:6px; border-bottom:1px solid var(--ds-border); margin-bottom:18px; overflow:auto; }
+.tab { border:0; background:transparent; border-radius:0; padding:13px 17px; white-space:nowrap; color:var(--ds-muted); }
+.tab.active { color:var(--ds-purple); border-bottom:3px solid var(--ds-purple); font-weight:750; }
+.view[hidden] { display:none; }
+.grid { display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:16px; align-items:start; }
+.panel { background:var(--ds-surface); border:1px solid var(--ds-border); border-radius:14px; box-shadow:var(--ds-shadow); min-width:0; }
+.panelHead { padding:14px 18px; border-bottom:1px solid var(--ds-border); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+.panelBody { padding:18px; }
+.helper { color:var(--ds-muted); font-size:12px; margin:2px 0 0; }
+
+/* Simulator panel: full visibility, independent scrolling */
+.sim { background:#fbfcff; border:1px solid var(--ds-border); border-radius:12px; overflow:hidden; }
+html.dark .sim { background:#131c2e; }
+.simnav { display:flex; flex-wrap:wrap; gap:7px; padding:12px; border-bottom:1px solid var(--ds-border); background:var(--ds-surface); }
+.simnav button { font-size:12px; padding:8px 10px; border:1px solid var(--ds-border); border-radius:8px; background:var(--ds-surface); }
+.simnav button.active { background:var(--ds-soft); border-color:var(--ds-purple); color:var(--ds-purple); }
+.disclaimer { text-align:center; color:#97723d; font-size:11px; letter-spacing:.04em; font-weight:700; padding:8px; }
+.simbody { height:620px; overflow:auto; padding:22px 26px; }
+.simbody h2 { margin-top:0; }
+.field { margin-bottom:12px; }
+.field label { display:block; font-size:12px; font-weight:700; margin-bottom:4px; }
+.field input, .field select, .field textarea {
+  width:100%; padding:9px 11px; border:1px solid var(--ds-border); border-radius:8px; background:var(--ds-surface); color:var(--ds-text); font-size:13px;
+}
+.capture-hint { margin-top:14px; padding:10px 12px; border:1px dashed var(--ds-border); border-radius:9px; font-size:12px; color:var(--ds-muted); }
+.capture-hint b { color:var(--ds-text); }
+
+/* Capture timeline */
+.timeline .event { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--ds-border); align-items:flex-start; }
+.timeline .event:last-child { border-bottom:0; }
+.timeline .num { display:grid; place-items:center; min-width:22px; height:22px; border-radius:50%; background:var(--ds-soft); color:var(--ds-purple); font-size:11px; font-weight:800; }
+.timeline .eventTitle { font-size:13px; font-weight:600; }
+.timeline .small { color:var(--ds-muted); }
+.record-controls { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.record-status { padding:10px 12px; border:1px solid var(--ds-border); border-radius:9px; background:var(--base-50); margin-bottom:12px; }
+html.dark .record-status { background:#131c2e; }
+.record-status[data-state="recording"] { border-color:#ef9a9a; background:#fff2f2; color:#9f1e2b; }
+html.dark .record-status[data-state="recording"] { background:#3c2026; color:#fecaca; }
+.record-status[data-state="paused"] { border-color:#e1bd72; background:#fff8e8; color:#7a4b13; }
+html.dark .record-status[data-state="paused"] { background:#382e1c; color:#f2d889; }
+.recordingDot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#df3647; margin-right:6px; animation:pulse 1.4s infinite; }
+@keyframes pulse { 50% { opacity:.25; } }
+.event-select { margin-top:3px; accent-color:var(--ds-purple); }
+.review-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+.danger { color:var(--ds-red)!important; }
+.empty { padding:18px; border:1px dashed var(--ds-border); border-radius:10px; text-align:center; color:var(--ds-muted); font-size:13px; }
+button.primary { background:var(--ds-purple); border:1px solid var(--ds-purple); color:#fff; border-radius:9px; padding:9px 13px; font-weight:700; }
+html.dark button.primary { background:var(--primary-500); border-color:var(--primary-500); }
+button.quiet { background:transparent; border:1px solid var(--ds-border); color:var(--ds-text); border-radius:9px; padding:9px 13px; }
+button:disabled { opacity:.45; cursor:not-allowed; }
+
+/* Activity cards */
+.activity-nav { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+.activity-nav .steps { display:flex; gap:6px; flex-wrap:wrap; }
+.activity-nav .stepchip { border:1px solid var(--ds-border); background:var(--ds-surface); border-radius:99px; padding:6px 12px; font-size:12px; font-weight:700; color:var(--ds-muted); }
+.activity-nav .stepchip.active { border-color:var(--ds-purple); color:var(--ds-purple); background:var(--ds-soft); }
+.card-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap; margin-bottom:12px; }
+.card-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.validation { margin-top:14px; border:1px solid var(--ds-border); border-radius:10px; overflow:hidden; }
+.validation .vhead { display:flex; align-items:center; gap:8px; padding:9px 12px; font-size:12px; font-weight:700; }
+.validation.ok { border-color:color-mix(in srgb, #22c55e 45%, var(--ds-border)); }
+.validation.ok .vhead { background:color-mix(in srgb, #22c55e 10%, var(--ds-surface)); color:var(--ds-green); }
+.validation.blocked { border-color:color-mix(in srgb, #c99a2e 45%, var(--ds-border)); }
+.validation.blocked .vhead { background:color-mix(in srgb, #c99a2e 12%, var(--ds-surface)); color:var(--ds-amber); }
+.validation ul { margin:0; padding:10px 12px 10px 28px; font-size:12px; color:var(--ds-muted); }
+.message { padding:9px 13px; border:1px solid #c8e9de; border-left:3px solid #239878; border-radius:10px; background:#f1faf6; color:#14532d; font-size:12px; margin-bottom:14px; }
+html.dark .message { background:#16352f; border-color:#286b5b; color:#d3f4e9; }
+.footer-actions { display:flex; justify-content:space-between; gap:10px; margin-top:16px; flex-wrap:wrap; }
+
+@media (max-width:68rem) {
+  .grid { grid-template-columns:1fr; }
+  .simbody { height:480px; }
+  .card-grid2 { grid-template-columns:1fr; }
+}
+@media (max-width:40rem) {
+  .content { padding:12px; }
+  .footer-actions button { flex:1; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition:none!important; animation:none!important; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <span class="crumb"><a href="#" onclick="return false" title="Prototype — navigation is simulated">Module workspace</a> → <a href="#" onclick="return false" title="Prototype — navigation is simulated">Full editor</a> → Demonstration Studio</span>
+    <div class="topbar-right">
+      <span class="env-badge">Training environment</span>
+      <button class="theme-toggle" id="themeToggle" aria-label="Switch between light and dark theme (prototype aid)">Theme</button>
+    </div>
+  </div>
+  <div class="proto-banner">
+    <strong>UI prototype.</strong> The simulator area below is a workflow placeholder, not another simulator implementation. The production studio is intended to embed the actual same-origin Django simulator. Every recording, capture, draft conversion and validation action here is <strong>simulated in this browser tab</strong>; nothing is saved or verified.
+  </div>
+
+  <main class="content">
+    <div class="studio">
+      <div class="head">
+        <div>
+          <p class="small muted" style="margin:0">Theory &amp; Practical · Interactive Practical lesson</p>
+          <h1>Demonstration Studio — What is UCR</h1>
+          <p class="muted small">Demonstrate the task in the simulator, then turn it into the lesson's practical activities.</p>
+        </div>
+        <span class="pill pill--amber">SIMULATED CAPTURE · LOCAL ONLY</span>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="demonstrate" role="tab" aria-selected="true">1 · Demonstrate &amp; author</button>
+        <button class="tab" data-tab="preview" role="tab" aria-selected="false">2 · Student preview</button>
+      </div>
+
+      <!-- ================= Demonstrate & author ================= -->
+      <section class="view" id="view-demonstrate">
+        <div class="grid">
+          <!-- Simulator: full visibility, independently scrollable -->
+          <div class="panel">
+            <div class="panelHead">
+              <div>
+                <h2>Real simulator workspace <span class="pill">Standalone placeholder</span></h2>
+                <p class="helper">Production target: the actual Django simulator in a same-origin frame, full size and independently scrollable. This standalone file cannot authenticate or embed it.</p>
+              </div>
+            </div>
+            <div class="sim">
+              <div class="simnav" id="simnav">
+                <button class="active" data-screen="Cargo">Cargo</button>
+                <button data-screen="Clearance">Clearance</button>
+                <button data-screen="Collection">Collection</button>
+                <button data-screen="Single Window">Single Window</button>
+                <button data-screen="e-Docs">e-Docs</button>
+              </div>
+              <div class="disclaimer">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div>
+              <div class="simbody" id="simbody"></div>
+            </div>
+          </div>
+
+          <!-- Capture timeline -->
+          <aside class="panel timeline">
+            <div class="panelHead">
+              <div><h2>Capture timeline</h2><p class="helper">Simulated — meaningful allowlisted actions only</p></div>
+              <span class="pill" id="eventCount">0 events</span>
+            </div>
+            <div class="panelBody">
+              <div class="record-controls" aria-label="Simulated recording controls">
+                <button class="primary" id="startRecording">● Start Recording</button>
+                <button class="quiet" id="pauseRecording" disabled>Ⅱ Pause Recording</button>
+                <button class="quiet" id="resumeRecording" hidden>▶ Resume Recording</button>
+                <button class="quiet" id="stopRecording" disabled>■ Stop Recording</button>
+                <button class="quiet danger" id="clearRecording" disabled>Clear / discard</button>
+              </div>
+              <div class="record-status" id="recordStatus" data-state="idle" role="status" aria-live="polite">Idle — simulated recording has not started.</div>
+              <div id="events" class="empty">Start the simulated recording, then use the placeholder controls. Only allowlisted meaningful actions appear here.</div>
+              <div class="review-actions" id="reviewActions" hidden>
+                <button class="primary" id="draftSelected">Create lesson-step drafts from selected</button>
+                <button class="quiet" id="selectAll">Select all</button>
+              </div>
+              <p class="helper" style="margin-top:10px"><strong>Design principle.</strong> Demonstration data is isolated: nothing captured here ever prefills a student's forms, and no backend record is created.</p>
+            </div>
+          </aside>
+        </div>
+
+        <!-- Practical activities authoring -->
+        <div class="panel" style="margin-top:16px">
+          <div class="panelHead">
+            <div>
+              <h2>Practical activities</h2>
+              <p class="helper">The lesson's steps — created here or in the full editor. Validation mirrors the editor's readiness rules.</p>
+            </div>
+            <button class="quiet" id="addStep">+ Add activity</button>
+          </div>
+          <div class="panelBody">
+            <div class="message" id="studioMessage" hidden></div>
+            <div class="activity-nav">
+              <span class="small muted">Activity:</span>
+              <span class="steps" id="stepChips"></span>
+            </div>
+            <div id="activityCard"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= Student preview ================= -->
+      <section class="view" id="view-preview" hidden>
+        <div class="panel"><div class="panelBody">
+          <h2>Student preview</h2>
+          <p class="muted small">Unchanged from the approved studio: the learner sees the theory panel beside the full simulator, with this lesson's steps in curriculum order.</p>
+          <p class="empty">Preview mock — identical to the approved Demonstration Studio's student preview tab.</p>
+        </div></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+
+  /* --- Theme (prototype aid) ------------------------------------------------ */
+  const root = document.documentElement;
+  $("themeToggle").addEventListener("click", () => {
+    const next = root.classList.contains("dark") ? "light" : "dark";
+    localStorage.setItem("adminTheme", JSON.stringify(next));
+    applyTheme();
+  });
+  function applyTheme() {
+    let t = null;
+    try { t = JSON.parse(localStorage.getItem("adminTheme")); } catch {}
+    if (t !== "dark" && t !== "light") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    root.dataset.theme = t;
+    root.classList.toggle("dark", t === "dark");
+  }
+  applyTheme();
+
+  /* --- Approved registry: developer-approved simulator screens -------------- */
+  /* Mirrors SIMULATOR_BINDING_ROUTES (scenarios/bindings.py) — the same
+     choices the full editor's "Simulator screen" select offers. */
+  const SCREENS = [
+    ["", "— None —"],
+    ["simulator-portal", "Simulator portal"],
+    ["single-window-overview", "Single Window overview"],
+    ["single-window-create-ucr", "Create a UCR declaration"],
+    ["single-window-search-ucr", "Search UCR declarations"],
+    ["search-boe-declaration", "Search BOE declarations"],
+    ["clearance-workspace", "Clearance workspace"],
+    ["consignment-application-create", "Create a consignment application"],
+    ["single-window-search-consignment-application", "Search consignment applications"],
+  ];
+
+  /* --- Sample lesson steps (PracticalStep fields) ---------------------------- */
+  let steps = [
+    { title: "Open the Single Window", instruction: "", outcome: "", hint: "", screen: "single-window-overview" },
+    { title: "Create a UCR declaration", instruction: "Fill in the exporter and goods details, then save the draft.", outcome: "A draft UCR exists with the entered details.", hint: "Use fictional details.", screen: "single-window-create-ucr" },
+  ];
+  let current = 0;
+
+  /* --- Tabs -------------------------------------------------------------------- */
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach((t) => {
+        t.classList.toggle("active", t === tab);
+        t.setAttribute("aria-selected", String(t === tab));
+      });
+      $("view-demonstrate").hidden = tab.dataset.tab !== "demonstrate";
+      $("view-preview").hidden = tab.dataset.tab !== "preview";
+    });
+  });
+
+  /* --- Simulator mock ------------------------------------------------------------ */
+  let screen = "Cargo";
+  const SIM_CONTENT = {
+    Cargo: `<h2>Cargo</h2><p class="muted">Manifest and consignment overviews live here in the real simulator.</p>
+      <div class="field"><label> Voyage reference</label><input placeholder="Fictional voyage" oninput="window.__capture('Typed in voyage reference', this.value)"></div>`,
+    Clearance: `<h2>Clearance</h2><p class="muted">Declaration workspaces live here in the real simulator.</p>`,
+    Collection: `<h2>Collection</h2><p class="muted">Document collection lives here in the real simulator.</p>`,
+    "Single Window": `<h2>Create UCR</h2><p class="muted">Demonstration form · fictional information only</p>
+      <div class="field"><label>Customs regime</label><select onchange="window.__capture('Selected customs regime', this.value)"><option>Choose regime</option><option>Import (IM)</option><option>Export (EX)</option></select></div>
+      <div class="field"><label>Exporter name</label><input placeholder="Fictional exporter" oninput="window.__capture('Typed in exporter name', this.value)"></div>
+      <div class="field"><label>Goods description</label><textarea placeholder="Describe fictional goods" rows="3" oninput="window.__capture('Typed in goods description', this.value)"></textarea></div>
+      <button class="primary" onclick="window.__capture('Pressed save draft', '')">Save draft UCR</button>`,
+    "e-Docs": `<h2>e-Docs</h2><p class="muted">Attached documents live here in the real simulator.</p>`,
+  };
+  const renderSim = () => {
+    document.querySelectorAll("#simnav button").forEach((b) => b.classList.toggle("active", b.dataset.screen === screen));
+    $("simbody").innerHTML = SIM_CONTENT[screen] || "";
+  };
+  $("simnav").addEventListener("click", (event) => {
+    const b = event.target.closest("[data-screen]");
+    if (!b) return;
+    screen = b.dataset.screen;
+    renderSim();
+    capture(`Opened the ${screen} screen`);
+  });
+  renderSim();
+
+  /* --- Simulated recording lifecycle and capture timeline ---------------------- */
+  let recordingState = "idle";
+  let events = [];
+  window.__capture = (label) => {
+    capture(label);
+  };
+  function capture(label) {
+    if (recordingState !== "recording") return;
+    events.push({ label, selected: true, sequence: events.length + 1 });
+    renderRecording();
+  }
+  function renderRecording() {
+    $("eventCount").textContent = `${events.length} events`;
+    const box = $("events");
+    if (!events.length) {
+      box.className = "empty";
+      box.textContent = recordingState === "recording" ? "Recording is active. Use the placeholder controls to generate simulated allowlisted actions." : "No simulated actions have been captured.";
+    } else {
+      box.className = "";
+      box.innerHTML = events.map((e) =>
+        `<div class="event"><input class="event-select" type="checkbox" data-event="${e.sequence}" ${e.selected ? "checked" : ""} ${recordingState === "stopped" ? "" : "disabled"} aria-label="Select action ${e.sequence}"><span class="num">${e.sequence}</span><div><div class="eventTitle">${esc(e.label)}</div><div class="small">Simulated action ${e.sequence} · not saved or verified</div></div></div>`).join("");
+    }
+    const status = $("recordStatus");
+    status.dataset.state = recordingState;
+    status.innerHTML = recordingState === "recording" ? `<span class="recordingDot"></span>Recording simulated actions · ${events.length} captured` :
+      recordingState === "paused" ? `Paused · ${events.length} simulated actions captured` :
+      recordingState === "stopped" ? `Stopped · ${events.length} simulated actions ready for instructor review` :
+      `Idle — simulated recording has not started.`;
+    $("startRecording").disabled = recordingState === "recording" || recordingState === "paused";
+    $("pauseRecording").disabled = recordingState !== "recording";
+    $("pauseRecording").hidden = recordingState === "paused";
+    $("resumeRecording").hidden = recordingState !== "paused";
+    $("stopRecording").disabled = !["recording", "paused"].includes(recordingState);
+    $("clearRecording").disabled = !events.length && recordingState === "idle";
+    $("reviewActions").hidden = recordingState !== "stopped" || !events.length;
+  }
+
+  $("startRecording").addEventListener("click", () => { events = []; recordingState = "recording"; renderRecording(); });
+  $("pauseRecording").addEventListener("click", () => { recordingState = "paused"; renderRecording(); });
+  $("resumeRecording").addEventListener("click", () => { recordingState = "recording"; renderRecording(); });
+  $("stopRecording").addEventListener("click", () => { recordingState = "stopped"; renderRecording(); });
+  $("clearRecording").addEventListener("click", () => {
+    if (!window.confirm("Discard this simulated recording and all captured actions?")) return;
+    events = []; recordingState = "idle"; renderRecording();
+    show("Simulated recording discarded. Nothing had been saved.");
+  });
+  $("events").addEventListener("change", (event) => {
+    const input = event.target.closest("[data-event]");
+    if (!input) return;
+    const item = events.find((e) => e.sequence === Number(input.dataset.event));
+    if (item) item.selected = input.checked;
+  });
+  $("selectAll").addEventListener("click", () => { events.forEach((e) => { e.selected = true; }); renderRecording(); });
+  $("draftSelected").addEventListener("click", () => {
+    const selected = events.filter((e) => e.selected);
+    if (!selected.length) { show("Select at least one simulated action to create a draft."); return; }
+    steps.push({ title: "Draft from demonstration", instruction: selected.map((e) => e.label).join("; "), outcome: "Instructor review required before publication.", hint: "", screen: "single-window-create-ucr" });
+    current = steps.length - 1;
+    render();
+    show(`Simulated — ${selected.length} selected action${selected.length === 1 ? "" : "s"} became one editable lesson-step draft. Nothing was saved.`);
+  });
+
+  /* --- Practical activity authoring ------------------------------------------------ */
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+  // Same readiness rules the editor applies to steps (hybrid.publishing.lesson_issues).
+  const issuesFor = (s) => {
+    const issues = [];
+    if (!s.instruction.trim()) issues.push("The activity has no instruction.");
+    if (!s.outcome.trim()) issues.push("The activity has no expected outcome.");
+    if (!s.screen) issues.push("The activity has no simulator screen.");
+    return issues;
+  };
+
+  const render = () => {
+    // Chips
+    $("stepChips").innerHTML = steps.map((s, i) =>
+      `<button class="stepchip ${i === current ? "active" : ""}" data-goto="${i}">${i + 1}. ${esc(s.title || "Untitled activity")}</button>`).join("")
+      + `<button class="stepchip" data-goto="${steps.length}">+ New</button>`;
+    if (current >= steps.length) current = steps.length - 1;
+    if (current < 0) current = 0;
+    const s = steps[current];
+    const issues = issuesFor(s);
+    $("activityCard").innerHTML = `
+      <div class="card-head">
+        <div>
+          <h3>Activity ${current + 1} of ${steps.length}</h3>
+          <p class="helper">Fields match the full editor's activity card. Editing here is simulated — nothing is saved.</p>
+        </div>
+        <button class="quiet" data-remove="${current}" ${steps.length <= 1 ? "disabled" : ""}>Remove activity</button>
+      </div>
+      <div class="card-grid2">
+        <div class="field"><label>Activity title</label><input data-field="title" value="${esc(s.title)}" maxlength="180"></div>
+        <div class="field"><label>Simulator screen <span class="muted">(developer-approved routes only)</span></label>
+          <select data-field="screen">${SCREENS.map(([v, l]) => `<option value="${v}" ${s.screen === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+        <div class="field"><label>Instruction <span class="muted">(what the learner does)</span></label><textarea data-field="instruction" rows="3">${esc(s.instruction)}</textarea></div>
+        <div class="field"><label>Expected outcome <span class="muted">(what proves it worked)</span></label><textarea data-field="outcome" rows="3">${esc(s.outcome)}</textarea></div>
+        <div class="field" style="grid-column:1/-1"><label>Hint <span class="muted">(optional)</span></label><textarea data-field="hint" rows="2">${esc(s.hint)}</textarea></div>
+        <div style="grid-column:1/-1"><button class="quiet" id="prefill">↺ Prefill from simulated capture</button>
+          <p class="helper">Simulated — in production this would draft the fields from the actions you demonstrated in the real simulator. Capture data never prefills student forms.</p></div>
+      </div>
+      <div class="validation ${issues.length ? "blocked" : "ok"}">
+        <div class="vhead">${issues.length ? "⚠ Not publish-ready" : "✓ Ready"} — ${issues.length ? `${issues.length} item${issues.length === 1 ? "" : "s"}` : "this activity has everything the editor requires"}</div>
+        ${issues.length ? `<ul>${issues.map((i) => `<li>${i}</li>`).join("")}</ul>` : ""}
+      </div>
+      <div class="footer-actions">
+        <button class="quiet" data-goto="${current - 1}" ${current === 0 ? "disabled" : ""}>← Previous activity</button>
+        <span class="small muted">Activity ${current + 1} of ${steps.length}</span>
+        <button class="quiet" data-goto="${current + 1}" ${current >= steps.length - 1 ? "disabled" : ""}>Next activity →</button>
+      </div>`;
+
+    // Wire fields (edit in memory only)
+    document.querySelectorAll("#activityCard [data-field]").forEach((el) => {
+      el.addEventListener("input", () => { steps[current][el.dataset.field] = el.value; refreshValidation(); });
+      el.addEventListener("change", () => { steps[current][el.dataset.field] = el.value; refreshValidation(); });
+    });
+    const pre = $("prefill");
+    if (pre) pre.addEventListener("click", () => {
+      steps[current].instruction = steps[current].instruction || "Open the Single Window and select Import as the regime.";
+      steps[current].outcome = steps[current].outcome || "The Single Window shows the Import regime selected.";
+      steps[current].screen = steps[current].screen || "single-window-create-ucr";
+      show(`Simulated — the fields were drafted from a captured demonstration. Nothing was saved.`);
+      render();
+    });
+  };
+
+  const refreshValidation = () => {
+    const s = steps[current];
+    const issues = issuesFor(s);
+    const box = document.querySelector(".validation");
+    box.className = `validation ${issues.length ? "blocked" : "ok"}`;
+    box.innerHTML = `<div class="vhead">${issues.length ? "⚠ Not publish-ready" : "✓ Ready"} — ${issues.length ? `${issues.length} item${issues.length === 1 ? "" : "s"}` : "this activity has everything the editor requires"}</div>`
+      + (issues.length ? `<ul>${issues.map((i) => `<li>${i}</li>`).join("")}</ul>` : "");
+    // Keep chip labels current.
+    document.querySelectorAll("#stepChips .stepchip").forEach((chip, i) => {
+      if (i < steps.length) chip.textContent = `${i + 1}. ${steps[i].title || "Untitled activity"}`;
+    });
+  };
+
+  const show = (text) => {
+    const box = $("studioMessage");
+    box.hidden = false;
+    box.textContent = text;
+    window.setTimeout(() => { box.hidden = true; }, 4500);
+  };
+
+  document.addEventListener("click", (event) => {
+    const goto = event.target.closest("[data-goto]");
+    if (goto) {
+      const target = Number(goto.dataset.goto);
+      if (target === steps.length) { steps.push({ title: "New activity", instruction: "", outcome: "", hint: "", screen: "" }); }
+      current = Math.min(Math.max(target, 0), steps.length - 1);
+      render();
+      return;
+    }
+    const remove = event.target.closest("[data-remove]");
+    if (remove && !remove.disabled) {
+      steps.splice(current, 1);
+      current = Math.max(0, current - 1);
+      show("Simulated — the activity was removed from this prototype session. Removal in the product goes through the full editor with its own protections.");
+      render();
+    }
+  });
+  $("addStep").addEventListener("click", () => {
+    steps.push({ title: "New activity", instruction: "", outcome: "", hint: "", screen: "" });
+    current = steps.length - 1;
+    render();
+    show("Simulated — a new activity was added to this prototype session only.");
+  });
+
+  const requestedState = new URLSearchParams(window.location.search).get("state");
+  if (["recording", "paused", "stopped", "review"].includes(requestedState)) {
+    events = [
+      { label: "Opened the Single Window screen", selected: true, sequence: 1 },
+      { label: "Selected customs regime: Import (IM)", selected: true, sequence: 2 },
+      { label: "Pressed save draft", selected: requestedState !== "review", sequence: 3 },
+    ];
+    recordingState = requestedState === "review" ? "stopped" : requestedState;
+  }
+  renderRecording();
+  render();
+})();
+</script>
+</body>
+</html>

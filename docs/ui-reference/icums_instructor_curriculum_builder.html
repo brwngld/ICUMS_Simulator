@@ -1,0 +1,868 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theory &amp; Practical builder · ICUMS Simulator — UI prototype</title>
+<style>
+/* ============================================================================
+   UI 1 — Theory & Practical Curriculum Builder (instructor landing page)
+   Standalone visual prototype. No Django, no network, nothing saved.
+
+   Faithful to the frozen application theme:
+   - Colours are the UNFOLD palette (config/settings/base.py): base = slate,
+     primary = indigo. No new hues.
+   - Shell anatomy mirrors the Unfold chrome the instructor pages render in
+     (templates/core/base_student.html): brand, app search, nav groups with
+     icon tiles, user block, header with environment badge.
+   - Content uses the shared authoring-* design system
+     (static/css/instructor-theory-builder.css) and the card conventions of
+     static/css/app.css. Typography, focus rings and motion follow app.css.
+   - Dark mode follows the application convention: html.dark +
+     html[data-theme="dark"], driven the same way static/js/theme.js drives it.
+   ========================================================================== */
+
+/* --- Frozen palette (verbatim from UNFOLD COLORS) ------------------------- */
+:root {
+  color-scheme: light;
+  --base-25:#fafafa; --base-50:#f8fafc; --base-100:#f1f5f9; --base-200:#e2e8f0;
+  --base-300:#cbd5e1; --base-400:#94a3b8; --base-500:#64748b; --base-600:#475569;
+  --base-700:#334155; --base-800:#1e293b; --base-900:#0f172a; --base-950:#0a0f1e;
+  --primary-50:#eef0fd; --primary-100:#e0e3fb; --primary-200:#c7cdf7;
+  --primary-300:#a8aded; --primary-400:#8a86de; --primary-500:#5145cd;
+  --primary-600:#4236b6; --primary-700:#383093; --primary-800:#302b76;
+  --primary-900:#2b2860; --primary-950:#1b1940;
+  --accent:var(--primary-600);
+  --warning-bg:#fffaeb; --warning-text:#795c16;
+  --success:#3d9970;
+  --danger:#b42318;
+  --focus-ring:#ffbf47;
+
+  --chrome-bg:#ffffff;          /* sidebar + header in light mode          */
+  --page-bg:var(--base-50);     /* content background (base_student.html)  */
+  --surface:#ffffff;            /* cards                                   */
+  --border:var(--base-200);
+  --text:#1e293b;               /* font-default-light                      */
+  --muted:var(--base-500);
+  --shadow-soft:0 1px 2px #10142608, 0 6px 18px #1014260d;
+  --shadow-lift:0 12px 26px #1014261a;
+  --sidebar-w:18rem;
+}
+html.dark, html[data-theme="dark"] {
+  color-scheme: dark;
+  --accent:var(--primary-400);
+  --warning-bg:#3c321c; --warning-text:#f2d889;
+  --chrome-bg:var(--base-950);
+  --page-bg:var(--base-900);
+  --surface:#172033;
+  --border:#2b3950;
+  --text:#edf1ff;
+  --muted:#aab4ca;
+  --shadow-soft:0 1px 2px #00000040, 0 6px 18px #00000052;
+  --shadow-lift:0 12px 26px #00000073;
+}
+
+/* --- Base ------------------------------------------------------------------ */
+* { box-sizing:border-box; }
+[hidden] { display:none!important; }
+html { scroll-behavior:smooth; }
+body {
+  margin:0; background:var(--page-bg); color:var(--text);
+  font:0.875rem/1.6 Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button, input, select, a { font:inherit; color:inherit; transition:background-color .18s, border-color .18s, box-shadow .18s, color .18s; -webkit-tap-highlight-color:transparent; }
+button { cursor:pointer; }
+h1, h2, h3 { line-height:1.25; letter-spacing:-.025em; }
+:focus-visible { outline:3px solid var(--focus-ring); outline-offset:3px; border-radius:.35rem; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid color-mix(in srgb, var(--accent), transparent 55%); outline-offset:1px; }
+.ui-icon { flex-shrink:0; vertical-align:middle; }
+
+/* --- Shell: sidebar --------------------------------------------------------- */
+.shell { min-height:100vh; }
+.sidebar {
+  position:fixed; inset:0 auto 0 0; width:var(--sidebar-w); z-index:40;
+  display:flex; flex-direction:column;
+  background:var(--chrome-bg); border-right:1px solid var(--border);
+  transition:transform .22s ease;
+}
+.brand { display:flex; align-items:center; gap:.7rem; padding:0 1rem; height:4rem; border-bottom:1px solid var(--border); flex:0 0 auto; }
+.brand-mark { display:grid; place-items:center; width:2.1rem; height:2.1rem; border-radius:.6rem; background:var(--primary-600); color:#fff; }
+html.dark .brand-mark { background:var(--primary-500); }
+.brand-title { font-size:.82rem; font-weight:750; line-height:1.2; }
+.brand-sub { font-size:.68rem; color:var(--muted); }
+.side-search { margin:.75rem .75rem .25rem; position:relative; flex:0 0 auto; }
+.side-search .ui-icon { position:absolute; left:.6rem; top:50%; translate:0 -50%; color:var(--muted); }
+.side-search input {
+  width:100%; padding:.5rem 2.6rem .5rem 2rem; border:1px solid var(--border); border-radius:.5rem;
+  background:var(--page-bg); color:var(--text); font-size:.72rem;
+}
+.side-search input::placeholder { color:var(--base-400); }
+html.dark .side-search input { background:#131c2e; }
+.side-search kbd {
+  position:absolute; right:.45rem; top:50%; translate:0 -50%;
+  padding:.05rem .3rem; border:1px solid var(--border); border-radius:.3rem;
+  background:var(--surface); color:var(--muted); font-size:.6rem;
+}
+.side-nav { flex:1 1 auto; overflow-y:auto; padding:.35rem .75rem .75rem; }
+.nav-group { margin-top:.55rem; }
+.nav-heading { margin:.65rem .55rem .3rem; color:var(--muted); font-size:.66rem; font-weight:750; letter-spacing:.09em; text-transform:uppercase; }
+.nav-item {
+  display:flex; align-items:center; gap:.65rem; width:100%;
+  min-height:2.6rem; padding:.4rem .5rem; border:0; border-radius:.65rem;
+  background:transparent; color:var(--text); font-size:.78rem; font-weight:700; text-align:left; text-decoration:none;
+}
+.nav-item:hover { background:color-mix(in srgb, var(--accent) 7%, transparent); }
+.nav-item.active { background:var(--base-100); }
+html.dark .nav-item.active { background:var(--base-800); }
+.nav-icon {
+  display:grid; place-items:center; width:1.75rem; height:1.75rem; flex:0 0 1.75rem;
+  border-radius:.5rem; color:var(--accent); background:color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.nav-icon .ui-icon { width:1rem; height:1rem; }
+.nav-icon--plain { background:transparent; color:var(--muted); width:1.4rem; flex-basis:1.4rem; margin:0 .18rem; }
+.nav-chevron { margin-left:auto; color:var(--muted); }
+.side-user {
+  flex:0 0 auto; display:flex; align-items:center; gap:.65rem;
+  margin:.5rem .75rem .75rem; padding:.55rem .6rem;
+  border:1px solid var(--border); border-radius:.65rem; background:var(--surface);
+}
+.side-user .avatar { display:grid; place-items:center; width:2rem; height:2rem; border-radius:.5rem; background:var(--primary-50); color:var(--primary-700); font-weight:800; font-size:.78rem; }
+html.dark .side-user .avatar { background:var(--primary-900); color:var(--primary-200); }
+.side-user .who { min-width:0; }
+.side-user .who b { display:block; font-size:.76rem; line-height:1.25; }
+.side-user .who span { display:block; font-size:.66rem; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.side-user .chevrons { margin-left:auto; color:var(--muted); }
+.backdrop { position:fixed; inset:0; z-index:30; background:#0f172a80; opacity:0; pointer-events:none; transition:opacity .2s; }
+
+/* --- Shell: header + content frame ------------------------------------------ */
+.frame { margin-left:var(--sidebar-w); display:flex; flex-direction:column; min-height:100vh; transition:margin .22s ease; }
+body.side-collapsed .sidebar { transform:translateX(-100%); }
+body.side-collapsed .frame { margin-left:0; }
+.topbar {
+  position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:.8rem;
+  height:4rem; padding:0 1.25rem;
+  background:var(--chrome-bg); border-bottom:1px solid var(--border);
+}
+.topbar .toggle { display:grid; place-items:center; width:2.2rem; height:2.2rem; padding:0; border:1px solid transparent; border-radius:.5rem; background:transparent; color:var(--muted); }
+.topbar .toggle:hover { border-color:var(--border); color:var(--text); }
+.topbar h1 { margin:0; font-size:.875rem; font-weight:600; }
+@media (min-width:80rem) { .topbar h1 { font-size:1rem; } }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:.6rem; }
+.env-badge {
+  padding:.3rem .6rem; border-radius:.45rem; background:#fef3c7; color:#92400e;
+  font-size:.64rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; white-space:nowrap;
+}
+html.dark .env-badge { background:var(--warning-bg); color:var(--warning-text); }
+.theme-toggle { display:grid; place-items:center; width:2.2rem; height:2.2rem; padding:0; border:1px solid var(--border); border-radius:.5rem; background:var(--surface); color:var(--muted); }
+.theme-toggle:hover { color:var(--accent); border-color:var(--accent); }
+
+.content { flex:1; padding:1.25rem 1.5rem 2.5rem; }
+
+/* --- Prototype banner -------------------------------------------------------- */
+.proto-banner {
+  display:flex; flex-wrap:wrap; align-items:center; gap:.6rem 1rem;
+  margin:0 auto 1rem; padding:.55rem .9rem; max-width:92rem;
+  border:1px dashed var(--base-300); border-radius:.65rem;
+  background:color-mix(in srgb, var(--accent) 4%, var(--surface));
+  color:var(--muted); font-size:.7rem;
+}
+html.dark .proto-banner { border-color:var(--border); }
+.proto-banner strong { color:var(--text); font-weight:750; }
+.proto-banner .proto-tools { margin-left:auto; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.proto-banner label { font-size:.68rem; font-weight:700; }
+.proto-banner select {
+  min-height:1.9rem; padding:.2rem .5rem; border:1px solid var(--border); border-radius:.45rem;
+  background:var(--surface); color:var(--text); font-size:.68rem;
+}
+.proto-banner .reset { padding:.25rem .6rem; border:1px solid var(--border); border-radius:.45rem; background:var(--surface); color:var(--muted); font-size:.68rem; }
+.proto-banner .reset:hover { color:var(--accent); border-color:var(--accent); }
+
+/* --- Shared authoring language (instructor-theory-builder.css) --------------- */
+.authoring { --au-accent:var(--accent); --au-border:var(--border); --au-surface:var(--surface); --au-soft:var(--page-bg); --au-muted:var(--muted); width:min(100%,92rem); margin:0 auto; }
+.authoring a { text-decoration:none; }
+.authoring-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--au-border); }
+.authoring-head h1 { margin:.2rem 0 .35rem; font-size:clamp(1.45rem,3vw,2rem); line-height:1.15; font-weight:750; }
+.authoring-head p { max-width:72ch; margin:0; color:var(--au-muted); font-size:.78rem; line-height:1.55; }
+.authoring-eyebrow { color:var(--au-accent)!important; font-size:.68rem!important; font-weight:800; text-transform:uppercase; letter-spacing:.06em; }
+.authoring-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:.45rem; }
+.authoring-primary, .authoring-secondary {
+  display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+  min-height:2.35rem; padding:.5rem .85rem; border:1px solid var(--au-accent); border-radius:.55rem;
+  font-size:.7rem; font-weight:750; cursor:pointer;
+}
+.authoring-primary { background:var(--au-accent); color:#fff!important; box-shadow:0 3px 6px color-mix(in srgb, var(--au-accent) 12%, transparent); }
+html.dark .authoring-primary { background:var(--primary-500); border-color:var(--primary-500); }
+.authoring-primary:hover { background:var(--primary-700); border-color:var(--primary-700); }
+html.dark .authoring-primary:hover { background:var(--primary-600); border-color:var(--primary-600); }
+.authoring-primary:active { transform:translateY(1px); }
+.authoring-secondary { background:transparent; color:var(--au-accent)!important; }
+.authoring-secondary:hover { border-color:var(--au-accent); background:color-mix(in srgb, var(--au-accent) 7%, transparent); }
+.authoring-card { padding:1rem; border:1px solid var(--au-border); border-radius:.7rem; background:var(--au-surface); box-shadow:var(--shadow-soft); }
+.authoring-card h2 { margin:0; font-size:.95rem; }
+.authoring-empty { border:1px dashed var(--base-300); border-radius:.5rem; padding:1.1rem 1rem; text-align:center; color:var(--muted); }
+html.dark .authoring-empty { border-color:var(--border); }
+
+/* --- Summary indicators ------------------------------------------------------- */
+.stat-grid { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:1rem; margin-bottom:1.25rem; }
+.stat { display:flex; align-items:center; gap:.8rem; padding:1rem 1.1rem; }
+.stat .stat-icon { display:grid; place-items:center; width:2.3rem; height:2.3rem; flex:0 0 2.3rem; border-radius:.65rem; background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--accent); }
+.stat b { display:block; font-size:1.45rem; font-weight:800; line-height:1.15; letter-spacing:-.02em; }
+.stat span { display:block; color:var(--muted); font-size:.7rem; font-weight:650; }
+
+/* --- Toolbar: search + filter -------------------------------------------------- */
+.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:.6rem; margin-bottom:1.25rem; padding:.7rem .8rem; }
+.toolbar .search { position:relative; flex:1 1 16rem; min-width:13rem; }
+.toolbar .search .ui-icon { position:absolute; left:.6rem; top:50%; translate:0 -50%; color:var(--muted); }
+.toolbar .search input {
+  width:100%; min-height:2.35rem; padding:.45rem .7rem .45rem 2rem;
+  border:1px solid var(--au-border); border-radius:.5rem; background:var(--au-surface); color:var(--text); font-size:.72rem;
+}
+.toolbar .search input::placeholder { color:var(--base-400); }
+.segmented { display:inline-flex; padding:.22rem; gap:.15rem; border:1px solid var(--au-border); border-radius:.6rem; background:var(--au-soft); }
+.segmented button {
+  min-height:1.85rem; padding:.2rem .8rem; border:0; border-radius:.42rem;
+  background:transparent; color:var(--muted); font-size:.68rem; font-weight:750;
+}
+.segmented button[aria-pressed="true"] { background:var(--au-surface); color:var(--accent); box-shadow:0 1px 2px #10142614; }
+html.dark .segmented button[aria-pressed="true"] { background:var(--base-800); }
+.toolbar .count { margin-left:auto; color:var(--muted); font-size:.68rem; }
+
+/* --- Programme cards ------------------------------------------------------------ */
+.card-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%,21rem),1fr)); gap:1.2rem; }
+.card { display:flex; flex-direction:column; gap:.7rem; transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease; animation:app-rise .5s cubic-bezier(.22,.9,.3,1) backwards; }
+.card:nth-child(1) { animation-delay:.05s; } .card:nth-child(2) { animation-delay:.12s; }
+.card:nth-child(3) { animation-delay:.19s; } .card:nth-child(4) { animation-delay:.26s; }
+.card:nth-child(n+5) { animation-delay:.33s; }
+.card:hover { transform:translateY(-3px); border-color:color-mix(in srgb, var(--accent) 35%, var(--au-border)); box-shadow:var(--shadow-lift); }
+.card.flash { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:.6rem; }
+.card-top h3 { margin:.05rem 0 0; font-size:.95rem; line-height:1.3; }
+.card-code { margin:.15rem 0 0; color:var(--muted); font-size:.66rem; }
+.card-code code { font:inherit; padding:.08rem .35rem; border:1px solid var(--au-border); border-radius:.35rem; background:var(--au-soft); }
+.chip-row { display:flex; flex-wrap:wrap; gap:.3rem; justify-content:flex-end; }
+.chip { display:inline-flex; align-items:center; gap:.3rem; padding:.22rem .55rem; border-radius:99px; font-size:.62rem; font-weight:800; line-height:1; white-space:nowrap; }
+.chip--draft { background:color-mix(in srgb, #c99a2e 14%, transparent); color:#92591b; }
+html.dark .chip--draft { background:color-mix(in srgb, #c99a2e 20%, transparent); color:#f2d889; }
+.chip--published { background:color-mix(in srgb, #22c55e 12%, transparent); color:#166534; }
+html.dark .chip--published { background:color-mix(in srgb, #22c55e 18%, transparent); color:#86efac; }
+.editions { display:grid; gap:.45rem; }
+.edition {
+  display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:.6rem;
+  padding:.5rem .65rem; border:1px solid var(--au-border); border-left:3px solid transparent; border-radius:.5rem; background:var(--au-soft);
+}
+.edition--draft { border-left-color:#c99a2e; }
+.edition--published { border-left-color:var(--success); }
+.edition .ver { font-size:.66rem; font-weight:800; color:var(--au-muted); }
+.edition p { margin:0; color:var(--muted); font-size:.68rem; }
+.edition b { color:var(--text); font-weight:650; }
+.card-foot { margin-top:auto; display:flex; justify-content:flex-end; padding-top:.2rem; }
+
+/* --- States ---------------------------------------------------------------------- */
+.state-note { margin:.2rem 0 .8rem; color:var(--muted); font-size:.72rem; }
+.state-note b { color:var(--text); }
+.error-card { border-color:color-mix(in srgb, var(--danger) 45%, var(--au-border)); }
+.error-card .error-head { display:flex; align-items:flex-start; gap:.7rem; }
+.error-card .error-icon { display:grid; place-items:center; width:2.1rem; height:2.1rem; flex:0 0 2.1rem; border-radius:.6rem; background:color-mix(in srgb, var(--danger) 12%, transparent); color:var(--danger); }
+.error-card h2 { font-size:.95rem; }
+.error-card p { margin:.2rem 0 .8rem; color:var(--muted); font-size:.74rem; }
+.skeleton-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%,21rem),1fr)); gap:1.2rem; }
+.skeleton { height:10.5rem; position:relative; overflow:hidden; }
+.skeleton::after {
+  content:""; position:absolute; inset:0; translate:-100% 0;
+  background:linear-gradient(90deg, transparent, color-mix(in srgb, var(--base-400) 16%, transparent), transparent);
+  animation:shimmer 1.3s infinite;
+}
+@keyframes shimmer { to { translate:100% 0; } }
+.big-empty { padding:3rem 1.5rem; text-align:center; }
+.big-empty .empty-icon { display:grid; place-items:center; width:3.2rem; height:3.2rem; margin:0 auto .8rem; border-radius:1rem; background:color-mix(in srgb, var(--accent) 10%, transparent); color:var(--accent); }
+.big-empty h2 { margin:0 0 .3rem; font-size:1rem; }
+.big-empty p { margin:0 auto 1rem; max-width:38ch; color:var(--muted); font-size:.76rem; }
+
+/* --- Messages (Django-message convention) ------------------------------------------ */
+.messages { max-width:92rem; margin:0 auto 1rem; display:grid; gap:.5rem; }
+.message { display:flex; align-items:center; gap:.6rem; padding:.8rem 1rem; border:1px solid #c8e9de; border-left:3px solid #239878; border-radius:.65rem; background:#f1faf6; color:#14532d; font-size:.76rem; }
+html.dark .message { background:#16352f; border-color:#286b5b; color:#d3f4e9; }
+.message.error { border-color:#f0c8c5; border-left-color:#b42318; background:#fdf3f2; color:#7f1d1d; }
+html.dark .message.error { background:#3b1d1d; border-color:#6b2b28; color:#fecaca; }
+
+/* --- Dialog (authoring-course-modal conventions) ------------------------------------- */
+dialog.programme-modal {
+  --au-accent:var(--accent); --au-border:var(--border); --au-surface:var(--surface); --au-soft:var(--page-bg); --au-muted:var(--muted);
+  width:min(92vw,38rem); padding:0; border:1px solid var(--au-border); border-radius:.75rem;
+  background:var(--au-surface); color:var(--text); box-shadow:0 1.5rem 4rem #0004;
+}
+dialog.programme-modal::backdrop { background:#0f172a80; }
+.modal-body { padding:1rem; }
+.modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1rem; padding-bottom:.75rem; border-bottom:1px solid var(--au-border); }
+.modal-head h2 { margin:0 0 .2rem; font-size:1rem; }
+.modal-head p { margin:0; color:var(--muted); font-size:.68rem; }
+.modal-close { display:grid; place-items:center; width:2rem; height:2rem; padding:0; border:1px solid var(--au-border); border-radius:.45rem; background:transparent; color:var(--muted); }
+.modal-close:hover { color:var(--accent); border-color:var(--accent); }
+.field { margin-bottom:.85rem; }
+.field label { display:block; margin-bottom:.3rem; font-size:.7rem; font-weight:700; }
+.field .helptext { display:block; margin-top:.25rem; color:var(--muted); font-size:.64rem; }
+.field input {
+  width:100%; min-height:2.5rem; padding:.6rem .7rem; border:1px solid var(--au-border); border-radius:.5rem;
+  background:var(--au-surface); color:var(--text); font-size:.78rem;
+}
+.field input::placeholder { color:var(--base-400); }
+.field input[aria-invalid="true"] { border-color:var(--danger); }
+.field .errorlist { margin:.3rem 0 0; padding:0; list-style:none; color:var(--danger); font-size:.68rem; }
+.modal-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:1.1rem; }
+.spinner { width:.85rem; height:.85rem; border:2px solid #fff5; border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { rotate:360deg; } }
+
+/* --- Motion / reduced motion ----------------------------------------------------------- */
+@keyframes app-rise { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior:auto; }
+  *, *::before, *::after { transition:none!important; animation:none!important; }
+}
+
+/* --- Responsive -------------------------------------------------------------------------- */
+@media (max-width:68rem) {
+  .stat-grid { grid-template-columns:repeat(2, minmax(0,1fr)); }
+}
+@media (max-width:64rem) {
+  .sidebar { transform:translateX(-100%); box-shadow:0 0 4rem #0006; }
+  body.side-open .sidebar { transform:translateX(0); }
+  body.side-open .backdrop { opacity:1; pointer-events:auto; }
+  .frame, body.side-collapsed .frame { margin-left:0; }
+  body.side-collapsed .sidebar { transform:translateX(-100%); }
+  body.side-open.side-collapsed .sidebar { transform:translateX(0); }
+}
+@media (min-width:64.01rem) {
+  .backdrop { display:none; }
+}
+@media (max-width:40rem) {
+  .content { padding:1rem .9rem 2rem; }
+  .authoring-head { display:block; }
+  .authoring-head p { font-size:.84rem; }
+  .authoring-actions { justify-content:flex-start; margin-top:.75rem; }
+  .stat-grid { grid-template-columns:repeat(2, minmax(0,1fr)); gap:.7rem; }
+  .stat { padding:.8rem .9rem; }
+  .stat b { font-size:1.2rem; }
+  .toolbar .count { flex-basis:100%; margin-left:0; }
+  .segmented { width:100%; justify-content:stretch; }
+  .segmented button { flex:1; }
+  .proto-banner .proto-tools { margin-left:0; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ======== Sidebar: replica of the portal navigation ================== -->
+  <aside class="sidebar" id="sidebar" aria-label="Application navigation">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </span>
+      <span>
+        <span class="brand-title">ICUMS Simulator</span><br>
+        <span class="brand-sub">Training administration</span>
+      </span>
+    </div>
+    <div class="side-search">
+      <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4-4"/></svg>
+      <input type="search" placeholder="Search apps and model..." aria-label="Search apps and models">
+      <kbd>Ctrl K</kbd>
+    </div>
+    <nav class="side-nav" id="side-nav"><!-- populated by script --></nav>
+    <div class="side-user">
+      <span class="avatar" aria-hidden="true">X</span>
+      <span class="who"><b>xl-instructor</b><span>instructor@icums.test</span></span>
+      <span class="chevrons" aria-hidden="true">
+        <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></svg>
+      </span>
+    </div>
+  </aside>
+  <div class="backdrop" id="backdrop" hidden></div>
+
+  <!-- ======== Frame: header + content ===================================== -->
+  <div class="frame">
+    <header class="topbar">
+      <button class="toggle" id="sideToggle" aria-label="Toggle sidebar" aria-expanded="true">
+        <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+      </button>
+      <h1>Theory &amp; Practical builder</h1>
+      <div class="topbar-right">
+        <span class="env-badge">Training environment</span>
+        <button class="theme-toggle" id="themeToggle" aria-label="Switch between light and dark theme">
+          <span id="themeIcon"></span>
+        </button>
+      </div>
+    </header>
+
+    <main class="content" id="main">
+      <div class="proto-banner">
+        <span><strong>UI prototype.</strong> Every interaction is simulated — nothing is saved or sent.</span>
+        <span class="proto-tools">
+          <label for="statePreview">Preview state</label>
+          <select id="statePreview">
+            <option value="default">Default — live content</option>
+            <option value="loading">Loading</option>
+            <option value="error">Load error</option>
+            <option value="empty">No programmes yet</option>
+          </select>
+          <button class="reset" id="resetData" type="button">Reset sample data</button>
+        </span>
+      </div>
+
+      <div class="messages" id="messages" aria-live="polite"></div>
+
+      <div class="authoring builder-page">
+        <header class="authoring-head">
+          <div>
+            <p class="authoring-eyebrow">Instructor · Theory &amp; Practical</p>
+            <h1>Theory &amp; Practical builder</h1>
+            <p>Create programmes, courses, modules and combined theory-and-practical lessons for any approved simulator workflow. Draft editions are editable; published editions are read-only.</p>
+          </div>
+          <div class="authoring-actions">
+            <button class="authoring-primary" id="newProgramme" type="button">
+              <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              New programme
+            </button>
+          </div>
+        </header>
+
+        <!-- Summary indicators -->
+        <section class="stat-grid" id="stats" aria-label="Curriculum summary"></section>
+
+        <!-- Search + filter toolbar -->
+        <section class="authoring-card toolbar" aria-label="Search and filter programmes">
+          <div class="search">
+            <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4-4"/></svg>
+            <input type="search" id="programmeSearch" placeholder="Search programmes by name or code" aria-label="Search programmes by name or code">
+          </div>
+          <div class="segmented" role="group" aria-label="Filter programmes by edition status" id="statusFilter">
+            <button type="button" data-filter="all" aria-pressed="true">All</button>
+            <button type="button" data-filter="draft" aria-pressed="false">Draft</button>
+            <button type="button" data-filter="published" aria-pressed="false">Published</button>
+          </div>
+          <span class="count" id="resultCount"></span>
+        </section>
+
+        <!-- Programme cards / states -->
+        <section id="programmeArea" aria-label="Programmes">
+          <div class="card-grid" id="cardGrid"></div>
+          <div class="skeleton-grid" id="skeletons" hidden></div>
+
+          <div class="authoring-card error-card" id="errorState" hidden>
+            <div class="error-head">
+              <span class="error-icon" aria-hidden="true">
+                <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4m0 4h.01"/></svg>
+              </span>
+              <div>
+                <h2>We couldn’t load your programmes</h2>
+                <p>The builder was reached, but the programme list didn’t come back. Nothing was changed — try again.</p>
+                <button class="authoring-secondary" id="retryLoad" type="button">Try again</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="authoring-card big-empty" id="emptyState" hidden>
+            <span class="empty-icon" aria-hidden="true">
+              <svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m12 4 10 4.5L12 13 2 8.5Z"/><path d="M6 10.7V15c0 1.66 2.7 3 6 3s6-1.34 6-3v-4.3"/><path d="M22 8.5V13"/></svg>
+            </span>
+            <h2>No Theory &amp; Practical programmes yet</h2>
+            <p>A programme opens with a draft edition, ready for its first course. Create the first one to begin building the curriculum.</p>
+            <button class="authoring-primary" id="emptyNew" type="button">New programme</button>
+          </div>
+
+          <div class="authoring-card big-empty" id="noResults" hidden>
+            <span class="empty-icon" aria-hidden="true">
+              <svg class="ui-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4-4"/></svg>
+            </span>
+            <h2>No programmes match</h2>
+            <p>Nothing matches the current search and filter. Adjust them, or clear both to see every programme.</p>
+            <button class="authoring-secondary" id="clearFilters" type="button">Clear search and filters</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- ======== New programme dialog ======================================== -->
+<dialog class="programme-modal" id="programmeDialog" aria-labelledby="programmeDialogTitle">
+  <form id="programmeForm" novalidate>
+    <div class="modal-body">
+      <div class="modal-head">
+        <div>
+          <h2 id="programmeDialogTitle">New programme</h2>
+          <p>A Theory &amp; Practical programme opens with a draft edition, ready for its first course.</p>
+        </div>
+        <button class="modal-close" type="button" id="dialogClose" aria-label="Close dialog">
+          <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+
+      <div class="field">
+        <label for="progName">Programme name</label>
+        <input id="progName" name="name" type="text" maxlength="150" placeholder="e.g. UCR Essentials" autocomplete="off">
+        <span class="helptext">Shown to instructors and learners across the builder.</span>
+        <ul class="errorlist" id="nameErrors" hidden></ul>
+      </div>
+
+      <div class="field">
+        <label for="progCode">Programme code</label>
+        <input id="progCode" name="code" type="text" maxlength="50" placeholder="e.g. ucr-essentials" autocomplete="off" spellcheck="false">
+        <span class="helptext">Lowercase letters, numbers and hyphens. Must be unique — it labels the programme in links and records.</span>
+        <ul class="errorlist" id="codeErrors" hidden></ul>
+      </div>
+
+      <div class="modal-actions">
+        <button class="authoring-secondary" type="button" id="dialogCancel">Cancel</button>
+        <button class="authoring-primary" type="submit" id="dialogSubmit">Create programme</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<script>
+/* ==========================================================================
+   Prototype controller. Everything is local and simulated: the "save" below
+   only touches this page's in-memory sample data, the way the real screen
+   would talk to Django.
+   ========================================================================== */
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+
+  /* --- Sample data -------------------------------------------------------
+     Test / Testing / Testing 1 mirror the live Theory & Practical programmes
+     (name, code, edition status, course/module/lesson counts).
+     Declaration Skills is sample content that demonstrates a published
+     edition and a second draft alongside it. */
+  const INITIAL_DATA = [
+    { name: "Declaration Skills", code: "declaration-skills", sample: true, editions: [
+      { version: 2, status: "draft",     courses: 2, modules: 4, lessons: 9 },
+      { version: 1, status: "published", courses: 1, modules: 3, lessons: 7 },
+    ]},
+    { name: "Test", code: "test", editions: [
+      { version: 1, status: "draft", courses: 1, modules: 1, lessons: 1 },
+    ]},
+    { name: "Testing", code: "testing", editions: [
+      { version: 1, status: "draft", courses: 3, modules: 1, lessons: 1 },
+    ]},
+    { name: "Testing 1", code: "testing-1", editions: [
+      { version: 1, status: "draft", courses: 1, modules: 0, lessons: 0 },
+    ]},
+  ];
+  let programmes = structuredClone(INITIAL_DATA);
+  const takenCodes = () => new Set(programmes.map((p) => p.code));
+
+  /* --- Sidebar navigation (mirrors the portal sidebar) ------------------- */
+  const ICONS = {
+    grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+    book: '<path d="M12 5v16M3 3h5a4 4 0 0 1 4 2 4 4 0 0 1 4-2h5v16h-5a4 4 0 0 0-4 2 4 4 0 0 0-4-2H3Z"/>',
+    box: '<path d="m12 3 9 5v9l-9 5-9-5V8Zm0 10 9-5M12 13 3 8m9 5v9M7 5.8l9 5"/>',
+    layers: '<path d="m12 3 10 5-10 5L2 8Zm-10 9 10 5 10-5M2 16l10 5 10-5"/>',
+    school: '<path d="m12 4 10 4.5L12 13 2 8.5Z"/><path d="M6 10.7V15c0 1.66 2.7 3 6 3s6-1.34 6-3v-4.3"/><path d="M22 8.5V13"/>',
+    assignment: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 2.5h6v3H9Z"/><path d="M9 11h6m-6 3.5h6m-6 3.5h3"/>',
+    users: '<circle cx="9" cy="8" r="3"/><path d="M3 21v-2a6 6 0 0 1 12 0v2m1-16a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 4v2"/>',
+    group: '<circle cx="8.5" cy="8.5" r="3"/><path d="M3 20.5v-1.5a5.5 5.5 0 0 1 11 0v1.5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M15.8 15.1a5 5 0 0 1 5.2 5v.4"/>',
+    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  };
+  const icon = (name, size = 16) =>
+    `<svg class="ui-icon" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+  const chevron = '<svg class="ui-icon nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+
+  const NAV = [
+    { heading: "", items: [
+      { title: "Dashboard", icon: "grid", plain: true },
+    ]},
+    { heading: "My Learning", items: [
+      { title: "Theoretical Training", icon: "book", chevron: true },
+      { title: "Simulator", icon: "box", chevron: true },
+      { title: "Practical", icon: "layers", chevron: true },
+      { title: "Theory & Practical", icon: "school", chevron: true },
+      { title: "Assessments", icon: "assignment", plain: true },
+    ]},
+    { heading: "Instructor", items: [
+      { title: "Instructor", icon: "users" },
+      { title: "Students", icon: "group" },
+      { title: "Theory builder", icon: "edit" },
+      { title: "Theory & Practical builder", icon: "school", active: true },
+    ]},
+  ];
+  $("side-nav").innerHTML = NAV.map((group) => `
+    <div class="nav-group">
+      ${group.heading ? `<p class="nav-heading">${group.heading}</p>` : ""}
+      ${group.items.map((item) => `
+        <a class="nav-item${item.active ? " active" : ""}" href="#" aria-current="${item.active ? "page" : "false"}"
+           onclick="return false" title="Prototype — navigation is simulated">
+          <span class="nav-icon${item.plain ? " nav-icon--plain" : ""}">${icon(item.icon)}</span>
+          <span>${item.title}</span>
+          ${item.chevron ? chevron : ""}
+        </a>`).join("")}
+    </div>`).join("");
+
+  /* --- Theme (same convention as static/js/theme.js) ---------------------- */
+  const root = document.documentElement;
+  const systemDark = () => window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const storedTheme = () => {
+    try {
+      const raw = JSON.parse(localStorage.getItem("adminTheme"));
+      return raw === "dark" || raw === "light" ? raw : null;
+    } catch { return null; }
+  };
+  const sunIcon = '<svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  const moonIcon = '<svg class="ui-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>';
+  const applyTheme = () => {
+    const t = storedTheme() ?? (systemDark() ? "dark" : "light");
+    root.dataset.theme = t;
+    root.classList.toggle("dark", t === "dark");
+    root.classList.toggle("light", t === "light");
+    $("themeIcon").innerHTML = t === "dark" ? sunIcon : moonIcon;
+  };
+  $("themeToggle").addEventListener("click", () => {
+    const next = root.classList.contains("dark") ? "light" : "dark";
+    localStorage.setItem("adminTheme", JSON.stringify(next));
+    applyTheme();
+  });
+  applyTheme();
+
+  /* --- Sidebar collapse (desktop) / drawer (small screens) ----------------- */
+  const isNarrow = () => window.matchMedia("(max-width: 64rem)").matches;
+  const syncSide = () => {
+    document.body.classList.toggle("side-collapsed", !isNarrow() && localStorage.getItem("protoSidebar") === "off");
+    $("backdrop").hidden = !isNarrow();
+    $("sideToggle").setAttribute("aria-expanded", String(isNarrow() ? document.body.classList.contains("side-open") : !document.body.classList.contains("side-collapsed")));
+  };
+  $("sideToggle").addEventListener("click", () => {
+    if (isNarrow()) {
+      document.body.classList.toggle("side-open");
+    } else {
+      const off = document.body.classList.toggle("side-collapsed");
+      localStorage.setItem("protoSidebar", off ? "off" : "on");
+    }
+    syncSide();
+  });
+  $("backdrop").addEventListener("click", () => { document.body.classList.remove("side-open"); syncSide(); });
+  window.addEventListener("resize", syncSide);
+  syncSide();
+
+  /* --- Messages (Django-messages convention) ------------------------------- */
+  const message = (text, kind = "success") => {
+    const box = $("messages");
+    const el = document.createElement("div");
+    el.className = `message${kind === "error" ? " error" : ""}`;
+    el.textContent = text;
+    box.replaceChildren(el);
+    window.setTimeout(() => el.remove(), 4500);
+  };
+
+  /* --- Rendering ------------------------------------------------------------ */
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+  const stats = () => {
+    let courses = 0, modules = 0, lessons = 0;
+    for (const p of programmes) for (const e of p.editions) {
+      courses += e.courses; modules += e.modules; lessons += e.lessons;
+    }
+    return [
+      { label: "Programmes", value: programmes.length, icon: "school" },
+      { label: "Courses", value: courses, icon: "book" },
+      { label: "Modules", value: modules, icon: "box" },
+      { label: "Lessons", value: lessons, icon: "layers" },
+    ];
+  };
+
+  const renderStats = () => {
+    $("stats").innerHTML = stats().map((s) => `
+      <div class="authoring-card stat">
+        <span class="stat-icon">${icon(s.icon, 18)}</span>
+        <span><b>${s.value}</b><span>${s.label} <span style="font-weight:400">· all editions</span></span></span>
+      </div>`).join("");
+  };
+
+  const editionRow = (e) => `
+    <div class="edition edition--${e.status}">
+      <span class="ver">v${e.version}</span>
+      <p><b>${e.status === "draft" ? "Draft" : "Published"} edition</b> — ${plural(e.courses, "course")} · ${plural(e.modules, "module")} · ${plural(e.lessons, "lesson")}</p>
+    </div>`;
+
+  const card = (p) => `
+    <article class="authoring-card card" data-code="${esc(p.code)}">
+      <div class="card-top">
+        <div>
+          <h3>${esc(p.name)}</h3>
+          <p class="card-code">Programme code · <code>${esc(p.code)}</code></p>
+        </div>
+        <div class="chip-row">
+          ${p.editions.map((e) => `<span class="chip chip--${e.status}">v${e.version} · ${e.status === "draft" ? "Draft" : "Published"}</span>`).join("")}
+        </div>
+      </div>
+      <div class="editions">${p.editions.map(editionRow).join("")}</div>
+      <div class="card-foot">
+        <button class="authoring-primary" type="button" data-manage="${esc(p.code)}">Manage programme
+          <svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </article>`;
+
+  let query = "";
+  let filter = "all";
+  const matches = (p) => {
+    const q = query.trim().toLowerCase();
+    const hit = !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q);
+    const status = filter === "all" || p.editions.some((e) => e.status === filter);
+    return hit && status;
+  };
+
+  const renderCards = () => {
+    const visible = [...programmes].filter(matches).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    $("cardGrid").innerHTML = visible.map(card).join("");
+    $("resultCount").textContent = `Showing ${visible.length} of ${programmes.length} programme${programmes.length === 1 ? "" : "s"}`;
+    const noneAtAll = programmes.length === 0;
+    const noneVisible = !noneAtAll && visible.length === 0;
+    $("noResults").hidden = !noneVisible;
+    $("cardGrid").style.display = noneVisible ? "none" : "";
+    renderStats();
+  };
+
+  /* --- State previews (loading / error / empty) ------------------------------ */
+  const showState = (state) => {
+    $("errorState").hidden = state !== "error";
+    $("emptyState").hidden = state !== "empty";
+    $("noResults").hidden = state === "default" ? programmes.length > 0 && [...programmes].some(matches) : true;
+    const gridVisible = state === "default";
+    $("cardGrid").style.display = gridVisible ? "" : "none";
+    $("skeletons").hidden = state !== "loading";
+    $("stats").style.display = state === "default" ? "" : "none";
+    document.querySelector(".toolbar").style.display = state === "default" ? "" : "none";
+    if (state === "loading") renderStats();
+    if (state === "default") renderCards();
+  };
+
+  const skeletons = () => Array.from({ length: 4 }, () => '<div class="authoring-card skeleton" aria-hidden="true"></div>').join("");
+  $("skeletons").innerHTML = skeletons();
+
+  $("statePreview").addEventListener("change", (event) => {
+    const state = event.target.value;
+    if (state === "loading") {
+      showState("loading");
+      window.setTimeout(() => { if ($("statePreview").value === "loading") showState("default"); }, 900);
+    } else {
+      showState(state);
+    }
+  });
+  $("retryLoad").addEventListener("click", () => {
+    $("statePreview").value = "loading";
+    showState("loading");
+    window.setTimeout(() => { $("statePreview").value = "default"; showState("default"); message("Programmes loaded."); }, 800);
+  });
+  $("resetData").addEventListener("click", () => {
+    programmes = structuredClone(INITIAL_DATA);
+    $("statePreview").value = "default";
+    showState("default");
+    message("Sample data reset to the initial set.");
+  });
+
+  /* --- Search + filter --------------------------------------------------------- */
+  $("programmeSearch").addEventListener("input", (event) => {
+    query = event.target.value;
+    renderCards();
+  });
+  $("statusFilter").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-filter]");
+    if (!button) return;
+    filter = button.dataset.filter;
+    for (const b of $("statusFilter").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b === button));
+    renderCards();
+  });
+  $("clearFilters").addEventListener("click", () => {
+    query = ""; filter = "all";
+    $("programmeSearch").value = "";
+    for (const b of $("statusFilter").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.filter === "all"));
+    renderCards();
+    $("programmeSearch").focus();
+  });
+
+  /* --- Manage programme (simulated destination) ---------------------------------- */
+  $("cardGrid").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-manage]");
+    if (!button) return;
+    const programme = programmes.find((p) => p.code === button.dataset.manage);
+    message(`Simulated — “Manage programme” would open the ${programme.name} workspace (courses, modules and lessons for its editions).`, "error");
+  });
+
+  /* --- New programme dialog --------------------------------------------------------- */
+  const dialog = $("programmeDialog");
+  const CODE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  const openDialog = () => {
+    $("programmeForm").reset();
+    for (const id of ["nameErrors", "codeErrors"]) { $(id).hidden = true; $(id).replaceChildren(); }
+    $("progName").setAttribute("aria-invalid", "false");
+    $("progCode").setAttribute("aria-invalid", "false");
+    $("dialogSubmit").disabled = false;
+    $("dialogSubmit").textContent = "Create programme";
+    dialog.showModal();
+    $("progName").focus();
+  };
+  $("newProgramme").addEventListener("click", openDialog);
+  $("emptyNew").addEventListener("click", openDialog);
+  $("dialogClose").addEventListener("click", () => dialog.close());
+  $("dialogCancel").addEventListener("click", () => dialog.close());
+
+  const setErrors = (inputId, listId, errors) => {
+    const list = $(listId);
+    list.hidden = errors.length === 0;
+    list.replaceChildren(...errors.map((text) => Object.assign(document.createElement("li"), { textContent: text })));
+    $(inputId).setAttribute("aria-invalid", String(errors.length > 0));
+    return errors.length === 0;
+  };
+
+  const validate = () => {
+    const name = $("progName").value.trim();
+    const code = $("progCode").value.trim().toLowerCase();
+    const nameErrors = [];
+    const codeErrors = [];
+    if (!name) nameErrors.push("Programme name is required.");
+    if (name.length > 150) nameErrors.push("Keep the name under 150 characters.");
+    if (!code) codeErrors.push("Programme code is required.");
+    else if (code.length > 50) codeErrors.push("Keep the code under 50 characters.");
+    else if (!CODE_RE.test(code)) codeErrors.push("Use lowercase letters, numbers and single hyphens — e.g. ucr-essentials.");
+    else if (takenCodes().has(code)) codeErrors.push("A programme with this code already exists.");
+    const nameOk = setErrors("progName", "nameErrors", nameErrors);
+    const codeOk = setErrors("progCode", "codeErrors", codeErrors);
+    return nameOk && codeOk ? { name, code } : null;
+  };
+
+  $("progCode").addEventListener("input", (event) => { event.target.value = event.target.value.toLowerCase(); });
+
+  $("programmeForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = validate();
+    if (!data) return;
+    // Simulated save: brief latency, then the card appears. Nothing persists.
+    const submit = $("dialogSubmit");
+    submit.disabled = true;
+    submit.innerHTML = '<span class="spinner" aria-hidden="true"></span> Creating…';
+    window.setTimeout(() => {
+      programmes.push({ name: data.name, code: data.code, editions: [
+        { version: 1, status: "draft", courses: 0, modules: 0, lessons: 0 },
+      ]});
+      dialog.close();
+      $("statePreview").value = "default";
+      showState("default");
+      const fresh = document.querySelector(`[data-code="${CSS.escape(data.code)}"]`);
+      if (fresh) { fresh.classList.add("flash"); window.setTimeout(() => fresh.classList.remove("flash"), 1600); }
+      message(`Programme created — “${data.name}” opens with a draft edition, ready for its first course.`);
+    }, 750);
+  });
+
+  /* --- First paint: a short simulated load ------------------------------------------- */
+  $("statePreview").value = "loading";
+  showState("loading");
+  window.setTimeout(() => {
+    if ($("statePreview").value === "loading") { $("statePreview").value = "default"; showState("default"); }
+  }, 700);
+})();
+</script>
+</body>
+</html>
