@@ -57,6 +57,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "scenarios.middleware.GuidedStepOpenMiddleware",
+    "scenarios.middleware.DemonstrationFrameSafetyMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -111,6 +112,13 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+
+# Instructor demonstration recording (UI 4 Stage 1A). Off by default: the
+# lifecycle endpoints refuse until an operator turns it on deliberately. This is
+# an entry gate only — identity, lesson scope, lifecycle state and the route
+# manifest are re-checked server-side after it, so enabling it widens no
+# permission and no record scope. No simulator write is enabled by this flag.
+DEMONSTRATION_RECORDING_ENABLED = False
 
 LOGGING = {
     "version": 1,

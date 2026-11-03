@@ -52,7 +52,12 @@
 .demo-studio .panel { background: var(--ds-surface); border: 1px solid var(--ds-border); border-radius: 14px; box-shadow: var(--ds-shadow); min-width: 0; }
 .demo-studio .panelHead { padding: 16px 18px; border-bottom: 1px solid var(--ds-border); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .demo-studio .panelBody { padding: 18px; }
+.demo-studio .panelBody--frame { padding: 0; overflow: hidden; border-radius: 0 0 14px 14px; }
+.demo-studio .simulator-frame { display: block; width: 100%; height: clamp(38rem, 74vh, 58rem); border: 0; background: var(--ds-surface); }
+.demo-studio .simulator-frame--preview { height: clamp(34rem, 68vh, 52rem); }
+.demo-studio .panelBody--frame > .footer { padding: 0 18px 18px; }
 .demo-studio .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.demo-studio .recording-controls { margin-bottom: 12px; }
 .demo-studio .sim { background: var(--ds-sim-bg); border: 1px solid var(--ds-border); border-radius: 12px; overflow: hidden; min-height: 560px; }
 .demo-studio .simnav { display: flex; flex-wrap: wrap; gap: 7px; padding: 12px; border-bottom: 1px solid var(--ds-border); background: var(--ds-surface); }
 .demo-studio .simnav button { font-size: 12px; padding: 8px 10px; }

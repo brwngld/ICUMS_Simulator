@@ -35,7 +35,7 @@ removal confirmation that also works without JavaScript via
   <section class="ws-stat-grid" aria-label="Course overview">
     <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="box" %}</span><span class="ws-stat-figures"><b>{{ modules|length }}</b><span class="ws-stat-label">Modules</span></span></div>
     <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="book" %}</span><span class="ws-stat-figures"><b>{{ lesson_count }}</b><span class="ws-stat-label">Lessons</span></span></div>
-    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="layers" %}</span><span class="ws-stat-figures"><b>{{ journeys|length }}</b><span class="ws-stat-label">Practical journeys</span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="layers" %}</span><span class="ws-stat-figures"><b>{{ journeys|length }}</b><span class="ws-stat-label">Practical workflows</span></span></div>
     <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="assignment" %}</span><span class="ws-stat-figures"><b>{{ blockers|length }}</b><span class="ws-stat-label">Items to resolve</span></span></div>
   </section>
 
@@ -101,13 +101,13 @@ removal confirmation that also works without JavaScript via
     {% endif %}
   </section>
 
-  <section class="authoring-card ws-panel" aria-label="Practical journeys">
+  <section class="authoring-card ws-panel" aria-label="Practical Workflows (Journeys)">
     <div class="authoring-editor-header">
       <div>
-        <h2>Practical journeys</h2>
-        <p>Cross-lesson practical workflows. Order follows the curriculum; structure changes happen in the organizer.</p>
+        <h2>Practical Workflows (Journeys)</h2>
+        <p>Connect practical lessons and simulator actions into a complete workflow, with record roles, dependencies and completion checkpoints. Order follows the curriculum; structure changes happen in the Practical Workflow organizer.</p>
       </div>
-      <span class="ws-chip ws-chip--viewing">{{ journeys|length }} journey{{ journeys|length|pluralize }}</span>
+      <span class="ws-chip ws-chip--viewing">{{ journeys|length }} workflow{{ journeys|length|pluralize }}</span>
     </div>
     {% if journeys %}
       <div class="ws-editions">
@@ -129,13 +129,13 @@ removal confirmation that also works without JavaScript via
     {% endif %}
     <form method="post" action="{% url 'hybrid-course-edit' course.pk %}" class="authoring-form hyb-create-form">{% csrf_token %}
       <input type="hidden" name="action" value="create_journey">
-      <h3>New journey</h3>
+      <h3>New Practical Workflow (Journey)</h3>
       {{ journey_form.title.as_field_group }}
       {{ journey_form.description.as_field_group }}
       {{ journey_form.start_mode.as_field_group }}
-      <button class="authoring-primary" type="submit">Create journey</button>
+      <button class="authoring-primary" type="submit">Create workflow</button>
     </form>
-    <p class="helptext"><a href="{% url 'hybrid-course-journeys' course.pk %}">Open the journey organizer</a> to assign steps and configure roles, dependencies and checkpoints.</p>
+    <p class="helptext"><a href="{% url 'hybrid-course-journeys' course.pk %}">Open the Practical Workflow organizer</a> to assign steps and configure roles, dependencies and checkpoints.</p>
   </section>
 
   <section class="authoring-card ws-panel" aria-label="Course details">

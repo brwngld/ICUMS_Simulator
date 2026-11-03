@@ -1,104 +1,66 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}Demonstration Studio · {{ lesson.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Demonstration Studio{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/demonstration-studio.css' %}?v=20261026-1">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/demonstration-studio.css' %}?v=20261102-2">{% endblock %}
 {% block content %}<div class="demo-studio">
-  <div class="demo-banner">Demonstration studio — recording is simulated client-side. No backend records are created, and nothing here changes student data.</div>
+  <div class="demo-banner">Development integration proof — the embedded simulator is read-only for instructors. Recording remains simulated client-side; no captured actions or demonstration records are saved.</div>
   <div class="crumb">Theory &amp; Practical / {{ lesson.module.course.title }} / {{ lesson.title }}</div>
-  <div class="head"><div><h1>Instructor Demonstration Studio</h1><p class="muted">Demonstrate the task in the simulator, then turn the captured actions into a guided lesson.</p></div><span class="pill">RECORDING NOT YET IMPLEMENTED · LOCAL ONLY</span></div>
-  <div class="tabs" role="tablist"><button class="tab active" data-tab="record">1 · Demonstrate</button><button class="tab" data-tab="review">2 · Review steps</button><button class="tab" data-tab="preview">3 · Student preview</button></div>
-  <section id="record" class="view"><div class="grid"><div class="panel"><div class="panelHead"><div><h2>Real simulator workspace <span class="pill">Representative mock</span></h2><div class="helper">The production version embeds your actual Django simulator. This demo simulates UCR actions.</div></div><div class="toolbar"><button id="start" class="primary">● Start recording</button><button id="stop" disabled>■ Stop &amp; review</button><button id="reset" class="quiet">Reset</button></div></div><div class="panelBody"><div class="sim"><div class="simnav"><button data-screen="Cargo" class="active">Cargo</button><button data-screen="Clearance">Clearance</button><button data-screen="Collection">Collection</button><button data-screen="Single Window">Single Window</button><button data-screen="Agent Management">Agent Management</button><button data-screen="e-Docs">e-Docs</button></div><div class="disclaimer">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div><div class="simcontent" id="simcontent"></div></div></div></div><aside class="panel"><div class="panelHead"><div><h2>Capture timeline</h2><div class="helper">Meaningful actions, not every keystroke</div></div><span id="count" class="pill">0 events</span></div><div class="panelBody"><div id="recStatus" class="status">Recording is off. Start, then interact with the simulator.</div><div id="events" class="empty">Captured actions will appear here.</div><div class="note small"><strong>Design principle</strong><br>Instructor demonstration data is isolated. Student forms will never be prefilled with instructor answers.</div><button id="goReview" class="primary" disabled style="width:100%">Review captured steps →</button></div></aside></div></section>
-  <section id="review" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Review captured journey</h2><div class="helper">Group captured actions into meaningful student tasks. Edit everything before publication.</div></div><div class="summary"><div class="stat"><b id="stepCount">0</b><span class="small muted">Proposed steps</span></div><div class="stat"><b id="eventCount">0</b><span class="small muted">Captured events</span></div></div></div><div class="panelBody"><div id="steps" class="steps"></div><div class="footer"><button id="backRecord">← Back to recording</button><div class="actions"><button id="addStep">+ Add review step</button><button id="goPreview" class="primary">Preview as student →</button></div></div></div></div></section>
-  <section id="preview" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Student workspace preview</h2><div class="helper">Based on the student journey layout: theory and practical journey share the same simulator.</div></div><div class="toolbar"><button id="theoryMode">Theory</button><button id="practicalMode" class="primary">Practical journey</button></div></div><div class="panelBody"><div class="preview"><div class="leftPreview" id="previewLeft"></div><div class="rightPreview"><div class="toolbar" style="justify-content:space-between"><strong>Simulator</strong><span class="small muted">Full, independently scrollable workspace</span></div><div class="simnav"><button>Cargo</button><button>Clearance</button><button>Collection</button><button>Single Window</button><button>Agent Management</button></div><div class="disclaimer">TRAINING SIMULATOR — NOT OFFICIAL ICUMS · FICTIONAL DATA ONLY</div><div class="record"><strong>Single Window · Create UCR</strong><p class="muted">This is a visual stand-in for your actual embedded simulator.</p><div class="field"><label>Customs regime</label><select><option>Choose regime</option><option>Import</option><option>Export</option></select></div><div class="field"><label>Exporter name</label><input placeholder="Enter fictional exporter"></div><div class="field"><label>Importer name</label><input placeholder="Enter fictional importer"></div><div class="field"><label>Goods description</label><textarea placeholder="Describe fictional goods"></textarea></div><button>Save draft (preview only)</button></div></div></div><div class="footer"><button id="backReview">← Edit captured steps</button><span class="helper">Preview only. No publication or database writes.</span></div></div></div></main>
+  <div class="head"><div><h1>Instructor Demonstration Studio</h1><p class="muted">Use the existing simulator interface while planning this lesson's guided activities.</p></div><span class="pill">READ-ONLY FRAME · RECORDING NOT IMPLEMENTED</span></div>
+  <div class="tabs" role="tablist"><button class="tab active" data-tab="record" role="tab" aria-selected="true">1 · Demonstrate</button><button class="tab" data-tab="review" role="tab" aria-selected="false">2 · Review steps</button><button class="tab" data-tab="preview" role="tab" aria-selected="false">3 · Student preview</button></div>
+
+  <section id="record" class="view"><div class="grid">
+    <div class="panel"><div class="panelHead"><div><h2>ICUMS Simulator</h2><div class="helper">Actual Cargo Tracking Dashboard · existing Django view, template, navigation and styles</div></div></div>
+      <div class="panelBody panelBody--frame">
+        {% if simulator_frame_url %}<iframe class="simulator-frame" id="simulatorFrame" src="{{ simulator_frame_url }}" title="ICUMS Simulator — Cargo Tracking Dashboard"></iframe>
+        {% else %}<div class="empty">The read-only simulator frame is available only in the development environment.</div>{% endif %}
+      </div>
+    </div>
+    <aside class="panel"><div class="panelHead"><div><h2>Capture timeline</h2><div class="helper">Simulated controls only · no iframe activity is captured</div></div><span id="count" class="pill">0 events</span></div>
+      <div class="panelBody">
+        <div class="toolbar recording-controls" aria-label="Simulated recording controls">
+          <button id="start" class="primary">● Start Recording</button><button id="pause" disabled>Ⅱ Pause Recording</button><button id="resume" hidden>▶ Resume Recording</button><button id="stop" disabled>■ Stop Recording</button><button id="reset" class="quiet danger" disabled>Clear / discard</button>
+        </div>
+        <div id="recStatus" class="status" role="status" aria-live="polite">Idle — simulated recording has not started.</div>
+        <div id="events" class="empty">No actions are captured in this integration proof.</div>
+        <div class="note small"><strong>Safety boundary</strong><br>The server rejects write requests from this instructor iframe. Recording persistence and demonstration data do not exist yet.</div>
+        <button id="goReview" class="primary" disabled style="width:100%">Review captured steps →</button>
+      </div>
+    </aside>
+  </div></section>
+
+  <section id="review" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Review captured journey</h2><div class="helper">No events are captured or converted in this integration proof.</div></div><div class="summary"><div class="stat"><b>0</b><span class="small muted">Proposed steps</span></div><div class="stat"><b>0</b><span class="small muted">Captured events</span></div></div></div><div class="panelBody"><div class="empty">Recording persistence and lesson-step conversion remain intentionally unimplemented.</div><div class="footer"><button data-show="record">← Back to simulator</button><button data-show="preview">Student preview →</button></div></div></div></section>
+
+  <section id="preview" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Student workspace preview</h2><div class="helper">The existing simulator remains read-only in this development proof.</div></div></div><div class="panelBody panelBody--frame">{% if simulator_frame_url %}<iframe class="simulator-frame simulator-frame--preview" src="{{ simulator_frame_url }}" title="Student preview — ICUMS Simulator Cargo Tracking Dashboard"></iframe>{% else %}<div class="empty">The simulator frame is available only in development.</div>{% endif %}<div class="footer"><button data-show="review">← Review steps</button><span class="helper">Preview only. No publication or database writes.</span></div></div></div></section>
 </div>
 <script>
 (() => {
-  const $ = id => document.getElementById(id);
-  let recording = false, events = [], steps = [], screen = 'Cargo', mode = 'practical', previewIndex = 0;
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const groupFor = e => e.type === 'screen' ? 'Open Single Window' : e.key === 'regime' ? 'Select Import' : e.key === 'exporter' ? 'Exporter details' : e.key === 'importer' ? 'Importer details' : e.key === 'goods' ? 'Consignment details' : e.type === 'save' ? 'Save as draft' : 'Other actions';
-  const instructions = {'Open Single Window': 'Select Single Window in the simulator navigation.', 'Select Import': 'Select Import as the customs regime.', 'Exporter details': 'Enter the exporter information.', 'Importer details': 'Enter the importer information.', 'Consignment details': 'Complete the goods and consignment information.', 'Save as draft': 'Save the UCR as a draft.'};
-  const outcomes = {'Open Single Window': 'Single Window UCR form is open', 'Select Import': 'Import regime is selected', 'Exporter details': 'Exporter information is entered', 'Importer details': 'Importer information is entered', 'Consignment details': 'Consignment information is entered', 'Save as draft': 'A new draft UCR is saved'};
-  function show(tab) {
-    document.querySelectorAll('.demo-studio .view').forEach(x => x.classList.toggle('hidden', x.id !== tab));
-    document.querySelectorAll('.demo-studio .tab').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
-    if (tab === 'review') renderSteps();
-    if (tab === 'preview') renderPreview();
-  }
-  document.querySelectorAll('.demo-studio .tab').forEach(x => x.onclick = () => show(x.dataset.tab));
-  function capture(type, key, value) {
-    if (!recording) return;
-    events.push({type, key, value, time: new Date().toLocaleTimeString()});
-    renderEvents();
-  }
-  function renderEvents() {
-    $('count').textContent = events.length + ' events';
-    $('eventCount').textContent = events.length;
-    $('events').className = events.length ? '' : 'empty';
-    $('events').innerHTML = events.length ? events.map((e, i) => `<div class="event"><span class="num">${i + 1}</span><div><div class="eventTitle">${esc(e.type === 'screen' ? 'Opened ' + e.value : e.type === 'save' ? 'Saved UCR draft' : 'Changed ' + e.key)}</div><div class="small muted">${esc(e.type === 'field' ? e.value : e.time)}</div></div></div>`).join('') : 'Captured actions will appear here.';
-    $('goReview').disabled = !events.length;
-  }
-  function renderSim() {
-    document.querySelectorAll('.demo-studio [data-screen]').forEach(b => b.classList.toggle('active', b.dataset.screen === screen));
-    $('simcontent').innerHTML = screen !== 'Single Window' ? `<h2>${esc(screen)}</h2><p class="muted">Navigate to <strong>Single Window</strong> to demonstrate creating a UCR.</p><div class="record">This representative simulator lets you test the recording workflow without connecting to Django.</div>` : `<h2>Create UCR</h2><p class="muted">Demonstration form · fictional information only</p><div class="fields"><div class="field"><label for="regime">Customs regime</label><select id="regime"><option value="">Choose regime</option><option value="IM">Import (IM)</option><option value="EX">Export (EX)</option></select></div><div class="field"><label for="transport">Transport mode</label><select id="transport"><option value="">Choose mode</option><option>Sea</option><option>Air</option><option>Road</option></select></div><div class="field"><label for="exporter">Exporter name</label><input id="exporter" placeholder="Fictional exporter"></div><div class="field"><label for="importer">Importer name</label><input id="importer" placeholder="Fictional importer"></div></div><div class="field"><label for="goods">Goods description</label><textarea id="goods" placeholder="Describe fictional goods"></textarea></div><button id="saveDraft" class="primary">Save draft UCR</button><p class="helper">The recording stores an action summary, not an actual customs declaration.</p>`;
-    if (screen === 'Single Window') {
-      ['regime', 'transport', 'exporter', 'importer', 'goods'].forEach(k => $(k).addEventListener('change', e => capture('field', k, e.target.value)));
-      $('saveDraft').onclick = () => { capture('save', 'ucr', 'Draft UCR saved'); alert('Mock UCR saved for demonstration. No backend record was created.'); };
-    }
-  }
-  document.querySelectorAll('.demo-studio [data-screen]').forEach(b => b.onclick = () => { screen = b.dataset.screen; capture('screen', 'screen', screen); renderSim(); });
-  $('start').onclick = () => {
-    recording = true; events = []; steps = [];
-    $('start').disabled = true; $('stop').disabled = false;
-    $('recStatus').className = 'status live';
-    $('recStatus').innerHTML = '<span class="recordingDot"></span> Recording meaningful simulator actions';
-    renderEvents();
+  const $ = (id) => document.getElementById(id);
+  let state = "idle";
+  const show = (tab) => {
+    document.querySelectorAll(".demo-studio .view").forEach((view) => view.classList.toggle("hidden", view.id !== tab));
+    document.querySelectorAll(".demo-studio .tab").forEach((button) => {
+      const active = button.dataset.tab === tab;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
   };
-  $('stop').onclick = () => {
-    recording = false; $('start').disabled = false; $('stop').disabled = true;
-    $('recStatus').className = 'status success';
-    $('recStatus').textContent = 'Recording stopped. Review and edit the proposed steps.';
-    generateSteps(); show('review');
+  document.querySelectorAll(".demo-studio .tab").forEach((button) => button.addEventListener("click", () => show(button.dataset.tab)));
+  document.querySelectorAll(".demo-studio [data-show]").forEach((button) => button.addEventListener("click", () => show(button.dataset.show)));
+
+  const render = () => {
+    $("recStatus").className = state === "recording" ? "status live" : state === "stopped" ? "status success" : "status";
+    $("recStatus").innerHTML = state === "recording" ? '<span class="recordingDot"></span>Recording is simulated. No iframe activity is captured or saved.' : state === "paused" ? "Paused — 0 simulated actions captured." : state === "stopped" ? "Stopped — 0 simulated actions captured. Nothing was saved." : "Idle — simulated recording has not started.";
+    $("start").disabled = state === "recording" || state === "paused";
+    $("pause").disabled = state !== "recording";
+    $("pause").hidden = state === "paused";
+    $("resume").hidden = state !== "paused";
+    $("stop").disabled = state !== "recording" && state !== "paused";
+    $("reset").disabled = state === "idle";
   };
-  $('reset').onclick = () => {
-    recording = false; events = []; steps = []; screen = 'Cargo';
-    $('start').disabled = false; $('stop').disabled = true;
-    $('recStatus').className = 'status';
-    $('recStatus').textContent = 'Recording is off. Start, then interact with the simulator.';
-    renderSim(); renderEvents();
-  };
-  $('goReview').onclick = () => { generateSteps(); show('review'); };
-  function generateSteps() {
-    if (steps.length) return;
-    let groups = [];
-    events.forEach(e => { let name = groupFor(e); if (name === 'Other actions') return; if (!groups.includes(name)) groups.push(name); });
-    steps = groups.map((name, i) => ({id: i + 1, title: name, instruction: instructions[name] || '', outcome: outcomes[name] || '', hint: '', verify: name === 'Save as draft' ? 'Saved record' : name === 'Open Single Window' ? 'Screen opened' : 'Review required', source: events.filter(e => groupFor(e) === name).length}));
-    renderSteps();
-  }
-  function renderSteps() {
-    $('stepCount').textContent = steps.length;
-    $('steps').innerHTML = steps.length ? steps.map((s, i) => `<div class="step" data-index="${i}"><div class="stepTop"><span class="num">${i + 1}</span><strong>${esc(s.title)}</strong><span class="badge">${s.source} captured actions</span><button data-remove="${i}" class="danger">Remove</button></div><div class="stepGrid"><div class="field"><label>Student-facing step title</label><input data-edit="title" value="${esc(s.title)}"></div><div class="field"><label>Verification approach</label><select data-edit="verify"><option ${s.verify === 'Review required' ? 'selected' : ''}>Review required</option><option ${s.verify === 'Screen opened' ? 'selected' : ''}>Screen opened</option><option ${s.verify === 'Saved record' ? 'selected' : ''}>Saved record</option><option ${s.verify === 'No automatic check' ? 'selected' : ''}>No automatic check</option></select></div><div class="field"><label>Instructions</label><textarea data-edit="instruction">${esc(s.instruction)}</textarea></div><div class="field"><label>Expected outcome</label><textarea data-edit="outcome">${esc(s.outcome)}</textarea></div></div><div class="field"><label>Optional hint</label><input data-edit="hint" value="${esc(s.hint)}" placeholder="What should the student try if stuck?"></div><p class="helper">Verification is a proposal only. A real check must be configured against approved server-side evidence.</p></div>`).join('') : '<div class="empty">No captured steps yet. Return to the simulator and record a demonstration.</div>';
-    document.querySelectorAll('#steps [data-edit]').forEach(el => el.oninput = () => { let idx = +el.closest('.step').dataset.index; steps[idx][el.dataset.edit] = el.value; });
-    document.querySelectorAll('#steps [data-remove]').forEach(el => el.onclick = () => { steps.splice(+el.dataset.remove, 1); renderSteps(); });
-  }
-  $('addStep').onclick = () => { steps.push({id: Date.now(), title: 'New step', instruction: '', outcome: '', hint: '', verify: 'Review required', source: 0}); renderSteps(); };
-  $('backRecord').onclick = () => show('record');
-  $('goPreview').onclick = () => { previewIndex = 0; show('preview'); };
-  $('backReview').onclick = () => show('review');
-  $('theoryMode').onclick = () => { mode = 'theory'; renderPreview(); };
-  $('practicalMode').onclick = () => { mode = 'practical'; renderPreview(); };
-  function renderPreview() {
-    $('theoryMode').className = mode === 'theory' ? 'primary' : '';
-    $('practicalMode').className = mode === 'practical' ? 'primary' : '';
-    let s = steps[previewIndex];
-    $('previewLeft').innerHTML = mode === 'theory' ? `<h2>What is UCR?</h2><p class="muted">Theory &amp; guidance</p><div class="record"><h3>Unique Consignment Reference</h3><p>A UCR links a consignment to its associated trade information and documents in this training scenario.</p><h3>What you will learn</h3><p>Identify the UCR process and understand the sequence of creating a fictional draft.</p></div><button id="toPractical" class="primary">Go to practical journey →</button>` : `<div class="small muted">UCR GUIDED PRACTICAL · STEP ${steps.length ? previewIndex + 1 : 0} OF ${steps.length}</div><h2>${esc(s?.title || 'No steps yet')}</h2><p>${esc(s?.instruction || 'Record a demonstration first.')}</p><div class="note"><strong>Expected outcome</strong><p>${esc(s?.outcome || '')}</p></div><div class="actions"><button id="checkMock">Check my work</button><button id="hintMock">Hint</button></div><p class="helper" id="previewMessage">Checks are not connected to the backend in this concept.</p><div class="actions"><button id="prevMock" ${previewIndex === 0 ? 'disabled' : ''}>← Previous</button><button id="nextMock" ${previewIndex >= steps.length - 1 ? 'disabled' : ''}>Next step →</button></div><details style="margin-top:15px"><summary><strong>THEORY · Show / hide</strong></summary><p>UCR stands for Unique Consignment Reference. Review the theory while working in the simulator.</p></details><h3 style="margin-top:20px">Practical journey</h3><ol class="sideList">${steps.map((x, i) => `<li style="${i === previewIndex ? 'color:var(--ds-purple);font-weight:700' : ''}">${esc(x.title)}</li>`).join('')}</ol>`;
-    if (mode === 'theory') $('toPractical').onclick = () => { mode = 'practical'; renderPreview(); };
-    else {
-      if ($('prevMock')) $('prevMock').onclick = () => { previewIndex--; renderPreview(); };
-      if ($('nextMock')) $('nextMock').onclick = () => { previewIndex++; renderPreview(); };
-      $('hintMock').onclick = () => { $('previewMessage').textContent = s?.hint || 'No hint configured.'; };
-      $('checkMock').onclick = () => { $('previewMessage').textContent = 'Visual prototype only: real checks must be performed by the Django verification engine.'; };
-    }
-  }
-  renderSim(); renderEvents();
+  $("start").addEventListener("click", () => { state = "recording"; render(); });
+  $("pause").addEventListener("click", () => { state = "paused"; render(); });
+  $("resume").addEventListener("click", () => { state = "recording"; render(); });
+  $("stop").addEventListener("click", () => { state = "stopped"; render(); });
+  $("reset").addEventListener("click", () => { if (window.confirm("Discard this simulated recording? Nothing has been saved.")) { state = "idle"; render(); } });
+  render();
 })();
 </script>{% endblock %}

@@ -494,7 +494,7 @@ def test_an_activity_in_a_journey_is_not_removed_from_the_lesson(client, db):
     )
     assert response.status_code == 200
     assert PracticalStep.objects.filter(pk=step.pk).exists()
-    assert "belongs to a practical journey" in " ".join(m.message for m in response.context["messages"])
+    assert "belongs to a Practical Workflow" in " ".join(m.message for m in response.context["messages"])
 
 
 @pytest.mark.django_db

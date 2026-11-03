@@ -1,18 +1,18 @@
 {% extends "core/base_student.html" %}{% load static %}
 
-{% block title %}Practical journeys · {{ course.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Practical journeys{% endblock %}
+{% block title %}Practical Workflows (Journeys) · {{ course.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Practical Workflows (Journeys){% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
 
 {% block content %}<div class="authoring hyb-builder">
-  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ course.title }} · draft edition v{{ course.programme_version.version }}</p><h1>Practical journeys</h1><p>Cross-lesson practical workflows. Journey order follows the curriculum; the organizer's steps come from the lessons' practical tabs.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-course-edit' course.pk %}">Back to course</a></div></header>
+  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ course.title }} · draft edition v{{ course.programme_version.version }}</p><h1>Practical Workflows (Journeys)</h1><p>Connect practical lessons and simulator actions into a complete workflow, with record roles, dependencies and completion checkpoints. Workflow order follows the curriculum; the organizer's steps come from the lessons' practical tabs.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-course-edit' course.pk %}">Back to course</a></div></header>
 
   <section class="authoring-card">
-    <div class="authoring-editor-header"><div><h2>New journey</h2><p>Created inside this draft edition.</p></div></div>
+    <div class="authoring-editor-header"><div><h2>New Practical Workflow (Journey)</h2><p>Created inside this draft edition.</p></div></div>
     <form method="post" class="authoring-form hyb-create-form">{% csrf_token %}
       {{ form.title.as_field_group }}
       {{ form.description.as_field_group }}
       {{ form.start_mode.as_field_group }}
-      <button class="authoring-primary" type="submit">Create journey</button>
+      <button class="authoring-primary" type="submit">Create workflow</button>
     </form>
   </section>
 

@@ -226,8 +226,17 @@ def media_file(request, path):
 
 
 def _may_see_private_media(request, path):
-    """Owner, staff, or an Instructor/Administrator reviewing that work."""
-    attachment = UcrDocumentAttachment.objects.filter(file=path).select_related("ucr").first()
+    """Owner, staff, or an Instructor/Administrator reviewing that work.
+
+    The lookup starts on the attachment, so it reaches the UCR by join; a
+    demonstration record's file is never served here even if a row somehow
+    exists, because that scope has its own surface.
+    """
+    attachment = (
+        UcrDocumentAttachment.objects.filter(file=path, ucr__demonstration_session__isnull=True)
+        .select_related("ucr")
+        .first()
+    )
     if attachment is None:
         return False
     user = request.user

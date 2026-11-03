@@ -723,9 +723,30 @@ def _requested_ucr_draft(request, payload):
     if draft_id is None or not str(draft_id).isdigit():
         return None, None
     record = UcrDeclaration.objects.filter(pk=draft_id, owner=request.user).first()
+    if record is None and _addressed_demonstration_draft(request, draft_id):
+        # The address names a record the ordinary surface must never write. Refused
+        # rather than ignored: falling through would answer a demonstration id by
+        # creating an ordinary draft, which is exactly the substitution the
+        # demonstration scope exists to prevent.
+        return None, JsonResponse(
+            {"error": "This declaration is not available for this operation.", "code": "record_out_of_scope"},
+            status=403,
+        )
     if record and record.status != UcrDeclaration.Status.DRAFT:
         return None, JsonResponse({"error": "This UCR has already been submitted."}, status=400)
     return record, None
+
+
+def _addressed_demonstration_draft(request, draft_id):
+    """Whether ``draft_id`` names a demonstration record this request owns.
+
+    Ownership is part of the question: a demonstration record belonging to someone
+    else is answered exactly like an unknown id, so the refusal can never confirm
+    that another user's row exists.
+    """
+    return UcrDeclaration.all_objects.filter(
+        pk=draft_id, owner=request.user, demonstration_session__isnull=False
+    ).exists()
 
 
 @simulator_access_required
@@ -1004,7 +1025,15 @@ def ucr_detail(request, record_id):
 @simulator_access_required
 @require_GET
 def ucr_attachment(request, attachment_id):
-    attachment = get_object_or_404(UcrDocumentAttachment.objects.select_related("ucr"), pk=attachment_id, ucr__owner=_effective_owner(request))
+    # The join to ``ucr`` is where an ordinary surface would otherwise reach a
+    # demonstration record's file: the manager filters the starting model, not a
+    # related path, so the scope is named here.
+    attachment = get_object_or_404(
+        UcrDocumentAttachment.objects.select_related("ucr"),
+        pk=attachment_id,
+        ucr__owner=_effective_owner(request),
+        ucr__demonstration_session__isnull=True,
+    )
     return FileResponse(attachment.file.open("rb"), filename=attachment.original_name)
 
 

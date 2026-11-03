@@ -2,7 +2,7 @@
 {% block title %}Edit {{ lesson.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Edit lesson{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
 {% block content %}<div class="authoring hyb-builder">
-  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ lesson.module.course.title }} · {{ lesson.module.title }} · draft edition v{{ lesson.module.course.programme_version.version }}</p><h1>Edit Lesson — {{ lesson.title }}</h1><p>The learner sees this lesson in the Theory &amp; Practical workspace. Saving does not publish the edition.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-lesson-preview' lesson.pk %}">Student preview</a><a class="authoring-secondary" href="{% url 'hybrid-course-journeys' lesson.module.course.pk %}">Practical journeys</a><a class="authoring-secondary" href="{% url 'hybrid-module-edit' lesson.module_id %}">Back to module</a></div></header>
+  <header class="authoring-head"><div><p class="authoring-eyebrow">{{ lesson.module.course.title }} · {{ lesson.module.title }} · draft edition v{{ lesson.module.course.programme_version.version }}</p><h1>Edit Lesson — {{ lesson.title }}</h1><p>The learner sees this lesson in the Theory &amp; Practical workspace. Saving does not publish the edition.</p></div><div class="authoring-actions"><a class="authoring-secondary" href="{% url 'hybrid-lesson-preview' lesson.pk %}">Student preview</a><a class="authoring-secondary" href="{% url 'hybrid-course-journeys' lesson.module.course.pk %}">Practical Workflows</a><a class="authoring-secondary" href="{% url 'hybrid-module-edit' lesson.module_id %}">Back to module</a></div></header>
 
   <nav class="authoring-tabs authoring-lesson-tabs" role="tablist" aria-label="Lesson editor stages" data-authoring-tabs><button type="button" role="tab" aria-selected="true" data-authoring-tab="details"><span class="authoring-tab-number">1</span><span>Lesson details</span></button><button type="button" role="tab" aria-selected="false" data-authoring-tab="theory" tabindex="-1"><span class="authoring-tab-number">2</span><span>Theory &amp; guidance</span></button><button type="button" role="tab" aria-selected="false" data-authoring-tab="activities" tabindex="-1"><span class="authoring-tab-number">3</span><span>Practical activities</span><span class="authoring-tab-count">{{ step_count }}</span></button><button type="button" role="tab" aria-selected="false" data-authoring-tab="review" tabindex="-1"><span class="authoring-tab-number">4</span><span>Review &amp; publish</span></button></nav>
 
@@ -83,9 +83,9 @@
             <button class="authoring-secondary" type="submit" form="add-cond-screen-{{ step.pk }}">+ Add navigation check</button>
           </div>
 
-          <h3>Practical journey and record role</h3>
+          <h3>Workflow and record role</h3>
           <div class="hyb-condition-group hyb-condition-form">
-            <p>{% if card.journey %}Runs inside <a href="{% url 'hybrid-journey-detail' card.journey.pk %}">{{ card.journey.title }}</a>.{% else %}Not in a practical journey yet.{% endif %}</p>
+            <p>{% if card.journey %}Runs inside <a href="{% url 'hybrid-journey-detail' card.journey.pk %}">{{ card.journey.title }}</a>.{% else %}Not in a Practical Workflow yet.{% endif %}</p>
             {% for check in card.record_checks %}
               <article class="authoring-item">
                 <span class="authoring-section-icon">{{ forloop.counter }}</span>
@@ -96,7 +96,7 @@
                   {% elif card.journey %}
                     <p class="helptext">Not bound to a record role — the learner's own record cannot be attributed to this check.</p>
                   {% else %}
-                    <p class="helptext">Add this activity to a practical journey, then bind the record it checks.</p>
+                    <p class="helptext">Add this activity to a Practical Workflow, then bind the record it checks.</p>
                   {% endif %}
                   {% if card.journey and check.roles %}
                     <form method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" class="authoring-form hyb-create-form">{% csrf_token %}
@@ -130,7 +130,7 @@
             {% endfor %}
             <details>
               <summary>Advanced journey settings</summary>
-              <p class="helptext">Step order, dependencies and roles shared between activities are configured in the journey organizer.</p>
+              <p class="helptext">Step order, dependencies and roles shared between activities are configured in the Practical Workflow organizer.</p>
               {% if card.journey %}
                 <form method="post" action="{% url 'hybrid-lesson-edit' lesson.pk %}" class="authoring-form hyb-create-form">{% csrf_token %}
                   <input type="hidden" name="action" value="unassign_journey">
@@ -148,7 +148,7 @@
               {% else %}
                 <p class="helptext">This course has no practical journey yet.</p>
               {% endif %}
-              <a class="authoring-secondary" href="{% url 'hybrid-course-journeys' lesson.module.course.pk %}">Open the journey organizer</a>
+              <a class="authoring-secondary" href="{% url 'hybrid-course-journeys' lesson.module.course.pk %}">Open the Practical Workflow organizer</a>
             </details>
           </div>
         </article>

@@ -8,6 +8,7 @@ content a learner is enrolled on can never be silently modified.
 Publication itself (the draft→published sweep and clone-to-draft) is Stage 4.
 """
 from django.contrib import messages
+from django.conf import settings
 from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -24,7 +25,7 @@ from learning.rich_text import plain_text
 from onboarding.models import Programme, ProgrammeVersion
 from scenarios.bindings import VERIFY_RECORDS
 
-from . import journey_services
+from . import demonstrations, journey_services
 from .forms import (
     CourseCreateForm,
     CourseEditForm,
@@ -65,6 +66,18 @@ STAGES = ("details", "theory", "activities", "review")
 #: Index POSTs that target neither create form, so both stay unbound and an
 #: error re-render never shows validation messages for the wrong form.
 _CARD_ACTIONS = ("publish_edition", "new_draft", "create_programme")
+
+#: Removing a lesson cascades to its demonstration session, its events and the
+#: records scoped to it, so a lesson that is being recorded right now is not
+#: removable — neither directly, nor through the module that contains it.
+LESSON_RECORDING_IN_USE = (
+    "This lesson cannot be deleted while a demonstration recording is active. "
+    "Stop or discard the recording first."
+)
+MODULE_RECORDING_IN_USE = (
+    "This module contains a lesson with an active demonstration recording. "
+    "Stop or discard the recording before deleting the module."
+)
 
 
 def _draft_version(programme):
@@ -675,6 +688,9 @@ def course_edit(request, course_id):
             return redirect("hybrid-course-edit", course_id=course.pk)
         if action == "delete_module":
             module = get_object_or_404(HybridModule, pk=request.POST.get("module_id"), course=course)
+            if demonstrations.lesson_is_recording(module.hybrid_lessons.values_list("id", flat=True)):
+                messages.error(request, MODULE_RECORDING_IN_USE)
+                return redirect("hybrid-course-edit", course_id=course.pk)
             try:
                 module.delete()
                 messages.success(request, "Module removed.")
@@ -780,6 +796,9 @@ def module_edit(request, module_id):
             return redirect("hybrid-module-edit", module_id=module.pk)
         if action == "delete_lesson":
             lesson = get_object_or_404(HybridLesson, pk=request.POST.get("lesson_id"), module=module)
+            if demonstrations.lesson_is_recording([lesson.pk]):
+                messages.error(request, LESSON_RECORDING_IN_USE)
+                return redirect("hybrid-module-edit", module_id=module.pk)
             lesson.delete()
             messages.success(request, "Lesson removed.")
             return redirect("hybrid-module-edit", module_id=module.pk)
@@ -815,6 +834,10 @@ def lesson_demonstration_studio(request, lesson_id):
         "lesson": lesson,
         "step_count": lesson.practical_steps.count(),
         "course_title": lesson.module.course.title,
+        # Development-only UI 4 proof.  The frame safety middleware makes
+        # instructor iframe traffic read-only and route-allowlisted before a
+        # simulator view can run.  Production receives no frame URL.
+        "simulator_frame_url": reverse("simulator-portal") if settings.DEBUG else "",
     }
     return render_student_page(request, "hybrid/demonstration_studio.html", context)
 
@@ -893,7 +916,7 @@ def lesson_edit(request, lesson_id):
             except ProtectedError:
                 messages.error(
                     request,
-                    f'“{step.title}” belongs to a practical journey — remove it from the journey first.',
+                    f'“{step.title}” belongs to a Practical Workflow — remove it from the workflow first.',
                 )
             else:
                 _renumber(PracticalStep.objects.filter(lesson=lesson).order_by("order", "id"))

@@ -1,6 +1,6 @@
 {% extends "core/base_student.html" %}{% load static %}
 
-{% block title %}Journey · {{ journey.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Journey organizer{% endblock %}
+{% block title %}Practical Workflow · {{ journey.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Practical Workflow organizer{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4">{% endblock %}
 
 {% block content %}<div class="authoring hyb-builder">
@@ -22,11 +22,11 @@
       {{ journey_form.title.as_field_group }}
       {{ journey_form.description.as_field_group }}
       {{ journey_form.start_mode.as_field_group }}
-      <button class="authoring-primary" type="submit">Save journey</button>
+      <button class="authoring-primary" type="submit">Save workflow</button>
     </form>
     <form id="delete-journey" method="post" class="authoring-form">{% csrf_token %}
       <input type="hidden" name="action" value="delete_journey">
-      <button class="authoring-secondary" type="submit">Delete journey</button>
+      <button class="authoring-secondary" type="submit">Delete workflow</button>
       <span class="helptext">Only an empty journey can be deleted.</span>
     </form>
   </section>
@@ -47,7 +47,7 @@
           </div>
         </article>
       {% empty %}
-        <p class="authoring-empty">No steps assigned yet — assign the lesson steps below.</p>
+        <p class="authoring-empty">No practical steps are assigned to this workflow yet. Create practical activities inside your lessons first — you can then assign their steps to the workflow.</p>
       {% endfor %}
     </div>
     {% if unassigned_steps %}
@@ -62,7 +62,7 @@
       <button class="authoring-primary" type="submit">Assign step</button>
     </form>
     {% else %}
-    <p class="helptext">Every practical step in this course is already assigned. Add steps in a lesson's Practical activities stage.</p>
+    <p class="helptext">Every practical step in this course is already assigned to a workflow. Add steps in a lesson's Practical activities stage.</p>
     {% endif %}
   </section>
 

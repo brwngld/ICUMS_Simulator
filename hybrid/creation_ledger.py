@@ -19,7 +19,9 @@ rollback on error (Django 5.2.18, ``django/db/models/base.py:999``), and
 Known boundary: ``bulk_create``/raw SQL bypass signals entirely and capture
 nothing (no supported creation path uses them), and non-request callers
 (admin, shell) fail loudly instead of capturing. Fixture loads (``raw=True``)
-are not student creations and are skipped.
+are not student creations and are skipped. A record scoped to a
+``DemonstrationSession`` captures nothing at all, because an instructor's
+practice run is not evidence that a learner created anything.
 
 The ledger is evidence only: it never assigns a record to a role or completes a
 step. ``journey_services.role_satisfied`` reads it to decide whether a
@@ -56,6 +58,13 @@ def _capture(sender, instance, created, **kwargs):
     if kind is None or not created or kwargs.get("raw"):
         # Fixture loads and bulk operations are not student creations;
         # updates never capture.
+        return
+    if getattr(instance, "demonstration_session_id", None) is not None:
+        # An instructor's demonstration is not learner evidence. This is the
+        # only guard that works here: the receiver is handed the instance
+        # directly, so a filtered model manager cannot stop it — and every
+        # hybrid enumeration, picker and verification path reads the ledger row
+        # this call would have written.
         return
     SimulatorRecordCreation.objects.create(
         record_kind=kind,

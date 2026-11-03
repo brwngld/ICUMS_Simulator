@@ -167,6 +167,12 @@ class BoeDeclarationAdmin(ModelAdmin):
             declaration.save(update_fields=("status", "updated_at"))
         self.message_user(request, "Assessed declarations were marked accepted.")
 
+    def get_queryset(self, request):
+        # ``ucr`` is a join: the ordinary manager cannot filter a starting model
+        # that is not the UCR, so the scope is named here and neither the listing
+        # nor its search reaches a demonstration record.
+        return super().get_queryset(request).exclude(ucr__demonstration_session__isnull=False)
+
 
 @admin.register(MdaConsignmentRequest)
 class MdaConsignmentRequestAdmin(ModelAdmin):
@@ -182,6 +188,14 @@ class MdaConsignmentRequestAdmin(ModelAdmin):
         owner = obj.consignment_application.owner
         return f"{owner.get_full_name() or owner.username} ({owner.student_id or 'no ID'})"
 
+    def get_queryset(self, request):
+        # The UCR is reached through the application, so the scope is named on
+        # that join: an MDA row tied to a demonstration record stays out of the
+        # listing and out of its search results.
+        return super().get_queryset(request).exclude(
+            consignment_application__ucr__demonstration_session__isnull=False
+        )
+
 
 @admin.register(UcrDeclaration)
 class UcrDeclarationAdmin(ModelAdmin):
@@ -191,6 +205,9 @@ class UcrDeclarationAdmin(ModelAdmin):
     search_fields = ("ucr_no", "temp_no", "owner__student_id", "owner__first_name", "owner__last_name", "owner__username", "exporter_name", "importer_name")
     list_filter = ("status", "regime", "derivation")
     readonly_fields = ("temp_no", "ucr_no", "owner", "status", "created_at", "updated_at", "submitted_at")
+    # Kept out of the change form by name as well as by ``editable=False``: saving
+    # an administrative edit must never clear a record's demonstration scope.
+    exclude = ("demonstration_session",)
 
     @admin.display(description="Student", ordering="owner__student_id")
     def student(self, obj):
@@ -209,6 +226,11 @@ class ConsignmentApplicationAdmin(ModelAdmin):
     @admin.display(description="Student", ordering="owner__student_id")
     def student(self, obj):
         return f"{obj.owner.get_full_name() or obj.owner.username} ({obj.owner.student_id or 'no ID'})"
+
+    def get_queryset(self, request):
+        # An ordinary consignment lists and searches as before; one built on a
+        # demonstration record is held back from both.
+        return super().get_queryset(request).exclude(ucr__demonstration_session__isnull=False)
 
 
 def declarant_capable_stakeholders():

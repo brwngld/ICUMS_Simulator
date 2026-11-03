@@ -571,7 +571,7 @@ def test_the_live_course_editor_renders_and_its_organizer_link_resolves(client, 
 
     response = client.get(organizer_href)
     assert response.status_code == 200
-    assert "New journey" in response.content.decode()
+    assert "New Practical Workflow (Journey)" in response.content.decode()
 
 
 def test_every_stage2_journey_url_name_resolves(db):

@@ -515,18 +515,63 @@ class ScenarioAction(models.Model):
         constraints = [models.UniqueConstraint(fields=("attempt", "sequence"), name="unique_scenario_action_sequence")]
 
 
+class OrdinaryUcrDeclarationManager(models.Manager):
+    """Every UCR that is a real learner or instructor record — and no
+    demonstration records.
+
+    This is the model's default manager, so an unqualified
+    ``UcrDeclaration.objects`` query is safe by construction: simulator search,
+    detail, reference lookups, the admin changelist and every ``hybrid``
+    enumeration all take the ordinary path without having to remember a filter.
+
+    The manager is *not* the whole boundary. Four paths never consult it:
+    the ``post_save`` creation-evidence receiver (which gets the instance, not a
+    queryset), any queryset of another model that joins to a UCR (attachments,
+    search ``select_related``), forward-FK and reverse one-to-one traversal
+    through the base manager, and writes that construct an instance directly.
+    Those need an explicit scope predicate, and ``scenarios.demonstration_ucr``
+    plus the regression tests in ``tests/test_demonstration_isolation.py`` own
+    them.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(demonstration_session__isnull=True)
+
+
 class UcrDeclaration(models.Model):
     """Learner-authored UCR practice record; Save stores a draft (TEMPUCR…), Submit issues the final number."""
 
     TEMP_PREFIX = "TEMPUCR"
     UCR_PREFIX = "KGHTESTUCR"
+    #: Demonstration drafts never take a ``TEMPUCR`` number: the ordinary
+    #: allocator scans only ordinary rows, so a shared stem would let a
+    #: demonstration draft and a learner draft claim the same reference.
+    DEMO_TEMP_PREFIX = "DEMOUCR"
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         SUBMITTED = "submitted", "Submitted"
 
+    #: Ordinary records only. Historical models inside a data migration get a
+    #: plain unfiltered ``objects`` instead (``use_in_migrations`` is False), so
+    #: a migration touching UCRs must filter ``demonstration_session`` itself.
+    objects = OrdinaryUcrDeclarationManager()
+    #: Unfiltered. The demonstration service, discard and the demonstration
+    #: allocator; never a business query, and never reachable from a request
+    #: that has not resolved an exact active session.
+    all_objects = models.Manager()
+
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="ucr_declarations")
     source_ucr = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="derived_ucrs")
+    demonstration_session = models.ForeignKey(
+        "hybrid.DemonstrationSession",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="ucr_declarations",
+        editable=False,
+        help_text="Server-set scope for a demonstration record. Null means an ordinary learner or instructor record. The field is excluded from every form and from the admin change page, so only the demonstration service can set or clear it.",
+    )
     derivation = models.CharField(max_length=8, blank=True, choices=(("clone", "Clone"), ("amend", "Amendment")))
     temp_no = models.CharField(max_length=20, unique=True, blank=True, editable=False)
     ucr_no = models.CharField(max_length=20, blank=True, editable=False)
@@ -535,7 +580,7 @@ class UcrDeclaration(models.Model):
     show_provider = models.BooleanField(default=True)
 
     declarant_code = models.CharField(max_length=8, blank=True)
-    provider_code = models.CharField(max_length=13, blank=True)
+    provider_code = models.CharField(max_length=64, blank=True)
     provider_name = models.CharField(max_length=180, blank=True)
     provider_country = models.CharField(max_length=2, blank=True)
     provider_address = models.TextField(blank=True)
@@ -544,7 +589,7 @@ class UcrDeclaration(models.Model):
     provider_email = models.EmailField(blank=True)
     provider_email_2 = models.EmailField(blank=True)
 
-    exporter_identity = models.CharField(max_length=13, blank=True)
+    exporter_identity = models.CharField(max_length=64, blank=True)
     exporter_name = models.CharField(max_length=180, blank=True)
     exporter_country = models.CharField(max_length=2, blank=True)
     exporter_address = models.TextField(blank=True)
@@ -577,6 +622,11 @@ class UcrDeclaration(models.Model):
 
     class Meta:
         ordering = ("-updated_at",)
+        # The unfiltered manager is the base manager, so forward-FK traversal,
+        # related-instance existence checks and the delete cascade all resolve a
+        # demonstration UCR when asked for it directly. The ordinary manager
+        # stays the default so business queries keep failing closed.
+        base_manager_name = "all_objects"
         constraints = [models.UniqueConstraint(fields=("ucr_no",), condition=Q(ucr_no__gt=""), name="unique_ucr_number_when_issued")]
 
     def __str__(self):
@@ -595,7 +645,13 @@ class UcrDocumentAttachment(models.Model):
 
 
 def purge_expired_ucr_drafts(max_age_days=7):
-    """Delete TEMPUCR drafts that were never submitted within the retention window."""
+    """Delete ordinary TEMPUCR drafts that were never submitted within the retention window.
+
+    The ordinary manager makes this demonstration-safe by construction: a
+    demonstration draft is never purged here. Demonstration retention is a
+    separate, idempotent command — ``hybrid`` owns it because a session's
+    records and events expire together.
+    """
     from datetime import timedelta
 
     from django.utils import timezone
@@ -606,7 +662,14 @@ def purge_expired_ucr_drafts(max_age_days=7):
 
 
 def allocate_ucr_number(prefix):
-    """prefix + two-digit year + a 7-digit sequence, e.g. KGHTESTUCR260000001 then ...000002."""
+    """prefix + two-digit year + a 7-digit sequence, e.g. KGHTESTUCR260000001 then ...000002.
+
+    The scan deliberately uses the unfiltered manager. ``temp_no`` is unique
+    across the whole table, and a scoped manager cannot see every holder of the
+    stem it is about to hand out — the ordinary ``TEMPUCR``/``KGHTESTUCR``
+    sequences and the demonstration ``DEMOUCR`` sequence all draw their next
+    number from the same table-wide truth.
+    """
     from django.db import transaction
     from django.utils import timezone
 
@@ -615,13 +678,13 @@ def allocate_ucr_number(prefix):
     for _ in range(3):
         with transaction.atomic():
             issued = []
-            for temp_no, ucr_no in UcrDeclaration.objects.filter(
+            for temp_no, ucr_no in UcrDeclaration.all_objects.filter(
                 Q(temp_no__startswith=stem) | Q(ucr_no__startswith=stem)
             ).values_list("temp_no", "ucr_no"):
                 issued.extend(number for number in (temp_no, ucr_no) if number.startswith(stem))
             sequences = [int(number[len(stem):]) for number in issued if number[len(stem):].isdigit()]
             candidate = f"{stem}{(max(sequences) + 1) if sequences else 1:07d}"
-            if not UcrDeclaration.objects.filter(Q(temp_no=candidate) | Q(ucr_no=candidate)).exists():
+            if not UcrDeclaration.all_objects.filter(Q(temp_no=candidate) | Q(ucr_no=candidate)).exists():
                 return candidate
     raise ValidationError("Could not allocate the next reference number. Please try again.")
 

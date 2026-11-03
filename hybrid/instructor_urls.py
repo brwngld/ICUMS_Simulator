@@ -5,7 +5,7 @@ route is instructor-gated and draft-scoped; the preview is read-only.
 """
 from django.urls import path
 
-from . import instructor_views
+from . import demonstration_views, instructor_views
 
 urlpatterns = [
     path("", instructor_views.builder_index, name="hybrid-builder"),
@@ -17,4 +17,13 @@ urlpatterns = [
     path("lessons/<uuid:lesson_id>/edit/", instructor_views.lesson_edit, name="hybrid-lesson-edit"),
     path("lessons/<uuid:lesson_id>/demonstration-studio/", instructor_views.lesson_demonstration_studio, name="hybrid-lesson-demonstration-studio"),
     path("lessons/<uuid:lesson_id>/preview/", instructor_views.lesson_preview, name="hybrid-lesson-preview"),
+    # Demonstration recording lifecycle. Server-side authorization only; every
+    # route is refused while DEMONSTRATION_RECORDING_ENABLED is off, and none of
+    # them touches a simulator record.
+    path("demonstration/start/<uuid:lesson_id>/", demonstration_views.demonstration_start, name="hybrid-demonstration-start"),
+    path("demonstration/pause/", demonstration_views.demonstration_pause, name="hybrid-demonstration-pause"),
+    path("demonstration/resume/", demonstration_views.demonstration_resume, name="hybrid-demonstration-resume"),
+    path("demonstration/stop/", demonstration_views.demonstration_stop, name="hybrid-demonstration-stop"),
+    path("demonstration/discard/", demonstration_views.demonstration_discard, name="hybrid-demonstration-discard"),
+    path("demonstration/session/", demonstration_views.demonstration_session, name="hybrid-demonstration-session"),
 ]

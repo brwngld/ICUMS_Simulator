@@ -928,3 +928,154 @@ class JourneyVerificationEvidence(models.Model):
 
     def __str__(self):
         return f"{self.journey_step_id} · {self.record_kind}:{self.record_id} · {self.verified_at:%Y-%m-%d}"
+
+
+#: Demonstration states that still accept a server-side binding. A stopped
+#: session is sealed and a discarded one is on its way out; neither may be
+#: re-opened. Module level because a nested ``class Meta`` body cannot see the
+#: enclosing class body's names.
+DEMONSTRATION_LIVE_STATES = ["recording", "paused"]
+
+
+class DemonstrationSession(models.Model):
+    """One instructor's recorded run through one draft lesson.
+
+    The row is the authorization root for everything a recording touches: the
+    owning instructor, the lesson it demonstrates, how far the lifecycle has
+    got, and the next event sequence number. Nothing here is client-supplied —
+    the browser holds only the session UUID, and every control re-resolves the
+    session from this row plus ``request.user``.
+
+    ``lesson`` cascades because a demonstration is worthless without the lesson
+    it demonstrated, while ``instructor`` is protected so a recording can never
+    be silently destroyed by account cleanup. Event ordering lives in
+    ``next_sequence``/``version`` rather than in a row lock: SQLite treats
+    ``select_for_update`` as a no-op, so the service allocates with a
+    conditional update that both engines enforce.
+    """
+
+    class State(models.TextChoices):
+        RECORDING = "recording", "Recording"
+        PAUSED = "paused", "Paused"
+        STOPPED = "stopped", "Stopped"
+        DISCARDED = "discarded", "Discarded"
+
+    #: States that still accept the server-side binding; see
+    #: ``DEMONSTRATION_LIVE_STATES``.
+    LIVE_STATES = tuple(DEMONSTRATION_LIVE_STATES)
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lesson = models.ForeignKey(
+        HybridLesson,
+        on_delete=models.CASCADE,
+        related_name="demonstration_sessions",
+    )
+    instructor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="demonstration_sessions",
+    )
+    state = models.CharField(max_length=12, choices=State.choices, default=State.RECORDING)
+    started_at = models.DateTimeField(default=timezone.now)
+    #: The last deliberate instructor action on this recording. Only the service's
+    #: write paths move it: a studio page refreshing itself is not activity, and if
+    #: it were, an abandoned recording could never lapse. The seal deadline and the
+    #: rule that reads it live in ``hybrid.demonstrations``.
+    last_activity_at = models.DateTimeField(default=timezone.now)
+    paused_at = models.DateTimeField(blank=True, null=True)
+    stopped_at = models.DateTimeField(blank=True, null=True)
+    discarded_at = models.DateTimeField(blank=True, null=True)
+    retention_expires_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="When this session's events and demonstration records become eligible for cleanup. Set when the session stops, is discarded, or is sealed for inactivity.",
+    )
+    next_sequence = models.PositiveBigIntegerField(default=1)
+    version = models.PositiveBigIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=("instructor",),
+                condition=Q(state__in=DEMONSTRATION_LIVE_STATES),
+                name="one_live_demonstration_session_per_instructor",
+            ),
+            models.CheckConstraint(condition=~Q(state="paused") | Q(paused_at__isnull=False), name="paused_session_has_pause_stamp"),
+            models.CheckConstraint(condition=~Q(state="stopped") | Q(stopped_at__isnull=False), name="stopped_session_has_stop_stamp"),
+            models.CheckConstraint(condition=~Q(state="discarded") | Q(discarded_at__isnull=False), name="discarded_session_has_discard_stamp"),
+            models.CheckConstraint(
+                condition=~Q(state="recording") | Q(stopped_at__isnull=True, discarded_at__isnull=True),
+                name="recording_session_is_unsealed",
+            ),
+            models.CheckConstraint(condition=Q(next_sequence__gte=1), name="demonstration_sequence_counter_positive"),
+            models.CheckConstraint(condition=Q(version__gte=1), name="demonstration_version_positive"),
+        ]
+        indexes = [
+            models.Index(fields=("instructor", "state"), name="demo_session_owner_state"),
+            models.Index(fields=("lesson", "created_at"), name="demo_session_lesson_created"),
+            # The inactivity sweep's own shape: live states, oldest activity first.
+            models.Index(fields=("state", "last_activity_at"), name="demo_session_state_activity"),
+        ]
+
+    def __str__(self):
+        return f"{self.state} · lesson {self.lesson_id} · instructor {self.instructor_id}"
+
+    def live(self):
+        return self.state in self.LIVE_STATES
+
+
+class DemonstrationEvent(models.Model):
+    """One immutable, sanitized fact from a demonstration recording.
+
+    A row records *that* the instructor reached an approved screen or that a
+    scoped record was saved — never what they typed. The field and value
+    allowlists live in ``hybrid.demonstrations`` and are enforced where the
+    event is appended; ``payload`` therefore holds only approved enum codes and
+    semantic field names. ``sequence`` is the authoritative order (the counter
+    on the session), and ``created_at`` is supporting metadata only.
+
+    ``idempotency_key`` is an opaque retry key supplied by the recording client;
+    it authorizes nothing and orders nothing. The two unique constraints are the
+    final guard against a duplicate sequence number or a duplicated retry.
+    """
+
+    class EventType(models.TextChoices):
+        NAVIGATION = "navigation", "Navigation"
+        RECORD_CREATED = "record_created", "Record created"
+        RECORD_UPDATED = "record_updated", "Record updated"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(
+        DemonstrationSession,
+        on_delete=models.CASCADE,
+        related_name="events",
+    )
+    sequence = models.PositiveBigIntegerField()
+    event_type = models.CharField(max_length=20, choices=EventType.choices)
+    action_code = models.CharField(max_length=64, blank=True)
+    route_name = models.CharField(max_length=128, blank=True)
+    record_kind = models.CharField(max_length=20, blank=True)
+    record_id = models.PositiveBigIntegerField(blank=True, null=True)
+    payload = models.JSONField(default=dict, blank=True)
+    # A key always exists; only a client that sent one can collide with itself.
+    idempotency_key = models.UUIDField(default=uuid.uuid4)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("sequence", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("session", "sequence"), name="unique_demonstration_event_sequence"),
+            models.UniqueConstraint(fields=("session", "idempotency_key"), name="unique_demonstration_event_idempotency"),
+            models.CheckConstraint(condition=Q(sequence__gte=1), name="demonstration_event_sequence_positive"),
+            models.CheckConstraint(
+                condition=Q(record_id__isnull=True) | ~Q(record_kind=""),
+                name="demonstration_event_record_needs_kind",
+            ),
+        ]
+        indexes = [models.Index(fields=("session", "event_type"), name="demo_event_session_type")]
+
+    def __str__(self):
+        return f"{self.sequence} · {self.event_type} · {self.action_code or self.route_name}"

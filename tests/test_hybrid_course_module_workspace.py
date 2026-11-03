@@ -8,9 +8,17 @@ navigation between the workspaces."""
 import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import User
-from hybrid.models import HybridCourse, HybridLesson, HybridModule, PracticalJourney, PracticalStep
+from hybrid.models import (
+    DemonstrationSession,
+    HybridCourse,
+    HybridLesson,
+    HybridModule,
+    PracticalJourney,
+    PracticalStep,
+)
 from onboarding.models import DisclaimerAcceptance, DisclaimerVersion, Programme, ProgrammeVersion
 
 
@@ -263,6 +271,70 @@ def test_the_lesson_removal_confirmation_and_deletion(client, instructor, draft_
     assert not HybridLesson.objects.filter(pk=lesson.pk).exists()
 
 
+@pytest.mark.django_db
+def test_a_lesson_with_a_recording_in_progress_cannot_be_removed(client, instructor, draft_course):
+    module = _module(draft_course, "m1")
+    lesson = _lesson(module, "being-recorded")
+    session = DemonstrationSession.objects.create(
+        lesson=lesson, instructor=instructor, state=DemonstrationSession.State.RECORDING
+    )
+    client.force_login(instructor)
+
+    response = client.post(
+        _module_url(module),
+        {"action": "delete_lesson", "lesson_id": lesson.pk},
+        follow=True,
+    )
+
+    assert response.status_code == 200
+    assert HybridLesson.objects.filter(pk=lesson.pk).exists() is True
+    assert DemonstrationSession.objects.filter(pk=session.pk).exists() is True
+    assert "This lesson cannot be deleted while a demonstration recording is active." in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_a_module_holding_a_paused_recording_cannot_be_removed(client, instructor, draft_course):
+    module = _module(draft_course, "m1")
+    lesson = _lesson(module, "paused")
+    session = DemonstrationSession.objects.create(
+        lesson=lesson,
+        instructor=instructor,
+        state=DemonstrationSession.State.PAUSED,
+        paused_at=timezone.now(),
+    )
+    client.force_login(instructor)
+
+    response = client.post(
+        _course_url(draft_course),
+        {"action": "delete_module", "module_id": module.pk},
+        follow=True,
+    )
+
+    assert response.status_code == 200
+    assert HybridModule.objects.filter(pk=module.pk).exists() is True
+    assert HybridLesson.objects.filter(pk=lesson.pk).exists() is True
+    assert DemonstrationSession.objects.filter(pk=session.pk).exists() is True
+    assert "This module contains a lesson with an active demonstration recording." in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_a_lesson_whose_recording_has_stopped_can_still_be_removed(client, instructor, draft_course):
+    """The guard covers the live window only; a sealed run does not pin a lesson."""
+    module = _module(draft_course, "m1")
+    lesson = _lesson(module, "sealed")
+    DemonstrationSession.objects.create(
+        lesson=lesson,
+        instructor=instructor,
+        state=DemonstrationSession.State.STOPPED,
+        stopped_at=timezone.now(),
+    )
+    client.force_login(instructor)
+
+    client.post(_module_url(module), {"action": "delete_lesson", "lesson_id": lesson.pk})
+
+    assert HybridLesson.objects.filter(pk=lesson.pk).exists() is False
+
+
 # --- Module workspace: lesson cards and readiness ----------------------------------------------
 
 
@@ -297,7 +369,37 @@ def test_the_module_workspace_counts_interactive_and_theory(client, instructor, 
     assert response.context["not_ready_count"] == 0
 
 
-# --- Navigation --------------------------------------------------------------------------------
+# --- Practical Workflows terminology -------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_the_course_workspace_uses_workflow_terminology(client, instructor, draft_course):
+    client.force_login(instructor)
+    html = client.get(_course_url(draft_course)).content.decode()
+    assert "Practical Workflows (Journeys)" in html
+    assert "New Practical Workflow (Journey)" in html
+    assert "Create workflow" in html
+    assert "record roles, dependencies and completion checkpoints" in html
+    # The internal action name is unchanged.
+    assert 'value="create_journey"' in html
+    # The old heading is gone.
+    assert "<h2>Practical journeys</h2>" not in html
+
+
+@pytest.mark.django_db
+def test_the_organizer_uses_workflow_terminology_and_guides_empty_workflows(client, instructor, draft_course):
+    journey = PracticalJourney.objects.create(
+        programme_version=draft_course.programme_version, course=draft_course,
+        code="wf-1", title="Empty workflow",
+    )
+    client.force_login(instructor)
+    list_html = client.get(reverse("hybrid-course-journeys", args=[draft_course.pk])).content.decode()
+    assert "Practical Workflows (Journeys)" in list_html
+    detail_html = client.get(reverse("hybrid-journey-detail", args=[journey.pk])).content.decode()
+    assert "Practical Workflow organizer" in detail_html
+    # The empty state explains the prerequisite instead of pointing at nothing.
+    assert "Create practical activities inside your lessons first" in detail_html
+    assert "No steps assigned yet" not in detail_html
 
 
 @pytest.mark.django_db
