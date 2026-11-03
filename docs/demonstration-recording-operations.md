@@ -1,11 +1,15 @@
 # Demonstration recording — operations
 
-Status: **Stage 1A foundation plus the Stage 1A.1 hardening, built 2026-11-02/03
+Status: **Stage 1A foundation, the Stage 1A.1 hardening, the Stage 1B `ucr-save`
+write and the Stage 1B.1 instructor-experience completion, built 2026-11-02/03
 and not yet live.** The models, lifecycle service, endpoints, isolation, cleanup
-and inactivity policy all exist and are tested, but
-`DEMONSTRATION_RECORDING_ENABLED` is `False`, no simulator write path is wired to
-a demonstration session, and nothing here is enabled in production. Stage 1B (the
-`ucr-save` write inside the recorder) is not built and not authorised.
+and inactivity policy all exist and are tested, an authorized instructor with a
+live recording can save a demonstration-scoped UCR through the existing Create
+UCR screen (and reload it there afterwards), and the Demonstration Studio speaks
+accurately about recording while the flag is on. `DEMONSTRATION_RECORDING_ENABLED`
+is still `False` everywhere by default; nothing here is enabled in production.
+The remaining simulator writes (`ucr-submit`, attachments, clone, amend, BOE,
+MDA, consignment) are not built and not authorised.
 
 ## The flag
 
@@ -18,12 +22,13 @@ a demonstration session, and nothing here is enabled in production. Stage 1B (th
   session and for a published lesson with the flag on (see
   `tests/test_demonstration_recording.py`).
 - To try it locally, set the value to `True` in `config/settings/local.py` (or
-  temporarily in `base.py`) and restart the dev server. Nothing else changes
-  behaviour: the recorder's lifecycle endpoints answer, the simulator iframe stays
-  read-only and no demonstration record can be created, because no code path
-  creates one yet.
+  temporarily in `base.py`) and restart the dev server. With the flag on, the
+  Demonstration Studio's controls drive the real lifecycle endpoints, its
+  timeline lists the recorded events, and a UCR saved from the simulator frame
+  inside a live recording becomes a demonstration record on that session —
+  never an ordinary one.
 - It does **not** gate the read-only simulator iframe. That proof is separately
-  dev-only: `hybrid/instructor_views.py:822` hands the studio a frame URL only when
+  dev-only: `hybrid/instructor_views.py` hands the studio a frame URL only when
   `settings.DEBUG`, and `scenarios/middleware.py:68` keeps the simulator
   `frame-ancestors 'self'`.
 - Until Stage 1B is reviewed, leave it `False` in `production.py` and `vps.py`.
@@ -202,6 +207,34 @@ to create later. Proven one by one in `tests/test_demonstration_isolation.py`.
   answer `403 record_out_of_scope`. A demonstration draft belonging to someone
   else is answered exactly like an unknown id, so the refusal never confirms that
   another user's row exists.
+- **The demonstration save never falls through to an ordinary write.** While the
+  flag is on and the browser holds a binding, `ucr-save` POST belongs to the
+  demonstration entirely (`scenarios.demonstration_ucr.demonstration_save_applies`).
+  A binding that no longer resolves — stopped, discarded, sealed, published
+  lesson — is refused with `409`, not answered with an ordinary draft: a browser
+  that believes it is demonstrating must never quietly produce an ordinary
+  record. Addressing an ordinary draft (one's own included), another session's
+  record or an unknown id is the same `403 record_out_of_scope` as the ordinary
+  route's refusal. No binding at all means the request is ordinary traffic and
+  the ordinary route behaves exactly as before — including its `record_out_of_scope`
+  refusals.
+- **The Create UCR screen resolves through one scope at a time (Stage 1B.1).**
+  After a save the page re-opens with `?draft=<id>`, and for a demonstration
+  record the ordinary manager cannot see it. A bound browser therefore resolves
+  `single-window-create-ucr` through its session scope only
+  (`scenarios.demonstration_ucr.demonstration_create_draft`): its own draft
+  reloads into the form, while an ordinary row (its own included), another
+  session's record, an unknown id or a binding that no longer resolves renders
+  an empty screen — never a leak, never a redirect, never an ordinary fallback.
+  `recording` and `paused` both load (GET navigation stays available while
+  paused); without a binding the screen keeps its ordinary behaviour, which is
+  blind to demonstration rows by construction.
+- **The page's own copy and affordances match the mode.** A demonstration save
+  answers with `"demonstration": true`; the Create UCR script then reports a
+  save-only confirmation and leaves Submit disabled — submission does not exist
+  inside a recording. The Demonstration Studio's placeholder wording
+  ("simulated", "not implemented") renders only while the flag is off; with it
+  on, the page describes the recording that actually runs.
 - **Lesson and module deletion stops while a recording is live.** Both builder
   delete views ask `lesson_is_recording()` first and refuse with a message that
   names the recording, never the instructor. A lesson whose recording has
@@ -275,7 +308,7 @@ should be structurally impossible — is classified as a retryable
 `sequence_contention` and, after the budget, becomes a controlled 409, never a
 bare `IntegrityError` 500.
 
-### The reference allocator: Stage 1B retry design (not implemented, no writes enabled)
+### The reference allocator: Stage 1B retry design (implemented)
 
 `scenarios.models.allocate_ucr_number(prefix)` is a read-then-write scan: it
 selects the highest issued number for the stem from `all_objects`, adds one, and
@@ -283,63 +316,91 @@ checks the candidate is free, inside a short transaction loop. It never inserts.
 Under READ COMMITTED two callers can both be handed the same candidate, and the
 loser only finds out when its `INSERT` hits the table-wide unique `temp_no`.
 
-Stage 1B's save service must therefore:
+The demonstration save (`scenarios.demonstration_ucr._insert_scoped_record`)
+implements the Stage 1B design as written:
 
 1. Allocate and insert inside one **savepoint per attempt**
-   (`with transaction.atomic():` nested in the request's transaction), so a
-   `23505` on `temp_no` rolls back only that attempt and the outer transaction
-   survives.
-2. On `IntegrityError` naming the `temp_no`/`ucr_no` unique index, **re-run the
-   allocator** rather than reusing the candidate, bounded by the same retry
-   budget as the event stream (five attempts) with a small backoff.
-   `test_concurrent_allocation_cannot_persist_the_same_reference_twice` proves
-   the table cannot end up holding one reference twice; it does not prove a
-   caller recovers correctly, because there is no caller yet.
-3. Treat exhaustion as a controlled refusal (`503`, code of its own, e.g.
-   `reference_busy`) — never a raw integrity error and never a silently
-   re-generated reference, which would give the instructor a number different
-   from the one already stored in the page.
-4. **Not** add `select_for_update` to the scan. Locking UCR rows would contend
-   with the lifecycle transitions, which take a row lock on
-   `hybrid_demonstrationsession` while the insert targets
-   `scenarios_ucrdeclaration`, and it would not help: a new row has no existing
-   row to lock. The unique index plus the retry is the correct mechanism under
-   READ COMMITTED.
+   (`with transaction.atomic():` nested in the save's transaction), so a `23505`
+   on `temp_no` rolls back only that attempt and the outer transaction survives.
+2. On `IntegrityError` naming the `temp_no`/`ucr_no` unique index — classified
+   by the driver's SQLSTATE (`23505`) first, with SQLite's message wording as
+   the fallback (`_is_reference_conflict`) — **re-run the allocator** rather
+   than reuse the candidate, bounded by five attempts with a small backoff.
+   `test_a_lost_reference_race_is_retried_with_a_fresh_allocation` proves a
+   caller recovers correctly; `test_concurrent_allocation_cannot_persist_the_same_reference_twice`
+   still proves the table can never hold one reference twice.
+3. Exhaustion is a controlled refusal (`503 reference_busy`, message wording
+   shared with the allocator's own) — never a raw integrity error and never a
+   silently re-generated reference.
+4. **No `select_for_update` on the scan**, exactly as designed: a new row has no
+   existing row to lock, and locking `UcrDeclaration` rows would contend with
+   the lifecycle transitions for no protection the unique index does not
+   already give.
 
-This is a design note for review with Stage 1B, not code that exists. No
-demonstration write path is enabled; `ucr-save` remains `frozenset()` in the
-manifest.
+Beyond the allocator, the save as a whole re-runs on contention
+(`demonstrations.retry_on_contention`), like every lifecycle control: an
+attempt a lock aborted committed nothing, so the retry re-derives the session,
+the idempotency pre-check and the allocation against table truth. After the
+budget the request is the controlled `503 session_busy`, and any other database
+error is re-raised rather than swallowed.
 
-### Before Stage 1B ships, re-run on PostgreSQL
+### Stage 1B verification on PostgreSQL (2026-11-03)
 
-1. The same-instant start race — two browsers, one instructor: expect
-   `UniqueViolation` on `one_live_demonstration_session_per_instructor`, surfaced
-   as `session_active`, not a 500.
-2. The partial unique index: confirm `condition=Q(state__in=…)` creates a
-   partial index and a session leaving a live state frees the slot.
-3. The allocator race with a real caller, under the design above.
-4. Migrations `hybrid.0010`/`0011` and `scenarios.0052`/`0053` forward and
-   reverse on a disposable database — `JSONField` defaults, the new
-   `last_activity_at`, and the composite `(state, last_activity_at)` index.
-5. The endpoint last net: force a `55P03` on a read and confirm 503, not 500.
+Run with `--ds=config.settings.vps --reuse-db` against PostgreSQL 18.3,
+`tests/test_demonstration_recording.py tests/test_demonstration_isolation.py
+tests/test_demonstration_ucr_save.py tests/test_instructor_demonstration_studio.py
+tests/test_hybrid_course_module_workspace.py`: **173 passed** (SQLite: 172
+passed, 1 skipped — the real-lock test). On the list below:
+
+1. The same-instant start race — covered by the existing
+   `test_two_browsers_cannot_open_two_live_sessions` (`UniqueViolation` →
+   `session_active`), passing on PostgreSQL.
+2. The partial unique index — covered by the existing lifecycle tests, passing.
+3. The allocator race with a real caller — done: both Stage 1B race tests
+   (`test_two_concurrent_saves_allocate_distinct_references_and_sequences`,
+   `test_concurrent_saves_with_one_key_persist_one_record`) run through the
+   real service with two connections and pass repeatedly.
+4. Migrations — no new migrations were needed for Stage 1B; the existing
+   `hybrid.0010`/`0011` and `scenarios.0052`/`0053` remain verified from the
+   Stage 1A.1 PostgreSQL run.
+5. The endpoint last net — covered by `test_an_endpoint_answers_a_lock_with_503_not_500`,
+   and the save route now maps a contention-shaped error to the same 503
+   (`save_demonstration_ucr`).
 
 ## Test map
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_demonstration_recording.py tests/test_demonstration_isolation.py \
+    tests/test_demonstration_ucr_save.py tests/test_instructor_demonstration_studio.py \
     tests/test_hybrid_course_module_workspace.py -q
 ```
 
 - `tests/test_demonstration_recording.py` (77 tests) — flag refusal,
   authorization, CSRF, server-side binding, forged/cross-instructor session ids,
   lifecycle and transitions, sequencing, idempotency (including malformed keys),
-  the route manifest, payload shape, discard, retention, the inactivity policy,
+  the route manifest (since Stage 1B: `ucr-save` carries exactly one method,
+  `POST`), payload shape, discard, retention, the inactivity policy,
   and the contention classifier.
 - `tests/test_demonstration_isolation.py` (29 tests) — every ordinary surface
   that must not see a demonstration row: search, detail, owner reverse relation,
   admin changelist and dashboard, the BOE/MDA/consignment admin joins,
   attribution, journey verification, completion, attachment routes and `/media/`,
   the ordinary save/submit refusal, plus expiry and allocation.
+- `tests/test_demonstration_ucr_save.py` (41 tests) — the Stage 1B write: when
+  the save branch applies (flag + binding), the full authorization chain
+  (student, cross-instructor, paused/stopped/discarded, sealed, published
+  lesson, forged bindings), the flag-off and unbound-browser ordinary route,
+  CSRF, draft addressing (own ordinary/foreign/unknown), the hidden-provider
+  normalization, field-error shape, attachment refusal, idempotency (replay and
+  malformed keys), reference-allocation recovery and exhaustion, event-failure
+  rollback, two concurrency races through the real service, isolation after the
+  save, the studio timeline, and the conflict classifier. Stage 1B.1 adds the
+  `demonstration` response marker, the conditional studio copy gate, and the
+  Create-screen reload (own session, paused, foreign/unknown/ordinary ids,
+  stale binding, unbound blindness).
+- `tests/test_instructor_demonstration_studio.py` — instructor gating,
+  draft-lesson scoping, the flag-off Stage 1A markers (asserted unchanged), and
+  since Stage 1B.1 the flag-on wording swap with the placeholders' absence.
 - `tests/test_hybrid_course_module_workspace.py` — includes the lesson/module
   deletion guards for a live recording.
 - `tests/demonstration_world.py` — the shared builders. `draft_world()` returns a
@@ -364,18 +425,30 @@ database.
   deployed, an abandoned recording holds its instructor's slot until the
   instructor starts a new one (which seals it) — the slot is no longer lost
   forever, but it can be lost until then.
-- The route manifest authorizes reads and navigation only
-  (`DEMONSTRATION_ROUTE_PERMISSIONS`, with `ucr-save: frozenset()`), so nothing
-  inside the simulator can be written by a demonstration today. `ucr-submit`,
+- The route manifest authorizes reads, navigation and exactly one write
+  (`DEMONSTRATION_ROUTE_PERMISSIONS`, with `ucr-save: {"POST"}`, served by
+  `scenarios.demonstration_ucr.save_demonstration_ucr`). `ucr-submit`,
   `ucr-attachment`, clone, amend, BOE, MDA and consignment stay denied and are
   covered by manifest tests.
-- Demonstration records only exist once Stage 1B creates them. `MEDIA` uploads
-  captured during a demonstration would need their own cleanup on discard — the
-  storage names are not collected yet because no upload path exists.
+- **Navigation is not captured.** `append_navigation_event` exists and its
+  routes are manifest-approved, but no view calls it yet — a recording's
+  timeline currently holds only the UCR save events. Wiring screen-entry
+  capture (probably at the frame boundary) is the next, separate decision.
+- Demonstration UCR records now exist. `MEDIA` uploads stay out of scope: the
+  demonstration save refuses any posted file (`400 attachment_denied`) before
+  anything is written, so discard still has no stored files to collect. An
+  upload path would need its own cleanup on discard first.
+- The Studio's flag-on wording (banner, pill, status lines, scope note, discard
+  confirm) and the save-only instruction on the Create UCR screen were approved
+  as Stage 1B.1 and render only while the flag is on; the flag-off rendering is
+  the original Stage 1A text, asserted unchanged by the studio tests.
 - `_may_see_private_media` admits staff and Instructor-group members to any
   *ordinary* attachment path. That is a pre-existing media-breadth question,
   worth resolving before uploads are recorded. Demonstration attachments are now
   excluded from it entirely.
 - A pre-existing defect was found while writing the D3 tests and is **not
-  fixed** (out of scope): posting `show_provider: false` to `ucr-save` raises
-  `KeyError: 'declarant_code'` in `_apply_ucr_payload` and returns a 500.
+  fixed** (out of scope): posting `show_provider: false` to the *ordinary*
+  `ucr-save` raises `KeyError: 'declarant_code'` in `_apply_ucr_payload` and
+  returns a 500. The demonstration save normalizes the same shape to blank
+  provider columns (`_apply_payload`) rather than inheriting it; the ordinary
+  route keeps its existing behaviour.

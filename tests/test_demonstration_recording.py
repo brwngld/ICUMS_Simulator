@@ -882,10 +882,13 @@ def test_the_manifest_reads_approved_routes_and_denies_every_write():
             assert caught.value.code == "route_denied"
 
 
-def test_ucr_save_is_listed_but_carries_no_method_until_stage_1b():
+def test_ucr_save_is_the_one_approved_write_since_stage_1b():
+    """Stage 1B: the manifest carries exactly one write method, and it is POST
+    on ``ucr-save`` — everything else on the route stays refused."""
     assert "ucr-save" in demonstrations.DEMONSTRATION_ROUTE_PERMISSIONS
-    assert demonstrations.DEMONSTRATION_ROUTE_PERMISSIONS["ucr-save"] == frozenset()
-    for method in ("GET", "POST", "PUT", "DELETE"):
+    assert demonstrations.DEMONSTRATION_ROUTE_PERMISSIONS["ucr-save"] == frozenset({"POST"})
+    assert demonstrations.assert_route_authorized("ucr-save", "POST") is True
+    for method in ("GET", "PUT", "DELETE"):
         with pytest.raises(demonstrations.DemonstrationError) as caught:
             demonstrations.assert_route_authorized("ucr-save", method)
         assert caught.value.code == "route_denied"

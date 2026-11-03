@@ -2,9 +2,9 @@
 {% block title %}Demonstration Studio · {{ lesson.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Demonstration Studio{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/demonstration-studio.css' %}?v=20261102-2">{% endblock %}
 {% block content %}<div class="demo-studio">
-  <div class="demo-banner">Development integration proof — the embedded simulator is read-only for instructors. Recording remains simulated client-side; no captured actions or demonstration records are saved.</div>
+  {% if demonstration_recording %}<div class="demo-banner">Recording is enabled in this development environment. The embedded simulator browses read-only; saving a UCR in it while recording creates a demonstration record on this session's timeline.</div>{% else %}<div class="demo-banner">Development integration proof — the embedded simulator is read-only for instructors. Recording remains simulated client-side; no captured actions or demonstration records are saved.</div>{% endif %}
   <div class="crumb">Theory &amp; Practical / {{ lesson.module.course.title }} / {{ lesson.title }}</div>
-  <div class="head"><div><h1>Instructor Demonstration Studio</h1><p class="muted">Use the existing simulator interface while planning this lesson's guided activities.</p></div><span class="pill">READ-ONLY FRAME · RECORDING NOT IMPLEMENTED</span></div>
+  <div class="head"><div><h1>Instructor Demonstration Studio</h1><p class="muted">Use the existing simulator interface while planning this lesson's guided activities.</p></div>{% if demonstration_recording %}<span class="pill">RECORDING ENABLED · UCR SAVE CAPTURED</span>{% else %}<span class="pill">READ-ONLY FRAME · RECORDING NOT IMPLEMENTED</span>{% endif %}</div>
   <div class="tabs" role="tablist"><button class="tab active" data-tab="record" role="tab" aria-selected="true">1 · Demonstrate</button><button class="tab" data-tab="review" role="tab" aria-selected="false">2 · Review steps</button><button class="tab" data-tab="preview" role="tab" aria-selected="false">3 · Student preview</button></div>
 
   <section id="record" class="view"><div class="grid">
@@ -14,23 +14,40 @@
         {% else %}<div class="empty">The read-only simulator frame is available only in the development environment.</div>{% endif %}
       </div>
     </div>
-    <aside class="panel"><div class="panelHead"><div><h2>Capture timeline</h2><div class="helper">Simulated controls only · no iframe activity is captured</div></div><span id="count" class="pill">0 events</span></div>
+    <aside class="panel"><div class="panelHead"><div><h2>Capture timeline</h2>{% if demonstration_recording %}<div class="helper">Server-side recording · events appear as they are recorded</div>{% else %}<div class="helper">Simulated controls only · no iframe activity is captured</div>{% endif %}</div><span id="count" class="pill">0 events</span></div>
       <div class="panelBody">
         <div class="toolbar recording-controls" aria-label="Simulated recording controls">
           <button id="start" class="primary">● Start Recording</button><button id="pause" disabled>Ⅱ Pause Recording</button><button id="resume" hidden>▶ Resume Recording</button><button id="stop" disabled>■ Stop Recording</button><button id="reset" class="quiet danger" disabled>Clear / discard</button>
         </div>
-        <div id="recStatus" class="status" role="status" aria-live="polite">Idle — simulated recording has not started.</div>
-        <div id="events" class="empty">No actions are captured in this integration proof.</div>
-        <div class="note small"><strong>Safety boundary</strong><br>The server rejects write requests from this instructor iframe. Recording persistence and demonstration data do not exist yet.</div>
+        <div id="recStatus" class="status" role="status" aria-live="polite">{% if demonstration_recording %}Idle — recording has not started.{% else %}Idle — simulated recording has not started.{% endif %}</div>
+        {% if demonstration_recording %}<div id="events" class="empty">No events recorded yet.</div>{% else %}<div id="events" class="empty">No actions are captured in this integration proof.</div>{% endif %}
+        {% if demonstration_recording %}<div class="note small"><strong>Scope boundary</strong><br>A save in the simulator creates a demonstration record scoped to this session. It never appears in learner listings, dashboards or assessments.</div>{% else %}<div class="note small"><strong>Safety boundary</strong><br>The server rejects write requests from this instructor iframe. Recording persistence and demonstration data do not exist yet.</div>{% endif %}
         <button id="goReview" class="primary" disabled style="width:100%">Review captured steps →</button>
       </div>
     </aside>
   </div></section>
 
-  <section id="review" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Review captured journey</h2><div class="helper">No events are captured or converted in this integration proof.</div></div><div class="summary"><div class="stat"><b>0</b><span class="small muted">Proposed steps</span></div><div class="stat"><b>0</b><span class="small muted">Captured events</span></div></div></div><div class="panelBody"><div class="empty">Recording persistence and lesson-step conversion remain intentionally unimplemented.</div><div class="footer"><button data-show="record">← Back to simulator</button><button data-show="preview">Student preview →</button></div></div></div></section>
+  <section id="review" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Review captured journey</h2>{% if demonstration_recording %}<div class="helper">Recorded events are listed on the Demonstrate tab; converting them into lesson steps is not implemented yet.</div>{% else %}<div class="helper">No events are captured or converted in this integration proof.</div>{% endif %}</div><div class="summary"><div class="stat"><b>0</b><span class="small muted">Proposed steps</span></div><div class="stat"><b id="capturedCount">0</b><span class="small muted">Captured events</span></div></div></div><div class="panelBody">{% if demonstration_recording %}<div class="empty">Demonstration records persist on the session's timeline; converting them into lesson steps is not implemented yet.</div>{% else %}<div class="empty">Recording persistence and lesson-step conversion remain intentionally unimplemented.</div>{% endif %}<div class="footer"><button data-show="record">← Back to simulator</button><button data-show="preview">Student preview →</button></div></div></div></section>
 
-  <section id="preview" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Student workspace preview</h2><div class="helper">The existing simulator remains read-only in this development proof.</div></div></div><div class="panelBody panelBody--frame">{% if simulator_frame_url %}<iframe class="simulator-frame simulator-frame--preview" src="{{ simulator_frame_url }}" title="Student preview — ICUMS Simulator Cargo Tracking Dashboard"></iframe>{% else %}<div class="empty">The simulator frame is available only in development.</div>{% endif %}<div class="footer"><button data-show="review">← Review steps</button><span class="helper">Preview only. No publication or database writes.</span></div></div></div></section>
+  <section id="preview" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Student workspace preview</h2><div class="helper">The existing simulator remains read-only in this development proof.</div></div></div><div class="panelBody panelBody--frame">{% if simulator_frame_url %}<iframe class="simulator-frame simulator-frame--preview" src="{{ simulator_frame_url }}" title="Student preview — ICUMS Simulator Cargo Tracking Dashboard"></iframe>{% else %}<div class="empty">The simulator frame is available only in development.</div>{% endif %}<div class="footer"><button data-show="review">← Review steps</button>{% if demonstration_recording %}<span class="helper">Preview only. Records are written only by demonstration saves from the Demonstrate tab.</span>{% else %}<span class="helper">Preview only. No publication or database writes.</span>{% endif %}</div></div></div></section>
 </div>
+{% if demonstration_recording %}<script>
+  // Stage 1B wiring data only — no user-facing copy. When the flag is on, the
+  // studio's existing controls drive the real lifecycle endpoints and the
+  // capture timeline lists the events the server has recorded.
+  window.demonstrationRecording = {
+    lessonId: "{{ lesson.pk }}",
+    csrfToken: "{{ csrf_token }}",
+    urls: {
+      start: "{% url 'hybrid-demonstration-start' lesson.pk %}",
+      pause: "{% url 'hybrid-demonstration-pause' %}",
+      resume: "{% url 'hybrid-demonstration-resume' %}",
+      stop: "{% url 'hybrid-demonstration-stop' %}",
+      discard: "{% url 'hybrid-demonstration-discard' %}",
+      session: "{% url 'hybrid-demonstration-session' %}"
+    }
+  };
+</script>{% endif %}
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -46,9 +63,7 @@
   document.querySelectorAll(".demo-studio .tab").forEach((button) => button.addEventListener("click", () => show(button.dataset.tab)));
   document.querySelectorAll(".demo-studio [data-show]").forEach((button) => button.addEventListener("click", () => show(button.dataset.show)));
 
-  const render = () => {
-    $("recStatus").className = state === "recording" ? "status live" : state === "stopped" ? "status success" : "status";
-    $("recStatus").innerHTML = state === "recording" ? '<span class="recordingDot"></span>Recording is simulated. No iframe activity is captured or saved.' : state === "paused" ? "Paused — 0 simulated actions captured." : state === "stopped" ? "Stopped — 0 simulated actions captured. Nothing was saved." : "Idle — simulated recording has not started.";
+  const renderControls = () => {
     $("start").disabled = state === "recording" || state === "paused";
     $("pause").disabled = state !== "recording";
     $("pause").hidden = state === "paused";
@@ -56,11 +71,114 @@
     $("stop").disabled = state !== "recording" && state !== "paused";
     $("reset").disabled = state === "idle";
   };
+
+  {% if demonstration_recording %}
+  // --- Live recording (DEMONSTRATION_RECORDING_ENABLED) ----------------------
+  // The controls drive the real lifecycle endpoints and the capture timeline
+  // lists the events the server has recorded. Status text comes from the
+  // server's state; refusal messages come from the server itself.
+  const live = window.demonstrationRecording;
+  let liveSession = null;
+  let liveEvents = [];
+  let pollTimer = null;
+  const liveRequest = (url, body) => fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRFToken": live.csrfToken },
+    body: JSON.stringify(body || {}),
+  }).then(async (response) => {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(data.error || "Request refused.");
+      error.code = data.code || "";
+      throw error;
+    }
+    return data;
+  });
+  const eventRow = (event) => {
+    const row = document.createElement("div");
+    row.className = "note small";
+    const line = document.createElement("div");
+    const when = new Date(event.created_at);
+    const parts = [`#${event.sequence}`, event.action_code || event.event_type];
+    if (event.route_name) parts.push(event.route_name);
+    if (event.record) parts.push(event.record);
+    line.textContent = `${parts.join(" · ")} — ${isNaN(when) ? event.created_at : when.toLocaleTimeString()}`;
+    row.append(line);
+    return row;
+  };
+  const renderLiveStatus = (message) => {
+    const count = liveSession ? (liveSession.event_count ?? liveEvents.length) : 0;
+    $("count").textContent = `${count} events`;
+    $("capturedCount").textContent = count;
+    $("events").replaceChildren(...liveEvents.map(eventRow));
+    if (message) {
+      // A message the server itself returned (an idle seal, a refusal).
+      $("recStatus").className = "status";
+      $("recStatus").textContent = message;
+      return;
+    }
+    $("recStatus").className = state === "recording" ? "status live" : state === "stopped" ? "status success" : "status";
+    if (state === "recording") $("recStatus").innerHTML = '<span class="recordingDot"></span>Recording — saves in the simulator are recorded on this timeline.';
+    else if (state === "paused") $("recStatus").textContent = "Paused — saves in the simulator are refused until you resume.";
+    else if (state === "stopped") $("recStatus").textContent = `Stopped — ${count} events recorded. Start a new recording to continue.`;
+    else $("recStatus").textContent = "Idle — recording has not started.";
+  };
+  const applyPayload = (data) => {
+    liveSession = data && data.session ? data.session : null;
+    liveEvents = data && data.events ? data.events : [];
+    state = liveSession ? liveSession.state : "idle";
+    renderLiveStatus();
+    schedulePolling();
+  };
+  const loadSession = async () => {
+    try {
+      const response = await fetch(live.urls.session, { headers: { "Accept": "application/json" } });
+      if (!response.ok) return;
+      applyPayload(await response.json());
+    } catch { /* the next poll retries; the page stays on its last known state */ }
+  };
+  const schedulePolling = () => {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    if (state === "recording" || state === "paused") pollTimer = setInterval(loadSession, 5000);
+  };
+  const control = (url, body) => async () => {
+    if (!liveSession && url !== live.urls.start) return;
+    try {
+      await liveRequest(url, body());
+      await loadSession();
+    } catch (error) {
+      renderLiveStatus(error.message);
+      if (error.code === "session_idle" || error.code === "no_active_session") await loadSession();
+    }
+  };
+  $("start").addEventListener("click", control(live.urls.start, () => ({})));
+  $("pause").addEventListener("click", control(live.urls.pause, () => ({ session_id: liveSession && liveSession.id, version: liveSession && liveSession.version })));
+  $("resume").addEventListener("click", control(live.urls.resume, () => ({ session_id: liveSession && liveSession.id, version: liveSession && liveSession.version })));
+  $("stop").addEventListener("click", control(live.urls.stop, () => ({ session_id: liveSession && liveSession.id, version: liveSession && liveSession.version })));
+  $("reset").addEventListener("click", async () => {
+    if (!liveSession) return;
+    if (!window.confirm("Discard this recording? Its events and demonstration records will be deleted now.")) return;
+    try {
+      await liveRequest(live.urls.discard, { session_id: liveSession.id });
+      await loadSession();
+    } catch (error) {
+      renderLiveStatus(error.message);
+    }
+  });
+  loadSession();
+  {% else %}
+  // --- Simulated recording (flag off) — unchanged behaviour ------------------
+  const render = () => {
+    $("recStatus").className = state === "recording" ? "status live" : state === "stopped" ? "status success" : "status";
+    $("recStatus").innerHTML = state === "recording" ? '<span class="recordingDot"></span>Recording is simulated. No iframe activity is captured or saved.' : state === "paused" ? "Paused — 0 simulated actions captured." : state === "stopped" ? "Stopped — 0 simulated actions captured. Nothing was saved." : "Idle — simulated recording has not started.";
+    renderControls();
+  };
   $("start").addEventListener("click", () => { state = "recording"; render(); });
   $("pause").addEventListener("click", () => { state = "paused"; render(); });
   $("resume").addEventListener("click", () => { state = "recording"; render(); });
   $("stop").addEventListener("click", () => { state = "stopped"; render(); });
   $("reset").addEventListener("click", () => { if (window.confirm("Discard this simulated recording? Nothing has been saved.")) { state = "idle"; render(); } });
   render();
+  {% endif %}
 })();
 </script>{% endblock %}

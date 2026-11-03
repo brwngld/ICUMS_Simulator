@@ -440,7 +440,14 @@ def single_window_overview(request):
 def single_window_create_ucr(request):
     draft = None
     draft_id = request.GET.get("draft")
-    if draft_id and draft_id.isdigit():
+    from .demonstration_ucr import demonstration_create_draft, demonstration_save_applies
+
+    if demonstration_save_applies(request):
+        # A bound demonstration browser resolves this screen through its session
+        # scope only — the ordinary manager can never see or confirm a row here,
+        # and an ordinary draft is not loaded into a recording either (Stage 1B.1).
+        draft = demonstration_create_draft(request, draft_id)
+    elif draft_id and draft_id.isdigit():
         candidate = UcrDeclaration.objects.filter(pk=draft_id, owner=_effective_owner(request), status=UcrDeclaration.Status.DRAFT).first()
         if candidate:
             draft = candidate
@@ -752,10 +759,18 @@ def _addressed_demonstration_draft(request, draft_id):
 @simulator_access_required
 @require_POST
 def ucr_save_declaration(request):
-    """Save creates or updates the addressed draft and shows its TEMPUCR reference."""
+    """Save creates or updates the addressed draft and shows its TEMPUCR reference.
+
+    A browser holding a server-side demonstration binding saves into that
+    demonstration instead — the scoped service re-derives every authorization
+    itself and never falls back to an ordinary write (Stage 1B)."""
     blocked = _review_json_guard(request)
     if blocked:
         return blocked
+    from .demonstration_ucr import demonstration_save_applies, save_demonstration_ucr
+
+    if demonstration_save_applies(request):
+        return save_demonstration_ucr(request)
     payload, errors = _parse_ucr_payload(request)
     if errors:
         return JsonResponse({"errors": errors}, status=400)

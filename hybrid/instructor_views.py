@@ -838,6 +838,10 @@ def lesson_demonstration_studio(request, lesson_id):
         # instructor iframe traffic read-only and route-allowlisted before a
         # simulator view can run.  Production receives no frame URL.
         "simulator_frame_url": reverse("simulator-portal") if settings.DEBUG else "",
+        # Stage 1B: when the flag is on, the studio's controls drive the real
+        # lifecycle endpoints and the timeline lists the recorded events. Off,
+        # the page keeps its original client-side behaviour untouched.
+        "demonstration_recording": demonstrations.recording_enabled(),
     }
     return render_student_page(request, "hybrid/demonstration_studio.html", context)
 

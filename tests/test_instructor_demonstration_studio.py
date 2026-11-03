@@ -99,6 +99,35 @@ def test_instructor_sees_the_studio_for_a_draft_lesson(db):
 
 
 @pytest.mark.django_db
+@override_settings(DEBUG=True, DEMONSTRATION_RECORDING_ENABLED=True)
+def test_the_studio_swaps_its_placeholders_for_recording_wording_while_enabled(db):
+    """Stage 1B.1: with the flag on the page speaks about the recording that
+    actually exists; the flag-off markers are gone, not doubled up."""
+    world = _draft_lesson_world(db)
+    client = Client()
+    client.force_login(world["instructor"])
+
+    html = client.get(_studio_url(world["lesson"])).content.decode()
+
+    assert "RECORDING ENABLED · UCR SAVE CAPTURED" in html
+    assert "Recording is enabled in this development environment" in html
+    assert "saving a UCR in it while recording creates a demonstration record" in html
+    assert "Server-side recording · events appear as they are recorded" in html
+    assert "No events recorded yet." in html
+    assert "Scope boundary" in html
+    assert "It never appears in learner listings, dashboards or assessments." in html
+    assert "Discard this recording? Its events and demonstration records will be deleted now." in html
+    # The frame still identifies itself as browse-only.
+    assert "The embedded simulator browses read-only" in html
+    # No flag-off placeholder survives the swap.
+    assert "RECORDING NOT IMPLEMENTED" not in html
+    assert "Recording is simulated" not in html
+    assert "no captured actions or demonstration records are saved" not in html
+    assert "Nothing has been saved." not in html
+    assert "No publication or database writes." not in html
+
+
+@pytest.mark.django_db
 def test_anonymous_users_are_redirected_to_login(db):
     world = _draft_lesson_world(db)
     client = Client()

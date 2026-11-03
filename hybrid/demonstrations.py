@@ -110,10 +110,12 @@ class DemonstrationError(Exception):
 
 #: Route names a demonstration may address, with the methods allowed. This is
 #: the approval record for Stage 1B: a route gains a write method only here.
-#: ``ucr-save`` is listed with **no** methods on purpose — the manifest approves
-#: it for Stage 1B, and until a scoped save service exists, an empty set keeps it
-#: refused. ``ucr-submit``, clone, amend, attachments, BOE, MDA and consignment
-#: are absent, so they are refused by construction rather than by memory.
+#: ``ucr-save`` carries ``POST`` now that a scoped save service exists
+#: (``scenarios.demonstration_ucr.save_demonstration_ucr``) — it is the only
+#: write any demonstration may make, and it stays gated behind the binding,
+#: the lifecycle state and the idle deadline. ``ucr-submit``, clone, amend,
+#: attachments, BOE, MDA and consignment are absent, so they are refused by
+#: construction rather than by memory.
 DEMONSTRATION_ROUTE_PERMISSIONS = {
     "simulator-portal": frozenset({"GET"}),
     "single-window-overview": frozenset({"GET"}),
@@ -122,7 +124,7 @@ DEMONSTRATION_ROUTE_PERMISSIONS = {
     "ucr-detail": frozenset({"GET"}),
     "ucr-service-provider-lookup": frozenset({"GET"}),
     "ucr-stakeholder-lookup": frozenset({"GET"}),
-    "ucr-save": frozenset(),
+    "ucr-save": frozenset({"POST"}),
 }
 
 #: Approved ``action_code`` per navigable route. A route absent here is allowed
@@ -198,6 +200,12 @@ def _idempotency_key(value):
     return parsed
 
 
+#: Public form of ``_idempotency_key`` for the scoped save service
+#: (``scenarios.demonstration_ucr``), which has to resolve the caller's key
+#: *before* it writes so a repeated request reuses the record already saved.
+client_idempotency_key = _idempotency_key
+
+
 # --- Contention --------------------------------------------------------------
 
 
@@ -225,6 +233,13 @@ def _sleep_before(retry_index, *, delay=SEQUENCE_RETRY_BASE_DELAY, attempts=SEQU
     """Back off, but not after the attempt that will be the last one."""
     if retry_index + 1 < attempts:
         time.sleep(delay * (retry_index + 1))
+
+
+#: Public form of ``_retry_on_contention`` for the scoped save service
+#: (``scenarios.demonstration_ucr``): a demonstration save is a write like any
+#: lifecycle control, so a lock that aborts its transaction is retried whole
+#: before the request is answered with a controlled 503.
+retry_on_contention = _retry_on_contention
 
 
 # --- Binding -----------------------------------------------------------------

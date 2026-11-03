@@ -196,6 +196,12 @@ def _sqlstate(error):
     return None
 
 
+#: Public form of ``_sqlstate`` for the scoped save service
+#: (``scenarios.demonstration_ucr``), which classifies a lost reference race by
+#: the driver's own code rather than by an engine's wording.
+driver_sqlstate = _sqlstate
+
+
 def is_database_contention(error):
     """Would re-running this statement be honest?
 

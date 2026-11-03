@@ -423,8 +423,15 @@
       }
       document.querySelector('#ucr-temp').value = data.temp_no;
       applyAttachments(data);
-      submitButton.disabled = false;
-      reportStatus(`Draft saved as ${data.temp_no}. Select Submit to generate the final UCR number.`);
+      if (data.demonstration) {
+        // A demonstration save is save-only: submission does not exist inside a
+        // recording, so the Submit button stays disabled and the message says
+        // what actually happened.
+        reportStatus(`Draft saved as ${data.temp_no}. This save has been recorded on the demonstration timeline.`);
+      } else {
+        submitButton.disabled = false;
+        reportStatus(`Draft saved as ${data.temp_no}. Select Submit to generate the final UCR number.`);
+      }
     } catch (error) {
       if (error.fieldErrors) reportFieldErrors(error.fieldErrors);
       else reportStatus(error.message, true);
