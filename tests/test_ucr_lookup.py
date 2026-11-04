@@ -647,8 +647,10 @@ def test_preparation_ucr_picker_lists_issued_ucrs_only(client):
 def test_consignment_application_lifecycle(client):
     from scenarios.models import ConsignmentApplication, GhanaHSCode, MdaAgency, MdaApplication, MdaConsignmentRequest, MdaProcess, PortCode
 
-    assert GhanaHSCode.objects.count() == 4854
+    assert GhanaHSCode.objects.count() == 6137
     assert GhanaHSCode.objects.filter(code="0101210000", description__icontains="horses").exists()
+    assert GhanaHSCode.objects.filter(code="8476890000", description__icontains="other").exists()
+    assert GhanaHSCode.objects.filter(code="9801200000", import_duty__isnull=False).exists()
     PortCode.objects.create(code="ghtem", name="Tema", country_code="gh", country_name="Ghana")
     PortCode.objects.create(code="CAMTR", name="Montreal", country_code="CA", country_name="Canada")
     PortCode.objects.create(code="OLDPT", name="Inactive Port", country_code="GH", country_name="Ghana", is_active=False)
