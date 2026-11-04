@@ -26,4 +26,8 @@ urlpatterns = [
     path("demonstration/stop/", demonstration_views.demonstration_stop, name="hybrid-demonstration-stop"),
     path("demonstration/discard/", demonstration_views.demonstration_discard, name="hybrid-demonstration-discard"),
     path("demonstration/session/", demonstration_views.demonstration_session, name="hybrid-demonstration-session"),
+    # Stage 2B: converting a stopped recording into draft lesson steps.
+    # Instructor-only, draft-lesson-scoped, refused while the flag is off.
+    path("demonstration/proposals/<uuid:lesson_id>/<uuid:session_id>/", demonstration_views.demonstration_proposals, name="hybrid-demonstration-proposals"),
+    path("demonstration/convert/<uuid:lesson_id>/<uuid:session_id>/", demonstration_views.demonstration_convert, name="hybrid-demonstration-convert"),
 ]

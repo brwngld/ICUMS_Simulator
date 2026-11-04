@@ -1,14 +1,16 @@
 # Demonstration recording — operations
 
 Status: **Stage 1A foundation, the Stage 1A.1 hardening, the Stage 1B `ucr-save`
-write, the Stage 1B.1 instructor-experience completion, and the Stage 1C
-navigation capture, built 2026-11-02/03 and not yet live.** The models, lifecycle
-service, endpoints, isolation, cleanup and inactivity policy all exist and are
-tested, an authorized instructor with a live recording can save a
-demonstration-scoped UCR through the existing Create UCR screen (and reload it
-there afterwards), the Demonstration Studio speaks accurately about recording
-while the flag is on, and the studio's frame records which approved screens the
-demonstration opens. `DEMONSTRATION_RECORDING_ENABLED`
+write, the Stage 1B.1 instructor-experience completion, the Stage 1C navigation
+capture, and the Stage 2B demonstration-to-lesson conversion, built 2026-11-02/04
+and not yet live.** The models, lifecycle service, endpoints, isolation, cleanup
+and inactivity policy all exist and are tested, an authorized instructor with a
+live recording can save a demonstration-scoped UCR through the existing Create
+UCR screen (and reload it there afterwards), the Demonstration Studio speaks
+accurately about recording while the flag is on, the studio's frame records
+which approved screens the demonstration opens, and a stopped recording can be
+reviewed and explicitly converted into editable draft lesson steps.
+`DEMONSTRATION_RECORDING_ENABLED`
 is still `False` everywhere by default; nothing here is enabled in production.
 The remaining simulator writes (`ucr-submit`, attachments, clone, amend, BOE,
 MDA, consignment) are not built and not authorised.
@@ -281,6 +283,38 @@ genuine returns, fetch/lookup/404 silence, forged and foreign bindings, paused,
 stopped, discarded and sealed sessions, the flag gate, student isolation, and
 the interleaving of navigation with `ucr-save` events in one sequence.
 
+## Conversion into lesson steps (Stage 2B)
+
+A stopped recording converts — explicitly, once — into ordinary draft lesson
+steps (`hybrid/conversion.py`). The Review tab offers the proposals; applying
+creates `PracticalStep`/`VerificationCondition` rows the lesson editor then
+treats like any other activity, and publication readiness judges unchanged.
+
+- **Proposals are a read.** `conversion.proposals_for(session)` walks the
+  timeline in sequence order and proposes each distinct approved screen once,
+  at its first visit (revisits collapse); a UCR save attaches to the screen the
+  recording was on, and a re-save strengthens that same proposal. The answer
+  carries route names and registry labels only — no demonstration record ids,
+  no payload values. The recording and its events are never modified.
+- **Apply is gated and validated.** `conversion.apply_proposals` requires the
+  flag, instructor identity, a draft lesson, the caller's own session *on that
+  lesson*, `stopped` state, an unexpired retention window, and a submission
+  whose screens are exactly the server's re-derived proposals (anything else is
+  `unsupported_screen`); every title/instruction/outcome passes `StepForm` —
+  the same validation the editor applies — and the suggested condition
+  (`ucr`/`draft`) is created only where the recording actually saved.
+- **Once per recording.** The apply transaction locks the session row and
+  writes one append-only `AuditEvent` (`demonstration.converted`); a second
+  application — however it arrives — finds the marker and is refused with
+  `already_converted`. Re-converting after deleting the steps is possible only
+  by authoring steps by hand in the editor, by design.
+- **Isolation is untouched.** Converted steps are ordinary content; student
+  verification reads the learner's own ordinary records (the demonstration's
+  records stay invisible to the engine), and the recording is neither consumed
+  nor invalidated by conversion.
+
+Tested in `tests/test_demonstration_conversion.py` (22 tests).
+
 ## PostgreSQL: READ COMMITTED assumptions and contention handling
 
 **Stage 1A / 1A.1 ran no test on PostgreSQL.** At that time the suite was
@@ -412,7 +446,7 @@ passed, 1 skipped — the real-lock test). On the list below:
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_demonstration_recording.py tests/test_demonstration_isolation.py \
-    tests/test_demonstration_ucr_save.py tests/test_demonstration_navigation.py \
+    tests/test_demonstration_ucr_save.py tests/test_demonstration_navigation.py tests/test_demonstration_conversion.py \
     tests/test_instructor_demonstration_studio.py tests/test_hybrid_course_module_workspace.py -q
 ```
 
@@ -445,6 +479,15 @@ passed, 1 skipped — the real-lock test). On the list below:
   silence, forged and foreign bindings, paused/stopped/discarded/sealed
   sessions, the flag gate, student isolation, and navigation interleaved with
   `ucr-save` events in one sequence.
+- `tests/test_demonstration_conversion.py` (22 tests) — Stage 2B: proposal
+  order and collapsing, the save anchored to its screen, no demonstration ids
+  in proposals, recording immutability, apply with instructor edits, selection
+  and submitted order, duplicate refusal, foreign/cross-lesson/published
+  refusal, live/paused/discarded/expired refusal, the flag and bare-staff
+  gates, unsupported screens and conditions, authoring-rule validation and
+  rollback, editor compatibility (rendering, card edit, publication blockers),
+  and the proposed condition verified end-to-end against an ordinary student
+  draft.
 - `tests/test_instructor_demonstration_studio.py` — instructor gating,
   draft-lesson scoping, the flag-off Stage 1A markers (asserted unchanged), and
   since Stage 1B.1 the flag-on wording swap with the placeholders' absence.

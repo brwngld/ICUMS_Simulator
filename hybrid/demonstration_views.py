@@ -26,6 +26,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import InterfaceError, OperationalError
 from django.http import JsonResponse
+from django.urls import reverse
 from django.views.decorators.http import require_GET, require_POST
 
 from . import demonstrations
@@ -170,6 +171,79 @@ def demonstration_session(request):
             "ok": True,
             "session": demonstrations.session_payload(session),
             "events": demonstrations.timeline(session),
+        })
+
+    return _answered(run)
+
+
+# --- Stage 2B: conversion of a stopped recording into draft lesson steps -----
+
+
+def _lesson_for_conversion(lesson_id):
+    """The draft lesson a conversion addresses; published lessons 404 like the builder."""
+    return _draft_lesson(lesson_id)
+
+
+@login_required
+@require_GET
+def demonstration_proposals(request, lesson_id, session_id):
+    """The proposed activities a stopped recording offers, for the Review tab.
+
+    A read: nothing is written, and the answer carries route names and
+    registry labels only — no demonstration record ids, no payload values.
+    """
+    if not demonstrations.recording_enabled():
+        return _disabled()
+
+    def run():
+        from . import conversion
+
+        lesson = _lesson_for_conversion(lesson_id)
+        session = conversion.conversion_session(request.user, lesson, session_id)
+        return JsonResponse({
+            "ok": True,
+            "session": demonstrations.session_payload(session),
+            "activities": conversion.proposals_for(session),
+        })
+
+    return _answered(run)
+
+
+@login_required
+@require_POST
+def demonstration_convert(request, lesson_id, session_id):
+    """Apply the instructor's selected, edited proposals to the draft lesson.
+
+    One transaction; the audit marker written inside it is what makes a second
+    application of the same recording a refusal instead of a duplicate. The
+    body is the ordered activity list the review interface submitted; every
+    field is revalidated server-side against the authoring rules.
+    """
+    if not demonstrations.recording_enabled():
+        return _disabled()
+
+    def run():
+        from . import conversion
+
+        lesson = _lesson_for_conversion(lesson_id)
+        body = _body(request)
+        activities = body.get("activities")
+        created = conversion.apply_proposals(request.user, lesson, session_id, activities)
+        return JsonResponse({
+            "ok": True,
+            "steps": [
+                {
+                    "id": str(step.pk),
+                    "title": step.title,
+                    "screen": step.screen,
+                    "order": step.order,
+                    "conditions": [
+                        condition.describe() for condition in step.conditions.all()
+                    ],
+                }
+                for step in created
+            ],
+            "lesson_url": reverse("hybrid-lesson-edit", args=[lesson.pk]) + "?tab=activities",
         })
 
     return _answered(run)

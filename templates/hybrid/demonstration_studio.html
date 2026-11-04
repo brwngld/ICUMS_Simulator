@@ -27,24 +27,26 @@
     </aside>
   </div></section>
 
-  <section id="review" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Review captured journey</h2>{% if demonstration_recording %}<div class="helper">Recorded events are listed on the Demonstrate tab; converting them into lesson steps is not implemented yet.</div>{% else %}<div class="helper">No events are captured or converted in this integration proof.</div>{% endif %}</div><div class="summary"><div class="stat"><b>0</b><span class="small muted">Proposed steps</span></div><div class="stat"><b id="capturedCount">0</b><span class="small muted">Captured events</span></div></div></div><div class="panelBody">{% if demonstration_recording %}<div class="empty">Demonstration records persist on the session's timeline; converting them into lesson steps is not implemented yet.</div>{% else %}<div class="empty">Recording persistence and lesson-step conversion remain intentionally unimplemented.</div>{% endif %}<div class="footer"><button data-show="record">← Back to simulator</button><button data-show="preview">Student preview →</button></div></div></div></section>
+  <section id="review" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Review captured journey</h2>{% if demonstration_recording %}<div class="helper">Review the proposed activities from a stopped recording, then apply them to this lesson.</div>{% else %}<div class="helper">No events are captured or converted in this integration proof.</div>{% endif %}</div><div class="summary"><div class="stat"><b id="proposedCount">0</b><span class="small muted">Proposed steps</span></div><div class="stat"><b id="capturedCount">0</b><span class="small muted">Captured events</span></div></div></div><div class="panelBody">{% if demonstration_recording %}<div id="proposalList" class="empty">No proposed activities yet. Stop a recording to review its events.</div><p id="reviewStatus" class="status" role="status" aria-live="polite" hidden></p><div class="toolbar"><button id="applyProposals" class="primary" hidden>Apply to lesson</button><a id="lessonEditorLink" href="{% url 'hybrid-lesson-edit' lesson.pk %}?tab=activities" hidden>Continue in the lesson editor →</a></div>{% else %}<div class="empty">Recording persistence and lesson-step conversion remain intentionally unimplemented.</div>{% endif %}<div class="footer"><button data-show="record">← Back to simulator</button><button data-show="preview">Student preview →</button></div></div></div></section>
 
   <section id="preview" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Student workspace preview</h2><div class="helper">The existing simulator remains read-only in this development proof.</div></div></div><div class="panelBody panelBody--frame">{% if simulator_frame_url %}<iframe class="simulator-frame simulator-frame--preview" src="{{ simulator_frame_url }}" title="Student preview — ICUMS Simulator Cargo Tracking Dashboard"></iframe>{% else %}<div class="empty">The simulator frame is available only in development.</div>{% endif %}<div class="footer"><button data-show="review">← Review steps</button>{% if demonstration_recording %}<span class="helper">Preview only. Records are written only by demonstration saves from the Demonstrate tab.</span>{% else %}<span class="helper">Preview only. No publication or database writes.</span>{% endif %}</div></div></div></section>
 </div>
 {% if demonstration_recording %}<script>
-  // Stage 1B wiring data only — no user-facing copy. When the flag is on, the
-  // studio's existing controls drive the real lifecycle endpoints and the
-  // capture timeline lists the events the server has recorded.
+  // Stage 1B/1C/2B wiring data only. The conversion URLs carry a sentinel in
+  // place of the session id; the client swaps in the stopped session's id.
   window.demonstrationRecording = {
     lessonId: "{{ lesson.pk }}",
     csrfToken: "{{ csrf_token }}",
+    sentinel: "00000000-0000-0000-0000-000000000000",
     urls: {
       start: "{% url 'hybrid-demonstration-start' lesson.pk %}",
       pause: "{% url 'hybrid-demonstration-pause' %}",
       resume: "{% url 'hybrid-demonstration-resume' %}",
       stop: "{% url 'hybrid-demonstration-stop' %}",
       discard: "{% url 'hybrid-demonstration-discard' %}",
-      session: "{% url 'hybrid-demonstration-session' %}"
+      session: "{% url 'hybrid-demonstration-session' %}",
+      proposals: "{% url 'hybrid-demonstration-proposals' lesson.pk '00000000-0000-0000-0000-000000000000' %}",
+      convert: "{% url 'hybrid-demonstration-convert' lesson.pk '00000000-0000-0000-0000-000000000000' %}"
     }
   };
 </script>{% endif %}
@@ -137,6 +139,8 @@
     state = liveSession ? liveSession.state : "idle";
     renderLiveStatus();
     schedulePolling();
+    if (state === "stopped") loadProposals();
+    else resetProposals();
   };
   const loadSession = async () => {
     try {
@@ -149,6 +153,106 @@
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     if (state === "recording" || state === "paused") pollTimer = setInterval(loadSession, 5000);
   };
+
+  // --- Stage 2B: proposed activities from the stopped recording --------------
+  const urlFor = (template) => template.replace(live.sentinel, liveSession ? liveSession.id : live.sentinel);
+  const reviewNote = (message, isError) => {
+    const note = $("reviewStatus");
+    note.hidden = !message;
+    note.className = isError ? "status" : "status success";
+    note.textContent = message || "";
+  };
+  const resetProposals = () => {
+    $("proposalList").replaceChildren();
+    $("proposalList").classList.add("empty");
+    $("proposalList").textContent = "No proposed activities yet. Stop a recording to review its events.";
+    $("applyProposals").hidden = true;
+    $("lessonEditorLink").hidden = true;
+    $("proposedCount").textContent = "0";
+    $("goReview").disabled = true;
+    reviewNote("");
+  };
+  const proposalRow = (activity) => {
+    const row = document.createElement("div");
+    row.className = "note small proposal-row";
+    row.dataset.screen = activity.screen;
+    if (activity.has_condition) row.dataset.hasCondition = "1";
+    const pick = document.createElement("label");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = true;
+    box.className = "proposal-include";
+    pick.append(box);
+    const caption = document.createElement("span");
+    caption.textContent = activity.screen_label + (activity.has_condition ? ` · ${activity.condition_label}` : "");
+    pick.append(caption);
+    row.append(pick);
+    const title = document.createElement("input");
+    title.className = "proposal-title";
+    title.value = activity.title;
+    row.append(title);
+    const instruction = document.createElement("textarea");
+    instruction.className = "proposal-instruction";
+    instruction.rows = 2;
+    instruction.value = activity.instruction;
+    row.append(instruction);
+    const outcome = document.createElement("textarea");
+    outcome.className = "proposal-outcome";
+    outcome.rows = 2;
+    outcome.value = activity.outcome;
+    row.append(outcome);
+    return row;
+  };
+  const renderProposals = (activities) => {
+    const list = $("proposalList");
+    list.classList.remove("empty");
+    list.replaceChildren(...activities.map(proposalRow));
+    $("proposedCount").textContent = String(activities.length);
+    const hasAny = activities.length > 0;
+    $("applyProposals").hidden = !hasAny;
+    $("goReview").disabled = !hasAny;
+    reviewNote("");
+  };
+  const loadProposals = async () => {
+    if (!liveSession) return;
+    try {
+      const response = await fetch(urlFor(live.urls.proposals), { headers: { "Accept": "application/json" } });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { reviewNote(data.error || "Request refused.", true); return; }
+      renderProposals(data.activities || []);
+    } catch { /* the studio keeps its last known review state; a reload retries */ }
+  };
+  $("applyProposals").addEventListener("click", async () => {
+    if (!liveSession) return;
+    const activities = [...document.querySelectorAll("#proposalList .proposal-row")]
+      .filter((row) => row.querySelector(".proposal-include").checked)
+      .map((row) => ({
+        screen: row.dataset.screen,
+        title: row.querySelector(".proposal-title").value.trim(),
+        instruction: row.querySelector(".proposal-instruction").value.trim(),
+        outcome: row.querySelector(".proposal-outcome").value.trim(),
+        hint: "",
+        with_condition: Boolean(row.dataset.hasCondition),
+      }));
+    if (!activities.length) { reviewNote("Select at least one activity to apply.", true); return; }
+    $("applyProposals").disabled = true;
+    try {
+      const response = await fetch(urlFor(live.urls.convert), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRFToken": live.csrfToken },
+        body: JSON.stringify({ activities }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { reviewNote(data.error || "Request refused.", true); return; }
+      reviewNote(`Applied ${data.steps.length} activities to the lesson.`, false);
+      $("applyProposals").hidden = true;
+      $("lessonEditorLink").hidden = false;
+    } catch (error) {
+      reviewNote(error.message, true);
+    } finally {
+      $("applyProposals").disabled = false;
+    }
+  });
   const control = (url, body) => async () => {
     if (!liveSession && url !== live.urls.start) return;
     try {
