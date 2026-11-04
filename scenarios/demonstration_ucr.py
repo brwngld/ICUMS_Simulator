@@ -320,10 +320,13 @@ def _request_idempotency_key(request):
     """The save's retry key: a form field beside the payload, or a JSON body key.
 
     Absent means a fresh key for a fresh action, exactly like the lifecycle
-    endpoints; a malformed supplied key is refused, never replaced.
+    endpoints; a malformed supplied key is refused, never replaced. The body
+    fallback is JSON-only: a multipart stream is consumed by ``request.POST``
+    during payload parsing, and touching ``request.body`` afterwards raises —
+    the browser always posts multipart, so this is the shape that matters.
     """
     value = request.POST.get("idempotency_key")
-    if value in (None, ""):
+    if value in (None, "") and not (request.content_type or "").startswith("multipart/form-data"):
         try:
             body = json.loads(request.body.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError, TypeError):

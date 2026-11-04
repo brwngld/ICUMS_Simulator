@@ -52,6 +52,37 @@
     return input ? input.value : "";
   }
 
+  /* Signing into the simulator inside the frame performs a Django login, which
+     rotates the CSRF token the page was rendered with; every attempt call would
+     then be refused until a manual reload. The frame is same-origin, so each of
+     its loads can lift the fresh token from a re-fetch of this very page and
+     keep the pane's controls working without a reload. The refresh never
+     touches authentication state — it only re-reads what the server renders. */
+  var tokenRefresh = null;
+  function refreshCsrfToken() {
+    if (tokenRefresh) return tokenRefresh;
+    tokenRefresh = fetch(window.location.href, {
+      credentials: "same-origin",
+      headers: { Accept: "text/html" },
+    }).then(function (response) {
+      return response.ok ? response.text() : "";
+    }).then(function (html) {
+      var match = html.match(/name="csrfmiddlewaretoken" value="([^"]+)"/);
+      var input = document.querySelector("#hyb-csrf input[name='csrfmiddlewaretoken']");
+      if (match && input) {
+        input.value = match[1];
+      }
+    }).catch(function () {
+      /* keep the current token; a failed refresh leaves the page as it was */
+    }).finally(function () {
+      tokenRefresh = null;
+    });
+    return tokenRefresh;
+  }
+  if (frame) {
+    frame.addEventListener("load", refreshCsrfToken);
+  }
+
   function post(path) {
     return fetch(attemptBase + path, {
       method: "POST",

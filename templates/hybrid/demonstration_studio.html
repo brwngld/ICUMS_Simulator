@@ -83,6 +83,11 @@
   let liveSession = null;
   let liveEvents = [];
   let pollTimer = null;
+  // The stopped session's id, kept in page state only (never browser storage):
+  // stopping unbinds the browser, and Review fetches proposals for the retained
+  // id afterwards. The server re-checks instructor ownership on every request,
+  // so the identifier itself authorizes nothing.
+  let retainedSessionId = null;
   const liveRequest = (url, body) => fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRFToken": live.csrfToken },
@@ -134,13 +139,23 @@
     else $("recStatus").textContent = "Idle — recording has not started.";
   };
   const applyPayload = (data) => {
-    liveSession = data && data.session ? data.session : null;
-    liveEvents = data && data.events ? data.events : [];
-    state = liveSession ? liveSession.state : "idle";
+    if (data && data.session) {
+      // A bound session supersedes any earlier review retention.
+      liveSession = data.session;
+      liveEvents = data.events || [];
+      retainedSessionId = null;
+    } else {
+      // The binding is gone; a retained session's stale payload must not keep
+      // driving the state, so the live session object is dropped either way.
+      liveSession = null;
+      if (!retainedSessionId) liveEvents = [];
+    }
+    state = liveSession ? liveSession.state : (retainedSessionId ? "stopped" : "idle");
     renderLiveStatus();
+    renderControls();
     schedulePolling();
     if (state === "stopped") loadProposals();
-    else resetProposals();
+    else if (!retainedSessionId) resetProposals();
   };
   const loadSession = async () => {
     try {
@@ -214,16 +229,30 @@
     reviewNote("");
   };
   const loadProposals = async () => {
-    if (!liveSession) return;
+    // Review works for the retained stopped session even though the browser is
+    // no longer bound: the proposals endpoint re-checks instructor ownership
+    // server-side. An expired, discarded or foreign session clears the review
+    // and reports the server's own refusal.
+    const target = retainedSessionId;
+    if (!target) return;
     try {
-      const response = await fetch(urlFor(live.urls.proposals), { headers: { "Accept": "application/json" } });
+      const response = await fetch(urlFor(live.urls.proposals).replace(live.sentinel, target), { headers: { "Accept": "application/json" } });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) { reviewNote(data.error || "Request refused.", true); return; }
+      if (!response.ok) {
+        resetProposals();
+        retainedSessionId = null;
+        state = "idle";
+        renderLiveStatus();
+        renderControls();
+        reviewNote(data.error || "Request refused.", true);
+        return;
+      }
       renderProposals(data.activities || []);
     } catch { /* the studio keeps its last known review state; a reload retries */ }
   };
   $("applyProposals").addEventListener("click", async () => {
-    if (!liveSession) return;
+    const target = retainedSessionId;
+    if (!target) return;
     const activities = [...document.querySelectorAll("#proposalList .proposal-row")]
       .filter((row) => row.querySelector(".proposal-include").checked)
       .map((row) => ({
@@ -237,7 +266,7 @@
     if (!activities.length) { reviewNote("Select at least one activity to apply.", true); return; }
     $("applyProposals").disabled = true;
     try {
-      const response = await fetch(urlFor(live.urls.convert), {
+      const response = await fetch(urlFor(live.urls.convert).replace(live.sentinel, target), {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json", "X-CSRFToken": live.csrfToken },
         body: JSON.stringify({ activities }),
@@ -256,10 +285,29 @@
   const control = (url, body) => async () => {
     if (!liveSession && url !== live.urls.start) return;
     try {
-      await liveRequest(url, body());
+      let data;
+      try {
+        data = await liveRequest(url, body());
+      } catch (error) {
+        if (error.code !== "stale_session") throw error;
+        // A save inside the frame moves the session's version after the last
+        // poll, so the control can arrive with the version the page last saw.
+        // Refresh this page's own state and try once more with what the server
+        // says now — the studio doing for itself what the refusal asks of the
+        // instructor ("reload and try again").
+        await loadSession();
+        if (!liveSession) throw error;
+        data = await liveRequest(url, body());
+      }
+      // Stopping unbinds the browser on the server; keep the stopped session's
+      // id in page state so Review can still reach it. Any other terminal
+      // response (a discard, a refusal) drops the retention.
+      if (data && data.session && data.session.state === "stopped") retainedSessionId = data.session.id;
+      else if (data && data.session) retainedSessionId = null;
       await loadSession();
     } catch (error) {
       renderLiveStatus(error.message);
+      renderControls();
       if (error.code === "session_idle" || error.code === "no_active_session") await loadSession();
     }
   };
@@ -268,13 +316,16 @@
   $("resume").addEventListener("click", control(live.urls.resume, () => ({ session_id: liveSession && liveSession.id, version: liveSession && liveSession.version })));
   $("stop").addEventListener("click", control(live.urls.stop, () => ({ session_id: liveSession && liveSession.id, version: liveSession && liveSession.version })));
   $("reset").addEventListener("click", async () => {
-    if (!liveSession) return;
+    const target = liveSession ? liveSession.id : retainedSessionId;
+    if (!target) return;
     if (!window.confirm("Discard this recording? Its events and demonstration records will be deleted now.")) return;
     try {
-      await liveRequest(live.urls.discard, { session_id: liveSession.id });
+      await liveRequest(live.urls.discard, { session_id: target });
+      retainedSessionId = null;
       await loadSession();
     } catch (error) {
       renderLiveStatus(error.message);
+      renderControls();
     }
   });
   loadSession();
