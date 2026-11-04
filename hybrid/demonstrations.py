@@ -53,6 +53,14 @@ logger = logging.getLogger(__name__)
 #: Key holding the active demonstration session's UUID in the Django session.
 ACTIVE_SESSION_KEY = "hybrid_demonstration_session_id"
 
+#: Stage 2F: the instructor's selected reference UCR and what it is for. Both
+#: live in the Django session store — no schema change — and every read
+#: re-resolves the record against the instructor-owned demonstration scope
+#: (``scenarios.demonstration_ucr.selected_reference``), so the identifier
+#: stored here authorizes nothing by itself.
+REFERENCE_KEY = "hybrid_demonstration_reference_ucr_id"
+REFERENCE_INTENT_KEY = "hybrid_demonstration_reference_intent"
+
 #: Days a stopped session's records and events survive. Stamped at stop time so
 #: a later change to this constant cannot move an existing deadline.
 RETENTION_DAYS = 30
@@ -252,6 +260,26 @@ def bind_request(request, session):
 
 def unbind_request(request):
     request.session.pop(ACTIVE_SESSION_KEY, None)
+
+
+def set_reference_selection(request, record_id, intent):
+    """Stage 2F: remember the instructor's reference choice in their session."""
+    request.session[REFERENCE_KEY] = int(record_id)
+    request.session[REFERENCE_INTENT_KEY] = intent
+
+
+def clear_reference_selection(request):
+    request.session.pop(REFERENCE_KEY, None)
+    request.session.pop(REFERENCE_INTENT_KEY, None)
+
+
+def reference_selection(request):
+    """The stored ``(record_id, intent)``, or ``None``."""
+    record_id = request.session.get(REFERENCE_KEY)
+    intent = request.session.get(REFERENCE_INTENT_KEY)
+    if record_id is None or intent is None:
+        return None
+    return record_id, intent
 
 
 def resolve_bound_session(request):

@@ -21,6 +21,16 @@
         </div>
         <div id="recStatus" class="status" role="status" aria-live="polite">{% if demonstration_recording %}Idle — recording has not started.{% else %}Idle — simulated recording has not started.{% endif %}</div>
         {% if demonstration_recording %}<div id="events" class="empty">No events recorded yet.</div>{% else %}<div id="events" class="empty">No actions are captured in this integration proof.</div>{% endif %}
+        {% if demonstration_recording %}<div id="referenceBlock" class="note small" hidden>
+          <strong>Reference UCR</strong>
+          <div id="referenceChoice" class="toolbar">
+            <button id="referenceNew" type="button">Create New UCR</button>
+            <button id="referencePick" type="button">Select Existing Reference UCR</button>
+          </div>
+          <div id="referenceList" hidden></div>
+          <p id="referenceSelected" hidden></p>
+          <p id="referenceStatus" class="status" role="status" aria-live="polite" hidden></p>
+        </div>{% endif %}
         {% if demonstration_recording %}<div class="note small"><strong>Scope boundary</strong><br>A save in the simulator creates a demonstration record scoped to this session. It never appears in learner listings, dashboards or assessments.</div>{% else %}<div class="note small"><strong>Safety boundary</strong><br>The server rejects write requests from this instructor iframe. Recording persistence and demonstration data do not exist yet.</div>{% endif %}
         <button id="goReview" class="primary" disabled style="width:100%">Review captured steps →</button>
       </div>
@@ -46,7 +56,10 @@
       discard: "{% url 'hybrid-demonstration-discard' %}",
       session: "{% url 'hybrid-demonstration-session' %}",
       proposals: "{% url 'hybrid-demonstration-proposals' lesson.pk '00000000-0000-0000-0000-000000000000' %}",
-      convert: "{% url 'hybrid-demonstration-convert' lesson.pk '00000000-0000-0000-0000-000000000000' %}"
+      convert: "{% url 'hybrid-demonstration-convert' lesson.pk '00000000-0000-0000-0000-000000000000' %}",
+      reference: "{% url 'hybrid-demonstration-reference' lesson.pk %}",
+      referenceSelect: "{% url 'hybrid-demonstration-reference-select' lesson.pk %}",
+      referenceClear: "{% url 'hybrid-demonstration-reference-clear' lesson.pk %}"
     }
   };
 </script>{% endif %}
@@ -154,6 +167,8 @@
     renderLiveStatus();
     renderControls();
     schedulePolling();
+    $("referenceBlock").hidden = state !== "recording";
+    if (state === "recording") loadReference();
     if (state === "stopped") loadProposals();
     else if (!retainedSessionId) resetProposals();
   };
@@ -311,6 +326,92 @@
       if (error.code === "session_idle" || error.code === "no_active_session") await loadSession();
     }
   };
+
+  // --- Stage 2F: reference UCR selection --------------------------------------
+  const referenceNote = (message, isError) => {
+    const note = $("referenceStatus");
+    note.hidden = !message;
+    note.className = isError ? "status" : "status";
+    note.textContent = message || "";
+  };
+  const renderSelectedReference = (selected) => {
+    const line = $("referenceSelected");
+    if (!selected) {
+      line.hidden = true;
+      line.textContent = "";
+      $("referenceChoice").hidden = false;
+      return;
+    }
+    $("referenceChoice").hidden = true;
+    const label = selected.intent === "continue" ? "Continuing from" : "Copying values from";
+    line.hidden = false;
+    line.textContent = `${label} ${selected.number} (${selected.status})`;
+    const clear = document.createElement("button");
+    clear.type = "button";
+    clear.textContent = "Clear reference";
+    clear.addEventListener("click", async () => {
+      try {
+        await liveRequest(live.urls.referenceClear, {});
+        await loadReference();
+      } catch (error) {
+        referenceNote(error.message, true);
+      }
+    });
+    line.append(clear);
+  };
+  const renderReferenceOptions = (options) => {
+    const list = $("referenceList");
+    list.hidden = false;
+    list.replaceChildren(...options.map((option) => {
+      const row = document.createElement("div");
+      row.className = "note small";
+      const label = document.createElement("span");
+      label.textContent = `${option.ucr_no || option.temp_no} · ${option.status} · ${option.exporter_name || option.regime}`;
+      row.append(label);
+      const copy = document.createElement("button");
+      copy.type = "button";
+      copy.textContent = "Copy values";
+      copy.addEventListener("click", () => pickReference(option.id, "copy"));
+      row.append(copy);
+      if (option.status === "draft") {
+        const cont = document.createElement("button");
+        cont.type = "button";
+        cont.textContent = "Continue";
+        cont.addEventListener("click", () => pickReference(option.id, "continue"));
+        row.append(cont);
+      }
+      return row;
+    }));
+  };
+  const pickReference = async (recordId, intent) => {
+    try {
+      const data = await liveRequest(live.urls.referenceSelect, { record_id: recordId, intent });
+      renderSelectedReference(data.selected);
+      referenceNote("", false);
+      $("referenceList").hidden = true;
+    } catch (error) {
+      referenceNote(error.message, true);
+    }
+  };
+  const loadReference = async () => {
+    try {
+      const response = await fetch(live.urls.reference, { headers: { "Accept": "application/json" } });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) return;
+      renderSelectedReference(data.selected);
+      if (!data.selected && data.options && data.options.length) renderReferenceOptions(data.options);
+      else if (!data.selected) $("referenceList").hidden = true;
+    } catch { /* the reference block keeps its last known state */ }
+  };
+  $("referenceNew").addEventListener("click", async () => {
+    try {
+      await liveRequest(live.urls.referenceClear, {});
+      await loadReference();
+    } catch (error) {
+      referenceNote(error.message, true);
+    }
+  });
+  $("referencePick").addEventListener("click", loadReference);
   $("start").addEventListener("click", control(live.urls.start, () => ({})));
   $("pause").addEventListener("click", control(live.urls.pause, () => ({ session_id: liveSession && liveSession.id, version: liveSession && liveSession.version })));
   $("resume").addEventListener("click", control(live.urls.resume, () => ({ session_id: liveSession && liveSession.id, version: liveSession && liveSession.version })));

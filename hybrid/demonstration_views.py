@@ -247,3 +247,83 @@ def demonstration_convert(request, lesson_id, session_id):
         })
 
     return _answered(run)
+
+
+# --- Stage 2F: instructor reference UCR selection -----------------------------
+
+
+def _reference_payload(request):
+    from scenarios.demonstration_ucr import reference_options, selected_reference
+
+    record, intent = selected_reference(request)
+    selected = None
+    if record is not None:
+        selected = {
+            "id": record.pk,
+            "number": record.ucr_no or record.temp_no,
+            "status": record.status,
+            "regime": record.regime,
+            "exporter_name": record.exporter_name,
+            "intent": intent,
+        }
+    return {"ok": True, "selected": selected, "options": reference_options(request.user)}
+
+
+@login_required
+@require_GET
+def demonstration_reference(request, lesson_id):
+    """The reference picker's data: eligible records and the current selection."""
+    if not demonstrations.recording_enabled():
+        return _disabled()
+
+    def run():
+        demonstrations.authorized_instructor(request.user)
+        _draft_lesson(lesson_id)
+        return JsonResponse(_reference_payload(request))
+
+    return _answered(run)
+
+
+@login_required
+@require_POST
+def demonstration_reference_select(request, lesson_id):
+    """Select (or re-select) the reference UCR and its intended use."""
+    if not demonstrations.recording_enabled():
+        return _disabled()
+
+    def run():
+        from scenarios.demonstration_ucr import select_reference
+
+        demonstrations.authorized_instructor(request.user)
+        _draft_lesson(lesson_id)
+        body = _body(request)
+        record = select_reference(request, body.get("record_id"), body.get("intent"))
+        return JsonResponse({
+            "ok": True,
+            "selected": {
+                "id": record.pk,
+                "number": record.ucr_no or record.temp_no,
+                "status": record.status,
+                "intent": body.get("intent"),
+            },
+        })
+
+    return _answered(run)
+
+
+@login_required
+@require_POST
+def demonstration_reference_clear(request, lesson_id):
+    """Drop the reference selection; later saves create new records again."""
+    if not demonstrations.recording_enabled():
+        return _disabled()
+
+    def run():
+        from scenarios.demonstration_ucr import clear_reference
+
+        demonstrations.authorized_instructor(request.user)
+        _draft_lesson(lesson_id)
+        clear_reference(request)
+        return JsonResponse({"ok": True})
+
+    return _answered(run)

@@ -30,4 +30,8 @@ urlpatterns = [
     # Instructor-only, draft-lesson-scoped, refused while the flag is off.
     path("demonstration/proposals/<uuid:lesson_id>/<uuid:session_id>/", demonstration_views.demonstration_proposals, name="hybrid-demonstration-proposals"),
     path("demonstration/convert/<uuid:lesson_id>/<uuid:session_id>/", demonstration_views.demonstration_convert, name="hybrid-demonstration-convert"),
+    # Stage 2F: reference UCR selection for the Studio.
+    path("demonstration/reference/<uuid:lesson_id>/", demonstration_views.demonstration_reference, name="hybrid-demonstration-reference"),
+    path("demonstration/reference/<uuid:lesson_id>/select/", demonstration_views.demonstration_reference_select, name="hybrid-demonstration-reference-select"),
+    path("demonstration/reference/<uuid:lesson_id>/clear/", demonstration_views.demonstration_reference_clear, name="hybrid-demonstration-reference-clear"),
 ]

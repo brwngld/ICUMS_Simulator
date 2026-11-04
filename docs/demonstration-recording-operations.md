@@ -2,14 +2,17 @@
 
 Status: **Stage 1A foundation, the Stage 1A.1 hardening, the Stage 1B `ucr-save`
 write, the Stage 1B.1 instructor-experience completion, the Stage 1C navigation
-capture, and the Stage 2B demonstration-to-lesson conversion, built 2026-11-02/04
-and not yet live.** The models, lifecycle service, endpoints, isolation, cleanup
-and inactivity policy all exist and are tested, an authorized instructor with a
-live recording can save a demonstration-scoped UCR through the existing Create
-UCR screen (and reload it there afterwards), the Demonstration Studio speaks
-accurately about recording while the flag is on, the studio's frame records
-which approved screens the demonstration opens, and a stopped recording can be
-reviewed and explicitly converted into editable draft lesson steps.
+capture, the Stage 2B demonstration-to-lesson conversion, and the Stage 2F
+instructor reference-UCR selection, built 2026-11-02/04 and not yet live.** The
+models, lifecycle service, endpoints, isolation, cleanup and inactivity policy
+all exist and are tested, an authorized instructor with a live recording can
+save a demonstration-scoped UCR through the existing Create UCR screen (and
+reload it there afterwards), the Demonstration Studio speaks accurately about
+recording while the flag is on, the studio's frame records which approved
+screens the demonstration opens, a stopped recording can be reviewed and
+explicitly converted into editable draft lesson steps, and a recording
+instructor can select one of their own earlier demonstration UCRs as a
+reference — continuing it or copying its values.
 `DEMONSTRATION_RECORDING_ENABLED`
 is still `False` everywhere by default; nothing here is enabled in production.
 The remaining simulator writes (`ucr-submit`, attachments, clone, amend, BOE,
@@ -283,6 +286,42 @@ genuine returns, fetch/lookup/404 silence, forged and foreign bindings, paused,
 stopped, discarded and sealed sessions, the flag gate, student isolation, and
 the interleaving of navigation with `ucr-save` events in one sequence.
 
+## Reference UCR selection (Stage 2F)
+
+A recording instructor can pick one of their **own earlier demonstration UCRs**
+as a reference, with two intents: **copy values** (the Create UCR screen
+prefills; saving still creates a brand-new record) and **continue** (draft
+references only; later saves address the reference itself, so continuing an
+earlier demonstration never silently duplicates it). The design:
+
+- **No schema change.** The selection lives in the instructor's Django session
+  (`hybrid_demonstration_reference_ucr_id` + intent key), surviving page
+  reloads and recording restarts; it is a convenience pointer, never an
+  authorization — every read re-resolves the record against the
+  **instructor-owned demonstration scope** (`scenarios.demonstration_ucr`
+  `_instructor_demo_record`/`selected_reference`), and a selection whose record
+  has expired with an old session self-heals by clearing itself.
+- **Scope widening, boundary unchanged.** `get_demonstration_ucr` now resolves
+  any of the instructor's own demonstration records (any session) instead of
+  one exact session. The student-facing isolation boundary is untouched: demo
+  records remain invisible to every ordinary surface, other instructors'
+  records and all ordinary records still never resolve, and the ordinary
+  save/submit refusals stand. The creation ledger, purge and retention rules
+  are untouched (a continued reference stays on its original session's
+  retention clock — documented limitation).
+- **Zero writes on selection.** Picking a reference writes only the session
+  keys; the record is untouched. `continue` additionally requires DRAFT
+  status at selection time (submitted references are copy-only).
+- **Endpoints**: `GET/POST demonstration/reference/<lesson_id>[/select|/clear]`
+  — instructor-gated, flag-gated, draft-lesson-scoped; the picker lists only
+  the requesting instructor's records.
+- Tested in `tests/test_demonstration_reference.py` (12 tests): owned
+  selection with record immutability, submitted copy-only, foreign/ordinary/
+  unknown rejection, intent validation, flag gate, copy-creates-new,
+  continue-across-sessions with the event on the new timeline, reload/resume
+  persistence, clear, cross-session scope widening, lifecycle neutrality,
+  picker ownership, student/anonymous exclusion.
+
 ## Conversion into lesson steps (Stage 2B)
 
 A stopped recording converts — explicitly, once — into ordinary draft lesson
@@ -447,7 +486,7 @@ passed, 1 skipped — the real-lock test). On the list below:
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_demonstration_recording.py tests/test_demonstration_isolation.py \
     tests/test_demonstration_ucr_save.py tests/test_demonstration_navigation.py tests/test_demonstration_conversion.py \
-    tests/test_instructor_demonstration_studio.py tests/test_hybrid_course_module_workspace.py -q
+    tests/test_demonstration_reference.py tests/test_instructor_demonstration_studio.py tests/test_hybrid_course_module_workspace.py -q
 ```
 
 - `tests/test_demonstration_recording.py` (77 tests) — flag refusal,
@@ -479,6 +518,7 @@ passed, 1 skipped — the real-lock test). On the list below:
   silence, forged and foreign bindings, paused/stopped/discarded/sealed
   sessions, the flag gate, student isolation, and navigation interleaved with
   `ucr-save` events in one sequence.
+- `tests/test_demonstration_reference.py` (12 tests) — Stage 2F selection: owned selection with record immutability, submitted references copy-only, foreign/ordinary/unknown rejection, intent and flag gates, copy-creates-new, continue-across-sessions (event on the new timeline), reload/resume persistence, clear, cross-session scope widening, lifecycle neutrality, picker ownership, student/anonymous exclusion.
 - `tests/test_demonstration_conversion.py` (22 tests) — Stage 2B: proposal
   order and collapsing, the save anchored to its screen, no demonstration ids
   in proposals, recording immutability, apply with instructor edits, selection

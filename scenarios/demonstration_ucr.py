@@ -54,18 +54,30 @@ def count_demonstration_ucrs(session):
 
 
 def get_demonstration_ucr(session, record_id):
-    """One record by id, inside this session — the ``ucr-detail`` authorization.
+    """One demonstration record by id, inside the requesting instructor's scope.
 
-    A primary key alone never resolves: a guess, a replayed id, or an ordinary
-    learner's record all come back as ``None``.
+    Stage 2F: the scope is the instructor's own demonstration records from any
+    session, not only the resolved session — an instructor may continue a
+    downstream demonstration from a reference UCR recorded earlier. The security
+    essence is unchanged: the record must be a demonstration record **and**
+    belong to this instructor, so another instructor's and every ordinary
+    record still never resolve. A primary key alone never resolves: a guess, a
+    replayed id, or a learner's record all come back as ``None``.
     """
     if isinstance(record_id, bool) or not isinstance(record_id, int) or record_id < 1:
         return None
-    return demonstration_ucrs(session).filter(pk=record_id).first()
+    return (
+        UcrDeclaration.all_objects.filter(
+            demonstration_session__isnull=False, owner=session.instructor
+        )
+        .select_related("owner")
+        .filter(pk=record_id)
+        .first()
+    )
 
 
 def demonstration_record_in_session(session, *, record_kind, record_id):
-    """Whether ``record_kind``/``record_id`` names a record this session owns."""
+    """Whether ``record_kind``/``record_id`` names a record in this instructor's demonstration scope."""
     if record_kind != "ucr":
         # Only UCR is in scope for demonstration recording; BOE, MDA and
         # consignment are denied, so no event may claim them.
@@ -98,6 +110,99 @@ def ordinary_ucr_scope_predicate():
     on another model and reads through to a UCR has to name the scope itself.
     """
     return Q(ucr__demonstration_session__isnull=True)
+
+
+# --- Stage 2F: instructor reference UCR selection ----------------------------
+#
+# The selected reference lives in the Django session store — no schema change —
+# and every read re-resolves the record against the instructor-owned
+# demonstration scope, so a stale selection (record expired with an old
+# session, or a foreign id planted in the store) simply stops resolving.
+
+
+#: What "select an existing record" means, per the approved product direction.
+REFERENCE_INTENTS = ("copy", "continue")
+
+
+def _instructor_demo_record(user, record_id):
+    """The instructor-owned demonstration record with this id, or ``None``."""
+    if isinstance(record_id, bool) or not isinstance(record_id, int) or record_id < 1:
+        return None
+    return (
+        UcrDeclaration.all_objects.filter(
+            demonstration_session__isnull=False, owner=user
+        )
+        .select_related("owner")
+        .filter(pk=record_id)
+        .first()
+    )
+
+
+def reference_options(user):
+    """Every demonstration record this instructor may pick as a reference."""
+    return list(
+        UcrDeclaration.all_objects.filter(demonstration_session__isnull=False, owner=user)
+        .order_by("-updated_at")
+        .values("id", "temp_no", "ucr_no", "status", "regime", "exporter_name")
+    )
+
+
+def select_reference(request, record_id, intent):
+    """Record the instructor's reference choice in their browser session.
+
+    Zero database writes: selection never touches the reference record. An
+    unknown or foreign id is refused exactly like an unknown one; ``continue``
+    additionally requires a draft, because that intent addresses the record on
+    later saves and a submitted UCR cannot be updated.
+    """
+    from hybrid import demonstrations
+
+    if intent not in REFERENCE_INTENTS:
+        raise demonstrations.DemonstrationError(
+            "Choose whether to copy values from the reference or continue from it.",
+            "reference_intent_invalid",
+            400,
+        )
+    record = _instructor_demo_record(request.user, record_id)
+    if record is None:
+        raise demonstrations.DemonstrationError(
+            "No such demonstration record is available as a reference.", "reference_not_found", 404
+        )
+    if intent == "continue" and record.status != UcrDeclaration.Status.DRAFT:
+        raise demonstrations.DemonstrationError(
+            "Only a draft can be continued; a submitted UCR can be copied.",
+            "reference_not_draft",
+            400,
+        )
+    demonstrations.set_reference_selection(request, record.pk, intent)
+    return record
+
+
+def clear_reference(request):
+    """Drop the reference selection from the browser session."""
+    from hybrid import demonstrations
+
+    demonstrations.clear_reference_selection(request)
+
+
+def selected_reference(request):
+    """The selected ``(record, intent)``, or ``(None, None)``.
+
+    The scope is re-checked on every read; a selection whose record has since
+    expired with an old session self-heals by clearing itself, mirroring how a
+    stale recording binding is dropped.
+    """
+    from hybrid import demonstrations
+
+    selection = demonstrations.reference_selection(request)
+    if selection is None:
+        return None, None
+    record_id, intent = selection
+    record = _instructor_demo_record(request.user, record_id)
+    if record is None:
+        demonstrations.clear_reference_selection(request)
+        return None, None
+    return record, intent
 
 
 # --- The Stage 1B write: a scoped UCR save -----------------------------------
@@ -145,27 +250,41 @@ def demonstration_create_draft(request, draft_id):
     """The draft a bound browser's Create UCR screen may load, or ``None``.
 
     Stage 1B.1: after a save the simulator page re-opens with ``?draft=<id>``,
-    and that id names a demonstration record the ordinary manager cannot see.
-    A bound browser therefore resolves the screen through its session scope
-    only — binding, ownership, lesson scope and live state re-derived exactly
-    as the save does (``recording`` and ``paused`` both count: GET navigation
-    stays available while paused). Anything that does not resolve to this
-    session's own draft — an ordinary row, another session's record, an unknown
-    id, a binding that no longer resolves — is ``None``, so the screen renders
-    as if no draft were named and never confirms a row it cannot see.
+    and that id names a demonstration record the ordinary manager cannot see —
+    resolved through this instructor's demonstration scope (Stage 2F: any of
+    the instructor's own sessions, so a continued reference reloads too).
+    Stage 2F also adds the reference fallback: with no draft named, a selected
+    reference loads as the screen's starting point — a ``continue`` selection
+    (draft only) is addressed by later saves, a ``copy`` selection only
+    prefills values (the payload carries no id, so saving still creates).
+    Binding, ownership, lesson scope and live state are re-derived exactly as
+    the save does (``recording`` and ``paused`` both count). Anything that does
+    not resolve to this instructor's demonstration scope — an ordinary row,
+    another instructor's record, an unknown id, a binding that no longer
+    resolves — is ``None``, so the screen renders as if no draft were named
+    and never confirms a row it cannot see.
     """
     from hybrid import demonstrations
 
     if not demonstration_save_applies(request):
         return None
-    if draft_id is None or not str(draft_id).isdigit():
-        return None
-    try:
-        session = demonstrations.require_bound_session(request)
-    except demonstrations.DemonstrationError:
-        return None
-    record = get_demonstration_ucr(session, int(draft_id))
-    if record is not None and record.status != UcrDeclaration.Status.DRAFT:
+    record = None
+    if draft_id is not None and str(draft_id).isdigit():
+        try:
+            session = demonstrations.require_bound_session(request)
+        except demonstrations.DemonstrationError:
+            return None
+        record = get_demonstration_ucr(session, int(draft_id))
+    if record is None:
+        selected, intent = selected_reference(request)
+        if selected is None:
+            return None
+        if intent == "continue" and selected.status != UcrDeclaration.Status.DRAFT:
+            return None
+        # A copy selection is a values source: any status prefills, and the
+        # payload carrying no id means saving still creates a new record.
+        return selected
+    if record.status != UcrDeclaration.Status.DRAFT:
         return None
     return record
 
@@ -238,6 +357,14 @@ def _scoped_save(request, session):
         return _saved_response(record, event)
 
     draft_id = parsed.get("draft_id")
+    if draft_id is None:
+        # Stage 2F: only a "continue" reference selection addresses the selected
+        # record on saves that name no draft — continuing from an earlier
+        # demonstration never silently creates a duplicate. A "copy" selection
+        # is a values source: saving still creates a new record.
+        selected, intent = selected_reference(request)
+        if selected is not None and intent == "continue":
+            draft_id = selected.pk
     target = None
     if draft_id is not None:
         target = get_demonstration_ucr(session, draft_id)
