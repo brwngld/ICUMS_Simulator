@@ -24,7 +24,10 @@ def main():
     if not 1 <= args.port <= 65535:
         parser.error("Port must be between 1 and 65535.")
 
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local_production")
+    # Explicit, not setdefault: .env exports DJANGO_SETTINGS_MODULE for the VPS
+    # deployment workflow, and this local launcher must always run the normal
+    # PostgreSQL development settings regardless of it.
+    os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings.local_postgres"
     import django
     django.setup()
 

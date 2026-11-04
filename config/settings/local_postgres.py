@@ -17,3 +17,9 @@ DATABASES = {
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),
     }
 }
+
+# Demonstration recording is enabled for local PostgreSQL development only:
+# base.py keeps the default False, and production/vps never inherit this
+# module. The functional Demonstration Studio (recording, navigation capture,
+# lesson conversion) is part of the local development workflow.
+DEMONSTRATION_RECORDING_ENABLED = True
