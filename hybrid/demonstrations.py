@@ -708,6 +708,22 @@ def append_navigation_event(request, *, route_name, idempotency_key=None, result
     )
 
 
+def navigation_is_current_screen(session, route_name):
+    """Whether ``route_name`` is already the screen this recording is on.
+
+    The frame can request the same screen twice in a row — a refresh, a redirect
+    that lands where it started — and the timeline must not grow for it. The
+    recording's *last* navigation decides: the same screen asked for again is
+    the same logical navigation, while leaving and returning is a real one. The
+    destination is compared at screen level (the route name), because that is
+    what a navigation event records — never the query string behind it.
+    """
+    last = DemonstrationEvent.objects.filter(
+        session=session, event_type=DemonstrationEvent.EventType.NAVIGATION,
+    ).order_by("-sequence").first()
+    return last is not None and last.route_name == route_name
+
+
 def append_record_event(
     request, *, event_type, record_kind, record_id, action_code, payload, idempotency_key=None
 ):

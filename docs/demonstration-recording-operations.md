@@ -1,12 +1,14 @@
 # Demonstration recording — operations
 
 Status: **Stage 1A foundation, the Stage 1A.1 hardening, the Stage 1B `ucr-save`
-write and the Stage 1B.1 instructor-experience completion, built 2026-11-02/03
-and not yet live.** The models, lifecycle service, endpoints, isolation, cleanup
-and inactivity policy all exist and are tested, an authorized instructor with a
-live recording can save a demonstration-scoped UCR through the existing Create
-UCR screen (and reload it there afterwards), and the Demonstration Studio speaks
-accurately about recording while the flag is on. `DEMONSTRATION_RECORDING_ENABLED`
+write, the Stage 1B.1 instructor-experience completion, and the Stage 1C
+navigation capture, built 2026-11-02/03 and not yet live.** The models, lifecycle
+service, endpoints, isolation, cleanup and inactivity policy all exist and are
+tested, an authorized instructor with a live recording can save a
+demonstration-scoped UCR through the existing Create UCR screen (and reload it
+there afterwards), the Demonstration Studio speaks accurately about recording
+while the flag is on, and the studio's frame records which approved screens the
+demonstration opens. `DEMONSTRATION_RECORDING_ENABLED`
 is still `False` everywhere by default; nothing here is enabled in production.
 The remaining simulator writes (`ucr-submit`, attachments, clone, amend, BOE,
 MDA, consignment) are not built and not authorised.
@@ -240,6 +242,45 @@ to create later. Proven one by one in `tests/test_demonstration_isolation.py`.
   names the recording, never the instructor. A lesson whose recording has
   stopped or been discarded deletes normally (its rows cascade with the lesson).
 
+## Navigation capture (Stage 1C)
+
+The frame boundary records which approved screens a live demonstration opens.
+`DemonstrationFrameSafetyMiddleware.__call__` (`scenarios/middleware.py`) hands
+every response it admitted to `_capture_frame_navigation`, which appends one
+`navigation` event through `append_navigation_event` — the same service the
+lifecycle tests have covered since Stage 1A, unchanged. The gate, in order:
+
+- the frame safety middleware already admitted only an **instructor document
+  navigation** (`Sec-Fetch-Dest: iframe`) on an approved `/practical/` prefix,
+  so fetches, the studio's own polling, static assets and top-level browsing
+  are shaped differently and never arrive;
+- the response must be a **200 HTML page** — a lookup's JSON, a 404, a redirect
+  or a refusal is not a screen the demonstration visited;
+- the resolved route name must be in `DEMONSTRATION_NAVIGATION_ACTIONS` (the
+  five page routes; manifest-approved non-page routes like the stakeholder
+  lookups never record);
+- `DEMONSTRATION_RECORDING_ENABLED` must be on;
+- the browser's **server-side binding** must resolve to the request user's own
+  `recording` session — the same resolution every control uses, so a paused
+  recording records nothing (`session_not_recording`), a stopped or discarded
+  one has no binding left, a forged binding resolves to nobody, and a
+  navigation past the inactivity window **seals** the recording exactly like a
+  late control.
+
+A request for the screen the recording is already on is not recorded again
+(`navigation_is_current_screen`, `hybrid/demonstrations.py`): the last
+navigation event decides, so a refresh or a double load stays one logical
+navigation while leaving and returning is a real one. The destination is the
+route name only — no query strings, no record ids, no form contents; the save
+events carry the record references. Capture is best-effort by design: any
+refusal or error is logged and swallowed, never a failed page load.
+
+Tested in `tests/test_demonstration_navigation.py` (15 tests): capture per
+approved route, query-string-free destinations, refresh suppression versus
+genuine returns, fetch/lookup/404 silence, forged and foreign bindings, paused,
+stopped, discarded and sealed sessions, the flag gate, student isolation, and
+the interleaving of navigation with `ucr-save` events in one sequence.
+
 ## PostgreSQL: READ COMMITTED assumptions and contention handling
 
 **Stage 1A / 1A.1 ran no test on PostgreSQL.** At that time the suite was
@@ -371,8 +412,8 @@ passed, 1 skipped — the real-lock test). On the list below:
 
 ```bash
 .venv/Scripts/python.exe -m pytest tests/test_demonstration_recording.py tests/test_demonstration_isolation.py \
-    tests/test_demonstration_ucr_save.py tests/test_instructor_demonstration_studio.py \
-    tests/test_hybrid_course_module_workspace.py -q
+    tests/test_demonstration_ucr_save.py tests/test_demonstration_navigation.py \
+    tests/test_instructor_demonstration_studio.py tests/test_hybrid_course_module_workspace.py -q
 ```
 
 - `tests/test_demonstration_recording.py` (77 tests) — flag refusal,
@@ -398,6 +439,12 @@ passed, 1 skipped — the real-lock test). On the list below:
   `demonstration` response marker, the conditional studio copy gate, and the
   Create-screen reload (own session, paused, foreign/unknown/ordinary ids,
   stale binding, unbound blindness).
+- `tests/test_demonstration_navigation.py` (15 tests) — Stage 1C capture: one
+  event per approved screen, per-route action codes, query-string-free
+  destinations, refresh suppression versus genuine returns, fetch/lookup/404
+  silence, forged and foreign bindings, paused/stopped/discarded/sealed
+  sessions, the flag gate, student isolation, and navigation interleaved with
+  `ucr-save` events in one sequence.
 - `tests/test_instructor_demonstration_studio.py` — instructor gating,
   draft-lesson scoping, the flag-off Stage 1A markers (asserted unchanged), and
   since Stage 1B.1 the flag-on wording swap with the placeholders' absence.
@@ -430,10 +477,14 @@ database.
   `scenarios.demonstration_ucr.save_demonstration_ucr`). `ucr-submit`,
   `ucr-attachment`, clone, amend, BOE, MDA and consignment stay denied and are
   covered by manifest tests.
-- **Navigation is not captured.** `append_navigation_event` exists and its
-  routes are manifest-approved, but no view calls it yet — a recording's
-  timeline currently holds only the UCR save events. Wiring screen-entry
-  capture (probably at the frame boundary) is the next, separate decision.
+- **Navigation capture follows the studio's frame, not every browser move.**
+  Since Stage 1C the frame boundary records the approved screens a live
+  demonstration opens (see "Navigation capture" above). A recording instructor
+  driving the simulator in a *top-level* tab generates no events, and the
+  destination is screen-level: two `ucr-detail` visits to different records in
+  a row record once. Capture also inherits the frame's dev-only posture — it
+  exists wherever the embedded studio frame exists, so enabling recording in
+  production would capture navigation only if a frame path exists there.
 - Demonstration UCR records now exist. `MEDIA` uploads stay out of scope: the
   demonstration save refuses any posted file (`400 attachment_denied`) before
   anything is written, so discard still has no stored files to collect. An

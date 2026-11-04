@@ -99,10 +99,18 @@
     row.className = "note small";
     const line = document.createElement("div");
     const when = new Date(event.created_at);
-    const parts = [`#${event.sequence}`, event.action_code || event.event_type];
+    // A readable label derived from the approved action code itself
+    // ("ucr.create_form_opened" → "Ucr create form opened"); the raw code and
+    // route stay on the row (and in the tooltip) for exactness.
+    const label = (code) => code
+      .split(/[._]/).filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+    const action = event.action_code || event.event_type;
+    const parts = [`#${event.sequence}`, label(action)];
     if (event.route_name) parts.push(event.route_name);
     if (event.record) parts.push(event.record);
     line.textContent = `${parts.join(" · ")} — ${isNaN(when) ? event.created_at : when.toLocaleTimeString()}`;
+    line.title = event.action_code ? `${event.action_code}${event.route_name ? ` · ${event.route_name}` : ""}` : "";
     row.append(line);
     return row;
   };
