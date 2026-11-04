@@ -543,6 +543,22 @@ class UcrDeclaration(models.Model):
 
     TEMP_PREFIX = "TEMPUCR"
     UCR_PREFIX = "KGHTESTUCR"
+
+    class ReferenceState(models.TextChoices):
+        """Stage R4-A instructor reference lifecycle. Empty is every record the
+        existing rules govern: ordinary learner records and temporary
+        demonstration records alike."""
+
+        TEMPORARY = "", "Temporary"
+        WORKING = "working", "Working instructor reference"
+        APPROVED = "approved", "Approved instructor reference"
+        RETIRED = "retired", "Retired instructor reference"
+
+    #: Approved and retired references are frozen: no supported application
+    #: write path may change anything about them. Working references stay
+    #: editable; retirement freezes a row that is kept for its provenance.
+    IMMUTABLE_REFERENCE_STATES = (ReferenceState.APPROVED, ReferenceState.RETIRED)
+
     #: Demonstration drafts never take a ``TEMPUCR`` number: the ordinary
     #: allocator scans only ordinary rows, so a shared stem would let a
     #: demonstration draft and a learner draft claim the same reference.
@@ -620,6 +636,48 @@ class UcrDeclaration(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     submitted_at = models.DateTimeField(blank=True, null=True)
 
+    #: Stage R4-A instructor reference lifecycle. Empty means an ordinary or
+    #: temporary demonstration record governed by the existing rules; working/
+    #: approved/retired are instructor references retained beyond recording
+    #: cleanup. Managed by the (future) promotion service, never by forms —
+    #: hence ``editable=False``. No index yet: no query filters on it until the
+    #: R4-B library exists.
+    reference_state = models.CharField(
+        max_length=12,
+        choices=ReferenceState.choices,
+        default=ReferenceState.TEMPORARY,
+        editable=False,
+    )
+    #: Provenance: the demonstration session that produced this record before
+    #: it became a reference. ``SET_NULL`` so the session's own expiry can never
+    #: delete or degrade a retained reference.
+    reference_source_session = models.ForeignKey(
+        "hybrid.DemonstrationSession",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reference_records",
+        editable=False,
+    )
+
+    def save(self, *args, **kwargs):
+        # Stage R4-A immutability chokepoint: an approved or retired instructor
+        # reference cannot be modified through any supported path, because every
+        # ORM write except queryset updates flows through save(). The prior
+        # state is read from the database, never trusted from the instance.
+        if self.pk is not None:
+            prior_state = (
+                UcrDeclaration.all_objects.filter(pk=self.pk)
+                .values_list("reference_state", flat=True)
+                .first()
+            )
+            if prior_state in self.IMMUTABLE_REFERENCE_STATES:
+                raise ValidationError(
+                    "This UCR is an approved or retired instructor reference and cannot be modified.",
+                    code="reference_immutable",
+                )
+        super().save(*args, **kwargs)
+
     class Meta:
         ordering = ("-updated_at",)
         # The unfiltered manager is the base manager, so forward-FK traversal,
@@ -650,14 +708,25 @@ def purge_expired_ucr_drafts(max_age_days=7):
     The ordinary manager makes this demonstration-safe by construction: a
     demonstration draft is never purged here. Demonstration retention is a
     separate, idempotent command — ``hybrid`` owns it because a session's
-    records and events expire together.
+    records and events expire together. Stage R4-A: instructor reference
+    records (working, approved or retired) are retained beyond ordinary draft
+    expiry and are excluded here explicitly.
     """
     from datetime import timedelta
 
     from django.utils import timezone
 
     cutoff = timezone.now() - timedelta(days=max_age_days)
-    deleted, _ = UcrDeclaration.objects.filter(status=UcrDeclaration.Status.DRAFT, updated_at__lt=cutoff).delete()
+    deleted, _ = (
+        UcrDeclaration.objects.filter(
+            status=UcrDeclaration.Status.DRAFT,
+            updated_at__lt=cutoff,
+            # Stage R4-A: only temporary records age out — working, approved and
+            # retired instructor references are retained beyond ordinary expiry.
+            reference_state=UcrDeclaration.ReferenceState.TEMPORARY,
+        )
+        .delete()
+    )
     return deleted
 
 

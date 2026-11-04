@@ -739,6 +739,13 @@ def _requested_ucr_draft(request, payload):
             {"error": "This declaration is not available for this operation.", "code": "record_out_of_scope"},
             status=403,
         )
+    if record and record.reference_state in UcrDeclaration.IMMUTABLE_REFERENCE_STATES:
+        # Stage R4-A: an approved or retired instructor reference is frozen for
+        # every supported write, including its own owner's.
+        return None, JsonResponse(
+            {"error": "This UCR is an approved or retired instructor reference and cannot be modified.", "code": "reference_immutable"},
+            status=403,
+        )
     if record and record.status != UcrDeclaration.Status.DRAFT:
         return None, JsonResponse({"error": "This UCR has already been submitted."}, status=400)
     return record, None
@@ -1092,6 +1099,11 @@ def ucr_amend(request, record_id):
     if blocked:
         return blocked
     source = get_object_or_404(UcrDeclaration.objects.select_related("source_ucr"), pk=record_id, owner=request.user)
+    if source.reference_state in UcrDeclaration.IMMUTABLE_REFERENCE_STATES:
+        # Stage R4-A: an amendment back-writes the source's regime and
+        # documents, which an approved or retired reference forbids.
+        messages.error(request, "This UCR is an approved or retired instructor reference and cannot be amended.")
+        return redirect("ucr-detail", record_id=record_id)
     if source.status != UcrDeclaration.Status.SUBMITTED:
         messages.error(request, "Submit the original UCR before creating an amendment.")
         return redirect("ucr-detail", record_id=record_id)

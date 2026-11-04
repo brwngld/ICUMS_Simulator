@@ -201,17 +201,39 @@ class MdaConsignmentRequestAdmin(ModelAdmin):
 class UcrDeclarationAdmin(ModelAdmin):
     """Every learner's UCRs with their owner, so administrators can trace student work."""
 
-    list_display = ("ucr_no", "temp_no", "student", "regime", "status", "created_at", "submitted_at")
+    list_display = ("ucr_no", "temp_no", "student", "regime", "status", "reference_state", "created_at", "submitted_at")
     search_fields = ("ucr_no", "temp_no", "owner__student_id", "owner__first_name", "owner__last_name", "owner__username", "exporter_name", "importer_name")
-    list_filter = ("status", "regime", "derivation")
-    readonly_fields = ("temp_no", "ucr_no", "owner", "status", "created_at", "updated_at", "submitted_at")
+    list_filter = ("status", "regime", "derivation", "reference_state")
+    readonly_fields = ("temp_no", "ucr_no", "owner", "status", "created_at", "updated_at", "submitted_at", "reference_state", "reference_source_session")
     # Kept out of the change form by name as well as by ``editable=False``: saving
     # an administrative edit must never clear a record's demonstration scope.
     exclude = ("demonstration_session",)
 
+    #: Stage R4-A: approved and retired instructor references are frozen. The
+    #: model's ``save()`` guard is the backstop; these permissions keep the
+    #: admin from offering an edit or delete it would have to refuse.
+    IMMUTABLE_REFERENCE_STATES = ("approved", "retired")
+
     @admin.display(description="Student", ordering="owner__student_id")
     def student(self, obj):
         return f"{obj.owner.get_full_name() or obj.owner.username} ({obj.owner.student_id or 'no ID'})"
+
+    def has_change_permission(self, request, obj=None):
+        if obj is not None and obj.reference_state in self.IMMUTABLE_REFERENCE_STATES:
+            return False
+        return super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.reference_state in self.IMMUTABLE_REFERENCE_STATES:
+            return False
+        return super().has_delete_permission(request, obj)
+
+    def get_actions(self, request):
+        # Bulk deletion of UCR records is not an operation administrators need,
+        # and the bulk action would bypass the per-object reference protection.
+        actions = super().get_actions(request)
+        actions.pop("delete_selected", None)
+        return actions
 
 
 @admin.register(ConsignmentApplication)

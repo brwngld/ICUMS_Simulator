@@ -174,6 +174,15 @@ def select_reference(request, record_id, intent):
             "reference_not_draft",
             400,
         )
+    if (
+        intent == "continue"
+        and record.reference_state in UcrDeclaration.IMMUTABLE_REFERENCE_STATES
+    ):
+        raise demonstrations.DemonstrationError(
+            "An approved or retired reference is immutable and cannot be continued.",
+            "reference_immutable",
+            400,
+        )
     demonstrations.set_reference_selection(request, record.pk, intent)
     return record
 
@@ -377,6 +386,14 @@ def _scoped_save(request, session):
             )
         if target.status != UcrDeclaration.Status.DRAFT:
             raise demonstrations.DemonstrationError("This UCR has already been submitted.", "already_submitted", 400)
+        if target.reference_state in UcrDeclaration.IMMUTABLE_REFERENCE_STATES:
+            # Stage R4-A: an approved or retired reference is frozen — a stale
+            # continue-selection cannot mutate it either.
+            raise demonstrations.DemonstrationError(
+                "This UCR is an approved or retired instructor reference and cannot be modified.",
+                "reference_immutable",
+                400,
+            )
 
     try:
         with transaction.atomic():
