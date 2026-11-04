@@ -286,6 +286,18 @@ genuine returns, fetch/lookup/404 silence, forged and foreign bindings, paused,
 stopped, discarded and sealed sessions, the flag gate, student isolation, and
 the interleaving of navigation with `ucr-save` events in one sequence.
 
+## Reference selection lifecycle (Stage 2F.1)
+
+The selection is a recording-time convenience and never outlives the recording
+it was made in: `start_recording` clears it after the new session binds (no
+lesson silently inherits a previous lesson's reference), `stop_recording`,
+`discard_recording` and the idle-seal path (`_refuse_if_idle`) clear it after
+their transition succeeds, and pause/resume leave it untouched. A refused
+start, stop or discard clears nothing. A selection whose record has expired
+self-heals: the next read drops the stale session keys and later saves follow
+normal new-record behavior. Tested in
+`tests/test_demonstration_reference.py` (18 tests).
+
 ## Reference UCR selection (Stage 2F)
 
 A recording instructor can pick one of their **own earlier demonstration UCRs**

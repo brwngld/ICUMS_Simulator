@@ -262,6 +262,20 @@ def unbind_request(request):
     request.session.pop(ACTIVE_SESSION_KEY, None)
 
 
+def _clear_reference(request):
+    """Stage 2F.1: the reference selection is a recording-time convenience.
+
+    It never outlives the recording it was made in — a new recording must begin
+    with an explicit reference choice, so no lesson can silently inherit the
+    previous lesson's reference. Cleared only after a lifecycle operation has
+    actually succeeded; a refused start, stop or discard leaves the instructor's
+    selection exactly as it was.
+    """
+    from scenarios.demonstration_ucr import clear_reference
+
+    clear_reference(request)
+
+
 def set_reference_selection(request, record_id, intent):
     """Stage 2F: remember the instructor's reference choice in their session."""
     request.session[REFERENCE_KEY] = int(record_id)
@@ -422,6 +436,7 @@ def _refuse_if_idle(request, session):
     # that lost the race is the winner's answer anyway.
     seal_abandoned_session(session)
     unbind_request(request)
+    _clear_reference(request)
     raise DemonstrationError(IDLE_MESSAGE, "session_idle", 409)
 
 
@@ -512,6 +527,9 @@ def start_recording(request, lesson):
             "session_active",
         ) from exc
     bind_request(request, session)
+    # Stage 2F.1: a new recording begins with an explicit reference choice —
+    # no lesson can silently inherit the previous recording's reference.
+    _clear_reference(request)
     return session
 
 
@@ -561,6 +579,7 @@ def stop_recording(request, session_id=None, expected_version=None):
         stamps={"stopped_at": now, "retention_expires_at": now + timedelta(days=RETENTION_DAYS)},
     )
     unbind_request(request)
+    _clear_reference(request)
     return _reload(session.pk)
 
 
@@ -638,6 +657,7 @@ def discard_recording(request, session_id):
         raise DemonstrationError("No such demonstration session.", "session_gone")
     if session.state == DemonstrationSession.State.DISCARDED:
         unbind_request(request)
+        _clear_reference(request)
         return session
     moment = timezone.now()
 
@@ -663,6 +683,7 @@ def discard_recording(request, session_id):
 
     _retry_on_contention(attempt)
     unbind_request(request)
+    _clear_reference(request)
     return _reload(session.pk)
 
 

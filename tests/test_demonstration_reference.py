@@ -8,6 +8,7 @@ every read re-resolves the instructor-owned demonstration scope — foreign
 records, ordinary records and unknown ids never resolve.
 """
 import json
+from datetime import timedelta
 
 import pytest
 from django.test import Client, override_settings
@@ -292,7 +293,9 @@ def test_instructor_scope_resolves_across_sessions_but_never_across_owners(db):
 
 @pytest.mark.django_db
 @enabled
-def test_recording_lifecycle_unchanged_by_selection(db):
+def test_pause_and_resume_preserve_the_selection(db):
+    """Stage 2F.1: pausing and resuming the SAME recording never touches the
+    instructor's reference choice."""
     world, client, session = make_world("ref-lifecycle")
     reference = save_draft(client, session)
     select(client, world, reference.pk, "continue")
@@ -301,15 +304,128 @@ def test_recording_lifecycle_unchanged_by_selection(db):
     paused = client.post(reverse("hybrid-demonstration-pause"), json.dumps(
         {"session_id": str(session.pk), "version": session.version}), content_type="application/json")
     assert paused.status_code == 200
+    assert client.get(reference_url(world)).json()["selected"]["id"] == reference.pk
+
     resumed = client.post(reverse("hybrid-demonstration-resume"), json.dumps(
         {"session_id": str(session.pk), "version": paused.json()["session"]["version"]}),
         content_type="application/json")
     assert resumed.status_code == 200
-    stopped = stop_session(client, session)
-    assert stopped.status_code == 200
-    assert DemonstrationSession.objects.get(pk=session.pk).state == "stopped"
-    # The selection outlives the recording: it is the instructor's library.
     assert client.get(reference_url(world)).json()["selected"]["id"] == reference.pk
+
+
+@pytest.mark.django_db
+@enabled
+def test_stop_clears_the_selection(db):
+    """Stage 2F.1: stopping ends the reference's recording-time role; the next
+    recording begins with an explicit choice."""
+    world, client, session = make_world("ref-stop")
+    reference = save_draft(client, session)
+    select(client, world, reference.pk, "continue")
+
+    assert stop_session(client, session).status_code == 200
+    assert client.get(reference_url(world)).json()["selected"] is None
+    # The record itself remains available in the picker for a later copy.
+    assert reference.pk in [option["id"] for option in client.get(reference_url(world)).json()["options"]]
+
+
+@pytest.mark.django_db
+@enabled
+def test_discard_clears_the_selection(db):
+    world, client, session = make_world("ref-discard")
+    reference = save_draft(client, session)
+    select(client, world, reference.pk, "continue")
+
+    cleared = client.post(
+        reverse("hybrid-demonstration-discard"),
+        json.dumps({"session_id": str(session.pk)}), content_type="application/json",
+    )
+    assert cleared.status_code == 200
+    assert client.get(reference_url(world)).json()["selected"] is None
+
+
+@pytest.mark.django_db
+@enabled
+def test_an_idle_seal_clears_the_selection(db):
+    world, client, session = make_world("ref-idle")
+    reference = save_draft(client, session)
+    select(client, world, reference.pk, "continue")
+    DemonstrationSession.objects.filter(pk=session.pk).update(
+        last_activity_at=timezone.now() - demonstrations.INACTIVITY_TIMEOUT - timedelta(minutes=1)
+    )
+
+    refused = client.post(reverse("hybrid-demonstration-pause"), json.dumps(
+        {"session_id": str(session.pk), "version": 999}), content_type="application/json")
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "session_idle"
+    assert client.get(reference_url(world)).json()["selected"] is None
+
+
+@pytest.mark.django_db
+@enabled
+def test_a_failed_lifecycle_operation_preserves_the_selection(db):
+    """The safeguard: refused start/stop/discard leaves the reference as it was."""
+    world, client, session = make_world("ref-fail")
+    reference = save_draft(client, session)
+    select(client, world, reference.pk, "continue")
+
+    # Start refused: the recording is already live.
+    again = client.post(reverse("hybrid-demonstration-start", args=[world["lesson"].pk]))
+    assert again.status_code == 409
+    # Stop refused: a stale version never clears anything.
+    stale = client.post(reverse("hybrid-demonstration-stop"), json.dumps(
+        {"session_id": str(session.pk), "version": 1}), content_type="application/json")
+    assert stale.status_code == 409
+
+    assert client.get(reference_url(world)).json()["selected"]["id"] == reference.pk
+
+
+@pytest.mark.django_db
+@enabled
+def test_a_new_recording_never_inherits_a_carried_selection(db):
+    """Rule 4: even a selection that slipped past a stop (a sweep-sealed
+    recording never touched the browser) cannot carry into a new recording."""
+    world, client, session = make_world("ref-inherit")
+    reference = save_draft(client, session)
+    select(client, world, reference.pk, "continue")
+    stop_session(client, session)
+    # Simulate a stale carryover that missed the stop-clear (sweep-sealed path).
+    store = client.session
+    store[demonstrations.REFERENCE_KEY] = reference.pk
+    store[demonstrations.REFERENCE_INTENT_KEY] = "continue"
+    store.save()
+    assert client.get(reference_url(world)).json()["selected"]["id"] == reference.pk
+
+    started = client.post(reverse("hybrid-demonstration-start", args=[world["lesson"].pk]))
+    assert started.status_code == 200
+    assert client.get(reference_url(world)).json()["selected"] is None
+
+
+@pytest.mark.django_db
+@enabled
+def test_an_expired_reference_self_heals_and_saves_follow_normal_behavior(db):
+    """Stage 2F.1: when the reference record expires with its session, the
+    stale session keys are removed and later saves follow normal new-record
+    behavior (the deletion below simulates the retention CASCADE)."""
+    world, client, session = make_world("ref-heal")
+    reference = save_draft(client, session)
+    select(client, world, reference.pk, "continue")
+    assert client.get(reference_url(world)).json()["selected"]["id"] == reference.pk
+
+    UcrDeclaration.all_objects.filter(pk=reference.pk).delete()
+
+    payload = client.get(reference_url(world)).json()
+    assert payload["selected"] is None
+    assert client.session.get(demonstrations.REFERENCE_KEY) is None
+    assert client.session.get(demonstrations.REFERENCE_INTENT_KEY) is None  # keys removed, not just hidden
+
+    response = client.post(reverse("ucr-save"), json.dumps(save_body()), content_type="application/json")
+    assert response.status_code == 200
+    created = UcrDeclaration.all_objects.get(pk=response.json()["id"])
+    assert created.pk != reference.pk
+    assert created.demonstration_session_id == session.pk
+    assert DemonstrationEvent.objects.get(
+        session_id=session.pk, record_id=created.pk
+    ).event_type == "record_created"
 
 
 # --- The reference picker endpoint -------------------------------------------
