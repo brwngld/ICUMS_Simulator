@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instructor Reference Library — ICUMS Simulator</title>
+  <link rel="stylesheet" href="prototype.css">
+</head>
+<body data-theme="light">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <div class="proto-shell">
+    <aside class="proto-sidebar" aria-label="Instructor navigation">
+      <div class="proto-brand">
+        <span class="proto-brand__emblem" aria-hidden="true">IC</span>
+        <span class="proto-brand__title">ICUMS Simulator</span>
+      </div>
+      <nav class="proto-nav">
+        <a class="proto-nav__link" href="#">Dashboard</a>
+        <a class="proto-nav__link" href="#">Courses</a>
+        <a class="proto-nav__link" href="#">Demonstrations</a>
+        <a class="proto-nav__link is-active" href="#" aria-current="page">Reference Library</a>
+        <a class="proto-nav__link" href="#">Assessments</a>
+      </nav>
+    </aside>
+
+    <main id="main-content" class="proto-main" role="main">
+      <header class="proto-header">
+        <div>
+          <p class="proto-eyebrow">Instructor portal</p>
+          <h1 class="proto-title">Reference Library</h1>
+        </div>
+        <button type="button" class="proto-button proto-button--primary" id="btn-add-reference" aria-haspopup="dialog">
+          <span aria-hidden="true">+</span> Keep demonstration as reference
+        </button>
+      </header>
+
+      <section class="proto-stats" aria-label="Library summary" id="stats-region">
+        <div class="proto-stat">
+          <span class="proto-stat__value" id="stat-total">0</span>
+          <span class="proto-stat__label">All references</span>
+        </div>
+        <div class="proto-stat">
+          <span class="proto-stat__value" id="stat-working">0</span>
+          <span class="proto-stat__label">Working</span>
+        </div>
+        <div class="proto-stat">
+          <span class="proto-stat__value" id="stat-approved">0</span>
+          <span class="proto-stat__label">Approved</span>
+        </div>
+        <div class="proto-stat">
+          <span class="proto-stat__value" id="stat-retired">0</span>
+          <span class="proto-stat__label">Retired</span>
+        </div>
+      </section>
+
+      <section class="proto-panel" aria-labelledby="library-heading">
+        <div class="proto-panel__head">
+          <h2 id="library-heading" class="proto-panel__title">References</h2>
+          <div class="proto-toolbar">
+            <div class="proto-search" role="search">
+              <label for="search-input" class="visually-hidden">Search references</label>
+              <input type="search" id="search-input" class="proto-input" placeholder="Search UCR, exporter, importer, owner…" autocomplete="off">
+            </div>
+            <div class="proto-select-wrap">
+              <label for="sort-select" class="visually-hidden">Sort by</label>
+              <select id="sort-select" class="proto-select">
+                <option value="updated_desc">Last updated (newest)</option>
+                <option value="updated_asc">Last updated (oldest)</option>
+                <option value="ucr_asc">UCR number A–Z</option>
+                <option value="ucr_desc">UCR number Z–A</option>
+                <option value="created_desc">Created (newest)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="proto-tabs" role="tablist" aria-label="Filter references by state">
+          <button type="button" class="proto-tab is-active" role="tab" id="tab-all" aria-selected="true" data-filter="all">All</button>
+          <button type="button" class="proto-tab" role="tab" id="tab-working" aria-selected="false" data-filter="working">Working</button>
+          <button type="button" class="proto-tab" role="tab" id="tab-approved" aria-selected="false" data-filter="approved">Approved</button>
+          <button type="button" class="proto-tab" role="tab" id="tab-retired" aria-selected="false" data-filter="retired">Retired</button>
+        </div>
+
+        <div id="library-content">
+          <p class="proto-loading" id="loading-message" role="status" aria-live="polite">Loading references…</p>
+        </div>
+      </section>
+
+      <p class="proto-disclaimer">
+        Prototype demonstration — data is in-memory only and will reset on page reload.
+      </p>
+    </main>
+  </div>
+
+  <!-- Detail slide-over -->
+  <div class="proto-overlay" id="detail-overlay" hidden aria-hidden="true">
+    <div class="proto-overlay__backdrop" data-close="detail"></div>
+    <section class="proto-drawer" id="detail-drawer" role="dialog" aria-modal="true" aria-labelledby="detail-title" tabindex="-1">
+      <header class="proto-drawer__head">
+        <h2 id="detail-title" class="proto-drawer__title">Reference detail</h2>
+        <button type="button" class="proto-icon-button" data-close="detail" aria-label="Close detail">
+          <span aria-hidden="true">×</span>
+        </button>
+      </header>
+      <div class="proto-drawer__body" id="detail-body">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+  </div>
+
+  <!-- Add-from-demonstration dialog -->
+  <div class="proto-dialog-overlay" id="add-dialog-overlay" hidden aria-hidden="true">
+    <div class="proto-dialog" role="dialog" aria-modal="true" aria-labelledby="add-dialog-title" id="add-dialog">
+      <header class="proto-dialog__head">
+        <h2 id="add-dialog-title" class="proto-dialog__title">Keep demonstration as reference</h2>
+        <button type="button" class="proto-icon-button" data-close="add" aria-label="Close dialog">
+          <span aria-hidden="true">×</span>
+        </button>
+      </header>
+      <div class="proto-dialog__body">
+        <p class="proto-hint">Select a submitted temporary demonstration UCR to keep as a working reference.</p>
+        <div id="add-dialog-content" class="proto-dialog-list"></div>
+      </div>
+      <footer class="proto-dialog__foot">
+        <button type="button" class="proto-button proto-button--secondary" data-close="add">Cancel</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Confirmation dialog -->
+  <div class="proto-dialog-overlay" id="confirm-dialog-overlay" hidden aria-hidden="true">
+    <div class="proto-dialog proto-dialog--narrow" role="dialog" aria-modal="true" aria-labelledby="confirm-title" id="confirm-dialog">
+      <header class="proto-dialog__head">
+        <h2 id="confirm-title" class="proto-dialog__title">Confirm action</h2>
+      </header>
+      <div class="proto-dialog__body">
+        <p id="confirm-message">Are you sure?</p>
+      </div>
+      <footer class="proto-dialog__foot">
+        <button type="button" class="proto-button proto-button--secondary" data-close="confirm">Cancel</button>
+        <button type="button" class="proto-button" id="confirm-action">Confirm</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Toast / status -->
+  <div id="toast-region" class="proto-toast-region" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="mock-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
