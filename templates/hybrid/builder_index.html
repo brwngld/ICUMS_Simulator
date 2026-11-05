@@ -1,69 +1,57 @@
 {% extends "core/base_student.html" %}{% load static %}
 
 {% block title %}Theory &amp; Practical builder · ICUMS Simulator{% endblock %}{% block workspace_name %}Theory &amp; Practical builder{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1"><link rel="stylesheet" href="{% static 'css/hybrid-builder.css' %}?v=20261023-4"><link rel="stylesheet" href="{% static 'css/hybrid-builder-landing.css' %}?v=20261101-2">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/hybrid-builder-landing.css' %}?v=20261105-1">{% endblock %}
 
-{% comment %}
-The approved Theory & Practical Curriculum Builder landing (UI 1).
-Visual authority: docs/ui-reference/icums_instructor_curriculum_builder.html.
-Programme creation happens in the dialog below — the same
-ProgrammeCreateForm and create_programme POST action as before. Without
-JavaScript the dialog renders open (it also reopens on validation errors);
-with JavaScript it opens modally from the New programme action.
-The programme-scoped authoring page (?programme=<pk>) is the long-standing
-experience and lives in builder_programme.html.
-{% endcomment %}
-
-{% block content %}<div class="authoring hyb-builder hyb-landing">
+{% block content %}<div class="hyb-landing">
   <header class="authoring-head">
     <div>
       <p class="authoring-eyebrow">Instructor · Theory &amp; Practical</p>
-      <h1>Theory &amp; Practical builder</h1>
-      <p>Create programmes, courses, modules and combined theory-and-practical lessons for any approved simulator workflow. Draft editions are editable; published editions are read-only.</p>
+      <h1>Programmes</h1>
+      <p>Create programmes, courses, modules and combined theory-and-practical lessons. Draft editions are editable; published editions are read-only.</p>
     </div>
     <div class="authoring-actions">
-      <a class="authoring-primary" href="?new=programme" data-open-programme-dialog><svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>New programme</a>
+      <a class="authoring-primary" href="?new=programme" data-open-programme-dialog><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New programme</a>
     </div>
   </header>
 
   {% if total_count == 0 %}
-    <section class="authoring-card hyb-empty">
-      <span class="hyb-empty-icon"><svg class="ui-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 4 10 4.5L12 13 2 8.5Z"/><path d="M6 10.7V15c0 1.66 2.7 3 6 3s6-1.34 6-3v-4.3"/><path d="M22 8.5V13"/></svg></span>
+    <section class="hyb-empty">
       <h2>No Theory &amp; Practical programmes yet</h2>
       <p>A programme opens with a draft edition, ready for its first course. Create the first one to begin building the curriculum.</p>
       <a class="authoring-primary" href="?new=programme" data-open-programme-dialog>New programme</a>
     </section>
   {% else %}
     <section class="stat-grid" aria-label="Curriculum summary">
-      <div class="authoring-card stat"><span class="stat-icon"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 4 10 4.5L12 13 2 8.5Z"/><path d="M6 10.7V15c0 1.66 2.7 3 6 3s6-1.34 6-3v-4.3"/><path d="M22 8.5V13"/></svg></span><span class="stat-figures"><b>{{ landing_stats.programmes }}</b><span class="stat-label">Programmes <span class="stat-note">· current editions</span></span></span></div>
-      <div class="authoring-card stat"><span class="stat-icon">{% include "components/icon.html" with name="book" %}</span><span class="stat-figures"><b>{{ landing_stats.courses }}</b><span class="stat-label">Courses <span class="stat-note">· current editions</span></span></span></div>
-      <div class="authoring-card stat"><span class="stat-icon">{% include "components/icon.html" with name="box" %}</span><span class="stat-figures"><b>{{ landing_stats.modules }}</b><span class="stat-label">Modules <span class="stat-note">· current editions</span></span></span></div>
-      <div class="authoring-card stat"><span class="stat-icon">{% include "components/icon.html" with name="layers" %}</span><span class="stat-figures"><b>{{ landing_stats.lessons }}</b><span class="stat-label">Lessons <span class="stat-note">· current editions</span></span></span></div>
+      <div class="stat"><div class="stat-figures"><b>{{ landing_stats.programmes }}</b><span class="stat-label">Programmes</span></div></div>
+      <div class="stat"><div class="stat-figures"><b>{{ landing_stats.courses }}</b><span class="stat-label">Courses</span></div></div>
+      <div class="stat"><div class="stat-figures"><b>{{ landing_stats.modules }}</b><span class="stat-label">Modules</span></div></div>
+      <div class="stat"><div class="stat-figures"><b>{{ landing_stats.lessons }}</b><span class="stat-label">Lessons</span></div></div>
     </section>
 
-    <section class="authoring-card hyb-toolbar" aria-label="Search and filter programmes">
+    <section class="hyb-toolbar" aria-label="Search and filter programmes">
       <form method="get" action="{% url 'hybrid-builder' %}" class="hyb-toolbar-form">
-        <div class="hyb-search">
-          <span class="hyb-search-icon">{% include "components/icon.html" with name="search" %}</span>
-          <input type="search" name="q" value="{{ query }}" placeholder="Search programmes by name or code" aria-label="Search programmes by name or code">
-        </div>
+        <label class="hyb-search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <input type="search" name="q" value="{{ query }}" placeholder="Search programmes by name or code" aria-label="Search programmes">
+        </label>
         <div class="hyb-segments" role="group" aria-label="Filter programmes by edition status">
-          <button type="submit" name="status" value="" {% if not status_filter %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>All</button>
-          <button type="submit" name="status" value="draft" {% if status_filter == "draft" %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>Draft</button>
-          <button type="submit" name="status" value="published" {% if status_filter == "published" %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>Published</button>
+          <button type="submit" name="status" value="" {% if not status_filter %}class="on" aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>All</button>
+          <button type="submit" name="status" value="draft" {% if status_filter == "draft" %}class="on" aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>Draft</button>
+          <button type="submit" name="status" value="published" {% if status_filter == "published" %}class="on" aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>Published</button>
         </div>
-        <span class="hyb-count">Showing {{ programme_rows|length }} of {{ total_count }} programme{{ total_count|pluralize }}</span>
+        <span class="hyb-count">Showing {{ programme_rows|length }} of {{ total_count }}</span>
       </form>
     </section>
 
     {% if programme_rows %}
       <section class="hyb-card-grid" aria-label="Programmes">
         {% for row in programme_rows %}
-          <article class="authoring-card hyb-card">
+          <article class="hyb-card">
             <div class="hyb-card-top">
               <div>
                 <h3>{{ row.programme.name }}</h3>
-                <p class="hyb-card-code">Programme code · <code>{{ row.programme.code }}</code></p>
+                <p class="hyb-card-code"><code>{{ row.programme.code }}</code></p>
               </div>
               <div class="hyb-chip-row">
                 {% for edition in row.editions %}<span class="hyb-chip hyb-chip--{{ edition.status }}">v{{ edition.version }} · {% if edition.status == "draft" %}Draft{% else %}Published{% endif %}</span>{% endfor %}
@@ -71,31 +59,36 @@ experience and lives in builder_programme.html.
             </div>
             <div class="hyb-editions">
               {% for edition in row.editions %}
+                {% if edition.lessons > 0 %}
                 <div class="hyb-edition hyb-edition--{{ edition.status }}">
-                  <span class="hyb-edition-ver">v{{ edition.version }}</span>
-                  <p><b>{% if edition.status == "draft" %}Draft edition{% else %}Published edition{% endif %}</b> — {{ edition.courses }} course{{ edition.courses|pluralize }} · {{ edition.modules }} module{{ edition.modules|pluralize }} · {{ edition.lessons }} lesson{{ edition.lessons|pluralize }}</p>
+                  <p><b>{{ edition.courses }}</b> course{{ edition.courses|pluralize }} · <b>{{ edition.modules }}</b> module{{ edition.modules|pluralize }} · <b>{{ edition.lessons }}</b> lesson{{ edition.lessons|pluralize }}</p>
                 </div>
+                {% else %}
+                <div class="hyb-edition hyb-edition--draft"><p class="hyb-edition-empty">No modules or lessons yet — start by adding a module.</p></div>
+                {% endif %}
               {% endfor %}
             </div>
             <div class="hyb-card-foot">
-              <a class="authoring-primary" href="{% url 'hybrid-programme-detail' row.programme.pk %}">Manage programme<svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></a>
-              {% if row.programme.can_delete %}<button type="button" class="authoring-secondary hyb-card-delete" data-delete-programme="{{ row.programme.pk }}" data-delete-name="{{ row.programme.name }}">Delete</button>{% endif %}
+              <span class="hyb-card-meta">{% for edition in row.editions %}{% if edition.status == "draft" %}Draft edition · editable{% endif %}{% endfor %}</span>
+              <div style="display:flex;gap:6px;align-items:center;">
+                {% if row.can_delete %}<button type="button" class="authoring-secondary" data-delete-programme="{{ row.programme.pk }}" data-delete-name="{{ row.programme.name }}" aria-label="Delete programme {{ row.programme.name }}">Delete</button>{% endif %}
+                <a class="authoring-primary" href="{% url 'hybrid-programme-detail' row.programme.pk %}">Manage <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+              </div>
             </div>
           </article>
         {% endfor %}
       </section>
     {% else %}
-      <section class="authoring-card hyb-empty">
-        <span class="hyb-empty-icon">{% include "components/icon.html" with name="search" %}</span>
+      <section class="hyb-empty">
         <h2>No programmes match</h2>
-        <p>Nothing matches the current search and filter. Adjust them, or clear both to see every programme.</p>
-        <a class="authoring-secondary" href="{% url 'hybrid-builder' %}">Clear search and filters</a>
+        <p>Nothing matches the current search and filter.</p>
+        <a class="authoring-primary" href="{% url 'hybrid-builder' %}">Clear search and filters</a>
       </section>
     {% endif %}
   {% endif %}
 
-  <dialog id="programme-dialog" class="authoring-course-modal hyb-programme-dialog" aria-labelledby="programme-dialog-title" {% if programme_form.errors %}open data-has-errors{% elif request.GET.new == "programme" %}open{% endif %}>
-  <form method="post" action="{% url 'hybrid-builder' %}" class="authoring-form hyb-programme-form">
+  <dialog id="programme-dialog" class="authoring-course-modal" aria-labelledby="programme-dialog-title" {% if programme_form.errors %}open data-has-errors{% elif request.GET.new == "programme" %}open{% endif %}>
+  <form method="post" action="{% url 'hybrid-builder' %}">
     {% csrf_token %}
     <input type="hidden" name="action" value="create_programme">
     <div class="authoring-modal-head">
@@ -109,9 +102,9 @@ experience and lives in builder_programme.html.
       {{ programme_form.name.as_field_group }}
       <p class="helptext">Shown to instructors and learners across the builder.</p>
       {{ programme_form.code.as_field_group }}
-      <p class="helptext">Letters, numbers, underscores or hyphens. Must be unique — it labels the programme in links and records.</p>
+      <p class="helptext">Letters, numbers, underscores or hyphens. Must be unique.</p>
     </div>
-    <div class="form-actions hyb-modal-actions">
+    <div class="hyb-modal-actions">
       <a class="authoring-secondary" href="{% url 'hybrid-builder' %}">Cancel</a>
       <button class="authoring-primary" type="submit">Create programme</button>
     </div>
@@ -136,8 +129,6 @@ experience and lives in builder_programme.html.
     if (event.target === dialog) dialog.close();
   });
   if (dialog.open) {
-    // Promote a server-rendered open dialog (no-JS fallback or validation
-    // errors) to a modal one, and land focus on the first invalid field.
     dialog.close();
     dialog.showModal();
     const invalid = dialog.querySelector('[aria-invalid="true"]');
@@ -148,8 +139,7 @@ experience and lives in builder_programme.html.
 
 <script>
 (function () {
-  var root = document.querySelector(".hyb-builder-page") || document;
-  root.addEventListener("click", function (event) {
+  document.addEventListener("click", function (event) {
     var button = event.target.closest("[data-delete-programme]");
     if (!button) return;
     if (!window.confirm('Delete programme "' + button.dataset.deleteName + '"? This removes all its draft content and cannot be undone.')) return;
