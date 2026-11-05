@@ -6,6 +6,7 @@ route is instructor-gated and draft-scoped; the preview is read-only.
 from django.urls import path
 
 from . import demonstration_views, instructor_views, reference_views
+from . import library_views
 
 urlpatterns = [
     path("", instructor_views.builder_index, name="hybrid-builder"),
@@ -41,4 +42,5 @@ urlpatterns = [
     path("reference-library/<int:record_id>/promote/", reference_views.reference_promote, name="hybrid-reference-promote"),
     path("reference-library/<int:record_id>/approve/", reference_views.reference_approve, name="hybrid-reference-approve"),
     path("reference-library/<int:record_id>/retire/", reference_views.reference_retire, name="hybrid-reference-retire"),
+    path("reference-library-page/", library_views.reference_library_page, name="hybrid-reference-library-page"),
 ]

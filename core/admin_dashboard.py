@@ -347,6 +347,7 @@ def _student_navigation(request):
                     {"title": "Students", "icon": "group", "link": reverse("instructor-student-list")},
                     {"title": "Theory builder", "icon": "edit_note", "icon_template": "core/nav_icons/theory_builder.html", "link": reverse("course-builder") + "?path=theory"},
                     {"title": "Theory & Practical builder", "icon": "school", "link": reverse("hybrid-builder")},
+                    {"title": "Reference Library", "icon": "book", "link": reverse("hybrid-reference-library-page")},
                 ],
             }
         )

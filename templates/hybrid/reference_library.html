@@ -1,0 +1,76 @@
+{% extends "core/base_student.html" %}
+{% load static %}
+
+{% block title %}Reference Library · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Reference Library{% endblock %}
+
+{% block extrastyle %}{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/reference-library.css' %}?v=20261105-1">
+{% endblock %}
+
+{% block content %}
+<div class="ref-library" id="refLibrary"
+     data-csrf-token="{{ csrf_token }}"
+     data-urls='{"list": "{% url 'hybrid-reference-library' %}", "detail": "{% url 'hybrid-reference-detail' 0 %}", "promote": "{% url 'hybrid-reference-promote' 0 %}", "approve": "{% url 'hybrid-reference-approve' 0 %}", "retire": "{% url 'hybrid-reference-retire' 0 %}"}'
+     role="main" aria-labelledby="ref-library-title">
+
+  <header class="ref-library-head">
+    <div>
+      <p class="ref-library-eyebrow">Instructor workspace</p>
+      <h1 id="ref-library-title">Reference Library</h1>
+      <p>Manage instructor UCR references across the reference lifecycle: Working → Approved → Retired.</p>
+    </div>
+    <div class="ref-library-search" role="search">
+      <label for="ref-search" class="visually-hidden">Search references</label>
+      <input type="search" id="ref-search" placeholder="Search by number, exporter, regime…"
+             aria-label="Search references" autocomplete="off">
+    </div>
+  </header>
+
+  <div class="ref-library-stats" id="ref-stats" role="status" aria-live="polite">
+    <span class="ref-stat"><b id="ref-count-working">—</b> Working</span>
+    <span class="ref-stat"><b id="ref-count-approved">—</b> Approved</span>
+    <span class="ref-stat"><b id="ref-count-retired">—</b> Retired</span>
+  </div>
+
+  <div class="ref-library-body" id="ref-library-body">
+    <div class="ref-library-loading" id="ref-loading" role="status" aria-live="polite">
+      <p>Loading references…</p>
+    </div>
+    <div class="ref-library-error" id="ref-error" role="alert" hidden>
+      <p id="ref-error-text"></p>
+      <button type="button" id="ref-retry" class="ref-button">Retry</button>
+    </div>
+    <div class="ref-library-empty" id="ref-empty" hidden>
+      <p>No reference UCRs yet. Promote a saved demonstration UCR from the Demonstration Studio to add one here.</p>
+    </div>
+    <div class="ref-library-list" id="ref-list" hidden>
+      <div class="ref-library-cards" id="ref-cards" role="list"></div>
+    </div>
+  </div>
+
+  <dialog id="ref-detail-dialog" class="ref-detail-dialog" aria-labelledby="ref-detail-title">
+    <div class="ref-detail-dialog-body">
+      <header class="ref-detail-header">
+        <h2 id="ref-detail-title">Reference detail</h2>
+        <button type="button" id="ref-detail-close" class="ref-button ref-button--quiet" aria-label="Close detail">×</button>
+      </header>
+      <div id="ref-detail-body"></div>
+    </div>
+  </dialog>
+
+  <p id="ref-toast" class="ref-toast" role="status" aria-live="polite" hidden></p>
+</div>
+
+<script>
+window.REF_LIBRARY_CSRF = "{{ csrf_token }}";
+window.REF_LIBRARY_URLS = {
+  list: "{% url 'hybrid-reference-library' %}",
+  detail: function(id) { return "{% url 'hybrid-reference-detail' 0 %}".replace("/0/", "/" + id + "/"); },
+  promote: function(id) { return "{% url 'hybrid-reference-promote' 0 %}".replace("/0/", "/" + id + "/"); },
+  approve: function(id) { return "{% url 'hybrid-reference-approve' 0 %}".replace("/0/", "/" + id + "/"); },
+  retire: function(id) { return "{% url 'hybrid-reference-retire' 0 %}".replace("/0/", "/" + id + "/"); },
+};
+</script>
+<script src="{% static 'js/reference-library.js' %}?v=20261105-1" defer></script>
+{% endblock %}

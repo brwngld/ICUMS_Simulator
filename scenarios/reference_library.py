@@ -30,6 +30,7 @@ pins this behavior until the re-checking delete is approved.
 """
 from django.db import models, transaction
 
+from hybrid.models import DemonstrationSession
 from .models import UcrDeclaration
 
 #: The states a listed library record can be in, in lifecycle order.
@@ -70,11 +71,18 @@ def reference_payload(record):
         and record.status == UcrDeclaration.Status.SUBMITTED,
         "can_retire": state == UcrDeclaration.ReferenceState.APPROVED,
         "can_select": state == UcrDeclaration.ReferenceState.APPROVED,
+        "can_promote": state == UcrDeclaration.ReferenceState.TEMPORARY,
     }
 
 
 def list_references(user, state=None):
-    """This instructor's references, newest first, optionally one state only."""
+    """This instructor's references and promotable temporary records, newest first.
+
+    Working, approved and retired references are always listed. Eligible
+    temporary records (draft, attached to a stopped session, not yet
+    promoted) are listed with ``can_promote: true`` so the library page can
+    surface them with a Keep action.
+    """
     _gate()
     from hybrid import demonstrations
 
@@ -82,10 +90,34 @@ def list_references(user, state=None):
         raise demonstrations.DemonstrationError(
             "That reference state is not one of the library states.", "reference_state_invalid", 400
         )
-    queryset = UcrDeclaration.all_objects.filter(owner=user, reference_state__in=REFERENCE_STATES)
-    if state is not None:
-        queryset = queryset.filter(reference_state=state)
-    return [reference_payload(record) for record in queryset.order_by("-updated_at")]
+
+    results = []
+
+    if state is None or state == UcrDeclaration.ReferenceState.TEMPORARY:
+        promotable = (
+            UcrDeclaration.all_objects.filter(
+                owner=user,
+                reference_state=UcrDeclaration.ReferenceState.TEMPORARY,
+                demonstration_session__isnull=False,
+                demonstration_session__state=DemonstrationSession.State.STOPPED,
+                status=UcrDeclaration.Status.DRAFT,
+            )
+            .select_related("owner", "demonstration_session")
+            .order_by("-updated_at")
+        )
+        for record in promotable:
+            payload = reference_payload(record)
+            payload["can_promote"] = True
+            results.append(payload)
+
+    if state is None or state in REFERENCE_STATES:
+        queryset = UcrDeclaration.all_objects.filter(owner=user, reference_state__in=REFERENCE_STATES)
+        if state is not None:
+            queryset = queryset.filter(reference_state=state)
+        for record in queryset.order_by("-updated_at"):
+            results.append(reference_payload(record))
+
+    return results
 
 
 def reference_detail(user, record_id):
