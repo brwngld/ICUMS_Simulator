@@ -65,7 +65,7 @@ STAGES = ("details", "theory", "activities", "review")
 
 #: Index POSTs that target neither create form, so both stay unbound and an
 #: error re-render never shows validation messages for the wrong form.
-_CARD_ACTIONS = ("publish_edition", "new_draft", "create_programme")
+_CARD_ACTIONS = ("publish_edition", "new_draft", "create_programme", "delete_programme")
 
 #: Removing a lesson cascades to its demonstration session, its events and the
 #: records scoped to it, so a lesson that is being recorded right now is not
@@ -367,6 +367,9 @@ def builder_index(request):
         if action == "new_draft":
             _new_draft_action(request, request.POST.get("version_id"))
             return redirect("hybrid-builder")
+        if action == "delete_programme":
+            _delete_programme_action(request, request.POST.get("programme_id"))
+            return redirect("hybrid-builder")
         if form.is_valid():
             course, created = _create_course_in_open_draft(form.cleaned_data["programme"], form)
             messages.success(request, "Course created." if not created else "Course created in a new draft edition.")
@@ -481,6 +484,59 @@ def programme_detail(request, programme_id):
     return render_student_page(request, "hybrid/programme_detail.html", _workspace_context(request, programme, form))
 
 
+def _delete_programme_action(request, programme_id):
+    """Delete a programme whose editions are all drafts with no learner activity.
+
+    Refuses if any version is published or retired, if any enrolment exists,
+    or if any lesson attempt or demonstration session was recorded. Deletes
+    the hybrid content tree from leaves upward, then each version, then the
+    programme.
+    """
+    from hybrid.models import DemonstrationSession, LessonAttempt, PracticalJourney
+    from onboarding.models import Enrolment
+
+    programme = Programme.objects.filter(
+        pk=programme_id, learning_track=Programme.Track.HYBRID,
+    ).first()
+    if programme is None:
+        messages.error(request, "No such hybrid programme.")
+        return
+    versions = list(programme.versions.all())
+    published = [v for v in versions if v.status != ProgrammeVersion.Status.DRAFT]
+    if published:
+        messages.error(request, "This programme has published or retired editions and cannot be deleted. Retire them first.")
+        return
+    enrolments = Enrolment.objects.filter(programme_version__in=versions)
+    if enrolments.exists():
+        messages.error(request, "This programme has learner enrolments and cannot be deleted.")
+        return
+    version_ids = [v.pk for v in versions]
+    if DemonstrationSession.objects.filter(lesson__module__course__programme_version_id__in=version_ids).exists():
+        messages.error(request, "This programme has demonstration recordings and cannot be deleted. Discard them first.")
+        return
+    if LessonAttempt.objects.filter(lesson__module__course__programme_version_id__in=version_ids).exists():
+        messages.error(request, "This programme has learner lesson attempts and cannot be deleted.")
+        return
+
+    name = programme.name
+    for version in versions:
+        # Delete the hybrid content tree from leaves upward (the theory-side
+        # ``course_delete`` pattern), because PROTECT on upward FKs blocks
+        # Django's automatic cascade.
+        courses = list(version.hybrid_courses.all())
+        for course in courses:
+            journeys = PracticalJourney.objects.filter(course=course)
+            for journey in journeys:
+                journey.delete()
+            for module in course.hybrid_modules.all():
+                module.hybrid_lessons.all().delete()
+                module.delete()
+            course.delete()
+        version.delete()
+    programme.delete()
+    messages.success(request, f'Programme "{name}" deleted.')
+
+
 def _workspace_context(request, programme, form):
     """Everything the workspace template needs, edition-scoped.
 
@@ -546,7 +602,11 @@ def _landing_row(programme):
         for version in reversed(list(programme.versions.all()))
         if version.status != ProgrammeVersion.Status.RETIRED
     ]
-    return {"programme": programme, "editions": editions}
+    can_delete = (
+        all(v.status == ProgrammeVersion.Status.DRAFT for v in programme.versions.all())
+        and not any(v.enrolments.exists() for v in programme.versions.all())
+    )
+    return {"programme": programme, "editions": editions, "can_delete": can_delete}
 
 
 def _current_edition(programme):

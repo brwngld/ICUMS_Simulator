@@ -1,6 +1,7 @@
 """Stage 3 smoke: the instructor builder authors the same rows the student
 workspace renders, inside draft editions only."""
 import pytest
+from django.test import Client
 from django.contrib.auth.models import Group
 from django.contrib.messages import get_messages
 from django.urls import reverse
@@ -8,6 +9,7 @@ from django.urls import reverse
 from accounts.models import User
 from hybrid import journey_services, publishing
 from hybrid.models import (
+    DemonstrationSession,
     HybridCourse,
     HybridLesson,
     HybridModule,
@@ -1192,3 +1194,85 @@ def test_an_instructor_authored_lesson_renders_in_the_student_workspace(client, 
     assert "Authored theory." in html
     assert "Open the single window" in html
     assert reverse("single-window-create-ucr") in html
+
+
+# --- Programme deletion --------------------------------------------------------
+
+
+def _instructor_client(username="del-instructor"):
+    user = User.objects.create_user(username=username, email=f"{username}@example.test", password="x")
+    user.groups.add(Group.objects.get_or_create(name="Instructor")[0])
+    client = Client()
+    client.force_login(user)
+    return user, client
+
+
+@pytest.mark.django_db
+def test_an_unused_draft_programme_can_be_deleted(db):
+    programme, version = _hybrid_programme("del-unused")
+    course = _course(version)
+    module = _module(course)
+    lesson = _lesson(module)
+    user, client = _instructor_client("del-unused")
+
+    response = client.post(reverse("hybrid-builder"), {
+        "action": "delete_programme", "programme_id": str(programme.pk),
+    })
+
+    assert response.status_code == 302
+    assert not Programme.objects.filter(pk=programme.pk).exists()
+    assert not ProgrammeVersion.objects.filter(pk=version.pk).exists()
+    assert not HybridCourse.objects.filter(pk=course.pk).exists()
+    assert not HybridLesson.objects.filter(pk=lesson.pk).exists()
+
+
+@pytest.mark.django_db
+def test_a_programme_with_enrolments_cannot_be_deleted(db):
+    programme, version = _hybrid_programme("del-enrolled")
+    learner = _student("del-learner")
+    Enrolment.objects.create(student=learner, programme_version=version)
+    user, client = _instructor_client("del-enrolled-inst")
+
+    response = client.post(reverse("hybrid-builder"), {
+        "action": "delete_programme", "programme_id": str(programme.pk),
+    })
+
+    assert response.status_code == 302
+    assert Programme.objects.filter(pk=programme.pk).exists()
+
+
+@pytest.mark.django_db
+def test_a_programme_with_a_published_edition_cannot_be_deleted(db):
+    programme, version = _hybrid_programme("del-pub")
+    version.status = ProgrammeVersion.Status.PUBLISHED
+    version.save(update_fields=("status",))
+    user, client = _instructor_client("del-pub-inst")
+
+    response = client.post(reverse("hybrid-builder"), {
+        "action": "delete_programme", "programme_id": str(programme.pk),
+    })
+
+    assert response.status_code == 302
+    assert Programme.objects.filter(pk=programme.pk).exists()
+
+
+@pytest.mark.django_db
+def test_delete_button_hidden_for_published_programmes(db):
+    programme, version = _hybrid_programme("del-btn")
+    version.status = ProgrammeVersion.Status.PUBLISHED
+    version.save(update_fields=("status",))
+    user, client = _instructor_client("del-btn-inst")
+
+    html = client.get(reverse("hybrid-builder")).content.decode()
+    assert "data-delete-programme" not in html.replace(
+        'button.dataset.deleteProgramme', ''
+    ).replace('closest("[data-delete-programme]")', '')  # JS selector strings are always present
+
+
+@pytest.mark.django_db
+def test_delete_button_shown_for_draft_only_programmes(db):
+    programme, version = _hybrid_programme("del-btn-show")
+    user, client = _instructor_client("del-btn-show-inst")
+
+    html = client.get(reverse("hybrid-builder")).content.decode()
+    assert "data-delete-programme" in html

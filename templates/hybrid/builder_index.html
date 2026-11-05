@@ -79,6 +79,7 @@ experience and lives in builder_programme.html.
             </div>
             <div class="hyb-card-foot">
               <a class="authoring-primary" href="{% url 'hybrid-programme-detail' row.programme.pk %}">Manage programme<svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></a>
+              {% if row.programme.can_delete %}<button type="button" class="authoring-secondary hyb-card-delete" data-delete-programme="{{ row.programme.pk }}" data-delete-name="{{ row.programme.name }}">Delete</button>{% endif %}
             </div>
           </article>
         {% endfor %}
@@ -142,6 +143,25 @@ experience and lives in builder_programme.html.
     const invalid = dialog.querySelector('[aria-invalid="true"]');
     (invalid || dialog.querySelector("input:not([type=hidden])")).focus();
   }
+})();
+</script>
+
+<script>
+(function () {
+  var root = document.querySelector(".hyb-builder-page") || document;
+  root.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-delete-programme]");
+    if (!button) return;
+    if (!window.confirm('Delete programme "' + button.dataset.deleteName + '"? This removes all its draft content and cannot be undone.')) return;
+    var form = document.createElement("form");
+    form.method = "post";
+    form.action = "{% url 'hybrid-builder' %}";
+    form.innerHTML = '{% csrf_token %}' +
+      '<input type="hidden" name="action" value="delete_programme">' +
+      '<input type="hidden" name="programme_id" value="' + button.dataset.deleteProgramme + '">';
+    document.body.append(form);
+    form.submit();
+  });
 })();
 </script>
 {% endblock %}
