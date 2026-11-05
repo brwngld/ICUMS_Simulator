@@ -718,7 +718,27 @@ def expire_demonstrations(now=None):
     removed = 0
     for session in expired:
         def drop(target=session):
+            """Delete one expired session and its temporary content.
+
+            Stage R4-B correction: the children are deleted by explicit
+            **conditional** statements instead of the collector's gathered
+            primary keys, so a UCR promoted while this sweep was running —
+            whose primary key may already have been collected — is re-checked
+            at delete time and skipped rather than destroyed by pk:
+
+            1. events of this session (no downstream references),
+            2. UCRs **still attached** to this session (``_delete_
+               demonstration_records`` filters ``demonstration_session`` and
+               the owner, so a row a concurrent promotion detached —
+               ``reference_state = working`` and the FK set NULL — no longer
+               matches and survives),
+            3. the session row itself, whose remaining cascade children are
+               none: the promoted reference's ``reference_source_session``
+               uses ``SET_NULL``.
+            """
             with transaction.atomic():
+                DemonstrationEvent.objects.filter(session=target).delete()
+                _delete_demonstration_records(target)
                 target.delete()
 
         try:
