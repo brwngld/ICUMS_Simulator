@@ -4,10 +4,12 @@ import json
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.html import escape
 from django.views.decorators.http import require_POST
 
 from core.admin_dashboard import render_student_page
@@ -326,35 +328,35 @@ def step_check(request, attempt_id, step_index):
 
 
 def _advance_journey(lesson_attempt, step):
-    """Move the journey position with the lesson position, and report the
-    journey's own word on it.
-
-    Next is how the learner says "this activity is done", so a step worked
-    inside a journey has to advance that journey too — left behind, the next
-    journey-checked step would refuse as ``step_not_current`` while the lesson
-    itself had moved on. The journey engine owns the ceiling and the
-    dependencies, so this can only ever be refused by the learner's own
-    outstanding evidence; the pair is ``(moved, sentence)``, and the card is
-    what reads the sentence back to the learner.
-    """
+    """Return (allowed, moved, message), or None for an unassigned step."""
     assignment = JourneyStep.objects.filter(step=step).select_related("journey").first()
     if assignment is None:
-        return False, ""
-    journey_attempt = JourneyAttempt.objects.filter(
+        return None
+    journey_attempt = JourneyAttempt.objects.select_for_update().filter(
         enrolment=lesson_attempt.enrolment, journey=assignment.journey,
     ).first()
     if journey_attempt is None:
-        return False, ""
+        return False, False, "No journey attempt is available for this learner."
+    current = journey_attempt.current_journey_step
+    if current is None or current.journey_id != assignment.journey_id:
+        return False, False, "This journey step is not currently available."
+    if current.journey_order > assignment.journey_order:
+        return True, False, ""
+    if current.pk != assignment.pk:
+        return False, False, "This journey step is not currently available."
     _locked, moved, message = journey_services.journey_advance(journey_attempt)
-    return moved, message
+    has_successor = JourneyStep.objects.filter(
+        journey=assignment.journey, journey_order__gt=assignment.journey_order,
+    ).exists()
+    # Final journey completion can still require later, unassigned lesson steps.
+    return moved or not has_successor, moved, message
 
 
 @login_required
 @require_POST
+@transaction.atomic
 def step_advance(request, attempt_id, step_index):
-    """The server-side half of step sequencing: a step that declares
-    verification holds the journey until its current evidence passes (hiding
-    the button is not the enforcement)."""
+    """Commit required journey advancement and the lesson position together."""
     attempt, step, error = _attempt_and_step(request, attempt_id, step_index)
     if error:
         return error
@@ -363,11 +365,22 @@ def step_advance(request, attempt_id, step_index):
             {"allowed": False, "message": "This step must pass “Check my work” before the next one opens."},
             status=403,
         )
+    journey_result = _advance_journey(attempt, step)
+    allowed, moved, message = journey_result if journey_result is not None else (True, False, "")
+    if not allowed:
+        # The existing workspace renders failure messages as HTML.
+        return JsonResponse(
+            {"allowed": False, "message": escape(message), "journey_moved": moved, "journey_message": message},
+            status=403,
+        )
+    attempt = LessonAttempt.objects.select_for_update().get(pk=attempt.pk)
     steps = list(attempt.lesson.practical_steps.order_by("order", "id"))
-    if step_index + 1 < len(steps):
+    current_index = next(
+        (index for index, item in enumerate(steps) if item.pk == attempt.current_step_id), -1,
+    )
+    if step_index + 1 < len(steps) and (journey_result is None or current_index <= step_index):
         attempt.current_step = steps[step_index + 1]
         attempt.save(update_fields=("current_step",))
-    moved, message = _advance_journey(attempt, step)
     return JsonResponse({"allowed": True, "journey_moved": moved, "journey_message": message})
 
 

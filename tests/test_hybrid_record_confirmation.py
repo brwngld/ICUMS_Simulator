@@ -487,6 +487,11 @@ def test_confirming_the_record_lets_the_step_pass_and_the_journey_move(client, d
     assert advanced.json()["journey_message"] == "Advanced to the next step."
     attempt = JourneyAttempt.objects.get(enrolment=world["enrolment"], journey=world["journey"])
     assert attempt.current_journey_step_id == world["assignment_two"].pk
+    lesson_attempt.refresh_from_db()
+    assert lesson_attempt.current_step_id == world["second"].pk
+    resumed = client.get(reverse("hybrid-workspace", args=[world["lesson"].pk]))
+    assert resumed.context["attempt"]["current_index"] == 1
+    assert resumed.context["attempt"]["id"] == str(lesson_attempt.pk)
 
 
 @pytest.mark.django_db
@@ -506,24 +511,58 @@ def test_an_unconfirmed_record_keeps_the_step_and_the_journey_where_they_are(cli
 
 
 @pytest.mark.django_db
-def test_the_journey_reports_its_own_refusal_when_the_next_step_waits(client, db):
-    """The lesson can move while the journey holds, and what the learner hears is
-    the journey engine's own reason, naming the record role still outstanding."""
+@pytest.mark.parametrize("markup", [False, True])
+def test_the_journey_refusal_holds_both_positions_until_a_retry_can_advance(client, db, markup):
     world = _world(db, "conf-gated", gated=True)
+    if markup:
+        world["second"].title += " <img src=x onerror=alert(1)>"
+        world["second"].save(update_fields=("title",))
+        world["journey"].record_roles.filter(key="packing").update(label="<b>Required record</b>")
     lesson_attempt = _open_workspace(client, world)
     _post(client, "open", lesson_attempt, 0)
     record = _declaration(world["learner"], "TEMP-CONF-16")
     _confirm(client, world, {"record_id": record.pk})
     assert _post(client, "check", lesson_attempt, 0).json()["passed"] is True
+    attempt = _attempt(world)
+    history = list(lesson_attempt.step_events.values())
+    associations = list(JourneyRecordAssociation.objects.filter(journey_attempt=attempt).values())
 
-    advanced = _post(client, "advance", lesson_attempt, 0)
+    for _ in range(2):
+        refused = _post(client, "advance", lesson_attempt, 0)
+        assert refused.status_code == 403
+        assert refused.json()["allowed"] is False
+        assert refused.json()["journey_moved"] is False
+        assert "Attach the packing list" in refused.json()["message"]
+        assert "record role" in refused.json()["message"]
+        if markup:
+            assert "<img" not in refused.json()["message"]
+            assert "<b>" not in refused.json()["message"]
+            assert "&lt;img" in refused.json()["message"]
+            assert "&lt;b&gt;Required record&lt;/b&gt;" in refused.json()["message"]
+            assert "<img" in refused.json()["journey_message"]
+        lesson_attempt.refresh_from_db()
+        attempt.refresh_from_db()
+        assert lesson_attempt.current_step_id == world["first"].pk
+        assert attempt.current_journey_step_id == world["assignment_one"].pk
+        resumed = client.get(reverse("hybrid-workspace", args=[world["lesson"].pk]))
+        assert resumed.context["attempt"]["current_index"] == 0
+        assert resumed.context["attempt"]["id"] == str(lesson_attempt.pk)
 
-    assert advanced.json()["allowed"] is True
-    assert advanced.json()["journey_moved"] is False
-    assert "Attach the packing list" in advanced.json()["journey_message"]
-    assert "record role" in advanced.json()["journey_message"]
-    attempt = JourneyAttempt.objects.get(enrolment=world["enrolment"], journey=world["journey"])
-    assert attempt.current_journey_step_id == world["assignment_one"].pk
+    assert list(lesson_attempt.step_events.values()) == history
+    assert list(JourneyRecordAssociation.objects.filter(journey_attempt=attempt).values()) == associations
+    gate_role = world["journey"].record_roles.get(key="packing")
+    attribution.attribute_record(attempt, gate_role, record_id=record.pk, student=world["learner"])
+
+    retried = _post(client, "advance", lesson_attempt, 0)
+
+    assert retried.status_code == 200
+    assert retried.json()["allowed"] is True
+    lesson_attempt.refresh_from_db()
+    attempt.refresh_from_db()
+    assert lesson_attempt.current_step_id == world["second"].pk
+    assert attempt.current_journey_step_id == world["assignment_two"].pk
+    resumed = client.get(reverse("hybrid-workspace", args=[world["lesson"].pk]))
+    assert resumed.context["attempt"]["current_index"] == 1
 
 
 @pytest.mark.django_db
@@ -548,6 +587,12 @@ def test_a_step_of_an_unassigned_lesson_keeps_the_legacy_engine(client, db):
     assert advanced.json()["allowed"] is True
     assert advanced.json()["journey_moved"] is False
     assert advanced.json()["journey_message"] == ""
+    assert _post(client, "advance", lesson_attempt, 0).json()["allowed"] is True
+    lesson_attempt.refresh_from_db()
+    assert lesson_attempt.current_step_id == world["second"].pk
+    resumed = client.get(reverse("hybrid-workspace", args=[world["lesson"].pk]))
+    assert resumed.context["attempt"]["current_index"] == 1
+    assert not JourneyAttempt.objects.filter(enrolment=world["enrolment"]).exists()
 
 
 @pytest.mark.django_db
@@ -567,3 +612,280 @@ def test_the_roadmap_never_names_a_step_past_the_last_one(client, db):
 
     assert "Step 1 of 1" in page
     assert "Step 2 of 1" not in page
+
+
+@pytest.fixture
+def checked_progression(client, db):
+    world = _world(db, "conf-advance")
+    lesson_attempt = _open_workspace(client, world)
+    assert _post(client, "open", lesson_attempt, 0).status_code == 200
+    record = _declaration(world["learner"], "TEMP-CONF-ADVANCE")
+    assert _confirm(client, world, {"record_id": record.pk}).status_code == 200
+    assert _post(client, "check", lesson_attempt, 0).json()["passed"] is True
+    return world, lesson_attempt
+
+
+@pytest.mark.django_db
+def test_advance_retries_never_move_a_different_journey_step_or_rewind_resume(client, checked_progression):
+    world, lesson_attempt = checked_progression
+    third = PracticalStep.objects.create(
+        lesson=world["lesson"], key="third", title="Finish", order=3, screen=SCREEN,
+    )
+    third_assignment = JourneyStep.objects.create(journey=world["journey"], step=third, journey_order=3)
+    assert _post(client, "advance", lesson_attempt, 0).json()["journey_moved"] is True
+    assert _post(client, "open", lesson_attempt, 1).status_code == 200
+    attempt = _attempt(world)
+    activity = attempt.last_activity_at
+    history = list(lesson_attempt.step_events.values())
+
+    retried = _post(client, "advance", lesson_attempt, 0)
+
+    assert retried.status_code == 200
+    assert retried.json()["allowed"] is True
+    assert retried.json()["journey_moved"] is False
+    attempt.refresh_from_db()
+    lesson_attempt.refresh_from_db()
+    assert attempt.current_journey_step_id == world["assignment_two"].pk
+    assert attempt.last_activity_at == activity
+    assert lesson_attempt.current_step_id == world["second"].pk
+    assert list(lesson_attempt.step_events.values()) == history
+
+    assert _post(client, "advance", lesson_attempt, 1).json()["journey_moved"] is True
+    assert _post(client, "advance", lesson_attempt, 0).json()["allowed"] is True
+    attempt.refresh_from_db()
+    lesson_attempt.refresh_from_db()
+    assert attempt.current_journey_step_id == third_assignment.pk
+    assert lesson_attempt.current_step_id == third.pk
+    resumed = client.get(reverse("hybrid-workspace", args=[world["lesson"].pk]))
+    assert resumed.context["attempt"]["current_index"] == 2
+    assert resumed.context["attempt"]["id"] == str(lesson_attempt.pk)
+
+
+@pytest.mark.django_db
+def test_replaying_equal_order_steps_keeps_the_canonical_resume_position(client, db):
+    world = _world(db, "conf-equal-order")
+    world["condition"].delete()
+    JourneyStep.objects.filter(journey=world["journey"]).delete()
+    # Identical titles force canonical ordering to fall through to the same
+    # (order, id) tie-breaker the lesson uses, so indices stay aligned.
+    shared_title = "Equal-order step"
+    world["first"].title = shared_title
+    world["second"].title = shared_title
+    PracticalStep.objects.bulk_update([world["first"], world["second"]], ["title"])
+    PracticalStep.objects.create(
+        lesson=world["lesson"], key="third", title=shared_title, order=1, screen=SCREEN,
+    )
+    world["lesson"].practical_steps.update(order=1)
+    steps = list(world["lesson"].practical_steps.order_by("order", "id"))
+    assignments = [
+        JourneyStep.objects.create(journey=world["journey"], step=step, journey_order=index + 1)
+        for index, step in enumerate(steps)
+    ]
+    lesson_attempt = _open_workspace(client, world)
+    for index in range(2):
+        assert _post(client, "open", lesson_attempt, index).status_code == 200
+        assert _post(client, "advance", lesson_attempt, index).json()["allowed"] is True
+
+    assert _post(client, "advance", lesson_attempt, 0).json()["allowed"] is True
+
+    lesson_attempt.refresh_from_db()
+    assert lesson_attempt.current_step_id == steps[2].pk
+    assert _attempt(world).current_journey_step_id == assignments[2].pk
+    resumed = client.get(reverse("hybrid-workspace", args=[world["lesson"].pk]))
+    assert resumed.context["attempt"]["current_index"] == 2
+
+
+@pytest.mark.django_db
+def test_a_future_step_cannot_advance_the_current_journey_step(client, checked_progression):
+    world, lesson_attempt = checked_progression
+
+    refused = _post(client, "advance", lesson_attempt, 1)
+
+    assert refused.status_code == 403
+    assert refused.json()["allowed"] is False
+    lesson_attempt.refresh_from_db()
+    assert lesson_attempt.current_step_id == world["first"].pk
+    assert _attempt(world).current_journey_step_id == world["assignment_one"].pk
+
+
+@pytest.mark.django_db
+def test_a_missing_journey_attempt_is_not_a_non_journey_fallback(client, db):
+    world = _world(db, "conf-missing")
+    world["condition"].delete()
+    lesson_attempt = LessonAttempt.objects.create(
+        enrolment=world["enrolment"], lesson=world["lesson"], current_step=world["first"],
+    )
+    client.force_login(world["learner"])
+
+    refused = _post(client, "advance", lesson_attempt, 0)
+
+    assert refused.status_code == 403
+    assert refused.json()["allowed"] is False
+    lesson_attempt.refresh_from_db()
+    assert lesson_attempt.current_step_id == world["first"].pk
+    assert not JourneyAttempt.objects.filter(enrolment=world["enrolment"]).exists()
+
+
+@pytest.mark.django_db
+def test_a_condition_free_journey_step_still_waits_for_its_opening(client, db):
+    world = _world(db, "conf-unopened")
+    world["condition"].delete()
+    lesson_attempt = _open_workspace(client, world)
+
+    refused = _post(client, "advance", lesson_attempt, 0)
+
+    assert refused.status_code == 403
+    lesson_attempt.refresh_from_db()
+    assert lesson_attempt.current_step_id == world["first"].pk
+    assert _attempt(world).current_journey_step_id == world["assignment_one"].pk
+    assert _post(client, "open", lesson_attempt, 0).status_code == 200
+    assert _post(client, "advance", lesson_attempt, 0).json()["allowed"] is True
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("first_is_assigned", [True, False])
+def test_mixed_lessons_preserve_progress_outside_journey_transitions(client, db, first_is_assigned):
+    world = _world(db, "conf-mixed")
+    removed = world["assignment_two"] if first_is_assigned else world["assignment_one"]
+    removed.delete()
+    VerificationCondition.objects.create(
+        step=world["second"], kind=VerificationCondition.Kind.SCREEN_OPENED, order=1,
+    )
+    lesson_attempt = _open_workspace(client, world)
+    _post(client, "open", lesson_attempt, 0)
+    record = _declaration(world["learner"], "TEMP-CONF-MIXED")
+    _confirm(client, world, {"record_id": record.pk})
+    assert _post(client, "check", lesson_attempt, 0).json()["passed"] is True
+    attempt = _attempt(world)
+    current_assignment_id = attempt.current_journey_step_id
+
+    advanced = _post(client, "advance", lesson_attempt, 0)
+
+    assert advanced.status_code == 200
+    assert advanced.json()["allowed"] is True
+    assert advanced.json()["journey_moved"] is False
+    attempt.refresh_from_db()
+    lesson_attempt.refresh_from_db()
+    assert attempt.current_journey_step_id == current_assignment_id
+    assert attempt.completed_at is None
+    assert lesson_attempt.current_step_id == world["second"].pk
+    assert lesson_attempt.completed_at is None
+    resumed = client.get(reverse("hybrid-workspace", args=[world["lesson"].pk]))
+    assert resumed.context["attempt"]["current_index"] == 1
+    assert _post(client, "open", lesson_attempt, 1).status_code == 200
+    assert _post(client, "check", lesson_attempt, 1).json()["passed"] is True
+
+
+@pytest.mark.django_db
+def test_final_journey_completion_is_retryable(client, checked_progression):
+    world, lesson_attempt = checked_progression
+    assert _post(client, "advance", lesson_attempt, 0).status_code == 200
+    assert _post(client, "open", lesson_attempt, 1).status_code == 200
+    assert client.post(reverse("hybrid-acknowledge-theory", args=[lesson_attempt.pk])).json()["lesson_complete"] is True
+    assert _post(client, "advance", lesson_attempt, 1).json()["journey_moved"] is True
+    attempt = _attempt(world)
+    completed_at = attempt.completed_at
+
+    retried = _post(client, "advance", lesson_attempt, 1)
+
+    assert retried.status_code == 200
+    assert retried.json()["allowed"] is True
+    attempt.refresh_from_db()
+    lesson_attempt.refresh_from_db()
+    assert attempt.status == JourneyAttempt.Status.COMPLETED
+    assert attempt.completed_at == completed_at
+    assert attempt.current_journey_step_id == world["assignment_two"].pk
+    assert lesson_attempt.current_step_id == world["second"].pk
+
+
+@pytest.mark.django_db
+def test_advancement_across_lessons_preserves_resume(client, checked_progression):
+    world, lesson_attempt = checked_progression
+    next_lesson = HybridLesson.objects.create(
+        module=world["lesson"].module, slug="next", title="Next", order=2,
+        summary="Summary.", theory="<p>Theory.</p>", is_published=True,
+    )
+    world["second"].lesson = next_lesson
+    world["second"].order = 1
+    world["second"].save(update_fields=("lesson", "order"))
+    assert client.post(reverse("hybrid-acknowledge-theory", args=[lesson_attempt.pk])).json()["lesson_complete"] is True
+
+    advanced = _post(client, "advance", lesson_attempt, 0)
+
+    assert advanced.status_code == 200
+    assert advanced.json()["journey_moved"] is True
+    lesson_attempt.refresh_from_db()
+    assert lesson_attempt.current_step_id == world["first"].pk
+    assert _attempt(world).current_journey_step_id == world["assignment_two"].pk
+    next_page = client.get(reverse("hybrid-workspace", args=[next_lesson.pk]))
+    assert next_page.status_code == 200
+    assert next_page.context["attempt"]["current_index"] == 0
+    assert JourneyAttempt.objects.filter(enrolment=world["enrolment"]).count() == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("failure_point", ["journey", "lesson"])
+def test_advancement_rolls_back_both_positions_on_exception(client, checked_progression, monkeypatch, failure_point):
+    world, lesson_attempt = checked_progression
+    attempt = _attempt(world)
+    activity = attempt.last_activity_at
+    if failure_point == "journey":
+        original_advance = journey_services.journey_advance
+
+        def fail_after_advance(journey_attempt):
+            result = original_advance(journey_attempt)
+            assert result[1] is True
+            raise RuntimeError("advance failed")
+
+        monkeypatch.setattr(journey_services, "journey_advance", fail_after_advance)
+    else:
+        original_save = LessonAttempt.save
+
+        def fail_after_save(instance, *args, **kwargs):
+            original_save(instance, *args, **kwargs)
+            if instance.current_step_id == world["second"].pk:
+                raise RuntimeError("advance failed")
+
+        monkeypatch.setattr(LessonAttempt, "save", fail_after_save)
+
+    with pytest.raises(RuntimeError, match="advance failed"):
+        _post(client, "advance", lesson_attempt, 0)
+
+    attempt.refresh_from_db()
+    lesson_attempt.refresh_from_db()
+    assert attempt.current_journey_step_id == world["assignment_one"].pk
+    assert attempt.last_activity_at == activity
+    assert lesson_attempt.current_step_id == world["first"].pk
+    resumed = client.get(reverse("hybrid-workspace", args=[world["lesson"].pk]))
+    assert resumed.context["attempt"]["current_index"] == 0
+
+
+@pytest.mark.django_db
+def test_advance_rejects_evidence_invalidated_by_record_replacement(client, checked_progression):
+    world, lesson_attempt = checked_progression
+    replacement = _declaration(world["learner"], "TEMP-CONF-REPLACEMENT")
+    assert _confirm(client, world, {"record_id": replacement.pk}).status_code == 200
+
+    refused = _post(client, "advance", lesson_attempt, 0)
+
+    assert refused.status_code == 403
+    assert refused.json()["allowed"] is False
+    lesson_attempt.refresh_from_db()
+    assert lesson_attempt.current_step_id == world["first"].pk
+    assert _attempt(world).current_journey_step_id == world["assignment_one"].pk
+    assert JourneyRecordAssociation.objects.filter(journey_attempt=_attempt(world)).count() == 2
+
+
+@pytest.mark.django_db
+def test_advance_keeps_owner_login_post_and_step_bounds_checks(client, db, checked_progression):
+    world, lesson_attempt = checked_progression
+    url = reverse("hybrid-step-advance", args=[lesson_attempt.pk, 0])
+    assert client.get(url).status_code == 405
+    assert _post(client, "advance", lesson_attempt, 99).status_code == 404
+    client.force_login(_learner(db, "conf-advance-stranger"))
+    assert client.post(url).status_code == 404
+    client.logout()
+    assert client.post(url).status_code == 302
+    lesson_attempt.refresh_from_db()
+    assert lesson_attempt.current_step_id == world["first"].pk
+    assert _attempt(world).current_journey_step_id == world["assignment_one"].pk
