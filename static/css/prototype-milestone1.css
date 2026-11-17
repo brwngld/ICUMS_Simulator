@@ -1,0 +1,56 @@
+/* Milestone 1 prototype-only chrome: the mock banner, the action toast and
+   the "prototype row" marker. Deliberately scoped to .proto-* classes so it
+   cannot leak into production builder pages. */
+
+.proto-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px dashed rgba(217, 119, 6, 0.55);
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.09);
+  color: #92400e;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+html.dark .proto-banner { color: #fbbf24; background: rgba(245, 158, 11, 0.12); }
+.proto-banner .ui-icon { flex: none; margin-top: 1px; }
+
+.proto-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 60;
+  max-width: min(420px, calc(100vw - 36px));
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.4);
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+}
+html.dark .proto-toast { background: #172554; color: #bfdbfe; }
+
+.proto-row { border-style: dashed !important; }
+.proto-flag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.4);
+  background: #eff6ff;
+  color: #1e40af;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+html.dark .proto-flag { background: #172554; color: #bfdbfe; }
+
+/* Client-side search/filter on the mock landing. */
+.proto-filter-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

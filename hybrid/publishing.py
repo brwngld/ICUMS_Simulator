@@ -29,7 +29,9 @@ from .models import (
     JourneyRecordAssociation,
     JourneyRecordRole,
     JourneyStep,
+    KnowledgeCheck,
     LessonAttempt,
+    LessonMaterial,
     PracticalJourney,
     PracticalStep,
     VerificationCondition,
@@ -37,12 +39,22 @@ from .models import (
 
 
 def lesson_issues(lesson):
-    """What a reviewer still has to fill in before this lesson is complete."""
+    """What a reviewer still has to fill in before this lesson is complete.
+
+    Readiness follows the lesson's kind: an Interactive Practical lesson is
+    its steps, a Guided Material Study lesson is its theory with at least one
+    supporting material — knowledge checks stay optional on both the editor's
+    review stage and here.
+    """
     issues = []
     if not lesson.summary.strip():
         issues.append("The lesson summary is missing.")
     if not plain_text(lesson.theory).strip():
         issues.append("No theory reading yet — write the lesson's theory.")
+    if lesson.kind == HybridLesson.Kind.GUIDED_MATERIAL_STUDY:
+        if not lesson.materials.exists():
+            issues.append("No supporting materials yet — attach at least one document.")
+        return issues
     steps = list(lesson.practical_steps.all())
     if not steps:
         issues.append("No practical steps yet — the journey is empty.")
@@ -294,6 +306,20 @@ def clone_to_draft(version):
                     kind=lesson.kind,
                     order=lesson.order,
                 )
+                for material in lesson.materials.order_by("order", "id"):
+                    LessonMaterial.objects.create(
+                        lesson=lesson_copy,
+                        file=material.file,
+                        order=material.order,
+                    )
+                for check in lesson.knowledge_checks.order_by("order", "id"):
+                    KnowledgeCheck.objects.create(
+                        lesson=lesson_copy,
+                        prompt=check.prompt,
+                        options=check.options,
+                        answer_index=check.answer_index,
+                        order=check.order,
+                    )
                 for step in lesson.practical_steps.order_by("order", "id"):
                     step_copy = PracticalStep.objects.create(
                         lesson=lesson_copy,
@@ -446,7 +472,9 @@ def learner_edition_progress(enrolment, version):
         module__course__programme_version=version,
     )
     total = lessons.count()
+    # Distinct lessons, never attempt rows: repeating a practical lesson is
+    # training, not extra progress.
     completed = LessonAttempt.objects.filter(
         enrolment=enrolment, lesson__in=lessons, completed_at__isnull=False,
-    ).count()
+    ).values("lesson_id").distinct().count()
     return completed, total

@@ -29,7 +29,9 @@ from . import demonstrations, journey_services
 from .forms import (
     CourseCreateForm,
     CourseEditForm,
+    KnowledgeCheckForm,
     LessonDetailsForm,
+    MaterialUploadForm,
     ModuleForm,
     ProgrammeCreateForm,
     StepForm,
@@ -46,6 +48,8 @@ from .models import (
     JourneyRecordAssociation,
     JourneyRecordRole,
     JourneyStep,
+    KnowledgeCheck,
+    LessonMaterial,
     PracticalJourney,
     PracticalStep,
     VerificationCondition,
@@ -172,9 +176,32 @@ def _activity_card(step, post=None):
     }
 
 
+def _check_card(check, post=None):
+    """The one integrated card a knowledge check gets in a guided lesson's
+    materials stage, built like an activity card: the check's own POST saves
+    it, prefixed with its row id so no sibling is revalidated, and a row the
+    posted page never carried renders straight from the database untouched.
+    """
+    prefix = f"check-{check.pk}"
+    return {
+        "check": check,
+        "form": KnowledgeCheckForm(
+            post if post is not None and f"{prefix}-prompt" in post else None,
+            instance=check,
+            prefix=prefix,
+        ),
+    }
+
+
 #: The card's journey controls. They change journey structure, so they run
 #: through the organizer's services and never touch the models directly.
 _JOURNEY_ACTIONS = ("assign_journey", "unassign_journey", "bind_role", "unbind_role", "create_role_and_bind")
+
+#: Activity and verification-condition authoring — refused on guided lessons.
+_STEP_ACTIONS = (
+    "add_step", "save_activity", "move_step", "delete_step",
+    "add_condition", "move_condition", "delete_condition",
+)
 
 
 def _step_of(lesson, post):
@@ -778,19 +805,18 @@ def module_edit(request, module_id):
     module = _draft_module(module_id)
     lessons = list(module.hybrid_lessons.order_by("order", "title"))
     # The lesson list describes what each lesson holds: its type, whether the
-    # theory has been written, and — for Interactive Practical lessons — the
-    # step count and what publication still wants from it, since those are
-    # what open in the Demonstration Studio.
+    # theory has been written, the step or material count, and what publication
+    # still wants from it — the editor serves both lesson types, so readiness
+    # is computed for each in its own shape.
     lesson_rows = [
         {
             "lesson": lesson,
             "is_interactive": lesson.kind == HybridLesson.Kind.INTERACTIVE_PRACTICAL,
             "kind_label": lesson.get_kind_display(),
             "step_count": lesson.practical_steps.count(),
+            "material_count": lesson.materials.count(),
             "has_theory": bool(plain_text(lesson.theory).strip()),
-            "issues": lesson_issues(lesson)
-            if lesson.kind == HybridLesson.Kind.INTERACTIVE_PRACTICAL
-            else [],
+            "issues": lesson_issues(lesson),
         }
         for lesson in lessons
     ]
@@ -825,15 +851,6 @@ def module_edit(request, module_id):
                 # blank) means Interactive Practical — the only type the
                 # builder has ever created.
                 kind = lesson_form.cleaned_data["kind"] or HybridLesson.Kind.INTERACTIVE_PRACTICAL
-                if kind == HybridLesson.Kind.GUIDED_MATERIAL_STUDY:
-                    # The type is stored on the model, but its Material Studio
-                    # does not exist yet — refuse even a posted (disabled)
-                    # option so no incomplete authoring path can start.
-                    messages.error(
-                        request,
-                        "Guided Material Study is not available yet — the Material Studio is still to come.",
-                    )
-                    return redirect("hybrid-module-edit", module_id=module.pk)
                 lesson = HybridLesson.objects.create(
                     module=module,
                     slug=_unique_slug(HybridLesson, "slug", lesson_form.cleaned_data["title"], module=module),
@@ -842,8 +859,13 @@ def module_edit(request, module_id):
                     kind=kind,
                     order=module.hybrid_lessons.count() + 1,
                 )
-                messages.success(request, "Interactive Practical lesson created — continue in the Demonstration Studio.")
-                return redirect("hybrid-lesson-demonstration-studio", lesson_id=lesson.pk)
+                if kind == HybridLesson.Kind.GUIDED_MATERIAL_STUDY:
+                    messages.success(request, "Guided Material Study lesson created — write the theory, then attach the supporting materials.")
+                else:
+                    messages.success(request, "Interactive Practical lesson created — add the theory, then record the demonstration in the Studio.")
+                # The approved authoring order: details and theory first (stages
+                # 1–2 of the editor), the Demonstration Studio from there.
+                return redirect("hybrid-lesson-edit", lesson_id=lesson.pk)
             # The Add-lesson dialog reopens with the errors and entered values.
             return _render(status=400)
         if action == "move_lesson":
@@ -889,6 +911,15 @@ def lesson_demonstration_studio(request, lesson_id):
     lesson = _draft_lesson(lesson_id)
     if request.method != "GET":
         return HttpResponse(status=405)
+    if lesson.kind == HybridLesson.Kind.GUIDED_MATERIAL_STUDY:
+        # A Guided Material Study lesson has no simulator walkthrough to
+        # record, so the studio only explains where its content is written —
+        # the prototype's guided explanation, served from the real route.
+        return render_student_page(request, "hybrid/demonstration_studio.html", {
+            "title": f"Demonstration Studio · {lesson.title}",
+            "lesson": lesson,
+            "guided_gate": True,
+        })
     context = {
         "title": f"Demonstration Studio · {lesson.title}",
         "lesson": lesson,
@@ -916,10 +947,15 @@ def lesson_edit(request, lesson_id):
     editing one activity never validates or rewrites its siblings. Structural
     actions (add, move, remove, and the check bookkeeping around a card) post
     their own small forms and come straight back to the stage they belong to.
+    A Guided Material Study lesson renders stage 3 as its materials stage
+    instead: supporting documents to attach and optional knowledge checks to
+    write, each card behaving exactly like an activity card.
     """
     _require_instructor(request.user)
     lesson = _draft_lesson(lesson_id)
+    is_guided = lesson.kind == HybridLesson.Kind.GUIDED_MATERIAL_STUDY
     steps = list(lesson.practical_steps.order_by("order", "id"))
+    checks = list(lesson.knowledge_checks.order_by("order", "id"))
     action = request.POST.get("action") if request.method == "POST" else None
     # Only a lesson POST carries the lesson's own fields; binding the details
     # and theory forms to any other action would light up errors nobody typed.
@@ -927,9 +963,15 @@ def lesson_edit(request, lesson_id):
     lesson_form = LessonDetailsForm(lesson_data, initial={"title": lesson.title, "summary": lesson.summary})
     theory_form = TheoryForm(lesson_data, body=lesson.theory)
     cards = {step.pk: _activity_card(step) for step in steps}
+    check_cards = {check.pk: _check_card(check) for check in checks}
     status = 200
 
     if request.method == "POST":
+        # A guided lesson has no simulator walkthrough: steps attached to one
+        # would be invisible in its workspace yet still demanded by completion.
+        if is_guided and action in _STEP_ACTIONS:
+            messages.error(request, "Guided Material Study lessons have no practical activities — write the theory and attach materials instead.")
+            return redirect(_editor_url(lesson, "activities"))
         if action == "add_condition":
             step = get_object_or_404(PracticalStep, pk=request.POST.get("step_id"), lesson=lesson)
             # The instructor says which check they mean, so a record check is
@@ -960,6 +1002,65 @@ def lesson_edit(request, lesson_id):
             _move(
                 VerificationCondition.objects.filter(step=condition.step).order_by("order", "id"),
                 condition,
+                request.POST.get("direction"),
+            )
+            return redirect(_editor_url(lesson, "activities"))
+        if action == "add_material":
+            upload = MaterialUploadForm(request.POST, request.FILES)
+            if upload.is_valid():
+                LessonMaterial.objects.create(
+                    lesson=lesson,
+                    file=upload.cleaned_data["file"],
+                    order=lesson.materials.count() + 1,
+                )
+            else:
+                messages.error(request, " ".join(error for errors in upload.errors.values() for error in errors))
+            return redirect(_editor_url(lesson, "activities"))
+        if action == "delete_material":
+            material = get_object_or_404(LessonMaterial, pk=request.POST.get("material_id"), lesson=lesson)
+            # The stored file is never deleted with the row: a draft cloned
+            # from a published edition shares the same blob, and removing the
+            # row must not take the published edition's document with it.
+            material.delete()
+            _renumber(LessonMaterial.objects.filter(lesson=lesson).order_by("order", "id"))
+            return redirect(_editor_url(lesson, "activities"))
+        if action == "move_material":
+            _move(
+                LessonMaterial.objects.filter(lesson=lesson).order_by("order", "id"),
+                get_object_or_404(LessonMaterial, pk=request.POST.get("material_id"), lesson=lesson),
+                request.POST.get("direction"),
+            )
+            return redirect(_editor_url(lesson, "activities"))
+        if action == "add_check":
+            # A check is born as an editable card, like an activity; it stays
+            # blank until its own form accepts a question a learner could answer.
+            KnowledgeCheck.objects.create(
+                lesson=lesson,
+                options=["", "", "", ""],
+                order=lesson.knowledge_checks.count() + 1,
+            )
+            return redirect(_editor_url(lesson, "activities"))
+        if action == "save_check":
+            check = get_object_or_404(KnowledgeCheck, pk=request.POST.get("check_id"), lesson=lesson)
+            card = _check_card(check, request.POST)
+            if card["form"].is_valid():
+                card["form"].save()
+                messages.success(request, "Knowledge check saved.")
+                return redirect(_editor_url(lesson, "activities"))
+            # The refused card is re-rendered carrying its own errors; every
+            # other card keeps whatever the page was built with.
+            check_cards[check.pk] = card
+            messages.error(request, "The knowledge check was not saved — check the highlighted fields.")
+            status = 400
+        if action == "delete_check":
+            check = get_object_or_404(KnowledgeCheck, pk=request.POST.get("check_id"), lesson=lesson)
+            check.delete()
+            _renumber(KnowledgeCheck.objects.filter(lesson=lesson).order_by("order", "id"))
+            return redirect(_editor_url(lesson, "activities"))
+        if action == "move_check":
+            _move(
+                KnowledgeCheck.objects.filter(lesson=lesson).order_by("order", "id"),
+                get_object_or_404(KnowledgeCheck, pk=request.POST.get("check_id"), lesson=lesson),
                 request.POST.get("direction"),
             )
             return redirect(_editor_url(lesson, "activities"))
@@ -1035,6 +1136,10 @@ def lesson_edit(request, lesson_id):
         "theory_form": theory_form,
         "activity_cards": [cards[step.pk] for step in steps],
         "step_count": len(steps),
+        "is_guided": is_guided,
+        "materials": list(lesson.materials.order_by("order", "id")),
+        "check_cards": [check_cards[check.pk] for check in checks],
+        "guided_item_count": lesson.materials.count() + len(checks),
         "course_journeys": list(lesson.module.course.practical_journeys.order_by("order", "title")),
         "has_theory": bool(plain_text(lesson.theory).strip()),
         "issues": lesson_issues(lesson),

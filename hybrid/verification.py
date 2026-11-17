@@ -366,33 +366,88 @@ def _latest_activity(record):
 def _verify_saved_record(attempt, condition):
     model, model_label = VERIFY_RECORDS[condition.record_kind]
     owner = attempt.enrolment.student
-    bound = opened_at(attempt, condition.step)
-    owned = model.objects.filter(owner=owner)
-    if not owned.exists():
-        return False, f"No {model_label} records exist for your account yet. Complete the task in the simulator, then check again."
+    # The freshness window is the attempt itself: a record the learner produced
+    # at any point since this attempt began is current evidence for every step
+    # of the attempt. Requiring per-step freshness would force the learner to
+    # redo the same action once per instruction that mentions it.
+    # (Journey-bound steps keep their own stricter window in
+    # journey_verification; this is the legacy, unassigned-step engine.)
+    bound = attempt.started_at
+    # Practice runs verify their own scratch records: a repeat attempt's check
+    # reads only the records created inside that run (scoped to it at save
+    # time and discarded when it completes), never the learner's ordinary
+    # history and never an earlier attempt's records.
+    from . import services as _services
+
+    is_practice = _services.is_practice_attempt(attempt)
+    if is_practice and condition.record_kind == "ucr":
+        from scenarios.models import UcrDeclaration
+
+        owned = UcrDeclaration.all_objects.filter(owner=owner, practice_attempt=attempt)
+    elif is_practice and hasattr(model, "all_objects"):
+        owned = model.all_objects.filter(owner=owner)
+    else:
+        owned = model.objects.filter(owner=owner)
+    # Refusals stay plain and guiding: the learner is told the step hasn't
+    # been completed and where the work happens — never a description of
+    # records left behind by earlier attempts.
+    screen = condition.step.screen_label()
+    where = f"Open the {screen} screen in the simulator" if screen else "Work in the simulator"
 
     expected = condition.expected_fields if isinstance(condition.expected_fields, dict) else {}
+
+    def _fresh(record):
+        return (_latest_activity(record) or record.created_at) >= bound
+
     matching = owned.filter(status=condition.required_status, **expected)
-    if matching.exists():
-        if any((_latest_activity(record) or record.created_at) >= bound for record in matching):
-            return True, "Verified."
+    if matching.exists() and any(_fresh(record) for record in matching):
+        return True, "Verified."
+    if (
+        expected
+        and owned.filter(status=condition.required_status).exists()
+        and any(_fresh(record) for record in owned.filter(status=condition.required_status))
+    ):
         return False, (
-            f"Your {model_label} records with the required status all predate this step. "
-            "Complete the task now, then check again."
-        )
-    if expected and owned.filter(status=condition.required_status).exists():
-        return False, (
-            f"Your {model_label} has the required status, but the saved values do not match. "
+            f"Your {model_label} from this attempt has the required status, but the saved values do not match. "
             "Correct the record, then check again."
         )
-    latest = owned.order_by("-created_at").first()
-    latest_display = latest.get_status_display() if latest else "unknown"
-    choices = dict(model._meta.get_field("status").choices)
-    required_display = choices.get(condition.required_status, condition.required_status)
+    if is_practice:
+        return False, (
+            "This step hasn't been completed in this practice run yet. "
+            f"Create a new {model_label} on the {screen} screen and save it — "
+            "that new record is what the check verifies, then check again."
+        )
     return False, (
-        f"Your latest {model_label} is “{latest_display}” — this step requires “{required_display}”. "
-        "Complete the task in the simulator, then check again."
+        "This step hasn't been completed in this attempt yet. "
+        f"{where} and complete the task, then check again."
     )
+
+
+def _verify_stage_evidence(attempt, condition):
+    """Verify a form-progress signal the learner produced inside the simulator.
+
+    The attempt's ``stage_evidence`` JSON carries what the learner did before
+    saving: which regime they selected, whether the required sections were
+    completed. The condition's ``expected_fields`` names the stage and any
+    pinned value."""
+    expected = condition.expected_fields if isinstance(condition.expected_fields, dict) else {}
+    stage = expected.get("stage", "")
+    evidence = attempt.stage_evidence or {}
+    recorded = evidence.get(stage)
+    if recorded is None or recorded == "" or recorded is False:
+        labels = {
+            "regime_selected": "Select the regime on the UCR form",
+            "sections_completed": "Complete the required sections on the UCR form",
+        }
+        hint = labels.get(stage, f"Complete the {stage} stage in the simulator")
+        return False, f"{hint}, then check again."
+    pinned_value = expected.get("value")
+    if pinned_value is not None and str(recorded) != str(pinned_value):
+        return False, (
+            f"The recorded value does not match — this step requires “{pinned_value}”. "
+            "Correct the form, then check again."
+        )
+    return True, "Verified."
 
 
 def _verify_screen_opened(attempt, condition):
@@ -407,6 +462,8 @@ def verify_step(attempt, step):
     for condition in step_conditions(step):
         if condition.kind == VerificationCondition.Kind.SAVED_RECORD:
             passed, message = _verify_saved_record(attempt, condition)
+        elif condition.kind == VerificationCondition.Kind.STAGE_EVIDENCE:
+            passed, message = _verify_stage_evidence(attempt, condition)
         else:
             passed, message = _verify_screen_opened(attempt, condition)
         results.append({"label": condition.describe(), "passed": passed, "message": message})
@@ -414,6 +471,99 @@ def verify_step(attempt, step):
     if passed:
         mark_verified(attempt, step)
     return {"passed": passed, "results": results}
+
+
+def build_step_hint(attempt, step, form_state=None):
+    """Build a specific hint from the learner's current state vs the step's
+    conditions. Called when the learner presses Hint — not a stored string,
+    but a live comparison of what exists now against what the step needs."""
+    form_state = form_state or {}
+    lines = []
+    for condition in step_conditions(step):
+        if condition.kind == VerificationCondition.Kind.SAVED_RECORD:
+            hint = _saved_record_hint(attempt, condition)
+        elif condition.kind == VerificationCondition.Kind.STAGE_EVIDENCE:
+            hint = _stage_evidence_hint(attempt, condition, form_state)
+        elif condition.kind == VerificationCondition.Kind.SCREEN_OPENED:
+            hint = _screen_opened_hint(attempt, condition)
+        else:
+            hint = ""
+        if hint:
+            lines.append(hint)
+    if not lines:
+        return "Complete the step in the simulator, then check your work."
+    return " ".join(lines)
+
+
+def _saved_record_hint(attempt, condition):
+    model, model_label = VERIFY_RECORDS[condition.record_kind]
+    owner = attempt.enrolment.student
+    bound = attempt.started_at
+    owned = model.objects.filter(owner=owner)
+    expected = condition.expected_fields if isinstance(condition.expected_fields, dict) else {}
+
+    matching = owned.filter(status=condition.required_status, **expected)
+    if matching.exists():
+        if any((_latest_activity(r) or r.created_at) >= bound for r in matching):
+            return ""  # already passing
+        return f"A {model_label} matching this step exists but predates this attempt — re-save or re-submit it."
+    if expected and owned.filter(status=condition.required_status).exists():
+        return f"Your {model_label} has the right status but some saved values don't match — correct them."
+    latest = owned.order_by("-created_at").first()
+    if latest:
+        choices = dict(model._meta.get_field("status").choices)
+        latest_display = choices.get(latest.status, latest.status)
+        return f"Your latest {model_label} is “{latest_display}” — this step needs it to be “{condition.required_status}”."
+    return f"You haven't created a {model_label} yet — complete the form and save it in the simulator."
+
+
+def _stage_evidence_hint(attempt, condition, form_state=None):
+    expected = condition.expected_fields if isinstance(condition.expected_fields, dict) else {}
+    stage = expected.get("stage", "")
+    evidence = attempt.stage_evidence or {}
+
+    if stage == "regime_selected":
+        recorded = evidence.get(stage)
+        pinned = expected.get("value")
+        if recorded and pinned and str(recorded) == str(pinned):
+            return ""  # already passing
+        if recorded:
+            from scenarios.views import UCR_REGIME_LABELS
+            return f"You selected {_regime_display(recorded)} but this step needs {_regime_display(pinned)}."
+        return "Select the regime on the UCR form — choose it from the Regime Type dropdown."
+
+    if stage == "sections_completed":
+        if evidence.get(stage):
+            return ""  # already passing
+        if form_state:
+            missing = []
+            section_fields = {
+                "Service Provider": ["ucr-provider-country", "ucr-provider-address", "ucr-provider-contact", "ucr-provider-phone", "ucr-provider-email"],
+                "Exporter": ["ucr-exporter-name", "ucr-exporter-country", "ucr-exporter-address", "ucr-exporter-phone", "ucr-exporter-contact", "ucr-exporter-contact-no", "ucr-exporter-designation"],
+                "Importer": ["ucr-importer-country", "ucr-importer-address", "ucr-importer-phone", "ucr-importer-contact", "ucr-importer-contact-no", "ucr-importer-designation"],
+                "Consignment Details": ["ucr-goods", "ucr-origin", "ucr-destination", "ucr-mode"],
+            }
+            for section_name, field_ids in section_fields.items():
+                empty = [fid.replace("ucr-", "").replace("-", " ") for fid in field_ids
+                         if not (form_state.get(fid) or "").strip()]
+                if empty:
+                    missing.append(f"{section_name}: {', '.join(empty)}")
+            if missing:
+                return "Still to fill: " + "; ".join(missing) + "."
+        return "Complete the required sections on the UCR form — fill every required field."
+
+    return f"Complete the {stage} stage in the simulator."
+
+
+def _regime_display(code):
+    from scenarios.views import UCR_REGIME_LABELS
+    return f"{code} ({UCR_REGIME_LABELS.get(code, code)})" if code else code
+
+
+def _screen_opened_hint(attempt, condition):
+    if StepEvent.objects.filter(attempt=attempt, step=condition.step, kind=StepEvent.Kind.OPENED).exists():
+        return ""  # already passing
+    return "You haven't opened this step's simulator screen yet — navigate to it first."
 
 
 def step_satisfied(attempt, step):

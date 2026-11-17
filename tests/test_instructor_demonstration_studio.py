@@ -109,9 +109,9 @@ def test_the_studio_swaps_its_placeholders_for_recording_wording_while_enabled(d
 
     html = client.get(_studio_url(world["lesson"])).content.decode()
 
-    assert "RECORDING ENABLED · UCR SAVE CAPTURED" in html
+    assert "RECORDING ENABLED · UCR SAVE + SUBMIT CAPTURED" in html
     assert "Recording is enabled in this development environment" in html
-    assert "saving a UCR in it while recording creates a demonstration record" in html
+    assert "saving and submitting a UCR in it while recording creates demonstration records and events" in html
     assert "Server-side recording · events appear as they are recorded" in html
     assert "No events recorded yet." in html
     assert "Scope boundary" in html

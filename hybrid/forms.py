@@ -6,6 +6,8 @@ supported workflow — free-text screens, selectors or expressions have no
 field to live in. The theory form uses the ``form`` prefix on purpose: the
 shared rich-text editor binds textareas whose ids match ``id_form-*-body``.
 """
+from pathlib import Path
+
 from django import forms
 from django.core.exceptions import ValidationError
 from django.forms.models import construct_instance
@@ -18,7 +20,14 @@ from scenarios.bindings import (
     verify_status_choices,
 )
 
-from .models import HybridLesson, HybridModule, PracticalStep, VerificationCondition
+from .models import (
+    HybridLesson,
+    HybridModule,
+    KnowledgeCheck,
+    LessonMaterial,
+    PracticalStep,
+    VerificationCondition,
+)
 
 #: Empty saved-value rows offered with every condition, so two expectations can
 #: be authored in one save without the page having to grow rows by script.
@@ -106,30 +115,17 @@ class ModuleForm(forms.Form):
     description = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 3}))
 
 
-class _MaterialPendingSelect(forms.Select):
-    """Type selector whose Guided Material Study option is shown but disabled.
-
-    The type exists on the model, but its authoring workspace does not yet —
-    the option stays visible (so the direction is known) while refusing to be
-    chosen until the Material Studio is ready.
-    """
-
-    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
-        option = super().create_option(name, value, label, selected, index, subindex, attrs)
-        if value == HybridLesson.Kind.GUIDED_MATERIAL_STUDY:
-            option["attrs"]["disabled"] = True
-        return option
-
-
 class LessonDetailsForm(forms.Form):
     title = forms.CharField(max_length=180, label="Lesson title")
     kind = forms.ChoiceField(
         choices=HybridLesson.Kind.choices,
         initial=HybridLesson.Kind.INTERACTIVE_PRACTICAL,
         label="Lesson type",
-        widget=_MaterialPendingSelect,
         required=False,
-        help_text="Interactive Practical lessons are built in the Demonstration Studio.",
+        help_text=(
+            "Interactive Practical lessons are built in the Demonstration Studio. "
+            "Guided Material Study lessons are written in the lesson editor."
+        ),
     )
     summary = forms.CharField(
         required=False,
@@ -155,6 +151,92 @@ class TheoryForm(forms.Form):
         super().__init__(*args, **kwargs)
         if body is not None:
             self.initial["body"] = body
+
+
+class MaterialUploadForm(forms.Form):
+    """Attach one supporting document to a guided lesson.
+
+    Only real documents and images are accepted: the extension whitelist keeps
+    script or executable files out of the curriculum media tree, and the size
+    cap keeps an oversized upload from stalling the request.
+    """
+
+    ALLOWED_EXTENSIONS = {
+        ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".csv",
+        ".png", ".jpg", ".jpeg", ".gif", ".webp",
+    }
+    MAX_BYTES = 25 * 1024 * 1024
+
+    file = forms.FileField(label="Document or image")
+
+    def clean_file(self):
+        uploaded = self.cleaned_data["file"]
+        if Path(uploaded.name).suffix.lower() not in self.ALLOWED_EXTENSIONS:
+            raise ValidationError("Attach a document or image (PDF, Office, CSV, PNG, JPG, GIF or WebP).")
+        if uploaded.size > self.MAX_BYTES:
+            raise ValidationError("That file is larger than the 25 MB limit.")
+        return uploaded
+
+
+class KnowledgeCheckForm(forms.ModelForm):
+    """Author one optional knowledge check under a guided lesson's reading.
+
+    The four option slots and the correct-answer radio post with the question,
+    so a check a learner could not answer never saves: a prompt, at least two
+    non-empty options, and a correct answer that is one of them are all
+    required. The row is born blank (Add knowledge check) and stays blank
+    until this form accepts it, mirroring how activities are born.
+    """
+
+    OPTION_SLOTS = 4
+
+    class Meta:
+        model = KnowledgeCheck
+        fields = ()
+
+    def __init__(self, *args, instance=None, **kwargs):
+        super().__init__(*args, instance=instance, **kwargs)
+        self.fields["prompt"] = forms.CharField(label="Question", widget=forms.TextInput)
+        for slot in range(self.OPTION_SLOTS):
+            self.fields[f"option_{slot}"] = forms.CharField(label=f"Option {slot + 1}", required=False)
+        self.fields["answer"] = forms.ChoiceField(
+            label="Correct answer",
+            choices=[(str(slot), f"Option {slot + 1}") for slot in range(self.OPTION_SLOTS)],
+            initial="0",
+            widget=forms.RadioSelect,
+        )
+        if instance is not None:
+            # The fields are declared, not model fields, so the saved check is
+            # slotted into them here rather than by the ModelForm machinery.
+            options = list(instance.options or [])
+            self.fields["prompt"].initial = instance.prompt
+            for slot in range(self.OPTION_SLOTS):
+                self.fields[f"option_{slot}"].initial = options[slot] if slot < len(options) else ""
+            answer = instance.answer_index if 0 <= instance.answer_index < self.OPTION_SLOTS else 0
+            self.fields["answer"].initial = str(answer)
+
+    def clean(self):
+        cleaned = super().clean()
+        options = [cleaned.get(f"option_{slot}", "") for slot in range(self.OPTION_SLOTS)]
+        # Errors attach to fields, not the form: the editor card renders field
+        # groups only, so a form-wide error would refuse the save invisibly.
+        if sum(1 for text in options if text.strip()) < 2:
+            self.add_error("option_0", "Give the check at least two options a learner could choose between.")
+        answer = int(cleaned.get("answer", "0"))
+        if not options[answer].strip():
+            self.add_error("answer", "Mark a filled-in option as the correct answer.")
+        cleaned["options"] = options
+        cleaned["answer_index"] = answer
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.prompt = self.cleaned_data["prompt"]
+        instance.options = self.cleaned_data["options"]
+        instance.answer_index = self.cleaned_data["answer_index"]
+        if commit:
+            instance.save()
+        return instance
 
 
 class StepForm(forms.ModelForm):

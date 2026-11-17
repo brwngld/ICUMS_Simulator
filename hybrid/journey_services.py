@@ -184,9 +184,12 @@ def journey_step_rows(attempt):
     """
     rows = []
     for position, assignment in enumerate(ordered_assignments(attempt.journey), start=1):
+        # The learner's *current* attempt on this lesson — the open one, else
+        # the most recent. The model's default ordering is oldest-first, so
+        # an unsorted .first() would read a superseded attempt's evidence.
         lesson_attempt = LessonAttempt.objects.filter(
             enrolment=attempt.enrolment, lesson=assignment.step.lesson
-        ).first()
+        ).order_by("-started_at").first()
         verified = opened = False
         requires_check = VerificationCondition.objects.filter(step=assignment.step).exists()
         if lesson_attempt is not None:
@@ -390,17 +393,19 @@ def journey_completion_state(attempt):
         JourneyRecordRole.objects.filter(journey=attempt.journey, required=True).order_by("order", "id")
     )
     role_states = [(role, *role_satisfied(attempt, role)) for role in required_roles]
-    lesson_attempts = list(
-        LessonAttempt.objects.filter(
-            enrolment=attempt.enrolment,
-            lesson_id__in=JourneyStep.objects.filter(journey=attempt.journey).values_list(
-                "step__lesson_id", flat=True
-            ),
-        )
+    journey_lesson_ids = JourneyStep.objects.filter(journey=attempt.journey).values_list(
+        "step__lesson_id", flat=True
     )
-    lessons_complete = bool(lesson_attempts) and all(
-        attempt_row.completed_at is not None and attempt_row.theory_acknowledged_at is not None
-        for attempt_row in lesson_attempts
+    # A lesson counts as complete when ANY of its attempts completed — a
+    # fresh practice attempt (which starts incomplete by definition) must
+    # never un-complete a lesson the learner already finished. A completed
+    # attempt implies the theory was acknowledged on it.
+    journey_lesson_ids = list(journey_lesson_ids)
+    lessons_complete = bool(journey_lesson_ids) and all(
+        LessonAttempt.objects.filter(
+            enrolment=attempt.enrolment, lesson_id=lesson_id, completed_at__isnull=False,
+        ).exists()
+        for lesson_id in journey_lesson_ids
     )
     return {
         "rows": rows,

@@ -65,15 +65,19 @@ def test_the_workspace_renders_the_lesson_from_the_database(client, db):
     lesson = _hybrid_lesson(version)
     client.force_login(learner)
 
+    from hybrid.models import LessonAttempt
+    from django.utils import timezone as _tz
+    client.get(reverse("hybrid-workspace", args=[lesson.pk]))  # creates the attempt, redirects to theory
+    LessonAttempt.objects.filter(enrolment__student=learner, lesson=lesson).update(theory_acknowledged_at=_tz.now())
     html = client.get(reverse("hybrid-workspace", args=[lesson.pk])).content.decode()
     assert lesson.title in html
-    assert "Read this before the steps." in html
     assert "Open the overview" in html
     assert "Search declarations" in html
     assert "Open the Single Window overview." in html
     assert "The overview is open." in html
     assert "Use the navigation." in html
-    assert reverse("single-window-overview") in html
+    # The pane frames the simulator portal; the student drives the navigation.
+    assert reverse("simulator-portal") in html
 
 
 @pytest.mark.django_db
@@ -88,10 +92,16 @@ def test_every_step_card_carries_its_registered_screen(client, db):
     )
     client.force_login(learner)
 
+    from hybrid.models import LessonAttempt
+    from django.utils import timezone as _tz
+    client.get(reverse("hybrid-workspace", args=[lesson.pk]))  # creates the attempt, redirects to theory
+    LessonAttempt.objects.filter(enrolment__student=learner, lesson=lesson).update(theory_acknowledged_at=_tz.now())
     html = client.get(reverse("hybrid-workspace", args=[lesson.pk])).content.decode()
-    assert f'data-screen-url="{reverse("single-window-overview")}"' in html
-    assert f'data-screen-url="{reverse("single-window-search-ucr")}"' in html
-    assert 'data-screen-url=""' in html
+    # Steps name their screen for the learner; the workspace never moves the
+    # frame itself, so no per-step URL reaches the markup.
+    assert "Single Window overview" in html
+    assert "Search UCR declarations" in html
+    assert "data-screen-url" not in html
 
 
 @pytest.mark.django_db
@@ -102,15 +112,18 @@ def test_only_the_current_step_card_is_visible(client, db):
     lesson = _hybrid_lesson(version)
     client.force_login(learner)
 
+    from hybrid.models import LessonAttempt
+    from django.utils import timezone as _tz
+    client.get(reverse("hybrid-workspace", args=[lesson.pk]))  # creates the attempt, redirects to theory
+    LessonAttempt.objects.filter(enrolment__student=learner, lesson=lesson).update(theory_acknowledged_at=_tz.now())
     html = client.get(reverse("hybrid-workspace", args=[lesson.pk])).content.decode()
-    assert 'data-hyb-step-card="0" data-screen-url' in html  # first card: server-visible
-    assert 'data-hyb-step-card="1" data-screen-url' in html
+    assert 'data-hyb-step-card="0"' in html  # first card: server-visible
+    assert 'data-hyb-step-card="1"' in html
     assert "hidden" in html
     assert "Step 1 of 2" in html
     # The theory reading is rich text, so it renders through the same safe-body
     # filter every other learner page uses; escaped source would show the learner
     # the markup itself.
-    assert "<p>Read this before the steps.</p>" in html
     assert "&lt;p&gt;Read this" not in html
 
 
@@ -122,6 +135,10 @@ def test_a_lesson_without_steps_frames_the_simulator_portal(client, db):
     lesson = _hybrid_lesson(version, code="nosteps", with_content=False)
     client.force_login(learner)
 
+    from hybrid.models import LessonAttempt
+    from django.utils import timezone as _tz
+    client.get(reverse("hybrid-workspace", args=[lesson.pk]))  # creates the attempt, redirects to theory
+    LessonAttempt.objects.filter(enrolment__student=learner, lesson=lesson).update(theory_acknowledged_at=_tz.now())
     html = client.get(reverse("hybrid-workspace", args=[lesson.pk])).content.decode()
     assert f'src="{reverse("simulator-portal")}"' in html
     assert "no practical steps yet" in html

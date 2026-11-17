@@ -1,10 +1,10 @@
 """Lesson-type foundation — the two lesson kinds and type-aware navigation.
 
 ``HybridLesson.kind`` separates Interactive Practical (authored in the
-Demonstration Studio) from Guided Material Study (type stored, authoring and
-publication still to come). Existing lessons are Interactive Practical by
-default; Guided Material Study cannot be created from the instructor UI and
-cannot publish, so no incomplete authoring path exists.
+Demonstration Studio) from Guided Material Study (theory plus supporting
+materials and optional knowledge checks, written in the lesson editor's
+materials stage). Existing lessons are Interactive Practical by default;
+both kinds now author and publish through their own readiness shapes.
 """
 import pytest
 from django.test import Client
@@ -67,7 +67,7 @@ def test_existing_style_rows_are_interactive_practical(db):
 
 
 @pytest.mark.django_db
-def test_the_module_page_offers_the_type_choice_with_guided_disabled(db):
+def test_the_module_page_offers_the_type_choice(db):
     world = _module_world(db, "kind-choice")
     client = Client()
     client.force_login(world["instructor"])
@@ -77,10 +77,11 @@ def test_the_module_page_offers_the_type_choice_with_guided_disabled(db):
     assert "Lesson type" in html
     assert "Interactive Practical" in html
     assert "Guided Material Study" in html
-    # The Guided option is rendered but marked unavailable.
+    # Both options are now selectable: Guided Material Study lessons author in
+    # the lesson editor's materials stage.
     assert 'value="guided_material_study"' in html
     guided_option = html.split('value="guided_material_study"', 1)[1].split(">", 1)[0]
-    assert "disabled" in guided_option
+    assert "disabled" not in guided_option
 
 
 @pytest.mark.django_db
@@ -99,7 +100,9 @@ def test_creating_an_interactive_lesson_opens_the_demonstration_studio(db):
     lesson = HybridLesson.objects.get(module=world["module"], title="UCR walkthrough")
     assert lesson.kind == HybridLesson.Kind.INTERACTIVE_PRACTICAL
     assert response.status_code == 302
-    assert response["Location"] == _studio_url(lesson)
+    # The approved order: details and theory first in the lesson editor; the
+    # Demonstration Studio is entered from there.
+    assert response["Location"] == reverse("hybrid-lesson-edit", args=[lesson.pk])
     # The studio itself still renders for the fresh lesson.
     assert client.get(_studio_url(lesson)).status_code == 200
 
@@ -118,14 +121,15 @@ def test_a_post_without_a_kind_still_creates_interactive_practical(db):
 
     lesson = HybridLesson.objects.get(module=world["module"], title="Legacy flow")
     assert lesson.kind == HybridLesson.Kind.INTERACTIVE_PRACTICAL
-    assert response["Location"] == _studio_url(lesson)
+    assert response["Location"] == reverse("hybrid-lesson-edit", args=[lesson.pk])
 
 
 @pytest.mark.django_db
-def test_creating_a_guided_material_study_lesson_is_refused(db):
-    """No incomplete authoring path: even a posted disabled option is refused,
-    and no lesson row appears anywhere."""
-    world = _module_world(db, "kind-refuse")
+def test_creating_a_guided_material_study_lesson_opens_the_editor(db):
+    """The lifted refusal: a Guided Material Study lesson is created and its
+    kind is stored, and the editor it opens carries the guided materials
+    stage rather than the practical-activities cards."""
+    world = _module_world(db, "kind-guided-create")
     client = Client()
     client.force_login(world["instructor"])
 
@@ -136,16 +140,23 @@ def test_creating_a_guided_material_study_lesson_is_refused(db):
         "summary": "Reading and materials.",
     })
 
+    lesson = HybridLesson.objects.get(module=world["module"], title="Materials lesson")
+    assert lesson.kind == HybridLesson.Kind.GUIDED_MATERIAL_STUDY
     assert response.status_code == 302
-    assert response["Location"] == _module_url(world["module"])
-    assert not HybridLesson.objects.filter(module=world["module"]).exists()
+    assert response["Location"] == reverse("hybrid-lesson-edit", args=[lesson.pk])
+
+    html = client.get(response["Location"]).content.decode()
+    assert "Supporting materials" in html
+    assert "Knowledge checks" in html
+    assert "Add practical activity" not in html
+    assert "Open Demonstration Studio" not in html
 
 
 @pytest.mark.django_db
 def test_module_rows_are_type_aware(db):
     """Interactive rows lead to the Demonstration Studio with the full editor
-    as fallback; a Guided row (only reachable via the ORM today) is labelled
-    and offers no authoring entry."""
+    as fallback; a Guided row offers the editor (where its materials and
+    knowledge checks live) and says plainly that the studio is not its tool."""
     world = _module_world(db, "kind-rows")
     interactive = HybridLesson.objects.create(
         module=world["module"], slug="interactive", title="Interactive lesson",
@@ -163,10 +174,10 @@ def test_module_rows_are_type_aware(db):
     assert _studio_url(interactive) in html
     assert "Open Demonstration Studio" in html
     assert "Full editor" in html
-    assert reverse("hybrid-lesson-edit", args=[guided.pk]) not in html
+    assert reverse("hybrid-lesson-edit", args=[guided.pk]) in html
     assert _studio_url(guided) not in html
     assert "Guided Material Study" in html
-    assert "Material Studio coming soon" in html
+    assert "Demonstration Studio applies to Interactive Practical lessons" in html
 
 
 @pytest.mark.django_db
@@ -191,19 +202,26 @@ def test_clone_to_draft_preserves_the_lesson_kind(db):
 
 
 @pytest.mark.django_db
-def test_guided_material_study_lessons_cannot_publish_yet(db):
-    """Publication keeps demanding learning-material functionality: a Guided
-    lesson still fails the readiness gate, so the existing edition blocker —
-    not new logic — is what holds it back until the Material Studio exists."""
+def test_guided_readiness_asks_for_materials_not_practical_steps(db):
+    """Publication readiness is kind-aware: a Guided lesson is held back by
+    missing supporting materials, never by practical steps — and one attached
+    document satisfies it."""
+    from hybrid.models import LessonMaterial
+
     world = _module_world(db, "kind-publish")
     guided = HybridLesson.objects.create(
         module=world["module"], slug="guided", title="Guided",
         order=1, kind=HybridLesson.Kind.GUIDED_MATERIAL_STUDY,
+        summary="A guided reading.", theory="<p>Read alongside the document.</p>",
     )
 
     issues = " ".join(lesson_issues(guided))
+    assert "No supporting materials yet" in issues
+    assert "No practical steps yet" not in issues
 
-    assert "No practical steps yet" in issues
+    LessonMaterial.objects.create(lesson=guided, file="lesson_materials/notice.pdf", order=1)
+
+    assert lesson_issues(guided) == []
 
 
 @pytest.mark.django_db

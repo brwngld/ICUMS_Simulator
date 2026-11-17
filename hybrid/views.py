@@ -140,7 +140,6 @@ def lesson_workspace_context(lesson, attempt=None, review_mode=False):
         step_views.append({
             "index": index,
             "step": step,
-            "screen_url": reverse(step.screen) if step.screen else "",
             "screen_label": step.screen_label(),
             "journey": journey,
             "role_rows": [] if journey_attempt is None else _role_rows(
@@ -152,22 +151,41 @@ def lesson_workspace_context(lesson, attempt=None, review_mode=False):
                 review_mode,
             ),
         })
-    # A lesson whose steps all omit a screen frames the simulator portal.
-    frame_url = next(
-        (item["screen_url"] for item in step_views if item["screen_url"]),
-        reverse("simulator-portal"),
-    )
+    # The pane frames the real simulator home. The student drives the
+    # simulator's own navigation — the workspace never redirects the frame as
+    # steps advance; each step card names the screen its work happens on.
+    # A Guided Material Study lesson has no simulator walkthrough: its right
+    # pane lists the supporting materials and its checks render under the
+    # theory, so the frame is not used at all.
+    is_guided = lesson.kind == HybridLesson.Kind.GUIDED_MATERIAL_STUDY
+    frame_url = reverse("simulator-portal")
     context = {
         "title": lesson.title,
         "lesson": lesson,
         "theory": lesson.theory,
         "step_views": step_views,
         "frame_url": frame_url,
+        "is_guided": is_guided,
+        "materials": list(lesson.materials.order_by("order", "id")) if is_guided else [],
+        "knowledge_checks": list(lesson.knowledge_checks.order_by("order", "id")) if is_guided else [],
         "attempt": None,
         "review_mode": review_mode,
     }
     if attempt is not None:
-        context["attempt"] = verification.attempt_snapshot(attempt)
+        snapshot = verification.attempt_snapshot(attempt)
+        # Practice mode: a repeat of an already-completed lesson. Check my work
+        # behaves exactly as on the first pass — same engine, same messages,
+        # same evidence — but the steps never lock, so the learner can walk
+        # the guide freely and practise what they want.
+        snapshot["practice"] = services.is_practice_attempt(attempt)
+        context["attempt"] = snapshot
+        # Practical lessons are training: a completed attempt can be repeated
+        # with a fresh one. Journey-bound steps are worked inside their
+        # journey's own lifecycle, so the repeat action is offered only where
+        # the legacy engine owns every step.
+        context["can_practise_again"] = (
+            attempt.completed_at is not None and not journey_by_step and not review_mode
+        )
     return context
 
 
@@ -194,26 +212,49 @@ def _edition_lesson(enrolment, lesson_id):
 
 @login_required
 def roadmap(request):
-    """The Theory & Practical learning flow: courses, modules, lessons, with
-    completion and lock states resolved from the learner's own attempts."""
+    """The Theory & Practical Course Overview: the student learning portal.
+
+    Reuses the approved theory Course Overview design (course-overview.css)
+    over the hybrid curriculum — Programme → Course → Module → Lesson, with
+    per-course progress, completion and the lesson the learner should open
+    next. Completion and lock states come from the learner's own attempts.
+    """
     if needs_disclaimer_acceptance(request.user):
         return redirect("disclaimer")
     enrolment = services.enrolment_for_request(request)
     programme = enrolment.programme_version.programme
-    courses = []
+    course_rows = []
+    module_total = 0
+    lesson_total = 0
     for course in HybridCourse.objects.filter(
         programme_version=enrolment.programme_version, is_published=True,
     ).order_by("order", "title"):
         module_rows = []
+        course_completed = 0
+        course_lessons = 0
         for module in course.hybrid_modules.filter(is_published=True).order_by("order", "title"):
             states = services.module_lesson_states(enrolment, module)
+            completed_count = sum(1 for state in states if state["complete"])
             module_rows.append({
                 "module": module,
                 "lessons": states,
                 "complete": services.module_complete(enrolment, module),
+                "completed_count": completed_count,
+                "lesson_count": len(states),
             })
-        courses.append({"course": course, "modules": module_rows})
-    completed, total = learner_edition_progress(enrolment, enrolment.programme_version)
+            module_total += 1
+            course_completed += completed_count
+            course_lessons += len(states)
+        course_rows.append({
+            "course": course,
+            "modules": module_rows,
+            "completed_count": course_completed,
+            "lesson_count": course_lessons,
+        })
+        lesson_total += course_lessons
+    counts = services.edition_lesson_counts(enrolment, enrolment.programme_version)
+    next_state = services.next_lesson_for(enrolment, enrolment.programme_version)
+    percentage = round(counts["completed"] / counts["total"] * 100) if counts["total"] else 0
     journeys = []
     for journey in PracticalJourney.objects.filter(
         programme_version=enrolment.programme_version,
@@ -237,12 +278,39 @@ def roadmap(request):
             "position_total": (len(rows) if rows else journey.step_assignments.count()),
         })
     return render_student_page(request, "hybrid/roadmap.html", {
-        "title": "Theory & Practical",
+        "title": "Course Overview",
         "programme": programme,
-        "courses": courses,
-        "completed": completed,
-        "total": total,
+        "courses": course_rows,
+        "module_total": module_total,
+        "lesson_total": lesson_total,
+        "completed": counts["completed"],
+        "total": counts["total"],
+        "lesson_counts": counts,
+        "course_percentage": percentage,
+        "next_state": next_state,
         "journeys": journeys,
+    })
+
+
+@login_required
+def lesson_theory(request, lesson_id):
+    """The standalone theory page for one lesson.
+
+    The student reads the theory, acknowledges it, then starts the practical.
+    A 'Start the practical' button appears once the theory is acknowledged
+    (or immediately if it was already acknowledged on a prior visit)."""
+    if needs_disclaimer_acceptance(request.user):
+        return redirect("disclaimer")
+    enrolment = services.enrolment_for_request(request)
+    lesson = _edition_lesson(enrolment, lesson_id)
+    attempt = services.get_or_create_attempt(enrolment, lesson)
+    review_mode = bool(request.session.get("simulator_review_user_id"))
+    return render_student_page(request, "hybrid/theory.html", {
+        "title": f"{lesson.title} · Theory",
+        "lesson": lesson,
+        "theory": lesson.theory,
+        "attempt": {"id": str(attempt.pk), "theory_acknowledged": attempt.theory_acknowledged_at is not None} if attempt and not review_mode else None,
+        "review_mode": review_mode,
     })
 
 
@@ -251,10 +319,10 @@ def workspace(request, lesson_id):
     """The two-panel Theory & Practical workspace for one lesson.
 
     The left panel is the lesson's own reading and practical journey; the
-    right panel frames the real simulator screen the current step points at
-    (same-origin, the whole page, exactly as the /test Practice Desk does).
-    Opening the lesson resumes the learner's single attempt — the workspace
-    never restarts a journey.
+    right panel frames the real simulator (same-origin, the whole page,
+    chrome and navigation included). Opening the lesson resumes the learner's
+    open attempt; a completed lesson reopens as review, with an explicit
+    Practise Again action — the workspace never restarts anything implicitly.
     """
     if needs_disclaimer_acceptance(request.user):
         return redirect("disclaimer")
@@ -262,11 +330,43 @@ def workspace(request, lesson_id):
     lesson = _edition_lesson(enrolment, lesson_id)
     attempt = services.get_or_create_attempt(enrolment, lesson)
     review_mode = bool(request.session.get("simulator_review_user_id"))
+
+    # Bind the browser to an open practice run so the simulator's own save and
+    # submit routes land in the attempt's scratch scope; clear it the moment
+    # this page is anything else, so ordinary simulator work stays ordinary.
+    from scenarios.practice_ucr import PRACTICE_ACTIVE_KEY
+
+    if not review_mode and attempt.completed_at is None and services.is_practice_attempt(attempt):
+        request.session[PRACTICE_ACTIVE_KEY] = str(attempt.pk)
+    else:
+        request.session.pop(PRACTICE_ACTIVE_KEY, None)
     return render_student_page(
         request,
         "hybrid/workspace.html",
         lesson_workspace_context(lesson, attempt, review_mode=review_mode),
     )
+
+
+@login_required
+@require_POST
+def practise_again(request, lesson_id):
+    """Start a fresh practice attempt on a completed lesson.
+
+    Training lessons may be repeated: the previous attempt and its evidence
+    are untouched, course progression still reads them, and the new attempt
+    begins at the first step with its own verification state. Refused while
+    an open attempt exists (the database constraint agrees), for journey-bound
+    lessons (their steps live in the journey's own lifecycle), and for lessons
+    the learner's sequencing has not unlocked.
+    """
+    if needs_disclaimer_acceptance(request.user):
+        return redirect("disclaimer")
+    enrolment = services.enrolment_for_request(request)
+    lesson = _edition_lesson(enrolment, lesson_id)
+    if _lesson_journeys(lesson):
+        raise PermissionDenied("This lesson's steps are worked inside a Practical Workflow.")
+    services.start_practice_attempt(enrolment, lesson)
+    return redirect("hybrid-workspace", lesson_id=lesson.pk)
 
 
 def _attempt_and_step(request, attempt_id, step_index):
@@ -278,6 +378,21 @@ def _attempt_and_step(request, attempt_id, step_index):
     if not 0 <= step_index < len(steps):
         return attempt, None, JsonResponse({"ok": False, "error": "No such step."}, status=404)
     return attempt, steps[step_index], None
+
+
+def _dispose_if_practice_run_complete(request, attempt):
+    """A practice run's scratch records live only as long as the run.
+
+    The moment the attempt completes, its records are thrown away (the
+    verified-step history stays), and the browser's practice binding is
+    cleared so ordinary simulator work resumes being ordinary."""
+    attempt.refresh_from_db(fields=("completed_at",))
+    if attempt.completed_at is None or not services.is_practice_attempt(attempt):
+        return
+    from scenarios.practice_ucr import clear_practice_binding
+
+    services.dispose_practice_records(attempt)
+    clear_practice_binding(request)
 
 
 @login_required
@@ -324,6 +439,7 @@ def step_check(request, attempt_id, step_index):
             attempt.current_step = step
             attempt.save(update_fields=("current_step",))
         result["lesson_complete"] = verification.refresh_completion(attempt)
+    _dispose_if_practice_run_complete(request, attempt)
     return JsonResponse(result)
 
 
@@ -356,7 +472,12 @@ def _advance_journey(lesson_attempt, step):
 @require_POST
 @transaction.atomic
 def step_advance(request, attempt_id, step_index):
-    """Commit required journey advancement and the lesson position together."""
+    """Commit required journey advancement and the lesson position together.
+
+    The satisfaction gate is the guided sequence itself and applies on every
+    attempt — first pass or practice repeat alike. Practice mode only marks
+    the repeat (the workspace shows it, previous attempts stay preserved);
+    it never unlocks anything."""
     attempt, step, error = _attempt_and_step(request, attempt_id, step_index)
     if error:
         return error
@@ -396,7 +517,60 @@ def acknowledge_theory(request, attempt_id):
         attempt.theory_acknowledged_at = timezone.now()
         attempt.save(update_fields=("theory_acknowledged_at",))
     lesson_complete = verification.refresh_completion(attempt)
+    _dispose_if_practice_run_complete(request, attempt)
     return JsonResponse({"ok": True, "lesson_complete": lesson_complete})
+
+
+@login_required
+@require_POST
+def stage_evidence(request, attempt_id):
+    """Record a form-progress signal from the simulator iframe.
+
+    The workspace JS watches the iframe for regime selection and section
+    completion, and posts here so the attempt carries evidence for those
+    stages. This is not learner-creation evidence (the creation ledger is
+    untouched) — it is the attempt's own form-progress trail that
+    stage-evidence conditions verify against."""
+    attempt = LessonAttempt.objects.filter(pk=attempt_id, enrolment__student=request.user).first()
+    if attempt is None:
+        return JsonResponse({"ok": False, "error": "No such attempt."}, status=404)
+    import json as _json
+    body = _json.loads(request.body) if request.body else {}
+    stage = body.get("stage", "")
+    if stage not in ("regime_selected", "sections_completed"):
+        return JsonResponse({"ok": False, "error": "Unknown stage."}, status=400)
+    evidence = dict(attempt.stage_evidence or {})
+    if stage == "regime_selected":
+        evidence["regime_selected"] = body.get("value", "")
+    elif stage == "sections_completed":
+        evidence["sections_completed"] = True
+    attempt.stage_evidence = evidence
+    attempt.save(update_fields=("stage_evidence",))
+    verification.refresh_completion(attempt)
+    return JsonResponse({"ok": True})
+
+
+@login_required
+@require_POST
+def step_hint(request, attempt_id, step_index):
+    """A live hint: check the learner's current state against this step's
+    conditions and return what's missing or wrong — not a generic message.
+
+    The workspace JS may include the iframe's current form state so the hint
+    can name the specific fields that are still empty."""
+    attempt, step, error = _attempt_and_step(request, attempt_id, step_index)
+    if error:
+        return error
+    import json as _json
+    form_state = {}
+    if request.body:
+        try:
+            form_state = _json.loads(request.body)
+        except (ValueError, TypeError):
+            form_state = {}
+
+    hint = verification.build_step_hint(attempt, step, form_state)
+    return JsonResponse({"ok": True, "hint": hint})
 
 
 # --- Student journey page and runtime -------------------------------------------

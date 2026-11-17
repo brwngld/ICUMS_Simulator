@@ -16,6 +16,7 @@ from hybrid.models import (
     HybridCourse,
     HybridLesson,
     HybridModule,
+    LessonMaterial,
     PracticalJourney,
     PracticalStep,
 )
@@ -362,6 +363,8 @@ def test_the_module_workspace_counts_interactive_and_theory(client, instructor, 
     written = _lesson(module, "two", summary="S.", theory="<p>T.</p>")
     written.kind = HybridLesson.Kind.GUIDED_MATERIAL_STUDY
     written.save(update_fields=("kind",))
+    # A guided lesson is ready once its theory and one material exist.
+    LessonMaterial.objects.create(lesson=written, file="lesson_materials/guide.pdf", order=1)
     client.force_login(instructor)
     response = client.get(_module_url(module))
     assert response.context["interactive_count"] == 1

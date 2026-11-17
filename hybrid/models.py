@@ -33,6 +33,7 @@ provide defensive validation for direct authoring, but no journey-aware
 runtime behaviour is introduced here.
 """
 import uuid
+from pathlib import Path
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -102,10 +103,9 @@ class HybridLesson(models.Model):
 
     ``Kind.INTERACTIVE_PRACTICAL`` lessons are authored in the Demonstration
     Studio: theory plus a simulator demonstration with practical steps and
-    verification. ``Kind.GUIDED_MATERIAL_STUDY`` lessons (theory plus attached
-    learning materials and optional quizzes) have their type stored now; their
-    authoring workspace is still to come, and they cannot be created from the
-    instructor UI or published until it exists.
+    verification. ``Kind.GUIDED_MATERIAL_STUDY`` lessons (theory plus
+    supporting materials and optional knowledge checks) are authored in the
+    lesson editor's materials stage and have no simulator walkthrough.
     """
 
     class Kind(models.TextChoices):
@@ -131,7 +131,7 @@ class HybridLesson(models.Model):
         default=Kind.INTERACTIVE_PRACTICAL,
         help_text=(
             "Interactive Practical lessons are authored in the Demonstration Studio. "
-            "Guided Material Study awaits the Material Studio and cannot be created or published yet."
+            "Guided Material Study lessons carry supporting materials and optional knowledge checks."
         ),
     )
     order = models.PositiveIntegerField(default=1)
@@ -213,6 +213,7 @@ class VerificationCondition(models.Model):
     class Kind(models.TextChoices):
         SAVED_RECORD = "saved_record", "Saved record"
         SCREEN_OPENED = "screen_opened", "Screen opened"
+        STAGE_EVIDENCE = "stage_evidence", "Stage evidence"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     step = models.ForeignKey(
@@ -251,6 +252,12 @@ class VerificationCondition(models.Model):
                 raise ValidationError({"expected_fields": "Unknown saved-value field(s): " + ", ".join(unknown) + "."})
             if any(isinstance(value, (dict, list)) for value in (self.expected_fields or {}).values()):
                 raise ValidationError({"expected_fields": "Expected saved values must be text, numbers, booleans, or null."})
+        elif self.kind == self.Kind.STAGE_EVIDENCE:
+            self.record_kind = ""
+            self.required_status = ""
+            stage = (self.expected_fields or {}).get("stage", "")
+            if not stage:
+                raise ValidationError({"expected_fields": "A stage name is required."})
         else:
             self.record_kind = ""
             self.required_status = ""
@@ -260,12 +267,87 @@ class VerificationCondition(models.Model):
         """A short learner-facing label for feedback lists."""
         if self.kind == self.Kind.SCREEN_OPENED:
             return "Open the step's simulator screen"
+        if self.kind == self.Kind.STAGE_EVIDENCE:
+            stage = (self.expected_fields or {}).get("stage", "")
+            if stage == "regime_selected":
+                regime = (self.expected_fields or {}).get("value", "")
+                from scenarios.views import UCR_REGIME_LABELS
+                return f"The {UCR_REGIME_LABELS.get(regime, regime)} regime is selected"
+            if stage == "sections_completed":
+                return "The required sections are completed"
+            return f"Stage evidence: {stage}"
         model, model_label = VERIFY_RECORDS[self.record_kind]
         choices = dict(model._meta.get_field("status").choices)
         return f"A {model_label} saved as “{choices.get(self.required_status, self.required_status)}”"
 
     def __str__(self):
         return f"{self.step.title} · {self.describe()}"
+
+
+class LessonMaterial(models.Model):
+    """A document or image learners read beside a guided lesson's theory.
+
+    The uploaded file itself is the content: its name and size are what the
+    editor lists and the workspace shows, and the file is served from the
+    public curriculum media prefix like the lesson's rich text. Materials
+    belong to the lesson, run in order, and carry no simulator role — a
+    Guided Material Study lesson has no walkthrough to demonstrate.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lesson = models.ForeignKey(
+        HybridLesson,
+        on_delete=models.CASCADE,
+        related_name="materials",
+        help_text="The guided lesson this document supports.",
+    )
+    file = models.FileField(upload_to="lesson_materials/")
+    order = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ("order", "id")
+
+    def name(self):
+        return Path(self.file.name).name
+
+    def size_display(self):
+        size = self.file.size
+        if size >= 1024 * 1024:
+            return f"{size / (1024 * 1024):.1f} MB"
+        return f"{max(size / 1024, 0.1):.1f} KB"
+
+    def __str__(self):
+        return self.name()
+
+
+class KnowledgeCheck(models.Model):
+    """One optional multiple-choice question under a guided lesson's reading.
+
+    ``options`` holds up to four option texts in answer order and
+    ``answer_index`` points at the correct one; both are authored through the
+    lesson editor's check form, which refuses to save a check with fewer than
+    two real options or a correct answer that is blank. Checks never gate
+    lesson completion — like the reading itself, they are support, not
+    assessment.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lesson = models.ForeignKey(
+        HybridLesson,
+        on_delete=models.CASCADE,
+        related_name="knowledge_checks",
+        help_text="The guided lesson this question sits under.",
+    )
+    prompt = models.TextField(blank=True)
+    options = models.JSONField(default=list, blank=True)
+    answer_index = models.PositiveSmallIntegerField(default=0)
+    order = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ("order", "id")
+
+    def __str__(self):
+        return self.prompt or "Untitled knowledge check"
 
 
 class LessonAttempt(models.Model):
@@ -276,6 +358,11 @@ class LessonAttempt(models.Model):
     theory acknowledgement, and ``completed_at`` is written only when every
     step is satisfied and the theory is acknowledged. Attempts belong to the
     enrolment, so they are pinned to the enrolled edition forever.
+
+    Practical lessons are training, not examinations: a learner may repeat a
+    completed lesson. At most one OPEN attempt per (enrolment, lesson) exists
+    — a completed attempt is immutable history that progression reads, and a
+    fresh practice attempt starts from the first step with its own state.
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -292,10 +379,22 @@ class LessonAttempt(models.Model):
     theory_acknowledged_at = models.DateTimeField(null=True, blank=True)
     started_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    stage_evidence = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Form-progress signals the learner produced inside the simulator "
+        "before saving: {\"regime_selected\": \"IM\", \"sections_completed\": true, …}. "
+        "Stage-evidence conditions read this; it is not learner evidence for the "
+        "creation ledger.",
+    )
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=("enrolment", "lesson"), name="unique_hybrid_attempt_per_lesson")
+            models.UniqueConstraint(
+                fields=("enrolment", "lesson"),
+                condition=models.Q(completed_at__isnull=True),
+                name="unique_hybrid_open_attempt_per_lesson",
+            ),
         ]
         ordering = ("started_at",)
 
@@ -1046,6 +1145,7 @@ class DemonstrationEvent(models.Model):
         NAVIGATION = "navigation", "Navigation"
         RECORD_CREATED = "record_created", "Record created"
         RECORD_UPDATED = "record_updated", "Record updated"
+        INTERACTION = "interaction", "Interaction"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(

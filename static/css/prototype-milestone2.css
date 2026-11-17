@@ -1,0 +1,177 @@
+/* Milestone 2 prototype styles — lesson editor mock sections and the
+   preview split. Scoped to .proto-* / the prototype templates only; the
+   production theme files are untouched. */
+
+.proto-fields label {
+  display: block;
+  margin: 0 0 .85rem;
+  font-size: .74rem;
+  font-weight: 600;
+  color: var(--au-ink, #1c2430);
+}
+.proto-fields input[type=text],
+.proto-fields textarea,
+.proto-fields select {
+  width: 100%;
+  margin-top: .3rem;
+  padding: .55rem .7rem;
+  border: 1px solid var(--au-line, #d7dde8);
+  border-radius: .55rem;
+  font: inherit;
+  font-weight: 400;
+  background: var(--au-surface, #fff);
+  color: inherit;
+}
+
+.proto-proposed {
+  border: 1px dashed var(--au-line, #d7dde8);
+  border-radius: .65rem;
+  padding: .85rem;
+  margin: .4rem 0 1rem;
+}
+.proto-proposed-head {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .35rem;
+}
+
+.proto-items { display: grid; gap: .6rem; margin: .5rem 0 .8rem; }
+.proto-item {
+  border: 1px solid var(--au-line, #d7dde8);
+  border-radius: .65rem;
+  padding: .7rem .8rem;
+  background: var(--au-surface, #fff);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .55rem;
+}
+.proto-item input[type=text] {
+  flex: 1 1 14rem;
+  min-width: 0;
+  padding: .45rem .6rem;
+  border: 1px solid var(--au-line, #d7dde8);
+  border-radius: .5rem;
+  font: inherit;
+  background: var(--au-surface, #fff);
+  color: inherit;
+}
+.proto-item label { display: block; flex: 1 1 100%; font-size: .7rem; font-weight: 600; }
+.proto-item label input { width: 100%; margin-top: .25rem; }
+.proto-item-icon { font-size: 1rem; }
+.proto-item-size { font-size: .68rem; color: var(--au-muted, #5b6676); white-space: nowrap; }
+.proto-step-head, .proto-check-head {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  font-weight: 600;
+  font-size: .78rem;
+}
+.proto-step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4rem; height: 1.4rem;
+  border-radius: 50%;
+  background: var(--au-accent-soft, #ecebff);
+  color: var(--au-accent, #4438ca);
+  font-size: .68rem;
+  font-weight: 700;
+  flex: none;
+}
+.proto-verifications { flex: 1 1 100%; display: grid; gap: .45rem; margin-top: .3rem; }
+.proto-verification {
+  display: flex; gap: .5rem; align-items: center;
+  padding: .45rem .55rem;
+  border: 1px solid var(--au-line, #d7dde8);
+  border-radius: .5rem;
+  background: var(--au-bg-soft, #f6f8fb);
+}
+.proto-verification select {
+  padding: .35rem .5rem;
+  border: 1px solid var(--au-line, #d7dde8);
+  border-radius: .45rem;
+  font: inherit; font-size: .72rem;
+  background: var(--au-surface, #fff);
+  color: inherit;
+}
+.proto-verification input[type=text] { flex: 1 1 10rem; min-width: 0; }
+.proto-options { flex: 1 1 100%; display: grid; gap: .4rem; }
+.proto-option { display: flex; gap: .5rem; align-items: center; }
+.proto-option input[type=text] { flex: 1; }
+
+/* The theory editing surface is the shared production editor
+   (rich-text-editor.js + instructor-theory-builder.css); only the read-only
+   preview render below is prototype-scoped. */
+.proto-theory-render h3 { font-size: 1rem; margin: .9rem 0 .35rem; }
+.proto-theory-render p { margin: .45rem 0; }
+.proto-theory-render ul { margin: .45rem 0 .45rem 1.3rem; }
+.proto-theory-render { line-height: 1.55; }
+
+.proto-demo-card {
+  display: flex; gap: 1rem; align-items: center; justify-content: space-between;
+  border: 1px dashed var(--au-line, #d7dde8);
+  border-radius: .65rem;
+  padding: .8rem .9rem;
+  margin: .8rem 0 1rem;
+}
+.proto-subhead { margin-top: 1.4rem; }
+
+.proto-review-list { list-style: none; margin: 0 0 .8rem; padding: 0; display: grid; gap: .4rem; }
+.proto-review-list li { display: flex; gap: .55rem; align-items: baseline; font-size: .78rem; }
+.proto-review-list .proto-ok > span:first-child { color: #17803d; font-weight: 700; }
+.proto-review-list .proto-missing > span:first-child { color: #b42318; font-weight: 700; }
+
+/* Preview split — same shape as the real workspace, prototype-scoped. */
+.proto-split {
+  display: grid;
+  grid-template-columns: var(--proto-left, 35%) .65rem minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+  min-height: 30rem;
+}
+.proto-pane { overflow: auto; max-height: 78vh; padding: 1rem 1.1rem; }
+.proto-pane h2 { font-size: 1.05rem; margin: .2rem 0 .5rem; }
+.proto-pane h3 { font-size: .85rem; margin: 1.1rem 0 .35rem; }
+.proto-preview-summary { color: var(--au-muted, #5b6676); font-size: .8rem; }
+.proto-preview-steps { margin: 0 0 0 1.2rem; padding: 0; display: grid; gap: .6rem; }
+.proto-preview-steps p { margin: .2rem 0; font-size: .8rem; }
+.proto-outcome { color: var(--au-muted, #5b6676); }
+.proto-check-render { margin-bottom: .7rem; font-size: .8rem; }
+.proto-check-render ul { margin: .3rem 0 0 1.2rem; }
+.proto-answer { font-weight: 600; }
+.proto-material-card {
+  display: flex; gap: .6rem; align-items: center;
+  border: 1px solid var(--au-line, #d7dde8);
+  border-radius: .6rem;
+  padding: .6rem .7rem;
+  margin-bottom: .5rem;
+  font-size: .78rem;
+}
+.proto-material-card p { margin: .1rem 0 0; color: var(--au-muted, #5b6676); font-size: .68rem; }
+.proto-divider {
+  cursor: col-resize;
+  background: linear-gradient(var(--au-line, #d7dde8), var(--au-line, #d7dde8)) center/2px 100% no-repeat;
+  border-radius: 2px;
+}
+.proto-divider:focus-visible { outline: 2px solid var(--au-accent, #4438ca); }
+.proto-sim-note { font-size: .68rem; color: var(--au-muted, #5b6676); margin: 0 0 .5rem; }
+.proto-sim-frame {
+  width: 100%;
+  height: calc(78vh - 2.6rem);
+  border: 1px solid var(--au-line, #d7dde8);
+  border-radius: .6rem;
+  background: var(--au-surface, #fff);
+}
+@media (max-width: 62rem) {
+  .proto-split { grid-template-columns: 1fr; gap: .8rem; }
+  .proto-divider { display: none; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .proto-item, .proto-material-card, .proto-sim-frame,
+  .proto-fields input, .proto-fields textarea, .proto-fields select,
+  .proto-verification select { background: #161b22; color: #e6edf3; border-color: #30363d; }
+  .proto-verification { background: #12161d; }
+}

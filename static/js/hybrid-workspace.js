@@ -30,7 +30,6 @@
   var hintButton = root.querySelector("[data-hyb-hint]");
   var acknowledgeButton = root.querySelector("[data-hyb-acknowledge]");
   var current = 0;
-  var currentScreen = frame ? frame.getAttribute("src") : "";
 
   /* --- Attempt mode: the server's snapshot is the only state that matters.
          Without it (preview) the workspace is a faithful, write-free demo. --- */
@@ -83,12 +82,17 @@
     frame.addEventListener("load", refreshCsrfToken);
   }
 
-  function post(path) {
-    return fetch(attemptBase + path, {
+  function post(path, body) {
+    var options = {
       method: "POST",
       credentials: "same-origin",
       headers: { "X-CSRFToken": csrfToken(), "X-Requested-With": "XMLHttpRequest" },
-    }).then(function (response) {
+    };
+    if (body) {
+      options.headers["Content-Type"] = "application/json";
+      options.body = body;
+    }
+    return fetch(attemptBase + path, options).then(function (response) {
       return response.json().then(function (data) {
         return { ok: response.ok, data: data };
       }).catch(function () {
@@ -169,26 +173,12 @@
     restoreWidth();
   }
 
-  /* --- Frame trimming: the framed simulator page is the real page, chrome
-         and all. The workspace owns the navigation, so the duplicated
-         sidebar and header are folded away inside the frame document — the
-         simulator's own templates, CSS and JS are never touched. --- */
-  var FRAME_HIDE = [".sim-skip-link", ".sim-brand-side", "aside.guide"];
-
-  function trimBranch(doc, startId, stopId) {
-    var node = doc.getElementById(startId);
-    while (node && node.parentElement && node.parentElement.id !== stopId) {
-      if (node.parentElement === doc.body) {
-        return;
-      }
-      node = node.parentElement;
-    }
-    if (node && node.parentElement && node.parentElement.id === stopId) {
-      node.style.display = "none";
-    }
-  }
-
-  function trimFrameChrome() {
+  /* --- Frame embedding: the framed page is the real simulator, chrome and
+         all — its own header, service menu and navigation stay exactly as
+         the standalone page renders them, because the student drives the
+         simulator themselves. The only adjustment is the page-height rule so
+         the document scrolls naturally inside the pane. --- */
+  function embedFrameStyle() {
     if (!frame) {
       return;
     }
@@ -203,19 +193,64 @@
     }
     var style = doc.createElement("style");
     style.id = "hyb-embed-style";
-    style.textContent = FRAME_HIDE.map(function (selector) {
-      return selector + " { display: none !important; }";
-    }).join("\n") + "\n#page { min-height: 0; }\n"
-      + "html, body { scrollbar-width: none; }\n"
-      + "::-webkit-scrollbar { width: 0; height: 0; display: none; }";
+    style.textContent = "#page { min-height: 0; }";
     doc.head.appendChild(style);
-    trimBranch(doc, "nav-sidebar", "page");
-    trimBranch(doc, "header-inner", "main");
   }
 
   if (frame) {
-    frame.addEventListener("load", trimFrameChrome);
-    trimFrameChrome();
+    frame.addEventListener("load", embedFrameStyle);
+    embedFrameStyle();
+  }
+
+  /* --- Stage-evidence capture: the workspace watches the iframe's UCR form
+         for regime selection and section completion, and posts signals to
+         the attempt so stage-evidence conditions can verify them. The
+         simulator form is untouched — this is observation, not modification.
+         Only active when an attempt is bound (not in instructor preview). --- */
+  function watchStageEvidence() {
+    if (!frame || !attemptMode) return;
+    var doc;
+    try { doc = frame.contentDocument; } catch (e) { return; }
+    if (!doc || !doc.getElementById("ucr-regime")) return;
+
+    var regimeWatched = doc.getElementById("ucr-regime").__stageWatched;
+    if (!regimeWatched) {
+      doc.getElementById("ucr-regime").__stageWatched = true;
+      doc.getElementById("ucr-regime").addEventListener("change", function () {
+        var value = this.value;
+        if (value) post("/stage-evidence/", JSON.stringify({ stage: "regime_selected", value: value }));
+      });
+    }
+
+    if (doc.__sectionsWatched) return;
+    doc.__sectionsWatched = true;
+    var SECTION_FIELDS = {
+      provider: ["ucr-provider-country", "ucr-provider-address", "ucr-provider-contact", "ucr-provider-phone", "ucr-provider-email"],
+      exporter: ["ucr-exporter-name", "ucr-exporter-country", "ucr-exporter-address", "ucr-exporter-phone", "ucr-exporter-contact", "ucr-exporter-contact-no", "ucr-exporter-designation"],
+      importer: ["ucr-importer-country", "ucr-importer-address", "ucr-importer-phone", "ucr-importer-contact", "ucr-importer-contact-no", "ucr-importer-designation"],
+      consignment: ["ucr-goods", "ucr-origin", "ucr-destination", "ucr-mode"]
+    };
+    function checkSections() {
+      var completed = [];
+      for (var section in SECTION_FIELDS) {
+        var ids = SECTION_FIELDS[section];
+        var allFilled = ids.every(function (id) {
+          var el = doc.getElementById(id);
+          return el && el.value && el.value.trim() !== "";
+        });
+        if (allFilled) completed.push(section);
+      }
+      if (completed.length === Object.keys(SECTION_FIELDS).length && !doc.__sectionsBeaconSent) {
+        doc.__sectionsBeaconSent = true;
+        post("/stage-evidence/", JSON.stringify({ stage: "sections_completed" }));
+      }
+    }
+    doc.addEventListener("input", checkSections, true);
+    doc.addEventListener("change", checkSections, true);
+  }
+  if (frame) {
+    frame.addEventListener("load", function () { setTimeout(watchStageEvidence, 300); });
+    watchStageEvidence();
   }
 
   /* --- Feedback and journey state --- */
@@ -268,11 +303,14 @@
     }
   }
 
-  /* --- Step navigation. Advancing to a step bound to a different screen
-         swaps the iframe's src; consecutive steps sharing a screen leave the
-         frame alone, so anything typed into the simulator survives. In
-         attempt mode the server owns sequencing: a step that declares
-         verification holds the journey until its check passes. --- */
+  /* --- Step navigation. The student drives the simulator: advancing a step
+         never moves the frame — the step card names the screen the work
+         happens on, and the learner navigates the real simulator themselves
+         (or opens it in a new tab). In attempt mode the server owns
+         sequencing: a step that declares verification holds the journey
+         until its check passes — on every attempt, first pass or practice
+         alike; the practice flag only marks the repeat, it never unlocks
+         anything. --- */
   function refreshButtons() {
     if (prevButton) {
       prevButton.disabled = current === 0;
@@ -293,11 +331,6 @@
     });
     updateJourney();
     refreshButtons();
-    var screenUrl = cards[current].getAttribute("data-screen-url");
-    if (screenUrl && frame && screenUrl !== currentScreen) {
-      currentScreen = screenUrl;
-      frame.setAttribute("src", screenUrl);
-    }
     cards[current].scrollIntoView({ block: "nearest" });
     if (attemptMode) {
       post("/open/" + current + "/");
@@ -376,13 +409,31 @@
   }
   if (hintButton) {
     hintButton.addEventListener("click", function () {
-      var hint = root.querySelector('[data-hyb-hint="' + current + '"]');
-      if (hint) {
-        hint.hidden = false;
-        setFeedback(current, "", "");
-      } else {
-        setFeedback(current, "", "No hint for this step.");
+      if (!attemptMode) {
+        setFeedback(current, "", "Hints are available when you start the lesson.");
+        return;
       }
+      // Read the iframe's form state so the server can name specific missing fields
+      var formState = {};
+      try {
+        var doc = frame.contentDocument;
+        if (doc) {
+          var inputs = doc.querySelectorAll("input[id^='ucr-'], select[id^='ucr-'], textarea[id^='ucr-']");
+          for (var i = 0; i < inputs.length; i++) {
+            if (inputs[i].id) formState[inputs[i].id] = inputs[i].value || "";
+          }
+        }
+      } catch (e) { /* iframe not accessible — hint still works from server state */ }
+      var hint = root.querySelector('[data-hyb-hint="' + current + '"]');
+      if (hint) hint.hidden = false;
+      setFeedback(current, "", "Checking…");
+      post("/hint/" + current + "/", JSON.stringify(formState)).then(function (result) {
+        if (result.ok && result.data.hint) {
+          setFeedbackText(current, "pending", result.data.hint);
+        } else {
+          setFeedback(current, "", result.data.error || "No hint available for this step.");
+        }
+      });
     });
   }
   if (acknowledgeButton) {

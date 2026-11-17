@@ -424,10 +424,11 @@
       document.querySelector('#ucr-temp').value = data.temp_no;
       applyAttachments(data);
       if (data.demonstration) {
-        // A demonstration save is save-only: submission does not exist inside a
-        // recording, so the Submit button stays disabled and the message says
-        // what actually happened.
-        reportStatus(`Draft saved as ${data.temp_no}. This save has been recorded on the demonstration timeline.`);
+        // The save landed on the demonstration timeline. Submission inside a
+        // recording is supported since the Import-UCR foundation, so Submit is
+        // enabled exactly as for an ordinary draft; its POST is captured too.
+        submitButton.disabled = false;
+        reportStatus(`Draft saved as ${data.temp_no}. This save has been recorded on the demonstration timeline. Select Submit to record the final UCR number.`);
       } else {
         submitButton.disabled = false;
         reportStatus(`Draft saved as ${data.temp_no}. Select Submit to generate the final UCR number.`);
@@ -447,7 +448,9 @@
       document.querySelector('#ucr-temp').value = data.ucr_no;
       applyAttachments(data);
       saveButton.disabled = true;
-      reportStatus(`Submitted successfully. UCR No.: ${data.ucr_no}`);
+      reportStatus(data.demonstration
+        ? `Submitted successfully. UCR No.: ${data.ucr_no}. This submission has been recorded on the demonstration timeline.`
+        : `Submitted successfully. UCR No.: ${data.ucr_no}`);
       if (data.detail_url) setTimeout(() => { window.location.href = data.detail_url; }, 1500);
     } catch (error) {
       if (error.fieldErrors) reportFieldErrors(error.fieldErrors);

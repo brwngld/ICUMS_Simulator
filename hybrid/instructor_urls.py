@@ -7,9 +7,25 @@ from django.urls import path
 
 from . import demonstration_views, instructor_views, reference_views
 from . import library_views
+from . import prototype_views
 
 urlpatterns = [
     path("", instructor_views.builder_index, name="hybrid-builder"),
+    # Milestone 1 of the UI-first full-programme prototype. Mock data only
+    # (hybrid/prototype_data.py): no reads, no writes, no models.
+    path("prototype/milestone1/", prototype_views.landing, name="hybrid-prototype-milestone1"),
+    path("prototype/milestone1/programme/", prototype_views.programme, name="hybrid-prototype-milestone1-programme"),
+    path("prototype/milestone1/course/", prototype_views.course, name="hybrid-prototype-milestone1-course"),
+    path("prototype/milestone1/module/", prototype_views.module, name="hybrid-prototype-milestone1-module"),
+    # Milestone 2: mock lesson authoring (both provisional lesson kinds) and
+    # the instructor preview. Same rule: browser-side state only.
+    path("prototype/milestone2/lesson/", prototype_views.lesson_editor, name="hybrid-prototype-milestone2-lesson"),
+    path("prototype/milestone2/lesson/preview/", prototype_views.lesson_preview, name="hybrid-prototype-milestone2-preview"),
+    # Milestone 3: the mock Demonstration Studio and the mock student
+    # experience preview. Same rule: browser-side state only, no recording
+    # endpoints, DEMONSTRATION_RECORDING_ENABLED untouched.
+    path("prototype/milestone3/studio/", prototype_views.demonstration_studio, name="hybrid-prototype-milestone3-studio"),
+    path("prototype/milestone3/student/", prototype_views.student_experience, name="hybrid-prototype-milestone3-student"),
     path("programmes/<uuid:programme_id>/", instructor_views.programme_detail, name="hybrid-programme-detail"),
     path("courses/<uuid:course_id>/edit/", instructor_views.course_edit, name="hybrid-course-edit"),
     path("courses/<uuid:course_id>/journeys/", instructor_views.course_journeys, name="hybrid-course-journeys"),
@@ -27,6 +43,9 @@ urlpatterns = [
     path("demonstration/stop/", demonstration_views.demonstration_stop, name="hybrid-demonstration-stop"),
     path("demonstration/discard/", demonstration_views.demonstration_discard, name="hybrid-demonstration-discard"),
     path("demonstration/session/", demonstration_views.demonstration_session, name="hybrid-demonstration-session"),
+    # Stage A: universal interaction capture. The recorder's batch endpoint —
+    # the same gating as every lifecycle route, one ordered batch per flush.
+    path("demonstration/interactions/", demonstration_views.demonstration_interactions, name="hybrid-demonstration-interactions"),
     # Stage 2B: converting a stopped recording into draft lesson steps.
     # Instructor-only, draft-lesson-scoped, refused while the flag is off.
     path("demonstration/proposals/<uuid:lesson_id>/<uuid:session_id>/", demonstration_views.demonstration_proposals, name="hybrid-demonstration-proposals"),

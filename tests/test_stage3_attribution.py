@@ -366,21 +366,24 @@ def test_reopening_the_bound_step_keeps_the_attributed_record_valid(db):
 
     Creation eligibility is journey-attempt-scoped, so reopening the bound
     step leaves the attributed record in place and leaves the learner's other
-    creations claimable. What re-entry does change is the step's own freshness
-    bound: work last done before the re-entry no longer passes Check-My-Work,
-    and the learner has to touch the record again.
+    creations claimable. The saved-record window is the attempt itself: a
+    record created during this attempt is current evidence for the step, so
+    re-entry neither invalidates it nor demands re-working.
     """
     world = _world(db, "attrewindow")
     student = world["student"]
     attempt = world["attempt"]
     step = world["step"]
-    ucr = _create_ucr_for(student, "TEMPREWIN", exporter_name="ACME Trading")
 
     JourneyAttempt.objects.filter(pk=attempt.pk).update(
         started_at=timezone.now() - timedelta(hours=1),
     )
     attempt.refresh_from_db()
     lesson_attempt = LessonAttempt.objects.create(enrolment=world["enrolment"], lesson=step.lesson)
+
+    # The record is created inside the attempt's window: the lesson attempt
+    # exists first, the UCR follows it.
+    ucr = _create_ucr_for(student, "TEMPREWIN", exporter_name="ACME Trading")
 
     attribution.attribute_creation(attempt, world["role"], _ledger_of(ucr).pk, student)
     attempt.refresh_from_db()
@@ -402,19 +405,15 @@ def test_reopening_the_bound_step_keeps_the_attributed_record_valid(db):
     attempt.refresh_from_db()
     assert journey_services.role_satisfied(attempt, world["role"])[0]
 
-    # 3. Re-entry authorizes nothing on the step itself: the record was last
-    # worked before the learner came back, so the check still fails and no
-    # VERIFIED event is written.
+    # 3. The saved-record window is the attempt itself (the accepted
+    # correction): the record was created during this attempt, so re-entry
+    # neither invalidates it nor demands re-working — the step verifies and
+    # the durable event is written.
     result = verification.verify_step(lesson_attempt, step)
-    assert not result["passed"]
-    assert not StepEvent.objects.filter(
+    assert result["passed"]
+    assert StepEvent.objects.filter(
         attempt=lesson_attempt, step=step, kind=StepEvent.Kind.VERIFIED,
     ).exists()
-
-    # Working the record after re-entry is what satisfies the step.
-    ucr.refresh_from_db()
-    ucr.save()
-    assert verification.verify_step(lesson_attempt, step)["passed"]
 
 
 @pytest.mark.django_db

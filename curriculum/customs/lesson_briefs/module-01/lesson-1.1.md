@@ -46,11 +46,15 @@ arrival :: the point in time when a conveyance crosses the borders into the coun
 - `CPC-LAW` — background and purpose of customs laws and regulations, as presented by the GRA International Tax Office.
 
 **Fact-check caution.** The four-function framing used in customs teaching — revenue
-collection, trade facilitation, enforcement, and community protection — is WCO language,
-not Act 891 language. Before stating it as a named list, confirm the wording against
-`curriculum/customs/research/customs-instruments-and-standards.md`. If that sheet is not
-yet written, derive each function from the Act provisions listed above instead of naming
-the framework.
+collection, trade facilitation, enforcement, and community protection — is not Act 891
+language. The WCO's own mission statement is three-part: it "facilitates legitimate
+trade, ensures fair revenue collection and protects society" (wcoomd.org, Vision and
+Mission — verified 2026-11-16 against the WCO site and its Revenue Package pages, which
+call revenue collection "the cornerstone of a Customs administration's
+responsibilities"). Before stating any named list of functions, confirm the exact
+wording against `curriculum/customs/research/customs-instruments-and-standards.md`.
+If that sheet is not yet written, derive each function from the Act provisions listed
+above instead of naming the framework.
 
 ## Placement
 

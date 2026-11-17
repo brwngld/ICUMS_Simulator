@@ -14,9 +14,13 @@ urlpatterns = [
     path("journeys/<uuid:journey_id>/advance/", views.journey_advance, name="hybrid-journey-advance"),
     path("journeys/<uuid:journey_id>/roles/<uuid:role_id>/eligible/", views.journey_role_eligible, name="hybrid-journey-role-eligible"),
     path("journeys/<uuid:journey_id>/roles/<uuid:role_id>/attribute/", views.journey_role_attribute, name="hybrid-journey-role-attribute"),
+    path("lessons/<uuid:lesson_id>/theory/", views.lesson_theory, name="hybrid-lesson-theory"),
     path("lessons/<uuid:lesson_id>/", views.workspace, name="hybrid-workspace"),
+    path("lessons/<uuid:lesson_id>/practise-again/", views.practise_again, name="hybrid-practise-again"),
     path("attempts/<uuid:attempt_id>/open/<int:step_index>/", views.step_open, name="hybrid-step-open"),
     path("attempts/<uuid:attempt_id>/check/<int:step_index>/", views.step_check, name="hybrid-step-check"),
     path("attempts/<uuid:attempt_id>/advance/<int:step_index>/", views.step_advance, name="hybrid-step-advance"),
     path("attempts/<uuid:attempt_id>/acknowledge-theory/", views.acknowledge_theory, name="hybrid-acknowledge-theory"),
+    path("attempts/<uuid:attempt_id>/stage-evidence/", views.stage_evidence, name="hybrid-stage-evidence"),
+    path("attempts/<uuid:attempt_id>/hint/<int:step_index>/", views.step_hint, name="hybrid-step-hint"),
 ]

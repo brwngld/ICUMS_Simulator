@@ -156,6 +156,29 @@ def demonstration_discard(request):
 
 
 @login_required
+@require_POST
+def demonstration_interactions(request):
+    """Stage A: one ordered batch of universal interaction events.
+
+    The body is ``{"events": [...]}`` in the order the recorder observed them.
+    Everything — identity, binding, lifecycle state, inactivity window, batch
+    shape, per-event allowlists — is resolved in ``hybrid.demonstrations``; the
+    view only refuses the disabled flag and hands the batch over. An idle or
+    tampered batch is refused whole and the recorder stays silent.
+    """
+    if not demonstrations.recording_enabled():
+        return _disabled()
+
+    def run():
+        demonstrations.authorized_instructor(request.user)
+        events = _body(request).get("events")
+        written = demonstrations.append_interaction_events(request, events)
+        return JsonResponse({"ok": True, "accepted": len(written)})
+
+    return _answered(run)
+
+
+@login_required
 @require_GET
 def demonstration_session(request):
     """What this browser is holding: the bound session and its ordered timeline."""
@@ -204,6 +227,7 @@ def demonstration_proposals(request, lesson_id, session_id):
             "ok": True,
             "session": demonstrations.session_payload(session),
             "activities": conversion.proposals_for(session),
+            "capture_warnings": conversion.capture_warnings(session),
         })
 
     return _answered(run)

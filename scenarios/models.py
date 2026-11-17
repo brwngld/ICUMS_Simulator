@@ -535,7 +535,9 @@ class OrdinaryUcrDeclarationManager(models.Manager):
     """
 
     def get_queryset(self):
-        return super().get_queryset().filter(demonstration_session__isnull=True)
+        return super().get_queryset().filter(
+            demonstration_session__isnull=True, practice_attempt__isnull=True,
+        )
 
 
 class UcrDeclaration(models.Model):
@@ -543,6 +545,7 @@ class UcrDeclaration(models.Model):
 
     TEMP_PREFIX = "TEMPUCR"
     UCR_PREFIX = "KGHTESTUCR"
+    PRACTICE_PREFIX = "PRCTUCR"
 
     class ReferenceState(models.TextChoices):
         """Stage R4-A instructor reference lifecycle. Empty is every record the
@@ -587,6 +590,15 @@ class UcrDeclaration(models.Model):
         related_name="ucr_declarations",
         editable=False,
         help_text="Server-set scope for a demonstration record. Null means an ordinary learner or instructor record. The field is excluded from every form and from the admin change page, so only the demonstration service can set or clear it.",
+    )
+    practice_attempt = models.ForeignKey(
+        "hybrid.LessonAttempt",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="+",
+        editable=False,
+        help_text="Server-set scope for a practice-run record: scratch created inside a lesson's Practise Again attempt, verified against that attempt and discarded when the run completes. Null means an ordinary learner or instructor record. Like the demonstration scope, only the practice service can set it, and the ordinary manager never returns these rows.",
     )
     derivation = models.CharField(max_length=8, blank=True, choices=(("clone", "Clone"), ("amend", "Amendment")))
     temp_no = models.CharField(max_length=20, unique=True, blank=True, editable=False)
@@ -979,6 +991,13 @@ class MdaProcess(models.Model):
         return f"{self.application} · {self.code}, {self.name}"
 
 
+class OrdinaryConsignmentApplicationManager(models.Manager):
+    """Every consignment application that is a real learner or instructor record — and no demonstration records."""
+
+    def get_queryset(self):
+        return super().get_queryset().filter(demonstration_session__isnull=True)
+
+
 class ConsignmentApplication(models.Model):
     """Consignment Document application built on top of an issued UCR; five tabs, one sequence number."""
 
@@ -990,6 +1009,15 @@ class ConsignmentApplication(models.Model):
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="consignment_applications")
     ucr = models.ForeignKey(UcrDeclaration, on_delete=models.PROTECT, related_name="applications")
+    demonstration_session = models.ForeignKey(
+        "hybrid.DemonstrationSession",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="consignment_applications",
+        editable=False,
+        help_text="Server-set scope for a demonstration record. Null means an ordinary learner or instructor record. Only the demonstration service can set or clear it, and the ordinary manager never returns these rows.",
+    )
     application_no = models.CharField(max_length=24, blank=True, editable=False)
     version = models.PositiveSmallIntegerField(default=1)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
@@ -1082,6 +1110,9 @@ class ConsignmentApplication(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     submitted_at = models.DateTimeField(blank=True, null=True)
 
+    objects = OrdinaryConsignmentApplicationManager()
+    all_objects = models.Manager()
+
     class Meta:
         ordering = ("-updated_at",)
         constraints = [models.UniqueConstraint(fields=("application_no",), condition=Q(application_no__gt=""), name="unique_application_number_when_issued")]
@@ -1131,6 +1162,12 @@ class MdaConsignmentRequest(models.Model):
         ConsignmentApplication, on_delete=models.CASCADE, related_name="mda_requests"
     )
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="mda_consignment_requests")
+    demonstration_session = models.ForeignKey(
+        "hybrid.DemonstrationSession",
+        null=True, blank=True, on_delete=models.CASCADE,
+        related_name="mda_requests", editable=False,
+        help_text="Server-set scope for a demonstration record. Null means an ordinary record.",
+    )
     mda = models.ForeignKey(MdaAgency, on_delete=models.PROTECT, related_name="consignment_requests")
     application = models.ForeignKey(MdaApplication, on_delete=models.PROTECT, related_name="consignment_requests")
     process = models.ForeignKey(MdaProcess, on_delete=models.PROTECT, related_name="consignment_requests")
@@ -1148,6 +1185,9 @@ class MdaConsignmentRequest(models.Model):
     submitted_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = models.Manager()
+    all_objects = models.Manager()
 
     class Meta:
         ordering = ("created_at", "pk")
@@ -1175,7 +1215,7 @@ def allocate_application_number():
 
     stamp = timezone.localtime().strftime("%Y%m%d")
     stem = f"{ConsignmentApplication.APPLICATION_PREFIX}{stamp}"
-    existing = ConsignmentApplication.objects.filter(application_no__startswith=stem).values_list("application_no", flat=True)
+    existing = ConsignmentApplication._base_manager.filter(application_no__startswith=stem).values_list("application_no", flat=True)
     sequences = [int(number[len(stem):]) for number in existing if number[len(stem):].isdigit()]
     return f"{stem}{(max(sequences) + 1) if sequences else 1:06d}"
 
@@ -1241,6 +1281,12 @@ class BoeDeclaration(models.Model):
         ACCEPTED = "accepted", "Accepted"
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="boe_declarations")
+    demonstration_session = models.ForeignKey(
+        "hybrid.DemonstrationSession",
+        null=True, blank=True, on_delete=models.CASCADE,
+        related_name="boe_declarations", editable=False,
+        help_text="Server-set scope for a demonstration record. Null means an ordinary record.",
+    )
 
     @property
     def status_code_display(self):
@@ -1261,6 +1307,9 @@ class BoeDeclaration(models.Model):
     submitted_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = models.Manager()
+    all_objects = models.Manager()
 
     class Meta:
         ordering = ("-created_at",)

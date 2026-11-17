@@ -252,7 +252,8 @@ def test_the_authored_lesson_verifies_a_record_the_learner_really_saved(world, d
     Enrolment.objects.create(student=learner, programme_version=world["version"])
 
     workspace, attempt = _enter(client, learner, world)
-    assert reverse("single-window-create-ucr") in workspace.content.decode()
+    # The step names its screen; the learner drives the frame's navigation.
+    assert "Create a UCR declaration" in workspace.content.decode()
 
     # The learner works in the simulator itself: the same JSON the form posts.
     record = _save_ucr(client)

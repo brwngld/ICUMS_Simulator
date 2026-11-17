@@ -63,10 +63,10 @@ JavaScript via ?confirm=lesson-<pk>). Only draft editions render here.
               {% if row.is_interactive %}<span class="ws-chip ws-chip--draft">Interactive Practical</span>{% else %}<span class="ws-chip ws-chip--retired">Guided Material Study</span>{% endif %}
             </div>
             <div class="ws-course-meta">
-              {% if row.is_interactive %}<span><b>{{ row.step_count }}</b> step{{ row.step_count|pluralize }}</span>{% else %}<span><b>0</b> steps</span>{% endif %}
+              {% if row.is_interactive %}<span><b>{{ row.step_count }}</b> step{{ row.step_count|pluralize }}</span>{% else %}<span><b>{{ row.material_count }}</b> material{{ row.material_count|pluralize }}</span>{% endif %}
               <span>{% if row.has_theory %}theory written{% else %}theory not written yet{% endif %}</span>
-              {% if not row.is_interactive %}<span>Material Studio coming soon</span>{% endif %}
-              {% if row.is_interactive and row.issues %}<span class="ws-course-notready">Not publish-ready · {{ row.issues|length }} item{{ row.issues|length|pluralize }}</span>{% endif %}
+              {% if not row.is_interactive %}<span>Demonstration Studio applies to Interactive Practical lessons</span>{% endif %}
+              {% if row.issues %}<span class="ws-course-notready">Not publish-ready · {{ row.issues|length }} item{{ row.issues|length|pluralize }}</span>{% endif %}
             </div>
             <div class="ws-course-foot">
               <span class="ws-move">
@@ -79,7 +79,7 @@ JavaScript via ?confirm=lesson-<pk>). Only draft editions render here.
                 <a class="authoring-secondary" href="{% url 'hybrid-lesson-demonstration-studio' row.lesson.pk %}">Open Demonstration Studio</a>
                 <a class="authoring-primary" href="{% url 'hybrid-lesson-edit' row.lesson.pk %}">Full editor</a>
               {% else %}
-                <span class="authoring-secondary" title="Guided Material Study awaits the Material Studio">Full editor</span>
+                <a class="authoring-primary" href="{% url 'hybrid-lesson-edit' row.lesson.pk %}">Full editor</a>
               {% endif %}
               <a class="authoring-secondary" href="?confirm=lesson-{{ row.lesson.pk }}" data-confirm="confirm-lesson-{{ row.lesson.pk }}">Remove</a>
             </div>

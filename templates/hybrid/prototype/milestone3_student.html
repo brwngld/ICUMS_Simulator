@@ -1,0 +1,67 @@
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}Student preview · prototype · ICUMS Simulator{% endblock %}{% block workspace_name %}Student preview — prototype{% endblock %}
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/hybrid-workspace.css' %}?v=20261023-1">
+  <link rel="stylesheet" href="{% static 'css/lesson.css' %}">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone1.css' %}?v=20261106-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone3.css' %}?v=20261106-2">
+{% endblock %}
+
+{% comment %}
+MILESTONE 3 PROTOTYPE — the mock student experience. It reuses the shipped
+workspace design (hybrid-workspace.css, hyb-* markup vocabulary: split grid,
+draggable divider, step cards, Previous / Hint / Check my work / Next).
+No attempt exists, so every control is browser-tab only: checking shows a
+labelled mock response and verifies nothing against simulator records.
+{% endcomment %}
+
+{% block content %}<div class="dash hyb" id="proto-student" data-slug="{{ lesson.slug }}" data-kind="{{ lesson.kind }}">
+  {% include "hybrid/prototype/_assets.html" %}
+  {{ lesson|json_script:"proto-lesson-seed" }}
+  <script id="proto-urls" type="application/json">{"editor": "{% url 'hybrid-prototype-milestone2-lesson' %}", "preview": "{% url 'hybrid-prototype-milestone2-preview' %}", "studio": "{% url 'hybrid-prototype-milestone3-studio' %}", "student": "{% url 'hybrid-prototype-milestone3-student' %}"}</script>
+
+  <p class="hyb-preview-banner" role="note">Prototype preview — mock content in the real workspace design. No lesson attempt is opened; acknowledgement, progress and verification are not recorded.</p>
+  <header class="dash-head">
+    <div>
+      <p class="dash-eyebrow">Theory &amp; Practical · mock learner view · <span id="proto3-lesson-kind">{{ lesson.kind }}</span> · lesson code <span id="proto3-lesson-code">{{ lesson.slug }}</span></p>
+      <h1><span id="proto-student-title">{{ lesson.title }}</span> <span class="proto-flag">mock</span></h1>
+    </div>
+    <div class="hyb-head-actions">
+      <div class="hyb-switch" role="group" aria-label="Panel">
+        <button class="dash-secondary" type="button" data-proto-pane="theory" aria-pressed="true">Theory &amp; Guide</button>
+        <button class="dash-secondary" type="button" data-proto-pane="sim" aria-pressed="false">Simulator</button>
+      </div>
+      <span class="proto3-return-links">
+        <a class="dash-secondary" href="{% url 'hybrid-prototype-milestone3-studio' %}?lesson={{ lesson.slug }}&amp;kind={{ lesson.kind }}">← Studio</a>
+        <a class="dash-secondary" href="{% url 'hybrid-prototype-milestone2-lesson' %}?lesson={{ lesson.slug }}&amp;kind={{ lesson.kind }}">Lesson editor</a>
+      </span>
+    </div>
+  </header>
+
+  <div class="hyb-grid" id="proto3-split">
+    <section class="hyb-pane hyb-theory" data-proto-pane-host="theory" aria-label="Theory &amp; Guide">
+      <div class="hyb-scroll" id="proto3-left"></div>
+      <div class="hyb-actions" id="proto3-actions" hidden>
+        <button class="dash-secondary" type="button" id="proto3-prev">← Previous</button>
+        <button class="dash-secondary" type="button" id="proto3-hint">Hint</button>
+        <button class="dash-secondary" type="button" id="proto3-check">Check my work</button>
+        <button class="dash-primary" type="button" id="proto3-next">Next step →</button>
+      </div>
+    </section>
+
+    <div class="hyb-divider" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Drag to resize theory and simulator" id="proto3-divider"></div>
+
+    <section class="hyb-pane hyb-sim" data-proto-pane-host="sim" aria-label="Simulator">
+      <div class="hyb-sim-bar">
+        <a class="dash-secondary" href="{% url 'simulator-portal' %}" target="_blank" rel="noopener">Open in new tab</a>
+        <span class="helper proto3-pane-note">Real simulator portal — browsing only; this preview does not open an attempt or check any record.</span>
+      </div>
+      <div class="hyb-frame-wrap">
+        <iframe class="hyb-frame" title="Simulator" src="{% url 'simulator-portal' %}" loading="lazy"></iframe>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="{% static 'js/prototype-milestone2.js' %}?v=20261106-3" defer></script>
+<script src="{% static 'js/prototype-milestone3.js' %}?v=20261106-3" defer></script>
+{% endblock %}

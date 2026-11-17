@@ -1,0 +1,61 @@
+/* Milestone 3 prototype additions. The studio page reuses the shipped
+   demonstration-studio.css wholesale; these rules cover only the mock
+   extras (event chips, proposal editing rows, expand mode) and stay scoped
+   to the .demo-studio shell or proto3-* ids so they cannot leak. */
+
+/* Expand mode: the timeline aside collapses and the simulator owns the row. */
+.demo-studio .grid.proto3-wide { grid-template-columns: minmax(0, 1fr); }
+.demo-studio .grid.proto3-wide .panelHead #proto3-expand { min-width: 0; }
+.demo-studio #proto3-aside { transition: opacity .15s ease; }
+
+/* Mock event rows on the capture timeline (uses the shipped .event grid). */
+.demo-studio .proto3-event .eventTitle { display: block; }
+.demo-studio .proto3-event .proto3-code {
+  font-size: 11px; color: var(--ds-muted); font-family: ui-monospace, monospace;
+}
+
+/* Generated-guidance review rows. */
+.demo-studio .proto3-proposal {
+  display: grid; gap: 8px; border: 1px solid var(--ds-border);
+  border-radius: 12px; padding: 14px; margin-bottom: 12px; background: var(--ds-surface);
+}
+.demo-studio .proto3-proposal-top { display: flex; align-items: center; gap: 9px; }
+.demo-studio .proto3-proposal-top .proto3-screen { flex: 1; font-weight: 700; }
+.demo-studio .proto3-proposal input[type="checkbox"] { width: auto; min-width: 0; }
+.demo-studio .proto3-proposal.rejected { opacity: .5; }
+.demo-studio .proto3-proposal textarea { min-height: 54px; }
+.demo-studio .proto3-proposal .proto3-label {
+  font-size: 11px; font-weight: 700; color: var(--ds-muted); margin: 4px 0 0;
+}
+.demo-studio .proto3-condition {
+  display: grid; grid-template-columns: auto minmax(0, 13rem) minmax(0, 1fr) auto;
+  gap: 8px; align-items: center; border-left: 3px solid var(--ds-border);
+  padding: 8px 10px; background: #f4f7fc; border-radius: 0 8px 8px 0;
+}
+html[data-theme="dark"] .demo-studio .proto3-condition { background: var(--ds-soft); }
+.demo-studio .proto3-tools { display: flex; gap: 5px; }
+.demo-studio .proto3-tools button { padding: 5px 9px; font-size: 12px; }
+
+/* Student experience preview extras on top of the shipped workspace design. */
+/* The pane switch behaves exactly like the real workspace: one pane at a time
+   only below the desktop breakpoint, where hybrid-workspace.css already
+   collapses the grid. */
+@media (max-width: 62rem) {
+  #proto3-split[data-proto-pane-mode="sim"] [data-proto-pane-host="theory"],
+  #proto3-split[data-proto-pane-mode="theory"] [data-proto-pane-host="sim"] {
+    display: none;
+  }
+}
+.proto3-pane-note { margin-left: 8px; }
+.proto3-return-links { display: flex; gap: 8px; flex-wrap: wrap; }
+/* At narrow widths the shared toast would sit on top of the bottom action
+   bar; lift it clear of the buttons it narrates. */
+#proto-student .proto-toast,
+#proto-studio .proto-toast { bottom: 82px; }
+.dash.hyb .hyb-head-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.dash.hyb .hyb-head-actions a.dash-secondary { text-decoration: none; }
+.proto3-check-note {
+  border-left: 3px solid #d97706; background: rgba(245, 158, 11, .09);
+  color: #92400e; border-radius: 0 8px 8px 0;
+}
+html.dark .proto3-check-note { color: #fbbf24; }

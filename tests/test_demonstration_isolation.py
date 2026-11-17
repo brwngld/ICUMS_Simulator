@@ -87,15 +87,20 @@ def test_simulator_search_lists_the_ordinary_record_and_never_the_demonstration(
 
 
 @pytest.mark.django_db
-def test_direct_detail_access_refuses_a_demonstration_record(db):
+def test_direct_detail_access_shows_only_the_owners_own_demonstration_record(db):
     world = recording("iso-detail")
     demonstration = demo_ucr(world["session"])
     owner_client = Client()
     owner_client.force_login(world["instructor"])
 
-    # Not even its own owner can open it: the detail view resolves through the
-    # ordinary manager, so as far as the simulator is concerned the row is not there.
-    assert owner_client.get(reverse("ucr-detail", args=[demonstration.pk])).status_code == 404
+    # The Import-UCR foundation: after a demonstration submit the simulator
+    # redirects to the detail screen, so the owner's own demonstration record
+    # resolves there read-only — the same instructor-owned scope the Create
+    # screen and the reference picker already use. The listing surfaces
+    # (search) still never show it, and nothing about the view is writable.
+    owned = owner_client.get(reverse("ucr-detail", args=[demonstration.pk]))
+    assert owned.status_code == 200
+    assert owned.context["record"].pk == demonstration.pk
 
     stranger = Client()
     stranger.force_login(instructor("iso-detail-other"))

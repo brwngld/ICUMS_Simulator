@@ -632,7 +632,28 @@ def render_student_page(request, template, context=None, status=200):
         # access, so the shell needs to know whether to offer them.
         context.setdefault("simulator_access", _has_simulator_access(request))
         context["simulator_page"] = _simulator_page_head(template, context)
+        # Stage A: the universal recorder is served only when this browser's
+        # own server-side binding resolves to a recording session in the
+        # capturing state. The shell never trusts a client claim to record.
+        context["demonstration_recording"] = _demonstration_recording(request)
     return render(request, template, context, status=status)
+
+
+def _demonstration_recording(request):
+    """Whether this simulator page is being demonstration-recorded.
+
+    Server-resolved on every render: the flag on, this browser's binding
+    resolving to the instructor's own live recording, and that recording in the
+    ``recording`` state. A paused session renders without the recorder, and the
+    page's own route name reaches the template as capture context — the
+    server's resolution, never a client assertion.
+    """
+    from hybrid import demonstrations
+
+    if not request.user.is_authenticated or not demonstrations.recording_enabled():
+        return False
+    session = demonstrations.resolve_bound_session(request)
+    return bool(session and session.state == demonstrations.DemonstrationSession.State.RECORDING)
 
 
 def _simulator_navigation(request):

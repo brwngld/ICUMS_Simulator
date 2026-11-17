@@ -66,6 +66,10 @@ def _capture(sender, instance, created, **kwargs):
         # hybrid enumeration, picker and verification path reads the ledger row
         # this call would have written.
         return
+    if getattr(instance, "practice_attempt_id", None) is not None:
+        # A practice run's scratch record is not learner evidence either: it is
+        # verified against its attempt and discarded when the run completes.
+        return
     SimulatorRecordCreation.objects.create(
         record_kind=kind,
         record_id=instance.pk,

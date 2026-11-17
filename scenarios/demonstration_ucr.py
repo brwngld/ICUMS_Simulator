@@ -22,11 +22,12 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, InterfaceError, OperationalError, connection, transaction
 from django.db.models import Q
 from django.http import JsonResponse
+from django.utils import timezone
 
 from hybrid.models import DemonstrationEvent
 from hybrid.verification import driver_sqlstate, is_database_contention
 
-from .models import UcrDeclaration, allocate_ucr_number
+from .models import BoeDeclaration, ConsignmentApplication, MdaConsignmentRequest, UcrDeclaration, allocate_ucr_number
 
 #: The temporary-reference namespace for demonstration drafts. Distinct from
 #: ``TEMPUCR`` because the allocator's scan and the table-wide unique column
@@ -78,11 +79,21 @@ def get_demonstration_ucr(session, record_id):
 
 def demonstration_record_in_session(session, *, record_kind, record_id):
     """Whether ``record_kind``/``record_id`` names a record in this instructor's demonstration scope."""
-    if record_kind != "ucr":
-        # Only UCR is in scope for demonstration recording; BOE, MDA and
-        # consignment are denied, so no event may claim them.
-        return False
-    return get_demonstration_ucr(session, record_id) is not None
+    if record_kind == "ucr":
+        return get_demonstration_ucr(session, record_id) is not None
+    if record_kind == "consignment":
+        return ConsignmentApplication._base_manager.filter(
+            demonstration_session=session, pk=record_id,
+        ).exists()
+    if record_kind == "mda":
+        return MdaConsignmentRequest._base_manager.filter(
+            demonstration_session=session, pk=record_id,
+        ).exists()
+    if record_kind == "boe":
+        return BoeDeclaration._base_manager.filter(
+            demonstration_session=session, pk=record_id,
+        ).exists()
+    return False
 
 
 def delete_demonstration_ucrs(session):
@@ -231,11 +242,57 @@ REFERENCE_ALLOCATION_BASE_DELAY = 0.02
 #: save the instructor pressed.
 UCR_SAVE_ACTION_CODE = "ucr.saved"
 
+#: The Import-UCR foundation's second write: a demonstration submit records the
+#: draft → submitted transition the moment it commits, so the captured evidence
+#: carries the same shape the learner's own submission will have to satisfy.
+UCR_SUBMIT_ACTION_CODE = "ucr.submitted"
+
 #: The provider columns the ordinary parser only fills when the provider section
 #: is shown. A demonstration save normalizes a hidden section to blanks rather
 #: than inheriting the ordinary route's known ``KeyError`` defect
 #: (demonstration-recording-operations.md, open risks).
 _PROVIDER_KEYS = ("declarant_code", "code", "name", "country", "address", "contact", "phone", "email", "email_2")
+
+#: Sections of the parsed payload whose *validated* completion a record event
+#: may name. A section counts as filled when the server-side parser accepted
+#: content in it — codes only, never the values themselves.
+SECTION_FIELDS = {
+    "provider": ("country", "address", "contact", "phone", "email"),
+    "exporter": ("identity", "name", "country", "address", "phone", "contact", "contact_no", "designation"),
+    "importer": ("identity", "name", "country", "address", "phone", "contact", "contact_no", "designation"),
+}
+
+#: The consignment section is flat in the parsed payload — ``goods``,
+#: ``origin``, ``destination`` and ``mode`` are top-level keys, not a
+#: ``consignment`` sub-dict like the parties are.
+CONSIGNMENT_KEYS = ("goods", "origin", "destination", "mode")
+
+
+def _filled_sections(parsed):
+    """The payload sections the parser just validated as carrying content.
+
+    Derived server-side from the same parsed payload the save/submit applies,
+    so the evidence can never name a section the record does not have. The
+    documents section counts only when a document row exists; the provider
+    section only when it is shown (a hidden section is normalized to blanks).
+    Returned deduplicated and ordered: the provider section can carry content
+    through both its own branch and the shared section loop, and the event
+    payload must name each section once.
+    """
+    sections = set()
+    if parsed.get("show_provider") and any(
+        str(parsed.get("provider", {}).get(key, "") or "").strip() for key in _PROVIDER_KEYS
+    ):
+        sections.add("provider")
+    for section, keys in SECTION_FIELDS.items():
+        values = parsed.get(section, {})
+        if values and any(str(values.get(key, "") or "").strip() for key in keys):
+            sections.add(section)
+    if any(str(parsed.get(key, "") or "").strip() for key in CONSIGNMENT_KEYS):
+        sections.add("consignment")
+    if parsed.get("documents"):
+        sections.add("documents")
+    return sorted(sections)
 
 
 def demonstration_save_applies(request):
@@ -400,14 +457,22 @@ def _scoped_save(request, session):
             if target is None:
                 record = _insert_scoped_record(session, parsed)
                 event_type = DemonstrationEvent.EventType.RECORD_CREATED
-                payload = {"regime_code": parsed["regime"], "result_status": "saved"}
+                payload = {
+                    "regime_code": parsed["regime"],
+                    "result_status": "saved",
+                    "filled_sections": _filled_sections(parsed),
+                }
             else:
                 record = target
                 before = {name: getattr(record, name) for name in demonstrations.DEMONSTRATION_UCR_FIELDS}
                 _apply_payload(record, parsed)
                 record.save()
                 event_type = DemonstrationEvent.EventType.RECORD_UPDATED
-                payload = {"regime_code": parsed["regime"], "result_status": "updated"}
+                payload = {
+                    "regime_code": parsed["regime"],
+                    "result_status": "updated",
+                    "filled_sections": _filled_sections(parsed),
+                }
                 changed = sorted(name for name, value in before.items() if value != getattr(record, name))
                 if changed:
                     payload["changed_fields"] = changed
@@ -548,16 +613,176 @@ def _is_reference_conflict(error):
 def _saved_response(record, event):
     """The shape the simulator page already reads, plus what was recorded.
 
-    ``demonstration`` is what the page's script reads to keep its message and
-    its Submit affordance honest inside a recording: a demonstration save is
-    save-only — there is no submission to instruct about and no button to
-    enable.
+    ``demonstration`` is what the page's script reads to keep its message
+    honest inside a recording: the save landed on the demonstration timeline,
+    not in the learner's records. Since the Import-UCR foundation a
+    demonstration may also submit, so the page enables Submit after a save.
     """
     return JsonResponse(
         {
             "id": record.pk,
             "temp_no": record.temp_no,
             "status": record.status,
+            "attachments": [],
+            "demonstration": True,
+            "recorded": {
+                "event_id": str(event.pk),
+                "sequence": event.sequence,
+                "action_code": event.action_code,
+            },
+        }
+    )
+
+
+# --- The Import-UCR foundation write: a scoped UCR submit ---------------------
+
+
+def demonstration_submit_applies(request):
+    """Whether this ``ucr-submit`` POST belongs to a demonstration.
+
+    The same discriminator as the save: the entry flag plus the server-side
+    binding in the Django session. A browser that believes it is demonstrating
+    but whose binding no longer resolves is refused by the scoped service, not
+    silently written as an ordinary submission.
+    """
+    from hybrid import demonstrations
+
+    if not demonstrations.recording_enabled():
+        return False
+    return bool(request.session.get(demonstrations.ACTIVE_SESSION_KEY))
+
+
+def submit_demonstration_ucr(request):
+    """The scoped submit, answered as JSON; controlled refusals never raise.
+
+    Mirrors the scoped save exactly — every rule re-derived server-side
+    (manifest, binding, ownership, ``recording`` state, the idle deadline) —
+    and reuses the ordinary route's parser, field application and final-number
+    allocator so the demonstration's submission is the real procedure, not a
+    parallel one. The record stays scoped to the session: a submitted
+    demonstration UCR is still invisible to learners and excluded from the
+    creation ledger.
+    """
+    from hybrid import demonstrations
+
+    try:
+        return _submit_demonstration_ucr(request)
+    except demonstrations.DemonstrationError as error:
+        return JsonResponse(error.as_json(), status=error.status)
+    except (OperationalError, InterfaceError) as error:
+        if not is_database_contention(error):
+            raise
+        logger.warning("Demonstration UCR submit met database contention: %s", error)
+        busy = demonstrations.DemonstrationError(
+            "The demonstration is busy. Try again in a moment.", "session_busy", 503
+        )
+        return JsonResponse(busy.as_json(), status=busy.status)
+
+
+def _submit_demonstration_ucr(request):
+    from hybrid import demonstrations
+
+    demonstrations.assert_route_authorized("ucr-submit", "POST")
+
+    def attempt():
+        session = demonstrations.require_bound_session(request, require_recording=True)
+        return _scoped_submit(request, session)
+
+    return demonstrations.retry_on_contention(attempt)
+
+
+def _scoped_submit(request, session):
+    from hybrid import demonstrations
+
+    parsed, errors = _parsed_payload(request)
+    if errors:
+        return JsonResponse({"errors": errors}, status=400)
+    if request.FILES:
+        # Attachments stay out of scope, exactly as for the scoped save.
+        raise demonstrations.DemonstrationError(
+            "Attachments cannot be recorded in a demonstration.", "attachment_denied", 400
+        )
+
+    key = demonstrations.client_idempotency_key(_request_idempotency_key(request))
+
+    record, event = _record_for_key(session, key)
+    if record is not None:
+        return _submit_response(record, event)
+
+    draft_id = parsed.get("draft_id")
+    target = None
+    if draft_id is not None:
+        target = get_demonstration_ucr(session, draft_id)
+    if target is None:
+        # A submit addresses the draft the browser just saved; the create page
+        # always carries ``?draft=<id>`` by then. Without one — or naming a
+        # row outside this demonstration scope — there is nothing to submit,
+        # and the demonstration never falls through to an ordinary write.
+        raise demonstrations.DemonstrationError(
+            "Save the UCR as a draft before submitting it.", "no_draft_to_submit", 400
+        )
+    if target.status != UcrDeclaration.Status.DRAFT:
+        raise demonstrations.DemonstrationError("This UCR has already been submitted.", "already_submitted", 400)
+    if target.reference_state in UcrDeclaration.IMMUTABLE_REFERENCE_STATES:
+        raise demonstrations.DemonstrationError(
+            "This UCR is an approved or retired instructor reference and cannot be modified.",
+            "reference_immutable",
+            400,
+        )
+
+    try:
+        with transaction.atomic():
+            before = {name: getattr(target, name) for name in demonstrations.DEMONSTRATION_UCR_FIELDS}
+            _apply_payload(target, parsed)
+            target.ucr_no = allocate_ucr_number(UcrDeclaration.UCR_PREFIX)
+            target.status = UcrDeclaration.Status.SUBMITTED
+            target.submitted_at = timezone.now()
+            target.save()
+            changed = sorted(name for name, value in before.items() if value != getattr(target, name))
+            payload = {
+                "regime_code": parsed["regime"],
+                "result_status": "submitted",
+                "filled_sections": _filled_sections(parsed),
+            }
+            if changed:
+                payload["changed_fields"] = changed
+            event = demonstrations.append_record_event(
+                request,
+                event_type=DemonstrationEvent.EventType.RECORD_UPDATED,
+                record_kind="ucr",
+                record_id=target.pk,
+                action_code=UCR_SUBMIT_ACTION_CODE,
+                payload=payload,
+                idempotency_key=key,
+            )
+            if event.record_id != target.pk:
+                transaction.set_rollback(True)
+                raise _KeyClaimed(event)
+    except _KeyClaimed as claimed:
+        record = get_demonstration_ucr(session, claimed.event.record_id)
+        if record is None:
+            raise demonstrations.DemonstrationError(
+                "That record does not belong to this demonstration.", "record_out_of_scope", 403
+            ) from None
+        event = claimed.event
+    return _submit_response(target, event)
+
+
+def _submit_response(record, event):
+    """The ordinary submit's response shape, plus the demonstration markers.
+
+    ``detail_url`` points at the read-only detail screen; the simulator page
+    redirects there and the navigation is captured like any other screen.
+    """
+    from django.urls import reverse
+
+    return JsonResponse(
+        {
+            "id": record.pk,
+            "temp_no": record.temp_no,
+            "ucr_no": record.ucr_no,
+            "status": record.status,
+            "detail_url": reverse("ucr-detail", args=(record.pk,)),
             "attachments": [],
             "demonstration": True,
             "recorded": {

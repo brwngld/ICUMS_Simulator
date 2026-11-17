@@ -49,6 +49,11 @@
 .demo-studio .tab { border: 0; background: transparent; border-radius: 0; padding: 13px 17px; white-space: nowrap; }
 .demo-studio .tab.active { color: var(--ds-purple); border-bottom: 3px solid var(--ds-purple); font-weight: 750; }
 .demo-studio .grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; }
+/* Expand mode: the simulator takes the whole row and the timeline steps
+   aside, as the approved prototype's toggle behaves. Layout only — the
+   palette and type are untouched. */
+.demo-studio .grid.studio-wide { grid-template-columns: minmax(0, 1fr); }
+.demo-studio .grid.studio-wide aside.panel { display: none; }
 .demo-studio .panel { background: var(--ds-surface); border: 1px solid var(--ds-border); border-radius: 14px; box-shadow: var(--ds-shadow); min-width: 0; }
 .demo-studio .panelHead { padding: 16px 18px; border-bottom: 1px solid var(--ds-border); display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .demo-studio .panelBody { padding: 18px; }

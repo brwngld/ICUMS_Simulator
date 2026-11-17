@@ -21,6 +21,7 @@ from audit.models import AuditEvent
 from reports.models import CompletionRecord
 from learning.services import programme_rows
 from learning.views import roadmap_context
+from onboarding.models import Programme
 from onboarding.services import enrolment_for_request, needs_disclaimer_acceptance, programme_href, requested_enrolment
 from progress.models import ProgrammeProgress
 from accounts.models import SimulatorCredential
@@ -33,6 +34,12 @@ def dashboard(request):
     if needs_disclaimer_acceptance(request.user):
         return redirect("disclaimer")
     enrolment = requested_enrolment(request)
+    if enrolment is None:
+        # A Theory & Practical student may hold no theory-track enrolment at
+        # all — without this fallback their dashboard renders no primary
+        # action and nothing on it routes into the approved practical
+        # experience. Theory enrolments keep their existing precedence.
+        enrolment = requested_enrolment(request, track=Programme.Track.HYBRID)
     learning = None
     if enrolment:
         learning = roadmap_context(enrolment.programme_version, enrolment)
@@ -60,12 +67,16 @@ def dashboard(request):
     primary_action = None
     if enrolment:
         if programme_progress and programme_progress.orientation_completed_at:
+            # The hybrid roadmap is the authoritative practical experience: the
+            # Theory & Practical lessons live there, each opening in the two-pane
+            # workspace. The legacy scenario list stays reachable from the
+            # sidebar's "Practical" entry.
             primary_action = {
                 "eyebrow": "Practical training",
                 "title": "Continue your guided simulator training",
                 "description": "Your theory training and simulator orientation are complete. Continue with the available practical activities.",
                 "label": "Continue practical training",
-                "url": programme_href(reverse("scenario-list"), enrolment),
+                "url": programme_href(reverse("hybrid-roadmap"), enrolment),
             }
         elif programme_progress and programme_progress.orientation_unlocked_at:
             primary_action = {
@@ -194,11 +205,11 @@ def permission_denied(request, exception=None):
     return django_views.permission_denied(request, exception)
 
 
-# Course and module covers are public artwork and lesson rich-text images are
-# part of the published reading, but everything else under MEDIA_ROOT is a
-# learner's own material (simulator attachments), served only to its owner or
-# to staff.
-PUBLIC_MEDIA_PREFIXES = ("course_covers/", "module_covers/", "lesson_rich_text/")
+# Course and module covers are public artwork; lesson rich-text images and
+# guided-lesson supporting materials are part of the published reading; but
+# everything else under MEDIA_ROOT is a learner's own material (simulator
+# attachments), served only to its owner or to staff.
+PUBLIC_MEDIA_PREFIXES = ("course_covers/", "module_covers/", "lesson_rich_text/", "lesson_materials/")
 OWNED_MEDIA_PREFIXES = ("ucr_attachments/",)
 
 

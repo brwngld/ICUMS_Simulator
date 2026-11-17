@@ -1,0 +1,165 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Programme workspace · prototype · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Programme workspace — prototype{% endblock %}
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1">
+  <link rel="stylesheet" href="{% static 'css/hybrid-programme-workspace.css' %}?v=20261101-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone1.css' %}?v=20261106-1">
+{% endblock %}
+
+{% comment %}
+MILESTONE 1 PROTOTYPE (mock data only — hybrid/prototype_data.py). Mirrors the
+real Programme Workspace (programme_detail.html): edition selection,
+publication readiness and the course grid. Edition/course actions run
+client-side through prototype/_assets.html and touch nothing.
+{% endcomment %}
+
+{% block content %}<div class="authoring hyb-workspace">
+  {% include "hybrid/prototype/_assets.html" %}
+
+  <a class="authoring-back-link" href="{% url 'hybrid-prototype-milestone1' %}">
+    <svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+    Curriculum Builder
+  </a>
+  <nav class="ws-crumbs" aria-label="Breadcrumb">
+    <a href="{% url 'hybrid-prototype-milestone1' %}">Curriculum Builder</a>
+    <span class="ws-crumb-sep" aria-hidden="true">→</span>
+    <span class="ws-crumb-here">{{ programme.name }}</span>
+  </nav>
+
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">Theory &amp; Practical · Programme</p>
+      <h1>{{ programme.name }} <span class="proto-flag">mock</span></h1>
+      <p>Programme code · <strong>{{ programme.code }}</strong> — managing {{ selected.status }} edition v{{ selected.version_number }}. Published editions stay read-only; retired editions are kept for the record.</p>
+    </div>
+    <div class="authoring-actions">
+      <span class="ws-chip ws-chip--viewing">Managing v{{ selected.version_number }} · {{ selected.status|title }}</span>
+      {% for edition in editions %}<span class="ws-chip ws-chip--{{ edition.status }}">v{{ edition.version_number }} · {{ edition.status|title }}</span>{% endfor %}
+    </div>
+  </header>
+
+  <section class="ws-stat-grid" aria-label="Programme overview (mock)">
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="book" %}</span><span class="ws-stat-figures"><b id="proto-stat-courses">{{ selected.courses }}</b><span class="ws-stat-label">Courses <span class="ws-stat-note">· edition v{{ selected.version_number }}</span></span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="box" %}</span><span class="ws-stat-figures"><b>{{ selected.modules }}</b><span class="ws-stat-label">Modules <span class="ws-stat-note">· edition v{{ selected.version_number }}</span></span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="layers" %}</span><span class="ws-stat-figures"><b>{{ selected.lessons }}</b><span class="ws-stat-label">Lessons <span class="ws-stat-note">· edition v{{ selected.version_number }}</span></span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="layers" %}</span><span class="ws-stat-figures"><b>{{ editions|length }}</b><span class="ws-stat-label">Editions kept</span></span></div>
+  </section>
+
+  <section class="authoring-card ws-panel" aria-label="Editions and publishing (mock)">
+    <div class="authoring-editor-header">
+      <div>
+        <h2>Editions &amp; publishing</h2>
+        <p>Publishing is all-or-nothing per edition. Select an edition to view its courses below.</p>
+      </div>
+      <span class="ws-chip ws-chip--viewing">{{ editions|length }} edition{{ editions|length|pluralize }}</span>
+    </div>
+    <div class="ws-editions">
+      {% for edition in editions %}
+        <div class="ws-edition ws-edition--{{ edition.status }}{% if edition == selected %} ws-edition--viewing{% endif %}">
+          <span class="ws-edition-ver">v{{ edition.version_number }}</span>
+          <div class="ws-edition-what">
+            <b>{{ edition.status|title }} edition{% if edition.status == "draft" %} — current{% endif %}</b>
+            <p>{{ edition.courses }} course{{ edition.courses|pluralize }} · {{ edition.modules }} module{{ edition.modules|pluralize }} · {{ edition.lessons }} lesson{{ edition.lessons|pluralize }}{% if edition.status == "published" %} · published {{ edition.published_at_display }}{% endif %}</p>
+          </div>
+          <div class="ws-edition-tools">
+            {% if edition.status == "draft" %}
+              <button class="authoring-primary" type="button" data-prototype-toast="Publish edition v{{ edition.version_number }} would run the real publish checks in Milestone 6">Publish edition</button>
+            {% else %}
+              <span class="ws-readonly-note"><svg class="ui-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Read-only</span>
+            {% endif %}
+            <a class="authoring-secondary" href="{% if edition.status == 'draft' %}{% url 'hybrid-prototype-milestone1-programme' %}{% else %}#{% endif %}" data-prototype-toast="{% if edition.status != 'draft' %}Browsing older editions stays a Milestone 6 detail{% else %}You are already viewing the draft{% endif %}">{% if edition == selected %}Viewing courses{% else %}View courses{% endif %}</a>
+          </div>
+        </div>
+        {% if edition == selected and selected.status == "draft" %}
+          <div class="ws-readiness {% if selected.blockers %}ws-readiness--blocked{% else %}ws-readiness--ready{% endif %}">
+            <div class="ws-readiness-head"><span class="ws-readiness-marker" aria-hidden="true">{% if selected.blockers %}!{% else %}✓{% endif %}</span>
+              {% if selected.blockers %}Not ready to publish — resolve {{ selected.blockers|length }} item{{ selected.blockers|length|pluralize }} below{% else %}Ready to publish — every course in this edition is ready{% endif %}
+            </div>
+            {% if selected.blockers %}
+              <details class="ws-readiness-details">
+                <summary>Show details</summary>
+                <ul>{% for blocker in selected.blockers %}<li>{{ blocker }}</li>{% endfor %}</ul>
+              </details>
+            {% endif %}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="authoring-card ws-panel" aria-label="Courses (mock)">
+    <div class="authoring-editor-header">
+      <div>
+        <h2>Courses</h2>
+        <p>Courses in draft edition v{{ selected.version_number }} — editable until the edition publishes.</p>
+      </div>
+      <div class="authoring-actions">
+        <a class="authoring-primary" href="#" data-open-dialog="course-dialog"><svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>Add course</a>
+      </div>
+    </div>
+
+    <div class="ws-course-grid" id="proto-course-grid">
+      {% for row in selected.mock_courses %}
+        <article class="authoring-card ws-course-card">
+          <div class="ws-course-top">
+            <div>
+              <h3>{{ row.title }}</h3>
+              <p class="ws-course-code">Course code · <code>{{ row.code }}</code></p>
+            </div>
+            <span class="ws-chip ws-chip--draft">Draft</span>
+          </div>
+          <div class="ws-course-meta">
+            <span><b>{{ row.modules }}</b> module{{ row.modules|pluralize }}</span>
+            <span><b>{{ row.lessons }}</b> lesson{{ row.lessons|pluralize }}</span>
+            {% if row.not_ready %}<span class="ws-course-notready">Not publish-ready</span>{% endif %}
+          </div>
+          <div class="ws-course-foot">
+            <a class="authoring-primary" href="{% url 'hybrid-prototype-milestone1-course' %}">Manage course<svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></a>
+          </div>
+        </article>
+      {% endfor %}
+      <article class="authoring-card ws-course-card proto-row" id="course-row-template" hidden>
+        <div class="ws-course-top">
+          <div>
+            <h3><span class="proto-mock-name">Untitled</span> <span class="proto-flag">browser-only</span></h3>
+            <p class="ws-course-code">Course code · <code>MOCK-COURSE</code></p>
+          </div>
+          <span class="ws-chip ws-chip--draft">Draft</span>
+        </div>
+        <div class="ws-course-meta">
+          <span><b>0</b> module</span>
+          <span class="ws-course-notready">No modules yet</span>
+        </div>
+        <div class="ws-course-foot">
+          <a class="authoring-primary" href="{% url 'hybrid-prototype-milestone1-course' %}">Manage course</a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <dialog id="course-dialog" class="authoring-course-modal ws-course-dialog" aria-labelledby="course-dialog-title">
+    <form method="dialog" class="authoring-form" data-prototype-form="Added course" data-mock-target="proto-course-grid" data-mock-template="course-row-template">
+      <div class="authoring-modal-head">
+        <div>
+          <h2 id="course-dialog-title">Add course</h2>
+          <p>The course is created inside draft edition v{{ selected.version_number }}.</p>
+        </div>
+        <button class="authoring-modal-close" type="button" data-close-dialog aria-label="Close dialog">×</button>
+      </div>
+      <label>Course title
+        <input type="text" name="title" placeholder="e.g. Bonded Warehousing &amp; Transit">
+      </label>
+      <p class="helptext">Shown to instructors and learners across the programme.</p>
+      <label>Description
+        <textarea name="description" rows="3" placeholder="What the course covers."></textarea>
+      </label>
+      <div class="form-actions ws-modal-actions">
+        <button class="authoring-secondary" type="button" data-close-dialog>Cancel</button>
+        <button class="authoring-primary" type="submit">Create course</button>
+      </div>
+    </form>
+  </dialog>
+</div>
+{% endblock %}

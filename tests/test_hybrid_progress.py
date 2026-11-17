@@ -81,11 +81,25 @@ def _learner_enrolled(db, username, version):
 
 
 def _attempt(learner, lesson):
-    return LessonAttempt.objects.get(enrolment__student=learner, lesson=lesson)
+    return LessonAttempt.objects.filter(enrolment__student=learner, lesson=lesson).order_by("-started_at").first()
 
 
 def _post_step(client, attempt, index, action):
     return client.post(reverse(f"hybrid-step-{action}", args=[attempt.pk, index]))
+
+
+def _acknowledge_theory(client, learner, lesson):
+    """Acknowledge the theory so the workspace (guide) redirects properly."""
+    attempt = LessonAttempt.objects.filter(
+        enrolment__student=learner, lesson=lesson, completed_at__isnull=True,
+    ).first()
+    if attempt is None:
+        attempt = LessonAttempt.objects.create(
+            enrolment=Enrolment.objects.get(student=learner), lesson=lesson,
+        )
+    attempt.theory_acknowledged_at = timezone.now()
+    attempt.save(update_fields=("theory_acknowledged_at",))
+    return attempt
 
 
 # --- Attempts, verification, progress ------------------------------------------
@@ -99,7 +113,7 @@ def test_opening_the_workspace_creates_one_resumable_attempt(client, db):
     client.force_login(learner)
 
     client.get(reverse("hybrid-workspace", args=[lesson.pk]))
-    attempt = LessonAttempt.objects.get(enrolment__student=learner, lesson=lesson)
+    attempt = LessonAttempt.objects.filter(enrolment__student=learner, lesson=lesson).order_by("-started_at").first()
     assert attempt.current_step == lesson.practical_steps.order_by("order", "id").first()
 
     attempt.current_step = lesson.practical_steps.order_by("order", "id").last()
@@ -169,7 +183,7 @@ def test_a_stale_record_cannot_satisfy_the_step(client, db):
     client.force_login(learner)
     result = _post_step(client, attempt, 0, "check").json()
     assert result["passed"] is False
-    assert any("predate this step" in r["message"] for r in result["results"])
+    assert any("hasn't been completed in this attempt" in r["message"] for r in result["results"])
 
 
 @pytest.mark.django_db
@@ -256,6 +270,11 @@ def test_a_lesson_is_locked_until_its_predecessor_completes(client, db):
     attempt.completed_at = timezone.now()
     attempt.save(update_fields=("theory_acknowledged_at", "completed_at"))
 
+    # Lesson 2's theory must be acknowledged before the guide renders
+    LessonAttempt.objects.get_or_create(
+        enrolment=Enrolment.objects.get(student=learner), lesson=lesson2,
+        defaults={"theory_acknowledged_at": timezone.now()},
+    )
     assert client.get(reverse("hybrid-workspace", args=[lesson2.pk])).status_code == 200
     html = client.get(reverse("hybrid-roadmap")).content.decode()
     assert reverse("hybrid-workspace", args=[lesson2.pk]) in html
@@ -269,20 +288,26 @@ def test_the_roadmap_reports_module_and_edition_progress(client, db):
         enrolment=Enrolment.objects.get(student=learner), lesson=lesson1,
         theory_acknowledged_at=timezone.now(), completed_at=timezone.now(),
     )
+    # Repeating a practical lesson must not inflate progress: a second
+    # completed attempt on the same lesson still counts as one lesson.
+    LessonAttempt.objects.create(
+        enrolment=Enrolment.objects.get(student=learner), lesson=lesson1,
+        theory_acknowledged_at=timezone.now(), completed_at=timezone.now(),
+    )
     client.force_login(learner)
     html = client.get(reverse("hybrid-roadmap")).content.decode()
-    assert "1 of 2 lessons complete" in html
-    assert "Module complete" not in html
+    assert "1 of 2 lessons completed" in html
+    assert "2 of 2" not in html
+    assert "Programme complete" not in html
 
-    HybridLesson.objects.exclude(pk=lesson1.pk).update()
     lesson2 = HybridLesson.objects.filter(module__course__programme_version__programme__code="progress").exclude(pk=lesson1.pk).first()
     LessonAttempt.objects.create(
         enrolment=Enrolment.objects.get(student=learner), lesson=lesson2,
         theory_acknowledged_at=timezone.now(), completed_at=timezone.now(),
     )
     html = client.get(reverse("hybrid-roadmap")).content.decode()
-    assert "2 of 2 lessons complete" in html
-    assert "Module complete" in html
+    assert "2 of 2 lessons completed" in html
+    assert "Programme complete" in html
 
 
 @pytest.mark.django_db

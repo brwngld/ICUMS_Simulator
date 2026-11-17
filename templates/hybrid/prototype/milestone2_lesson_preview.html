@@ -1,0 +1,60 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Instructor preview · prototype · ICUMS Simulator{% endblock %}{% block workspace_name %}Instructor preview — prototype{% endblock %}
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1">
+  <link rel="stylesheet" href="{% static 'css/hybrid-programme-workspace.css' %}?v=20261101-1">
+  <link rel="stylesheet" href="{% static 'css/hybrid-course-module-workspace.css' %}?v=20261101-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone1.css' %}?v=20261106-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone2.css' %}?v=20261106-1">
+{% endblock %}
+
+{% comment %}
+MILESTONE 2 PROTOTYPE — the instructor preview, shaped like the real student
+workspace (workspace.html): theory/steps on the left, the practical surface on
+the right, split by a resizable handle. The lesson content is read from this
+browser tab's prototype state; the simulator pane embeds the real, read-only
+simulator portal purely as a visual reference — this preview is not wired to
+any attempt, step or credential.
+{% endcomment %}
+
+{% block content %}<div class="authoring hyb-workspace" id="proto-preview">
+  {% include "hybrid/prototype/_assets.html" %}
+  {{ lesson|json_script:"proto-lesson-seed" }}
+  <script id="proto-urls" type="application/json">{"editor": "{% url 'hybrid-prototype-milestone2-lesson' %}", "preview": "{% url 'hybrid-prototype-milestone2-preview' %}"}</script>
+
+  <a class="authoring-back-link" href="{% url 'hybrid-prototype-milestone2-lesson' %}?lesson={{ lesson.slug }}&amp;kind={{ lesson.kind }}">
+    <svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+    Lesson editor
+  </a>
+
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">Instructor preview · what the learner would see</p>
+      <h1 id="proto-preview-title">{{ lesson.title }} <span class="proto-flag">mock</span></h1>
+      <p>The real workspace keeps the full scrollable simulator on the right and the resizable divider between the panes — both are preserved here.</p>
+    </div>
+    <div class="authoring-actions">
+      <span class="ws-chip ws-chip--viewing" id="proto-preview-kind">{{ lesson.kind|title }}</span>
+    </div>
+  </header>
+
+  <div class="proto-split" id="proto-split">
+    <section class="authoring-card proto-pane" id="proto-preview-left" aria-label="Theory and guide (mock)">
+      <p class="ws-empty-note">Loading the lesson from this browser tab…</p>
+    </section>
+    <div class="proto-divider" id="proto-divider" role="separator" aria-orientation="vertical" aria-label="Drag to resize panes · double-click to reset" tabindex="0"></div>
+    <section class="authoring-card proto-pane proto-pane--right" aria-label="{% if lesson.kind == 'guided' %}Supporting materials (mock){% else %}Simulator (visual reference){% endif %}">
+      {% if lesson.kind == "guided" %}
+        <div id="proto-preview-right">
+          <p class="ws-empty-note">Loading materials from this browser tab…</p>
+        </div>
+      {% else %}
+        <p class="proto-sim-note">Real simulator portal — visual reference only. This preview does not open a lesson attempt or touch any record.</p>
+        <iframe class="proto-sim-frame" src="{% url 'simulator-portal' %}" title="Simulator portal — visual reference"></iframe>
+      {% endif %}
+    </section>
+  </div>
+</div>
+<script src="{% static 'js/prototype-milestone2.js' %}?v=20261106-3" defer></script>
+{% endblock %}

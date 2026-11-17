@@ -250,10 +250,11 @@ def test_modules_and_lessons_are_created_under_the_draft(client, db):
         {"action": "create_lesson", "title": "First journey", "summary": "About the journey."},
     )
     assert response.status_code == 302
-    # Interactive Practical lessons open in the Demonstration Studio — the
-    # primary authoring workspace — rather than the legacy editor.
+    # The approved authoring order: an Interactive Practical lesson opens in
+    # the lesson editor — details and theory first — and the Demonstration
+    # Studio is entered from there once the theory exists.
     assert reverse(
-        "hybrid-lesson-demonstration-studio",
+        "hybrid-lesson-edit",
         args=[HybridLesson.objects.get(module=module, title="First journey").pk],
     ) in response.url
     lesson = HybridLesson.objects.get(module=module, title="First journey")
@@ -1190,10 +1191,14 @@ def test_an_instructor_authored_lesson_renders_in_the_student_workspace(client, 
 
     html = client.get(reverse("hybrid-workspace", args=[lesson.pk])).content.decode()
     assert "Milestone journey" in html
-    assert "Authored entirely in the builder." in html
-    assert "Authored theory." in html
+    theory_html = client.get(reverse("hybrid-lesson-theory", args=[lesson.pk])).content.decode()
+    assert "Authored entirely in the builder." in theory_html
+    assert "Authored theory." in theory_html
     assert "Open the single window" in html
-    assert reverse("single-window-create-ucr") in html
+    # The workspace names each step's screen; the student drives the frame's
+    # navigation, so no per-step URL reaches the markup.
+    assert "Create a UCR declaration" in html
+    assert "data-screen-url" not in html
 
 
 # --- Programme deletion --------------------------------------------------------

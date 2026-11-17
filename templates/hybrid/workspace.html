@@ -23,15 +23,26 @@ Practice Desk geometry into hybrid-owned assets; the desk itself is untouched.
     {% if attempt %}{{ attempt|json_script:"hybrid-attempt-data" }}{% endif %}
     <form id="hyb-csrf" hidden>{% csrf_token %}</form>
     {% if preview_mode %}<p class="hyb-preview-banner" role="note">Instructor preview — this is draft content. Learners see it only once the edition is published.</p>{% endif %}
+    {% if can_practise_again %}
+      <div class="hyb-done-note" role="note">
+        <strong>Lesson complete ✓</strong> — this attempt stays recorded for your course progression.
+        Practical lessons are training: you can return and practise again with a fresh attempt.
+        <form method="post" action="{% url 'hybrid-practise-again' lesson.pk %}" class="hyb-practise-again">
+          {% csrf_token %}
+          <button class="dash-secondary" type="submit">Practise again</button>
+        </form>
+      </div>
+    {% endif %}
     <header class="dash-head">
       <div>
-        <p class="dash-eyebrow">Theory &amp; Practical</p>
+        <p class="dash-eyebrow">Theory &amp; Practical{% if attempt and attempt.practice %} · <span class="dash-pill is-info">Practice attempt</span>{% endif %}</p>
         <h1>{{ lesson.title }}</h1>
+        <p class="dash-eyebrow"><a href="{% url 'hybrid-lesson-theory' lesson.pk %}">← Theory</a></p>
       </div>
       <div class="hyb-head-actions">
         <div class="hyb-switch" role="group" aria-label="Panel">
           <button class="dash-secondary" type="button" data-hyb-pane-button="theory" aria-pressed="true">Theory &amp; Guide</button>
-          <button class="dash-secondary" type="button" data-hyb-pane-button="sim" aria-pressed="false">Simulator</button>
+          <button class="dash-secondary" type="button" data-hyb-pane-button="sim" aria-pressed="false">{% if is_guided %}Materials{% else %}Simulator{% endif %}</button>
         </div>
       </div>
     </header>
@@ -39,26 +50,25 @@ Practice Desk geometry into hybrid-owned assets; the desk itself is untouched.
     <div class="hyb-grid" data-hyb-grid>
       <section class="hyb-pane hyb-theory" data-hyb-pane="theory" aria-label="Theory &amp; Guide">
         <div class="hyb-scroll">
-          {% if lesson.summary %}
-            <article class="hyb-card">
-              <div class="lrn-copy"><p>{{ lesson.summary }}</p></div>
-            </article>
-          {% endif %}
 
-          {% if theory %}
-            <article class="hyb-card">
-              <p class="hyb-card-label">Theory</p>
-              <div class="hyb-card-body"><div class="lrn-copy">{{ theory|rich_content }}</div></div>
-              {% if attempt %}
-                <div class="hyb-acknowledge">
-                  {% if attempt.theory_acknowledged %}
-                    <span class="dash-pill is-ok">Theory acknowledged ✓</span>
-                  {% else %}
-                    <button class="dash-secondary" type="button" data-hyb-acknowledge>I have read the theory</button>
-                  {% endif %}
-                </div>
-              {% endif %}
-            </article>
+          {% if is_guided %}
+            {% if knowledge_checks %}
+              <article class="hyb-card">
+                <p class="hyb-card-label">Knowledge checks</p>
+                {% for check in knowledge_checks %}
+                  <div class="hyb-card-body">
+                    <strong>{{ check.prompt }}</strong>
+                    <ul>
+                      {% for option in check.options %}{% if option %}
+                        <li>{{ option }}{% if preview_mode and forloop.counter0 == check.answer_index %} <span class="dash-pill is-ok">Correct answer</span>{% endif %}</li>
+                      {% endif %}{% endfor %}
+                    </ul>
+                  </div>
+                {% endfor %}
+              </article>
+            {% elif preview_mode %}
+              <article class="hyb-card"><div class="lrn-copy"><p>No knowledge checks for this lesson.</p></div></article>
+            {% endif %}
           {% endif %}
 
           {% if step_views %}
@@ -74,11 +84,11 @@ Practice Desk geometry into hybrid-owned assets; the desk itself is untouched.
             </article>
 
             {% for item in step_views %}
-              <article class="hyb-card hyb-card-step" data-hyb-step-card="{{ item.index }}" data-screen-url="{{ item.screen_url }}"{% if item.index != 0 %} hidden{% endif %}>
+              <article class="hyb-card hyb-card-step" data-hyb-step-card="{{ item.index }}"{% if item.index != 0 %} hidden{% endif %}>
                 <p class="hyb-card-label">Step {{ item.index|add:1 }} of {{ step_views|length }}{% if item.screen_label %} · {{ item.screen_label }}{% endif %}</p>
                 <h2 class="hyb-card-title">{{ item.step.title }}</h2>
                 {% if item.step.instruction %}
-                  <div class="hyb-card-text"><strong>What to do</strong><div class="lrn-copy">{{ item.step.instruction|linebreaks }}</div></div>
+                  <div class="hyb-card-text"><strong>What to do</strong><div class="lrn-copy">{{ item.step.instruction|rich_content }}</div></div>
                 {% endif %}
                 {% if item.step.outcome %}
                   <div class="hyb-outcome"><strong>Expected outcome</strong><div class="lrn-copy">{{ item.step.outcome|linebreaks }}</div></div>
@@ -144,7 +154,7 @@ Practice Desk geometry into hybrid-owned assets; the desk itself is untouched.
                 <p class="hyb-feedback" data-hyb-feedback="{{ item.index }}" role="status">Complete the step in the simulator, then check your work.</p>
               </article>
             {% endfor %}
-          {% else %}
+          {% elif not is_guided %}
             <article class="hyb-card">
               <p class="hyb-card-label">Practical journey</p>
               <div class="lrn-copy"><p>This lesson has no practical steps yet.</p></div>
@@ -164,16 +174,31 @@ Practice Desk geometry into hybrid-owned assets; the desk itself is untouched.
 
       <div class="hyb-divider" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Drag to resize theory and simulator" data-hyb-divider></div>
 
-      <section class="hyb-pane hyb-sim" data-hyb-pane="sim" aria-label="Simulator">
-        <div class="hyb-sim-bar">
-          <a class="dash-secondary" href="{{ frame_url }}" target="_blank" rel="noopener">Open in new tab</a>
-        </div>
-        <div class="hyb-frame-wrap">
-          <iframe class="hyb-frame" data-hyb-frame title="Simulator" src="{{ frame_url }}" loading="lazy"></iframe>
-        </div>
-      </section>
+      {% if is_guided %}
+        <section class="hyb-pane hyb-sim" data-hyb-pane="sim" aria-label="Supporting materials">
+          <div class="hyb-scroll">
+            {% for material in materials %}
+              <article class="hyb-card">
+                <p class="hyb-card-label">📄 {{ material.name }}</p>
+                <div class="lrn-copy"><p>{{ material.size_display }} · <a href="{{ material.file.url }}" target="_blank" rel="noopener">Open the document</a></p></div>
+              </article>
+            {% empty %}
+              <article class="hyb-card"><div class="lrn-copy"><p>No materials attached yet.</p></div></article>
+            {% endfor %}
+          </div>
+        </section>
+      {% else %}
+        <section class="hyb-pane hyb-sim" data-hyb-pane="sim" aria-label="Simulator">
+          <div class="hyb-sim-bar">
+            <a class="dash-secondary" href="{{ frame_url }}" target="_blank" rel="noopener">Open in new tab</a>
+          </div>
+          <div class="hyb-frame-wrap">
+            <iframe class="hyb-frame" data-hyb-frame title="Simulator" src="{{ frame_url }}" loading="lazy"></iframe>
+          </div>
+        </section>
+      {% endif %}
     </div>
   </div>
-  <script src="{% static 'js/hybrid-workspace.js' %}?v=20261104-1" defer></script>
+  <script src="{% static 'js/hybrid-workspace.js' %}?v=20261110-2" defer></script>
   <script src="{% static 'js/hybrid-attribution.js' %}?v=20261029-1" defer></script>
 {% endblock %}

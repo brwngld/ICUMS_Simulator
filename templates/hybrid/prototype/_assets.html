@@ -1,0 +1,97 @@
+{% comment %}
+Shared prototype chrome for the Milestone 1 mock screens: a persistent banner
+that keeps mock pages unmistakable, a toast helper, generic dialog wiring and
+a submit guard so every "create / save / publish" action is visibly
+client-side only. Included by each milestone1_*.html template.
+{% endcomment %}
+<div class="proto-banner" role="note">
+  <svg class="ui-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+  <span>{{ prototype_note }}</span>
+</div>
+
+<div id="proto-toast" class="proto-toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // One toast for every mock action: it always says nothing was saved.
+  var toastTimer = null;
+  window.protoToast = function (message) {
+    var toast = document.getElementById("proto-toast");
+    if (!toast) return;
+    toast.textContent = "Prototype only — " + message + ". Nothing was saved.";
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.hidden = true; }, 4200);
+  };
+
+  var wire = function () {
+  // Generic dialog wiring: data-open-dialog="id" / data-close-dialog buttons,
+  // plus the backdrop-click close the production builder uses.
+  document.querySelectorAll("[data-open-dialog]").forEach(function (trigger) {
+    trigger.addEventListener("click", function (event) {
+      event.preventDefault();
+      var dialog = document.getElementById(trigger.getAttribute("data-open-dialog"));
+      if (dialog && !dialog.open) dialog.showModal();
+    });
+  });
+  document.querySelectorAll("[data-close-dialog]").forEach(function (trigger) {
+    trigger.addEventListener("click", function () {
+      var dialog = trigger.closest("dialog");
+      if (dialog) dialog.close();
+    });
+  });
+  document.querySelectorAll("dialog.authoring-course-modal").forEach(function (dialog) {
+    dialog.addEventListener("click", function (event) {
+      if (event.target === dialog) dialog.close();
+    });
+    if (dialog.open) { dialog.close(); }
+  });
+
+  // Submit guard: forms marked data-prototype-form never reach the server.
+  // data-mock-target names the list the new mock row is cloned into, and
+  // data-mock-template names the (hidden) row markup to clone.
+  document.querySelectorAll("form[data-prototype-form]").forEach(function (form) {
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      var action = form.getAttribute("data-prototype-form") || "action";
+      var first = form.querySelector("input:not([type=hidden]), textarea, select");
+      var label = first && first.value ? first.value.trim() : "";
+      var templateId = form.getAttribute("data-mock-template");
+      var targetId = form.getAttribute("data-mock-target");
+      if (templateId && targetId) {
+        var source = document.getElementById(templateId);
+        var target = document.getElementById(targetId);
+        if (source && target) {
+          var clone = source.cloneNode(true);
+          clone.removeAttribute("id");
+          clone.hidden = false;
+          clone.querySelectorAll(".proto-mock-name").forEach(function (slot) {
+            slot.textContent = label || "Untitled (prototype)";
+          });
+          target.prepend(clone);
+        }
+      }
+      var dialog = form.closest("dialog");
+      if (dialog) dialog.close();
+      window.protoToast(label ? action + " “" + label + "”" : action);
+    });
+  });
+
+  // Buttons that only ever narrate what the real builder would do.
+  document.querySelectorAll("[data-prototype-toast]").forEach(function (button) {
+    button.addEventListener("click", function (event) {
+      event.preventDefault();
+      window.protoToast(button.getAttribute("data-prototype-toast"));
+    });
+  });
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", wire);
+  } else {
+    wire();
+  }
+})();
+</script>

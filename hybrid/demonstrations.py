@@ -93,11 +93,14 @@ CONTENTION_RETRY_BASE_DELAY = 0.02
 LIVE_STATES = DemonstrationSession.LIVE_STATES
 
 #: Every stored value is a *code*: a route name, an action, a regime, a column
-#: name. The shape is the enforcement — a name, an address, an email or a goods
-#: description contains spaces or punctuation a token cannot match, so free text
-#: fails closed even when a caller slips it under an approved key.
-_SAFE_TOKEN = re.compile(r"[A-Za-z][A-Za-z0-9_.:-]{0,127}")
-_SAFE_CODE = re.compile(r"[A-Za-z][A-Za-z0-9_.:-]{0,23}")
+#: name, a simulator reference number. The shape is the enforcement — a name,
+#: an address, an email or a goods description contains spaces or punctuation
+#: a token cannot match, so free text fails closed even when a caller slips it
+#: under an approved key. Reference numbers the simulator issues may begin with
+#: digits (job numbers are date-led, e.g. ``2611130001GCH000001``), so a digit
+#: first character is part of the token alphabet, not free text.
+_SAFE_TOKEN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}")
+_SAFE_CODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:-]{0,23}")
 
 
 class DemonstrationError(Exception):
@@ -119,11 +122,11 @@ class DemonstrationError(Exception):
 #: Route names a demonstration may address, with the methods allowed. This is
 #: the approval record for Stage 1B: a route gains a write method only here.
 #: ``ucr-save`` carries ``POST`` now that a scoped save service exists
-#: (``scenarios.demonstration_ucr.save_demonstration_ucr``) — it is the only
-#: write any demonstration may make, and it stays gated behind the binding,
-#: the lifecycle state and the idle deadline. ``ucr-submit``, clone, amend,
-#: attachments, BOE, MDA and consignment are absent, so they are refused by
-#: construction rather than by memory.
+#: (``scenarios.demonstration_ucr.save_demonstration_ucr``), and ``ucr-submit``
+#: carries ``POST`` since the Import-UCR foundation added its scoped submit
+#: twin — both stay gated behind the binding, the lifecycle state and the idle
+#: deadline. Clone, amend, attachments, BOE, MDA and consignment are absent,
+#: so they are refused by construction rather than by memory.
 DEMONSTRATION_ROUTE_PERMISSIONS = {
     "simulator-portal": frozenset({"GET"}),
     "single-window-overview": frozenset({"GET"}),
@@ -133,6 +136,18 @@ DEMONSTRATION_ROUTE_PERMISSIONS = {
     "ucr-service-provider-lookup": frozenset({"GET"}),
     "ucr-stakeholder-lookup": frozenset({"GET"}),
     "ucr-save": frozenset({"POST"}),
+    "ucr-submit": frozenset({"POST"}),
+    "application-save": frozenset({"POST"}),
+    "application-submit": frozenset({"POST"}),
+    "consignment-application-mda-create": frozenset({"POST"}),
+    "application-mda-request-create": frozenset({"POST"}),
+    "mda-consignment-application-save": frozenset({"POST"}),
+    "mda-consignment-application-submit": frozenset({"POST"}),
+    "boe-create": frozenset({"POST"}),
+    "boe-save-draft": frozenset({"POST"}),
+    "boe-submit": frozenset({"POST"}),
+    "clearance-cpcs": frozenset({"GET"}),
+    "boe-idf-lookup": frozenset({"GET"}),
 }
 
 #: Approved ``action_code`` per navigable route. A route absent here is allowed
@@ -143,19 +158,68 @@ DEMONSTRATION_NAVIGATION_ACTIONS = {
     "single-window-create-ucr": "ucr.create_form_opened",
     "single-window-search-ucr": "ucr.search_opened",
     "ucr-detail": "ucr.detail_opened",
+    "consignment-application-create": "consignment.create_form_opened",
+    "single-window-search-consignment-application": "consignment.search_opened",
+    "clearance-workspace": "clearance.opened",
 }
 
-#: Payload keys per event type, and nothing else. ``selection`` is not a declared
-#: event type at all: field-level capture is a later stage.
+#: Payload keys per event type, and nothing else. ``selection`` is still not a
+#: declared event type: field-level keystroke capture remains a later stage. The
+#: Import-UCR foundation adds ``filled_sections`` — the record *sections* a save
+#: or submit just validated, as codes derived server-side from the parsed
+#: payload. Which fields inside them were typed stays uncaptured.
 DEMONSTRATION_EVENT_PAYLOAD_KEYS = {
     DemonstrationEvent.EventType.NAVIGATION: frozenset({"result_status"}),
-    DemonstrationEvent.EventType.RECORD_CREATED: frozenset({"regime_code", "transport_mode_code", "result_status"}),
-    DemonstrationEvent.EventType.RECORD_UPDATED: frozenset({"changed_fields", "regime_code", "result_status"}),
+    DemonstrationEvent.EventType.RECORD_CREATED: frozenset({
+        "regime_code", "transport_mode_code", "result_status", "filled_sections",
+        "application_no", "job_no", "declaration_no",
+    }),
+    DemonstrationEvent.EventType.RECORD_UPDATED: frozenset({
+        "changed_fields", "regime_code", "result_status", "filled_sections",
+        "application_no", "job_no", "declaration_no",
+    }),
+    # Stage A: universal interaction capture. ``control_id`` is the recorder's
+    # stable semantic identity for the control; ``label`` and ``selection`` are
+    # bounded visible text (a name or a chosen option), never a field value.
+    DemonstrationEvent.EventType.INTERACTION: frozenset({
+        "control_kind", "control_id", "label", "selection",
+    }),
 }
 
+#: Stage A: the interaction verbs the recorder may report. Anything else —
+#: hover, scroll, focus, keypress — is refused by construction.
+DEMONSTRATION_INTERACTION_ACTIONS = frozenset({
+    "activate",  # a click on an actionable control (button, link, submit)
+    "choose",    # a select's chosen option
+    "toggle",    # a checkbox or radio state change
+    "complete",  # a text control left with its value unrecorded
+    "submit",    # an attempted form submission
+})
+
+#: Stage A: control kinds an interaction may name. Codes, not free text — the
+#: same fail-closed shape every other stored value obeys.
+DEMONSTRATION_INTERACTION_KINDS = frozenset({
+    "button", "link", "select", "checkbox", "radio", "input", "search", "textarea", "form",
+})
+
+#: Stage A: one interaction batch's ceiling. A recorder flushes well under it;
+#: anything larger is a client defect, not a bigger net.
+INTERACTION_BATCH_LIMIT = 40
+
+#: Stage A: the longest bounded text an interaction payload may carry — a
+#: control identity (which may be a structural path) or a visible label.
+INTERACTION_TEXT_LIMIT = 120
+
 #: Outcomes a recording may report. Anything else — including a validation
-#: message — is refused, so no server-generated text can reach a payload.
-DEMONSTRATION_RESULT_STATUSES = frozenset({"opened", "saved", "updated"})
+#: message — is refused, so no server-generated text can reach a payload. The
+#: Import-UCR foundation adds ``submitted``: the scoped submit service records
+#: the draft → submitted transition the moment it commits.
+DEMONSTRATION_RESULT_STATUSES = frozenset({"opened", "saved", "updated", "submitted"})
+
+#: The UCR form sections whose validated completion a record event may name.
+#: Codes only, and the sanitizer refuses anything outside this set — a section
+#: name is a fact about the form's shape, never free text.
+DEMONSTRATION_UCR_SECTIONS = frozenset({"provider", "exporter", "importer", "consignment", "documents"})
 
 #: UCR columns a demonstration may name as having changed. The registry the
 #: verification engine already uses, so the two never drift apart.
@@ -817,6 +881,106 @@ def append_record_event(
     )
 
 
+# --- Stage A: universal interaction capture -----------------------------------
+
+
+def _route_name_known(name):
+    """Whether ``name`` is a real URL name in this project's URLconf.
+
+    A check of vocabulary, not of truth: the recorder's route arrives from the
+    server's own page render, so live traffic always passes, and a tampered
+    batch carrying a non-route name is refused here. Either way the stored name
+    stays contextual metadata — navigation events remain the authoritative
+    screen spine, and an interaction is never treated as proof of its screen.
+    """
+    from django.urls import get_resolver
+
+    resolver = get_resolver()
+    stack = [resolver.url_patterns]
+    while stack:
+        for pattern in stack.pop():
+            if hasattr(pattern, "url_patterns"):
+                stack.append(pattern.url_patterns)
+            elif pattern.name == name:
+                return True
+    return False
+
+
+def _interaction_text(value, *, field):
+    """Bounded, single-line, control-character-free text — or a refusal.
+
+    This is the one widening interaction events allow over the codes-only rule:
+    a control identity (which may be a structural path) and a visible label or
+    chosen option are text by nature. The bound is what keeps them names, not
+    field values: 120 visible characters, whitespace collapsed, and a value
+    field has no approved key to arrive under at all.
+    """
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise DemonstrationError(f"The {field} of an interaction must be text.", "payload_rejected", 400)
+    text = "".join(character for character in " ".join(value.split()) if character >= " " and character != "\x7f")
+    if len(text) > INTERACTION_TEXT_LIMIT:
+        text = text[:INTERACTION_TEXT_LIMIT]
+    return text
+
+
+def _prepared_interaction(raw):
+    """One interaction event collapsed to storable fields, or a refusal."""
+    if not isinstance(raw, dict):
+        raise DemonstrationError("An interaction event must be a JSON object.", "payload_rejected", 400)
+    action = raw.get("action")
+    if action not in DEMONSTRATION_INTERACTION_ACTIONS:
+        raise DemonstrationError("That interaction is not an approved demonstration action.", "action_denied", 403)
+    kind = raw.get("control_kind")
+    if kind not in DEMONSTRATION_INTERACTION_KINDS:
+        raise DemonstrationError("That control kind is not approved for demonstrations.", "payload_rejected", 400)
+    control_id = _interaction_text(raw.get("control_id"), field="control_id")
+    if not control_id:
+        raise DemonstrationError("An interaction must carry its control's identity.", "payload_rejected", 400)
+    route_name = raw.get("route_name") or ""
+    if route_name and (not isinstance(route_name, str) or not _SAFE_TOKEN.fullmatch(route_name) or not _route_name_known(route_name)):
+        raise DemonstrationError("That simulator screen is not approved for demonstrations.", "route_denied", 403)
+    payload = {"control_kind": kind, "control_id": control_id}
+    label = _interaction_text(raw.get("label"), field="label")
+    if label:
+        payload["label"] = label
+    selection = _interaction_text(raw.get("selection"), field="selection")
+    if selection:
+        payload["selection"] = selection
+    return {
+        "action_code": action,
+        "route_name": route_name,
+        "payload": payload,
+        "idempotency_key": raw.get("idempotency_key"),
+    }
+
+
+def append_interaction_events(request, events):
+    """One ordered batch of universal interaction events from the recorder.
+
+    Stage A's capture layer speaks for every simulator screen at once: the verbs
+    and control kinds above, a stable identity per control, bounded visible text
+    for labels and selections, and never a field value. Admission is all-or-
+    nothing — every event in the batch is validated before the first write, so a
+    tampered or malformed batch records nothing at all. Within an accepted batch
+    the events are appended in arrival order, and the session's sequence counter
+    keeps them interleaved with navigations and record outcomes on one timeline.
+    Each event carries its own idempotency key, so a client that lost its
+    response and retries gets the events it already made back, not duplicates.
+    """
+    session = require_bound_session(request, require_recording=True)
+    if not isinstance(events, list) or not events:
+        raise DemonstrationError("An interaction batch must be a non-empty list.", "payload_rejected", 400)
+    if len(events) > INTERACTION_BATCH_LIMIT:
+        raise DemonstrationError("An interaction batch is too large.", "payload_rejected", 400)
+    prepared = [_prepared_interaction(raw) for raw in events]
+    return [
+        _append(session, event_type=DemonstrationEvent.EventType.INTERACTION, **item)
+        for item in prepared
+    ]
+
+
 def _append(
     session, *, event_type, action_code, payload, idempotency_key=None, route_name="", record_kind="", record_id=None
 ):
@@ -959,6 +1123,18 @@ def _sanitized_payload(event_type, payload):
     unknown = sorted(set(payload) - allowed)
     if unknown:
         raise DemonstrationError("A demonstration payload cannot carry " + ", ".join(unknown) + ".", "payload_rejected", 400)
+    if event_type == DemonstrationEvent.EventType.INTERACTION:
+        kind = payload.get("control_kind")
+        if kind not in DEMONSTRATION_INTERACTION_KINDS:
+            raise DemonstrationError("That control kind is not approved for demonstrations.", "payload_rejected", 400)
+        clean = {"control_kind": kind, "control_id": _interaction_text(payload.get("control_id"), field="control_id")}
+        label = _interaction_text(payload.get("label"), field="label")
+        if label:
+            clean["label"] = label
+        selection = _interaction_text(payload.get("selection"), field="selection")
+        if selection:
+            clean["selection"] = selection
+        return clean
     clean = {}
     for key, value in payload.items():
         if key == "changed_fields":
@@ -971,10 +1147,20 @@ def _sanitized_payload(event_type, payload):
                 raise DemonstrationError("That is not an approved UCR form column.", "payload_rejected", 400)
             clean[key] = names
             continue
-        if key in {"regime_code", "transport_mode_code"}:
+        if key in {"regime_code", "transport_mode_code", "application_no", "job_no", "declaration_no"}:
             if not isinstance(value, str) or not _SAFE_CODE.fullmatch(value):
                 raise DemonstrationError("A demonstration payload carries codes, not text.", "payload_rejected", 400)
             clean[key] = value
+            continue
+        if key == "filled_sections":
+            if not isinstance(value, (list, tuple)) or len(value) > len(DEMONSTRATION_UCR_SECTIONS):
+                raise DemonstrationError(
+                    "Filled sections must be a short list of form section names.", "payload_rejected", 400
+                )
+            names = sorted(set(value))
+            if any(not isinstance(name, str) or name not in DEMONSTRATION_UCR_SECTIONS for name in names):
+                raise DemonstrationError("That is not an approved UCR form section.", "payload_rejected", 400)
+            clean[key] = names
             continue
         if key == "result_status":
             clean[key] = _result_status(value)

@@ -1,14 +1,17 @@
 {% extends "core/base_student.html" %}{% load static %}
 {% block title %}Demonstration Studio · {{ lesson.title }} · ICUMS Simulator{% endblock %}{% block workspace_name %}Demonstration Studio{% endblock %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/demonstration-studio.css' %}?v=20261102-2">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/demonstration-studio.css' %}?v=20261109-1">{% endblock %}
 {% block content %}<div class="demo-studio">
-  {% if demonstration_recording %}<div class="demo-banner">Recording is enabled in this development environment. The embedded simulator browses read-only; saving a UCR in it while recording creates a demonstration record on this session's timeline.</div>{% else %}<div class="demo-banner">Development integration proof — the embedded simulator is read-only for instructors. Recording remains simulated client-side; no captured actions or demonstration records are saved.</div>{% endif %}
+  {% if guided_gate %}
+  <section class="panel"><div class="panelHead"><div><h2>No Demonstration Studio here</h2><div class="helper">{{ lesson.title }}</div></div></div><div class="panelBody"><p>A Guided Material Study lesson has no simulator walkthrough to record, so its content is written in the theory and materials stages.</p><div class="footer"><a class="primary" href="{% url 'hybrid-lesson-edit' lesson.pk %}">Open the lesson editor →</a></div></div></section>
+  {% else %}
+  {% if demonstration_recording %}<div class="demo-banner">Recording is enabled in this development environment. The embedded simulator browses read-only; saving and submitting a UCR in it while recording creates demonstration records and events on this session's timeline.</div>{% else %}<div class="demo-banner">Development integration proof — the embedded simulator is read-only for instructors. Recording remains simulated client-side; no captured actions or demonstration records are saved.</div>{% endif %}
   <div class="crumb">Theory &amp; Practical / {{ lesson.module.course.title }} / {{ lesson.title }}</div>
-  <div class="head"><div><h1>Instructor Demonstration Studio</h1><p class="muted">Use the existing simulator interface while planning this lesson's guided activities.</p></div>{% if demonstration_recording %}<span class="pill">RECORDING ENABLED · UCR SAVE CAPTURED</span>{% else %}<span class="pill">READ-ONLY FRAME · RECORDING NOT IMPLEMENTED</span>{% endif %}</div>
+  <div class="head"><div><h1>Instructor Demonstration Studio</h1><p class="muted">Perform the procedure in the existing simulator — its captured evidence becomes this lesson's practical steps.</p></div>{% if demonstration_recording %}<span class="pill">RECORDING ENABLED · UCR SAVE + SUBMIT CAPTURED</span>{% else %}<span class="pill">READ-ONLY FRAME · RECORDING NOT IMPLEMENTED</span>{% endif %}</div>
   <div class="tabs" role="tablist"><button class="tab active" data-tab="record" role="tab" aria-selected="true">1 · Demonstrate</button><button class="tab" data-tab="review" role="tab" aria-selected="false">2 · Review steps</button><button class="tab" data-tab="preview" role="tab" aria-selected="false">3 · Student preview</button></div>
 
   <section id="record" class="view"><div class="grid">
-    <div class="panel"><div class="panelHead"><div><h2>ICUMS Simulator</h2><div class="helper">Actual Cargo Tracking Dashboard · existing Django view, template, navigation and styles</div></div></div>
+    <div class="panel"><div class="panelHead"><div><h2>ICUMS Simulator</h2><div class="helper">Actual Cargo Tracking Dashboard · existing Django view, template, navigation and styles</div></div><button type="button" id="studioExpand" class="quiet">Expand simulator</button></div>
       <div class="panelBody panelBody--frame">
         {% if simulator_frame_url %}<iframe class="simulator-frame" id="simulatorFrame" src="{{ simulator_frame_url }}" title="ICUMS Simulator — Cargo Tracking Dashboard"></iframe>
         {% else %}<div class="empty">The read-only simulator frame is available only in the development environment.</div>{% endif %}
@@ -37,9 +40,9 @@
     </aside>
   </div></section>
 
-  <section id="review" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Review captured journey</h2>{% if demonstration_recording %}<div class="helper">Review the proposed activities from a stopped recording, then apply them to this lesson.</div>{% else %}<div class="helper">No events are captured or converted in this integration proof.</div>{% endif %}</div><div class="summary"><div class="stat"><b id="proposedCount">0</b><span class="small muted">Proposed steps</span></div><div class="stat"><b id="capturedCount">0</b><span class="small muted">Captured events</span></div></div></div><div class="panelBody">{% if demonstration_recording %}<div id="proposalList" class="empty">No proposed activities yet. Stop a recording to review its events.</div><p id="reviewStatus" class="status" role="status" aria-live="polite" hidden></p><div class="toolbar"><button id="applyProposals" class="primary" hidden>Apply to lesson</button><a id="lessonEditorLink" href="{% url 'hybrid-lesson-edit' lesson.pk %}?tab=activities" hidden>Continue in the lesson editor →</a></div>{% else %}<div class="empty">Recording persistence and lesson-step conversion remain intentionally unimplemented.</div>{% endif %}<div class="footer"><button data-show="record">← Back to simulator</button><button data-show="preview">Student preview →</button></div></div></div></section>
+  <section id="review" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Review captured journey</h2>{% if demonstration_recording %}<div class="helper">Review the proposed activities from a stopped recording — each grounded in its captured evidence — then apply them to this lesson.</div>{% else %}<div class="helper">No events are captured or converted in this integration proof.</div>{% endif %}</div><div class="summary"><div class="stat"><b id="proposedCount">0</b><span class="small muted">Proposed steps</span></div><div class="stat"><b id="capturedCount">0</b><span class="small muted">Captured events</span></div></div></div><div class="panelBody">{% if demonstration_recording %}<div id="captureWarnings" class="note small" hidden></div><div id="proposalList" class="empty">No proposed activities yet. Stop a recording to review its events.</div><p id="reviewStatus" class="status" role="status" aria-live="polite" hidden></p><div class="toolbar"><button id="applyProposals" class="primary" hidden>Apply to lesson</button><a id="lessonEditorLink" href="{% url 'hybrid-lesson-edit' lesson.pk %}?tab=activities" hidden>Continue in the lesson editor →</a><a id="studentPreviewLink" href="{% url 'hybrid-lesson-preview' lesson.pk %}" hidden>Open student preview →</a></div>{% else %}<div class="empty">Recording persistence and lesson-step conversion remain intentionally unimplemented.</div>{% endif %}<div class="footer"><button data-show="record">← Back to simulator</button><button data-show="preview">Student preview →</button></div></div></div></section>
 
-  <section id="preview" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Student workspace preview</h2><div class="helper">The existing simulator remains read-only in this development proof.</div></div></div><div class="panelBody panelBody--frame">{% if simulator_frame_url %}<iframe class="simulator-frame simulator-frame--preview" src="{{ simulator_frame_url }}" title="Student preview — ICUMS Simulator Cargo Tracking Dashboard"></iframe>{% else %}<div class="empty">The simulator frame is available only in development.</div>{% endif %}<div class="footer"><button data-show="review">← Review steps</button>{% if demonstration_recording %}<span class="helper">Preview only. Records are written only by demonstration saves from the Demonstrate tab.</span>{% else %}<span class="helper">Preview only. No publication or database writes.</span>{% endif %}</div></div></div></section>
+  <section id="preview" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Student workspace preview</h2><div class="helper">The real Theory &amp; Practical workspace this lesson's students will use — theory and steps on the left, the simulator on the right.</div></div></div><div class="panelBody panelBody--frame"><iframe class="simulator-frame simulator-frame--preview" src="{% url 'hybrid-lesson-preview' lesson.pk %}" title="Student preview — Theory &amp; Practical workspace"></iframe><div class="footer"><button data-show="review">← Review steps</button>{% if demonstration_recording %}<span class="helper">Preview only. Records are written only by demonstration saves from the Demonstrate tab.</span>{% else %}<span class="helper">Preview only. No publication or database writes.</span>{% endif %}</div></div></div></section>
 </div>
 {% if demonstration_recording %}<script>
   // Stage 1B/1C/2B wiring data only. The conversion URLs carry a sentinel in
@@ -77,6 +80,17 @@
   };
   document.querySelectorAll(".demo-studio .tab").forEach((button) => button.addEventListener("click", () => show(button.dataset.tab)));
   document.querySelectorAll(".demo-studio [data-show]").forEach((button) => button.addEventListener("click", () => show(button.dataset.show)));
+  // Expand mode — the simulator takes the whole row and the timeline steps
+  // aside, exactly as the approved prototype's toggle behaves.
+  const expand = $("studioExpand");
+  if (expand) {
+    expand.addEventListener("click", () => {
+      const grid = document.querySelector("#record .grid");
+      if (!grid) return;
+      const wide = grid.classList.toggle("studio-wide");
+      expand.textContent = wide ? "Restore timeline" : "Expand simulator";
+    });
+  }
 
   const renderControls = () => {
     $("start").disabled = state === "recording" || state === "paused";
@@ -196,8 +210,10 @@
     $("proposalList").replaceChildren();
     $("proposalList").classList.add("empty");
     $("proposalList").textContent = "No proposed activities yet. Stop a recording to review its events.";
+    $("captureWarnings").hidden = true;
     $("applyProposals").hidden = true;
     $("lessonEditorLink").hidden = true;
+    $("studentPreviewLink").hidden = true;
     $("proposedCount").textContent = "0";
     $("goReview").disabled = true;
     reviewNote("");
@@ -205,7 +221,7 @@
   const proposalRow = (activity) => {
     const row = document.createElement("div");
     row.className = "note small proposal-row";
-    row.dataset.screen = activity.screen;
+    row.dataset.proposalId = activity.id;
     if (activity.has_condition) row.dataset.hasCondition = "1";
     const pick = document.createElement("label");
     const box = document.createElement("input");
@@ -231,6 +247,17 @@
     outcome.rows = 2;
     outcome.value = activity.outcome;
     row.append(outcome);
+    if (activity.evidence && activity.evidence.length) {
+      const evidence = document.createElement("div");
+      evidence.className = "small muted";
+      // Codes only, exactly as captured: the sequence and action of each
+      // grounding event, so the instructor can trace the proposal to the
+      // timeline above.
+      evidence.textContent = "Evidence: " + activity.evidence
+        .map((item) => `#${item.sequence} ${item.action_code}`)
+        .join(" · ");
+      row.append(evidence);
+    }
     return row;
   };
   const renderProposals = (activities) => {
@@ -262,6 +289,18 @@
         reviewNote(data.error || "Request refused.", true);
         return;
       }
+      const warnings = $("captureWarnings");
+      if (data.capture_warnings && data.capture_warnings.length) {
+        warnings.replaceChildren(...data.capture_warnings.map((text) => {
+          const line = document.createElement("p");
+          line.textContent = text;
+          return line;
+        }));
+        warnings.hidden = false;
+      } else {
+        warnings.replaceChildren();
+        warnings.hidden = true;
+      }
       renderProposals(data.activities || []);
     } catch { /* the studio keeps its last known review state; a reload retries */ }
   };
@@ -271,7 +310,7 @@
     const activities = [...document.querySelectorAll("#proposalList .proposal-row")]
       .filter((row) => row.querySelector(".proposal-include").checked)
       .map((row) => ({
-        screen: row.dataset.screen,
+        proposal_id: row.dataset.proposalId,
         title: row.querySelector(".proposal-title").value.trim(),
         instruction: row.querySelector(".proposal-instruction").value.trim(),
         outcome: row.querySelector(".proposal-outcome").value.trim(),
@@ -291,6 +330,7 @@
       reviewNote(`Applied ${data.steps.length} activities to the lesson.`, false);
       $("applyProposals").hidden = true;
       $("lessonEditorLink").hidden = false;
+      $("studentPreviewLink").hidden = false;
     } catch (error) {
       reviewNote(error.message, true);
     } finally {
@@ -445,4 +485,4 @@
   render();
   {% endif %}
 })();
-</script>{% endblock %}
+</script>{% endif %}{% endblock %}

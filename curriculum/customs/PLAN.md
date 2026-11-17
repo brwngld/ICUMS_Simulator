@@ -24,10 +24,12 @@ briefs are authored here from the curriculum document plus the source files.
 ## Pipeline state
 
 - [x] Course layer added to the curriculum document (2026-11-02)
-- [x] Source inventory triaged: 12 of 18 PDFs have a text layer (`.tmp/source-text/`),
-      6 are scans (`Transit and Transhipment`, `FREE ZONES`, `DUTY-FREE SHOPS`,
-      `Risk Management`, `FULL DUTY CALCULATIONS - AKYA`, `HS CODE 2024 2`,
-      `CamScanner 10-01-2026`)
+- [x] Source inventory triaged: 18 source PDFs under `output/docx/` (plus the specimen the
+      plan itself produced). Twelve have a usable text layer (`.tmp/source-text/`); the
+      other seven are scans with no usable text — `Transit and Transhipment`, `FREE ZONES`,
+      `DUTY-FREE SHOPS`, `Risk Management`, `HS CODE 2024 2`,
+      `CamScanner 10-01-2026 18.52`, and `FULL DUTY CALCULATIONS - AKYA` (this last one
+      yields one short machine-readable page — a tax-element table — and is otherwise a scan)
 - [x] `TARIFF` base validated: `HS FINAL 2017-15-506.xlsx`, 377 sheets, 5,886 TSN rows,
       97 chapters, columns Heading / TSN / Description / SU / CET ID / VAT / IE.
       `hscodesgh.pdf` is the ICUMS HS search printout and is **truncated at 8463.20 —
@@ -46,19 +48,49 @@ briefs are authored here from the curriculum document plus the source files.
             amendments listed, Public Health Act 851 provisions used by FDA/GSA controls,
             and the subsidiary regulations cited in the decks (LI 1541, LI 1586, LI 1932,
             NRCD 173) with what each actually says
-- [ ] Lesson briefs, all 60 → `curriculum/customs/lesson_briefs/module-NN/lesson-N.M.md`
-      (4 drafted as the calibration set; see below)
-- [ ] Lesson drafts, 60 → `curriculum/customs/drafts/` — waves of one module at a time,
-      each wave QA'd with `tools/qa_customs.py` before the next starts
-- [ ] Module assessments, 15 → one per module after its four lessons
-- [ ] Fact-check and errata pass per module
+      - [ ] `ghana-electronic-systems.md` — named-system facts for Module 4.2 and Module 5
+            (ICUMS, the Ghana National Single Window): the declaration's UCR, workflow
+            statuses, attachments and permit references as the system actually implements
+            them, sourced from the decks or verified — added 2026-11-16 because the M4/M5
+            briefs anchor their systems claims to it (spec C4.6)
+- [x] Lesson briefs, all 60 → `curriculum/customs/lesson_briefs/module-NN/lesson-N.M.md`
+      (M1 calibration set 2026-11-02/11-16; M2–M15 completed 2026-11-16. QA: 243 Key
+      Terms verified word-for-word against Act 891 s.151 with 4 authored by design —
+      FOB/CFR/CIF quoted from the CPC-TT deck in 2.4, "time of entry" framed from
+      s.48 in 4.2; every cited section checked to exist in the Act (0 issues);
+      section-title map for ss.1–152 extracted in `tmp/act_reference.md`.)
+- [~] Lesson drafts, 60 → `curriculum/customs/drafts/` — waves of one module at a time,
+      each wave QA'd with `curriculum/customs/tools/qa_customs.py` before the next starts.
+      M1 wave complete 2026-11-17: 4 lesson drafts (KC 6 / WE 2 / IN 2 each, 1,967–2,089
+      block words, 3 MCQs each) plus `assessment-module-01.md` (12 questions with
+      coverage map) — QA 5/5 clean. Self-review: all brief objectives and Key Terms
+      taught (definitions verified word-for-word against the Act during drafting); no
+      errata required for the wave.
+      M2 wave complete 2026-11-17: 4 lesson drafts (1,903–2,076 block words, same shape)
+      plus `assessment-module-02.md` (12 questions with coverage map) — QA 10/10 clean
+      across both waves. The four C6 cross-reference lines to the Logistics modules are
+      written into 2.1–2.4 as the briefs specify; 2.4's FOB/CFR/CIF quotes verified
+      against the CPC-TT deck slides (CIF's insurance leg flagged for the fact-checker).
+- [~] Module assessments, 15 → one per module after its four lessons (2 of 15:
+      `assessment-module-01.md`, `assessment-module-02.md` complete)
+- [~] Fact-check and errata pass per module (M1: self-review pass complete, no errata
+      recorded; independent fact-check pending with the next wave)
 - [ ] Compile 15 docx + pdf → `curriculum/customs/docx/`
 - [ ] Visual quality gate and delivery
 
+- [x] Module 1 calibration set
+
 ## Module 1 calibration set
 
-Briefs written 2026-11-02 for M1 (4 lessons) so Bernard can approve the shape before the
-remaining 56 are authored: `lesson_briefs/module-01/lesson-1.1.md` … `1.4.md`.
+Briefs for M1 (4 lessons) written so Bernard can approve the shape before the
+remaining 56 are authored: `lesson_briefs/module-01/lesson-1.1.md` (2026-11-02) and
+`lesson-1.2.md` … `lesson-1.4.md` (2026-11-16). Every Key Term is verified verbatim
+against the Act text, including "duty" (s.151 — the supplied PDF renders that one
+definition with straight quotes; online copies at GhaLII confirm it). Verified online
+for brief 1.2 and cited in it: Ghana's Revised Kyoto Convention accession (29 June 2019,
+WCO contracting-parties list), WTO TFA acceptance (4 January 2017; TFA in force
+22 February 2017, tfadatabase.org), and ECOWAS CET implementation in Ghana
+(1 February 2016, five bands 0/5/10/20/35).
 
 ## The 60 lessons and their source anchors
 

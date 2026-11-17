@@ -1,0 +1,174 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Lesson editor · prototype · ICUMS Simulator{% endblock %}{% block workspace_name %}Lesson editor — prototype{% endblock %}
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1">
+  <link rel="stylesheet" href="{% static 'css/hybrid-programme-workspace.css' %}?v=20261101-1">
+  <link rel="stylesheet" href="{% static 'css/hybrid-course-module-workspace.css' %}?v=20261101-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone1.css' %}?v=20261106-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone2.css' %}?v=20261106-1">
+{% endblock %}
+
+{% comment %}
+MILESTONE 2 PROTOTYPE (mock data only — hybrid/prototype_data.py). Mirrors the
+real four-stage lesson editor (lesson_editor.html): details, theory,
+activities, review. Guided Practical adds the proposed objectives / materials /
+knowledge-check sections; Interactive Practical mirrors the real step and
+verification cards. Every edit stays in this browser tab (sessionStorage) —
+no form on this page ever reaches the server.
+{% endcomment %}
+
+{% block content %}<div class="authoring hyb-workspace" id="proto-editor" data-kind="{{ lesson.kind }}">
+  {% include "hybrid/prototype/_assets.html" %}
+  {{ lesson|json_script:"proto-lesson-seed" }}
+  <script id="proto-urls" type="application/json">{"editor": "{% url 'hybrid-prototype-milestone2-lesson' %}", "preview": "{% url 'hybrid-prototype-milestone2-preview' %}"}</script>
+
+  <a class="authoring-back-link" href="{% url 'hybrid-prototype-milestone1-module' %}">
+    <svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+    Module workspace
+  </a>
+  <nav class="ws-crumbs" aria-label="Breadcrumb">
+    <a href="{% url 'hybrid-prototype-milestone1-programme' %}">Programme workspace</a>
+    <span class="ws-crumb-sep" aria-hidden="true">→</span>
+    <a href="{% url 'hybrid-prototype-milestone1-course' %}">Pre-arrival &amp; Cargo Handling</a>
+    <span class="ws-crumb-sep" aria-hidden="true">→</span>
+    <a href="{% url 'hybrid-prototype-milestone1-module' %}">{{ module.title }}</a>
+    <span class="ws-crumb-sep" aria-hidden="true">→</span>
+    <span class="ws-crumb-here" id="proto-head-title">{{ lesson.title }}</span>
+  </nav>
+
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">Theory &amp; Practical · Lesson · draft edition v3</p>
+      <h1><span id="proto-editor-title">{{ lesson.title }}</span> <span class="proto-flag">mock</span></h1>
+      <p>Lesson code · <strong>{{ lesson.slug }}</strong> —
+        {% if lesson.kind == "guided" %}<b>Guided Practical</b> (provisional label for Guided Material Study): theory, supporting materials and optional knowledge checks. Its real editor is still to be built.
+        {% else %}<b>Interactive Practical</b>: theory, simulator demonstration, practical steps and verification — mirroring the shipped lesson editor.{% endif %}</p>
+    </div>
+    <div class="authoring-actions">
+      <span class="ws-chip {% if lesson.kind == 'guided' %}ws-chip--retired{% else %}ws-chip--draft{% endif %}">{{ lesson.kind|title }} lesson</span>
+      <a class="authoring-secondary" id="proto-open-preview" href="{% url 'hybrid-prototype-milestone2-preview' %}">Instructor preview</a>
+      <a class="authoring-primary" id="proto-back-to-module" href="{% url 'hybrid-prototype-milestone1-module' %}">Back to module</a>
+    </div>
+  </header>
+
+  <nav class="authoring-tabs authoring-lesson-tabs" role="tablist" aria-label="Lesson editor stages" data-authoring-tabs>
+    <button type="button" role="tab" aria-selected="true" data-authoring-tab="details"><span class="authoring-tab-number">1</span><span>Lesson details</span></button>
+    <button type="button" role="tab" aria-selected="false" tabindex="-1" data-authoring-tab="theory"><span class="authoring-tab-number">2</span><span>Theory &amp; guidance</span></button>
+    <button type="button" role="tab" aria-selected="false" tabindex="-1" data-authoring-tab="activities"><span class="authoring-tab-number">3</span><span>{% if lesson.kind == "guided" %}Materials &amp; knowledge checks{% else %}Practical activities{% endif %}</span></button>
+    <button type="button" role="tab" aria-selected="false" tabindex="-1" data-authoring-tab="review"><span class="authoring-tab-number">4</span><span>Review &amp; preview</span></button>
+  </nav>
+
+  <section class="authoring-card ws-panel" data-authoring-panel="details" aria-label="Lesson details (mock)">
+    <div class="authoring-editor-header">
+      <div><h2>Lesson details</h2><p>Title, summary and the proposed learning-objectives list.</p></div>
+      <span class="ws-chip ws-chip--viewing">browser-only</span>
+    </div>
+    <div class="authoring-form proto-fields">
+      <label>Lesson title
+        <input type="text" data-field="title" placeholder="e.g. Examining a cargo hold report">
+      </label>
+      <label>Summary
+        <textarea data-field="summary" rows="3" placeholder="One or two sentences learners see before they open the lesson."></textarea>
+      </label>
+      <div class="proto-proposed">
+        <div class="proto-proposed-head">
+          <b>Learning objectives</b>
+          <span class="proto-flag">proposed — not a model field</span>
+        </div>
+        <p class="helptext">Shown above the theory in the learner workspace. The real HybridLesson has no objectives field yet; this list shows how it would read.</p>
+        <div class="proto-items" data-list-host="objectives"></div>
+        <button type="button" class="authoring-secondary" data-list="objectives" data-list-action="add">+ Add objective</button>
+      </div>
+      <button class="authoring-primary" type="button" data-proto-save="Saved lesson details to this browser tab">Save stage</button>
+    </div>
+  </section>
+
+  <section class="authoring-card ws-panel" data-authoring-panel="theory" hidden aria-label="Theory and guidance (mock)">
+    <div class="authoring-editor-header">
+      <div><h2>Theory &amp; guidance</h2><p>One continuous reading for the lesson's theory panel — the same body the real editor sanitises on save.</p></div>
+      <span class="ws-chip ws-chip--viewing">browser-only</span>
+    </div>
+    <div class="au-rich-field">
+      <label for="id_form-body">Theory reading</label>
+      <textarea id="id_form-body" name="body" rows="18" placeholder="Write the reading exactly as learners will read it — headings, lists, tables and links use the same toolbar as the real editor."></textarea>
+    </div>
+    <p class="helptext">Shared production editor component (rich-text-editor.js); every change stays in this browser tab.</p>
+    <div class="form-actions">
+      <button class="authoring-primary" type="button" data-proto-save="Saved theory to this browser tab">Save stage</button>
+    </div>
+  </section>
+
+  {% if lesson.kind == "guided" %}
+    <section class="authoring-card ws-panel" data-authoring-panel="activities" hidden aria-label="Materials and knowledge checks (mock)">
+      <div class="authoring-editor-header">
+        <div><h2>Supporting materials</h2><p>Documents and images learners read beside the theory. Uploads here are names only — no file is sent anywhere.</p></div>
+        <span class="proto-flag">proposed — no upload UI exists yet</span>
+      </div>
+      <div class="proto-items" data-list-host="materials"></div>
+      <input type="file" id="proto-material-file" multiple hidden>
+      <button type="button" class="authoring-secondary" id="proto-material-upload">+ Attach document (mock)</button>
+
+      <div class="authoring-editor-header proto-subhead">
+        <div><h2>Knowledge checks</h2><p>Optional multiple-choice questions under the reading.</p></div>
+        <span class="proto-flag">proposed</span>
+      </div>
+      <div class="proto-items" data-list-host="checks"></div>
+      <button type="button" class="authoring-secondary" data-list="checks" data-list-action="add">+ Add knowledge check</button>
+      <p class="helptext">No Demonstration Studio here: a Guided Material Study lesson has no simulator walkthrough to record, so its content is written in the theory and materials stages.</p>
+      <div class="form-actions">
+        <button class="authoring-primary" type="button" data-proto-save="Saved materials and checks to this browser tab">Save stage</button>
+      </div>
+    </section>
+  {% else %}
+    <section class="authoring-card ws-panel" data-authoring-panel="activities" hidden aria-label="Practical activities (mock)">
+      <div class="authoring-editor-header">
+        <div><h2>Simulator procedure</h2><p>The screen family this lesson walks through — the same registry the real editor offers.</p></div>
+      </div>
+      <div class="authoring-form proto-fields">
+        <label>Procedure
+          <select data-field="procedure">
+            {% for screen in simulator_screens %}<option value="{{ screen }}"{% if screen == lesson.procedure %} selected{% endif %}>{{ screen }}</option>{% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div class="proto-demo-card">
+        <div>
+          <b>Demonstration recording</b>
+          <p class="helptext">The instructor demonstrates the procedure in the Demonstration Studio; its events become the draft steps below. The studio is prototyped in Milestone 3 — mock capture only, no recording endpoint is called.</p>
+        </div>
+        <a class="authoring-secondary" href="{% url 'hybrid-prototype-milestone3-studio' %}?lesson={{ lesson.slug }}&amp;kind={{ lesson.kind }}">Open Demonstration Studio</a>
+      </div>
+
+      <div class="authoring-editor-header proto-subhead">
+        <div><h2>Practical steps</h2><p>Instruction, expected outcome and verification per step — mirroring the shipped step cards.</p></div>
+        <span class="ws-chip ws-chip--viewing">browser-only</span>
+      </div>
+      <div class="proto-items" data-list-host="steps"></div>
+      <button type="button" class="authoring-secondary" data-list="steps" data-list-action="add">+ Add step</button>
+      <div class="form-actions">
+        <button class="authoring-primary" type="button" data-proto-save="Saved practical activities to this browser tab">Save stage</button>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="authoring-card ws-panel" data-authoring-panel="review" hidden aria-label="Review and preview (mock)">
+    <div class="authoring-editor-header">
+      <div><h2>Review &amp; preview</h2><p>What the real editor's publish checks would say about this mock lesson.</p></div>
+      <span class="ws-chip" id="proto-review-state">…</span>
+    </div>
+    <ul class="proto-review-list" id="proto-review-checklist"></ul>
+    <p class="helptext">Publishing itself stays edition-wide in the programme workspace, exactly as the real builder does — this prototype adds no per-lesson publish.</p>
+    <div class="form-actions">
+      <a class="authoring-secondary" id="proto-open-preview" href="{% url 'hybrid-prototype-milestone2-preview' %}">Open instructor preview</a>
+      <a class="authoring-primary" id="proto-back-to-module" href="{% url 'hybrid-prototype-milestone1-module' %}">Save &amp; return to module</a>
+    </div>
+  </section>
+
+  <script src="{% static 'js/instructor-theory-builder.js' %}" defer></script>
+  {% comment %} The prototype must seed the theory textarea before the shared
+  editor enhances it: both hook DOMContentLoaded, so document order decides. {% endcomment %}
+  <script src="{% static 'js/prototype-milestone2.js' %}?v=20261106-3" defer></script>
+  <script src="{% static 'js/rich-text-editor.js' %}?v=20261016-3" defer></script>
+</div>{% endblock %}

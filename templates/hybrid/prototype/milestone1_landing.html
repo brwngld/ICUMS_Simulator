@@ -1,0 +1,164 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Programme authoring prototype · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Theory &amp; Practical builder — prototype{% endblock %}
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/hybrid-builder-landing.css' %}?v=20261105-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone1.css' %}?v=20261106-1">
+{% endblock %}
+
+{% comment %}
+MILESTONE 1 PROTOTYPE (mock data only — hybrid/prototype_data.py). Mirrors the
+real Curriculum Builder landing (builder_index.html): stats, search/filter,
+programme cards and the New-programme dialog. Nothing posts anywhere; the
+dialog and filters run client-side through prototype/_assets.html.
+{% endcomment %}
+
+{% block content %}<div class="hyb-landing">
+  {% include "hybrid/prototype/_assets.html" %}
+
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">Instructor · Theory &amp; Practical</p>
+      <h1>Programmes <span class="proto-flag">Milestone 1 prototype</span></h1>
+      <p>Create programmes, courses, modules and combined theory-and-practical lessons. Draft editions are editable; published editions are read-only.</p>
+    </div>
+    <div class="authoring-actions">
+      <a class="authoring-primary" href="#" data-open-dialog="programme-dialog"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> New programme</a>
+    </div>
+  </header>
+
+  <section class="stat-grid" aria-label="Curriculum summary (mock)">
+    <div class="stat"><div class="stat-figures"><b>{{ landing_stats.programmes }}</b><span class="stat-label">Programmes</span></div></div>
+    <div class="stat"><div class="stat-figures"><b>{{ landing_stats.courses }}</b><span class="stat-label">Courses</span></div></div>
+    <div class="stat"><div class="stat-figures"><b>{{ landing_stats.modules }}</b><span class="stat-label">Modules</span></div></div>
+    <div class="stat"><div class="stat-figures"><b>{{ landing_stats.lessons }}</b><span class="stat-label">Lessons</span></div></div>
+  </section>
+
+  <section class="hyb-toolbar" aria-label="Search and filter mock programmes">
+    <form class="hyb-toolbar-form" data-prototype-form="filtered (client-side)" onsubmit="return false;">
+      <label class="hyb-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+        <input type="search" id="proto-search" name="q" placeholder="Search programmes by name or code" aria-label="Search programmes" autocomplete="off">
+      </label>
+      <div class="hyb-segments" role="group" aria-label="Filter programmes by edition status">
+        <button type="button" class="on" aria-pressed="true" data-proto-filter="">All</button>
+        <button type="button" aria-pressed="false" data-proto-filter="draft">Draft</button>
+        <button type="button" aria-pressed="false" data-proto-filter="published">Published</button>
+      </div>
+      <span class="hyb-count" id="proto-count">Showing {{ programme_rows|length }} of {{ total_count }}</span>
+    </form>
+  </section>
+
+  <section class="hyb-card-grid" aria-label="Mock programmes" id="proto-programme-grid">
+    {% for row in programme_rows %}
+      <article class="hyb-card proto-card" data-proto-name="{{ row.name|striptags|lower }}" data-proto-code="{{ row.code|lower }}" data-proto-status="{% for edition in row.editions %}{% if edition.status == 'draft' %}draft {% endif %}{% endfor %}{% for edition in row.editions %}{% if edition.status == 'published' %}published {% endif %}{% endfor %}">
+        <div class="hyb-card-top">
+          <div>
+            <h3>{{ row.name }} <span class="proto-flag">mock</span></h3>
+            <p class="hyb-card-code"><code>{{ row.code }}</code></p>
+          </div>
+          <div class="hyb-chip-row">
+            {% for edition in row.editions %}<span class="hyb-chip hyb-chip--{{ edition.status }}">v{{ edition.version }} · {% if edition.status == "draft" %}Draft{% else %}Published{% endif %}</span>{% endfor %}
+          </div>
+        </div>
+        <div class="hyb-editions">
+          {% for edition in row.editions %}
+            <div class="hyb-edition hyb-edition--{{ edition.status }}">
+              <p><b>{{ edition.courses }}</b> course{{ edition.courses|pluralize }} · <b>{{ edition.modules }}</b> module{{ edition.modules|pluralize }} · <b>{{ edition.lessons }}</b> lesson{{ edition.lessons|pluralize }}</p>
+            </div>
+          {% endfor %}
+        </div>
+        <div class="hyb-card-foot">
+          <span class="hyb-card-meta">{% for edition in row.editions %}{% if edition.status == "draft" %}Draft edition · editable{% endif %}{% endfor %}</span>
+          <div style="display:flex;gap:6px;align-items:center;">
+            {% if row.detail_url %}
+              <a class="authoring-primary" href="{% url row.detail_url %}">Manage <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a>
+            {% else %}
+              <span class="authoring-secondary" title="Published editions are read-only">{{ row.manage_label }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+    <article class="hyb-card proto-card proto-row" id="programme-row-template" hidden data-proto-status="draft">
+      <div class="hyb-card-top">
+        <div>
+          <h3 class="proto-mock-name">Untitled</h3>
+          <p class="hyb-card-code"><code class="proto-mock-code">MOCK-CODE</code></p>
+        </div>
+        <div class="hyb-chip-row"><span class="hyb-chip hyb-chip--draft">v1 · Draft</span></div>
+      </div>
+      <div class="hyb-editions">
+        <div class="hyb-edition hyb-edition--draft"><p class="hyb-edition-empty">No modules or lessons yet — start by adding a module.</p></div>
+      </div>
+      <div class="hyb-card-foot">
+        <span class="hyb-card-meta">Draft edition · editable</span>
+        <span class="proto-flag">added in browser only</span>
+      </div>
+    </article>
+  </section>
+
+  <dialog id="programme-dialog" class="authoring-course-modal" aria-labelledby="programme-dialog-title">
+    <form method="dialog" class="authoring-form" data-prototype-form="Created programme" data-mock-target="proto-programme-grid" data-mock-template="programme-row-template">
+      <div class="authoring-modal-head">
+        <div>
+          <h2 id="programme-dialog-title">New programme</h2>
+          <p>A Theory &amp; Practical programme opens with a draft edition, ready for its first course.</p>
+        </div>
+        <button class="authoring-modal-close" type="button" data-close-dialog aria-label="Close dialog">×</button>
+      </div>
+      <div class="hyb-modal-body">
+        <label>Programme name
+          <input type="text" name="name" placeholder="e.g. Transit &amp; Bonded Warehousing">
+        </label>
+        <p class="helptext">Shown to instructors and learners across the builder.</p>
+        <label>Programme code
+          <input type="text" name="code" placeholder="e.g. TBW-2026">
+        </label>
+        <p class="helptext">Letters, numbers, underscores or hyphens. Must be unique.</p>
+      </div>
+      <div class="hyb-modal-actions">
+        <button class="authoring-secondary" type="button" data-close-dialog>Cancel</button>
+        <button class="authoring-primary" type="submit">Create programme</button>
+      </div>
+    </form>
+  </dialog>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // Client-side-only search/filter over the mock cards.
+  var search = document.getElementById("proto-search");
+  var count = document.getElementById("proto-count");
+  var status = "";
+  function apply() {
+    var needle = search.value.trim().toLowerCase();
+    var shown = 0;
+    document.querySelectorAll(".proto-card").forEach(function (card) {
+      if (card.id === "programme-row-template") return;
+      var matchesText = !needle
+        || (card.getAttribute("data-proto-name") || "").indexOf(needle) !== -1
+        || (card.getAttribute("data-proto-code") || "").indexOf(needle) !== -1;
+      var matchesStatus = !status || (card.getAttribute("data-proto-status") || "").indexOf(status) !== -1;
+      var visible = matchesText && matchesStatus;
+      card.style.display = visible ? "" : "none";
+      if (visible) shown += 1;
+    });
+    count.textContent = "Showing " + shown + " mock programme" + (shown === 1 ? "" : "s");
+  }
+  search.addEventListener("input", apply);
+  document.querySelectorAll("[data-proto-filter]").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      status = chip.getAttribute("data-proto-filter");
+      document.querySelectorAll("[data-proto-filter]").forEach(function (other) {
+        other.classList.toggle("on", other === chip);
+        other.setAttribute("aria-pressed", other === chip ? "true" : "false");
+      });
+      apply();
+    });
+  });
+})();
+</script>
+{% endblock %}

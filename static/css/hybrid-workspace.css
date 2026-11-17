@@ -309,6 +309,10 @@ html.dark .hyb-done-note {
   background: var(--color-success-950, #14261d);
 }
 
+.hyb-practise-again {
+  margin-top: 0.5rem;
+}
+
 /* Narrow screens: one pane at a time, chosen with the header switch. */
 
 .hyb-switch {
@@ -341,4 +345,19 @@ html.dark .hyb-done-note {
   .hyb-frame-wrap {
     height: 60vh;
   }
+}
+
+.hyb-theory-page {
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+.hyb-theory-start {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.hyb-theory-start-btn {
+  display: inline-block;
+  padding: 0.6rem 1.5rem;
 }

@@ -1,0 +1,60 @@
+{% extends "core/base_student.html" %}
+{% load static rich_content %}
+
+{% comment %}
+Standalone theory page: the student reads the lesson's theory, acknowledges
+it, then starts the practical. The practical guide (journey + steps +
+simulator) lives on its own page at the workspace URL.
+{% endcomment %}
+
+{% block title %}{{ lesson.title }} · Theory · ICUMS Simulator{% endblock %}
+{% block workspace_name %}{{ lesson.title }} · Theory{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/hybrid-workspace.css' %}?v=20261110-2">
+{% endblock %}
+
+{% block content %}
+  <div class="dash hyb" data-hyb{% if attempt %} data-attempt-base="/hybrid/attempts/{{ attempt.id }}"{% endif %}>
+    <form id="hyb-csrf" hidden>{% csrf_token %}</form>
+    {% if preview_mode %}<p class="hyb-preview-banner" role="note">Instructor preview — this is draft content. Learners see it only once the edition is published.</p>{% endif %}
+    <header class="dash-head">
+      <div>
+        <p class="dash-eyebrow">Theory &amp; Practical{% if attempt and attempt.practice %} · <span class="dash-pill is-info">Practice attempt</span>{% endif %}</p>
+        <h1>{{ lesson.title }}</h1>
+      </div>
+    </header>
+
+    <div class="hyb-theory-page">
+      {% if lesson.summary %}
+        <article class="hyb-card">
+          <div class="lrn-copy"><p>{{ lesson.summary }}</p></div>
+        </article>
+      {% endif %}
+
+      {% if theory %}
+        <article class="hyb-card">
+          <p class="hyb-card-label">Theory</p>
+          <div class="hyb-card-body"><div class="lrn-copy">{{ theory|rich_content }}</div></div>
+          {% if attempt %}
+            <div class="hyb-acknowledge">
+              {% if attempt.theory_acknowledged %}
+                <span class="dash-pill is-ok">Theory acknowledged ✓</span>
+              {% else %}
+                <button class="dash-secondary" type="button" data-hyb-acknowledge>I have read the theory</button>
+              {% endif %}
+            </div>
+          {% endif %}
+        </article>
+      {% endif %}
+
+      {% if attempt and attempt.theory_acknowledged %}
+        <div class="hyb-theory-start">
+          <a class="dash-primary hyb-theory-start-btn" href="{% url 'hybrid-workspace' lesson.pk %}">Start the practical →</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+  <script src="{% static 'js/hybrid-workspace.js' %}?v=20261110-2" defer></script>
+{% endblock %}

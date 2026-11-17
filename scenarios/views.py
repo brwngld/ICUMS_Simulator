@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model, login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.core.validators import validate_email
-from django.http import HttpResponse, JsonResponse, FileResponse
+from django.http import Http404, HttpResponse, JsonResponse, FileResponse
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Max
@@ -441,12 +441,24 @@ def single_window_create_ucr(request):
     draft = None
     draft_id = request.GET.get("draft")
     from .demonstration_ucr import demonstration_create_draft, demonstration_save_applies
+    from .practice_ucr import practice_create_draft, practice_ucr_applies
 
     if demonstration_save_applies(request):
         # A bound demonstration browser resolves this screen through its session
         # scope only — the ordinary manager can never see or confirm a row here,
         # and an ordinary draft is not loaded into a recording either (Stage 1B.1).
         draft = demonstration_create_draft(request, draft_id)
+    elif practice_ucr_applies(request):
+        # A practising browser resolves its own scratch draft through the bound
+        # attempt's scope; a submitted scratch id redirects to its detail page,
+        # which resolves practice records read-only for their owner.
+        draft = practice_create_draft(request, draft_id)
+        if draft is None and draft_id and draft_id.isdigit():
+            submitted = UcrDeclaration.all_objects.filter(
+                pk=int(draft_id), owner=_effective_owner(request), practice_attempt__isnull=False,
+            ).first()
+            if submitted:
+                return redirect("ucr-detail", record_id=submitted.pk)
     elif draft_id and draft_id.isdigit():
         candidate = UcrDeclaration.objects.filter(pk=draft_id, owner=_effective_owner(request), status=UcrDeclaration.Status.DRAFT).first()
         if candidate:
@@ -778,6 +790,13 @@ def ucr_save_declaration(request):
 
     if demonstration_save_applies(request):
         return save_demonstration_ucr(request)
+    from .practice_ucr import practice_ucr_applies, save_practice_ucr
+
+    if practice_ucr_applies(request):
+        # A practising browser saves into its lesson's scratch scope — the
+        # record is verified against the practice attempt and discarded when
+        # the run completes; it never becomes an ordinary learner record.
+        return save_practice_ucr(request)
     payload, errors = _parse_ucr_payload(request)
     if errors:
         return JsonResponse({"errors": errors}, status=400)
@@ -801,10 +820,22 @@ def ucr_save_declaration(request):
 @simulator_access_required
 @require_POST
 def ucr_submit_declaration(request):
-    """Submit closes the addressed draft and issues the final KGHTESTUCR… number."""
+    """Submit closes the addressed draft and issues the final KGHTESTUCR… number.
+
+    A browser holding a server-side demonstration binding submits into that
+    demonstration instead — the scoped service re-derives every authorization
+    itself and never falls back to an ordinary write (Import-UCR foundation)."""
     blocked = _review_json_guard(request)
     if blocked:
         return blocked
+    from .demonstration_ucr import demonstration_submit_applies, submit_demonstration_ucr
+
+    if demonstration_submit_applies(request):
+        return submit_demonstration_ucr(request)
+    from .practice_ucr import practice_ucr_applies, submit_practice_ucr
+
+    if practice_ucr_applies(request):
+        return submit_practice_ucr(request)
     payload, errors = _parse_ucr_payload(request)
     if errors:
         return JsonResponse({"errors": errors}, status=400)
@@ -828,11 +859,24 @@ def ucr_submit_declaration(request):
                          "attachments": _ucr_attachment_payload(record)})
 
 
-def _ucr_search_queryset(request):
-    """Owner's UCRs filtered by the Search UCR criteria; text fields match exactly, not partially."""
+def _ucr_search_queryset(request, include_demonstration=False):
+    """Owner's UCRs filtered by the Search UCR criteria; text fields match exactly, not partially.
+
+    ``include_demonstration`` extends the pool with the owner's own
+    demonstration-scoped rows: a recording's UCR is invisible to the ordinary
+    manager, but a picker that continues the procedure must reach it.
+    Listing surfaces keep the ordinary pool only, so a demonstration record
+    never appears as a search result.
+    """
     purge_expired_ucr_drafts()
     query = request.GET
-    records = UcrDeclaration.objects.filter(owner=_effective_owner(request)).order_by("-created_at")
+    owner = _effective_owner(request)
+    records = UcrDeclaration.objects.filter(owner=owner)
+    if include_demonstration:
+        records = records | UcrDeclaration.all_objects.filter(
+            owner=owner, demonstration_session__isnull=False,
+        )
+    records = records.order_by("-created_at")
     searched = False
     if query.get("number", "").strip():
         number = query["number"].strip()
@@ -885,7 +929,7 @@ def ucr_reference_search(request):
     for key in ("status", "date_from", "date_to", "reference"):
         query.pop(key, None)
     request.GET = query
-    records, searched = _ucr_search_queryset(request)
+    records, searched = _ucr_search_queryset(request, include_demonstration=True)
 
     def party_display(identity, name):
         if identity and name and identity != name:
@@ -1037,7 +1081,24 @@ def _ucr_form_context(record):
 @simulator_access_required
 @require_GET
 def ucr_detail(request, record_id):
-    record = get_object_or_404(UcrDeclaration.objects.select_related("source_ucr"), pk=record_id, owner=_effective_owner(request))
+    owner = _effective_owner(request)
+    record = UcrDeclaration.objects.select_related("source_ucr").filter(pk=record_id, owner=owner).first()
+    if record is None:
+        # Read-only fallbacks: an instructor's own demonstration record — including
+        # a submitted one, which is where a demonstration submit redirects — is
+        # invisible to the ordinary manager. The same is true of a learner's own
+        # practice-run scratch record, which is where a practice submit redirects.
+        # Both scopes are owner-checked and never writable from here; another
+        # user's or an unknown id still 404s exactly as before.
+        record = UcrDeclaration.all_objects.select_related("source_ucr").filter(
+            pk=record_id, owner=owner, demonstration_session__isnull=False
+        ).first()
+    if record is None:
+        record = UcrDeclaration.all_objects.select_related("source_ucr").filter(
+            pk=record_id, owner=owner, practice_attempt__isnull=False
+        ).first()
+    if record is None:
+        raise Http404("No UCR declaration found.")
     context = _ucr_form_context(record)
     context["regime_options"] = UCR_REGIME_OPTIONS
     context["review_mode"] = _review_target(request) is not None
@@ -1231,19 +1292,40 @@ def _application_record_payload(record):
 @simulator_access_required
 def consignment_application_create(request):
     """Create or resume the Consignment Document application built on an issued UCR."""
+    owner = _effective_owner(request)
     application = None
     app_id = request.GET.get("app", "")
     if app_id.isdigit():
-        application = ConsignmentApplication.objects.filter(pk=app_id, owner=_effective_owner(request)).first()
+        application = ConsignmentApplication.objects.filter(pk=app_id, owner=owner).first()
+        if application is None:
+            # Read-only fallback: an instructor's own demonstration-scoped
+            # application is invisible to the ordinary manager, and a recording
+            # resumes it by id after a save. Owner-checked, so nobody else's
+            # demonstration record can be reached here.
+            application = ConsignmentApplication.all_objects.filter(
+                pk=app_id, owner=owner, demonstration_session__isnull=False,
+            ).first()
     ucr = application.ucr if application else None
     if ucr is None:
         ucr_no = request.GET.get("ucr", "").strip()
-        ucr = UcrDeclaration.objects.filter(owner=_effective_owner(request), ucr_no__iexact=ucr_no, status=UcrDeclaration.Status.SUBMITTED).first() if ucr_no else None
+        ucr = UcrDeclaration.objects.filter(owner=owner, ucr_no__iexact=ucr_no, status=UcrDeclaration.Status.SUBMITTED).first() if ucr_no else None
+        if ucr is None and ucr_no:
+            # Demonstration scope: the UCR a recording submitted carries a
+            # demonstration_session, so the ordinary manager cannot see it.
+            ucr = UcrDeclaration.all_objects.filter(
+                owner=owner, ucr_no__iexact=ucr_no,
+                status=UcrDeclaration.Status.SUBMITTED, demonstration_session__isnull=False,
+            ).first()
         if ucr is None:
             messages.error(request, "Choose an issued UCR number before creating an application form.")
             return redirect("single-window-create-preparation-application")
         if application is None:
-            application = ConsignmentApplication.objects.filter(owner=_effective_owner(request), ucr=ucr, status=ConsignmentApplication.Status.DRAFT).first()
+            application = ConsignmentApplication.objects.filter(owner=owner, ucr=ucr, status=ConsignmentApplication.Status.DRAFT).first()
+            if application is None:
+                application = ConsignmentApplication.all_objects.filter(
+                    owner=owner, ucr=ucr, status=ConsignmentApplication.Status.DRAFT,
+                    demonstration_session__isnull=False,
+                ).first()
     initial = _application_record_payload(application) if application else _application_initial_from_ucr(ucr)
     if initial.get("shipment_date"):
         initial["shipment_date"] = initial["shipment_date"].isoformat()
@@ -1357,6 +1439,10 @@ def mda_consignment_application_save(request, request_id):
     blocked = _review_json_guard(request)
     if blocked:
         return blocked
+    from .demonstration_mda_boe import demonstration_mda_boe_applies, save_demonstration_mda
+
+    if demonstration_mda_boe_applies(request):
+        return save_demonstration_mda(request)
     record = get_object_or_404(MdaConsignmentRequest, pk=request_id, consignment_application__owner=_effective_owner(request))
     try:
         payload = json.loads(request.body.decode("utf-8"))
@@ -1414,6 +1500,10 @@ def mda_consignment_application_submit(request, request_id):
     blocked = _review_json_guard(request)
     if blocked:
         return blocked
+    from .demonstration_mda_boe import demonstration_mda_boe_applies, submit_demonstration_mda
+
+    if demonstration_mda_boe_applies(request):
+        return submit_demonstration_mda(request)
     record = get_object_or_404(MdaConsignmentRequest, pk=request_id, consignment_application__owner=request.user)
     application_code = (record.application.code or "").upper()
     mda_code = (record.mda.code or "").upper()
@@ -1596,6 +1686,9 @@ def _allocate_mda_application_number(mda_code, application_code):
 @simulator_access_required
 @require_POST
 def application_mda_request_create(request):
+    from .demonstration_mda_boe import create_demonstration_mda, demonstration_mda_boe_applies
+    if demonstration_mda_boe_applies(request):
+        return create_demonstration_mda(request)
     try:
         payload = json.loads(request.body.decode("utf-8"))
         consignment_application = get_object_or_404(ConsignmentApplication, pk=payload.get("consignment_application_id"))
@@ -1796,6 +1889,10 @@ def application_save_declaration(request):
     blocked = _review_json_guard(request)
     if blocked:
         return blocked
+    from .demonstration_consignment import demonstration_consignment_applies, save_demonstration_consignment
+
+    if demonstration_consignment_applies(request):
+        return save_demonstration_consignment(request)
     data, error_response = _parse_application_payload(request)
     if error_response:
         return error_response
@@ -1820,6 +1917,10 @@ def application_submit_declaration(request):
     blocked = _review_json_guard(request)
     if blocked:
         return blocked
+    from .demonstration_consignment import demonstration_consignment_applies, submit_demonstration_consignment
+
+    if demonstration_consignment_applies(request):
+        return submit_demonstration_consignment(request)
     data, error_response = _parse_application_payload(request)
     if error_response:
         return error_response
@@ -1996,6 +2097,10 @@ def consignment_application_mda_create(request):
     blocked = _review_json_guard(request)
     if blocked:
         return blocked
+    from .demonstration_consignment import create_demonstration_consignment_mda, demonstration_consignment_applies
+
+    if demonstration_consignment_applies(request):
+        return create_demonstration_consignment_mda(request)
     try:
         payload = json.loads(request.body.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -2342,6 +2447,10 @@ def _boe_annexed_documents(declaration):
 @require_POST
 def boe_create(request):
     """Create a BOE declaration from a reuse document; a UCR can only be declared once."""
+    from .demonstration_mda_boe import create_demonstration_boe, demonstration_mda_boe_applies
+
+    if demonstration_mda_boe_applies(request):
+        return create_demonstration_boe(request)
     payload = json.loads(request.body.decode("utf-8") or "{}") if request.body else {}
     reuse = str(payload.get("reuse", "")).strip().upper()
     if reuse != "IDF":
@@ -2764,17 +2873,13 @@ def _boe_target_item(data, payload):
     return items, index, None
 
 
-@simulator_access_required
-@require_POST
-def boe_save_general_draft(request, declaration_id):
-    """Save the editable fields of a BOE draft tab (general, BL/AWB, invoice, documents, item)."""
-    declaration = get_object_or_404(BoeDeclaration, pk=declaration_id, owner=request.user)
-    if declaration.status != BoeDeclaration.Status.DRAFT:
-        return JsonResponse({"error": "Only drafts can be saved."}, status=400)
-    try:
-        payload = json.loads(request.body.decode("utf-8") or "{}")
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "The request body is not valid JSON."}, status=400)
+def _apply_boe_section(declaration, payload):
+    """Apply one saved BOE tab (general, BL/AWB, invoice, documents, item)
+    to the declaration's form data. Returns ``(section, None)`` on success
+    or ``(None, error_response)`` on a refusal; the caller persists and
+    answers. Shared by the ordinary draft save and the demonstration-scoped
+    save so both flows behave identically.
+    """
     data = declaration.form_data or {}
     section = str(payload.get("section", "general")).strip().lower()
     if section == "bl_awb":
@@ -2813,7 +2918,7 @@ def boe_save_general_draft(request, declaration_id):
     elif section == "item":
         items, index, error = _boe_target_item(data, payload)
         if error:
-            return error
+            return None, error
         item = items[index]
         fields = payload.get("fields") or {}
         for key, limit in BOE_ITEM_FIELD_LIMITS.items():
@@ -2840,7 +2945,7 @@ def boe_save_general_draft(request, declaration_id):
     elif section == "item_taxes":
         items, index, error = _boe_target_item(data, payload)
         if error:
-            return error
+            return None, error
         raw_taxes = payload.get("taxes")
         taxes = []
         for row in (raw_taxes if isinstance(raw_taxes, list) else [])[:50]:
@@ -2855,7 +2960,7 @@ def boe_save_general_draft(request, declaration_id):
     elif section == "item_annexed":
         items, index, error = _boe_target_item(data, payload)
         if error:
-            return error
+            return None, error
         raw_rows = payload.get("rows")
         rows = []
         for row in (raw_rows if isinstance(raw_rows, list) else [])[:50]:
@@ -2884,30 +2989,30 @@ def boe_save_general_draft(request, declaration_id):
 
         if action == "add":
             if len(items) >= BOE_MAX_ITEMS:
-                return JsonResponse({"error": f"A declaration is limited to {BOE_MAX_ITEMS} items."}, status=400)
+                return None, JsonResponse({"error": f"A declaration is limited to {BOE_MAX_ITEMS} items."}, status=400)
             items.append({"hs_code": "", "description": ""})
         elif action == "duplicate":
             index = payload.get("index")
             if not isinstance(index, int) or index < 0 or index >= len(items):
-                return JsonResponse({"error": "Select the item row to duplicate."}, status=400)
+                return None, JsonResponse({"error": "Select the item row to duplicate."}, status=400)
             if len(items) >= BOE_MAX_ITEMS:
-                return JsonResponse({"error": f"A declaration is limited to {BOE_MAX_ITEMS} items."}, status=400)
+                return None, JsonResponse({"error": f"A declaration is limited to {BOE_MAX_ITEMS} items."}, status=400)
             items.append(json.loads(json.dumps(items[index])))
         elif action == "delete":
             indices = sorted(_valid_indices(payload.get("indices")), reverse=True)
             if not indices:
-                return JsonResponse({"error": "Select at least one item row to delete."}, status=400)
+                return None, JsonResponse({"error": "Select at least one item row to delete."}, status=400)
             for index in indices:
                 items.pop(index)
         elif action == "valuation":
             method = str(payload.get("valuation_method", "")).strip()[:60]
             indices = _valid_indices(payload.get("indices"))
             if not method or not indices:
-                return JsonResponse({"error": "Select item rows and a valuation method."}, status=400)
+                return None, JsonResponse({"error": "Select item rows and a valuation method."}, status=400)
             for index in indices:
                 items[index]["valuation_method"] = method
         else:
-            return JsonResponse({"error": "Unknown item action."}, status=400)
+            return None, JsonResponse({"error": "Unknown item action."}, status=400)
         _boe_renumber_items(items)
         data["items"] = items
     else:
@@ -2916,6 +3021,26 @@ def boe_save_general_draft(request, declaration_id):
         data["taxpayer"] = taxpayer if taxpayer in ("importer", "consignee", "declarant") else "importer"
         data["consignee_same"] = bool(payload.get("consignee_same"))
     declaration.form_data = data
+    return section, None
+
+
+@simulator_access_required
+@require_POST
+def boe_save_general_draft(request, declaration_id):
+    from .demonstration_mda_boe import demonstration_mda_boe_applies, save_demonstration_boe
+    if demonstration_mda_boe_applies(request):
+        return save_demonstration_boe(request)
+    """Save the editable fields of a BOE draft tab (general, BL/AWB, invoice, documents, item)."""
+    declaration = get_object_or_404(BoeDeclaration, pk=declaration_id, owner=request.user)
+    if declaration.status != BoeDeclaration.Status.DRAFT:
+        return JsonResponse({"error": "Only drafts can be saved."}, status=400)
+    try:
+        payload = json.loads(request.body.decode("utf-8") or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "The request body is not valid JSON."}, status=400)
+    section, error = _apply_boe_section(declaration, payload)
+    if error:
+        return error
     declaration.save(update_fields=("form_data", "updated_at"))
     return JsonResponse({"saved": True, "section": section})
 
@@ -2934,6 +3059,9 @@ def required_mda_agencies(hs_codes):
 @simulator_access_required
 @require_POST
 def boe_submit(request, declaration_id):
+    from .demonstration_mda_boe import demonstration_mda_boe_applies, submit_demonstration_boe
+    if demonstration_mda_boe_applies(request):
+        return submit_demonstration_boe(request)
     """Submit a draft BOE; the declaration enters the customs response stages.
 
     Blocked while an HS-called MDA has not been approved and attached to the UCR:

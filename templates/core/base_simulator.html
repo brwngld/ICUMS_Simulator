@@ -153,8 +153,7 @@ that do not set them.
       <button class="sim-nav-arrow" type="button" data-sim-nav="1" aria-label="Scroll service areas forward" hidden><span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button>
     </div>
     {% else %}
-    {# Every service area is gated behind simulator access, so offering them
-       here would only be a page of bounces. #}
+    {% comment %} Every service area is gated behind simulator access, so offering them here would only be a page of bounces. {% endcomment %}
     <div class="sim-brand-nav">
       <a class="sim-more-info" href="{% url 'simulator-more-information' %}">More information</a>
     </div>
@@ -213,4 +212,12 @@ that do not set them.
     </main>
   </div>
   {% if guide_panel %}<script defer src="{% static 'js/guide-panel.js' %}?v=20261016-1"></script>{% endif %}
+  {% if demonstration_recording %}
+  {# Served only when the server resolved this browser's binding to a live recording; the recorder never reads the CSRF cookie. #}
+  <script id="demonstration-recorder" defer
+          src="{% static 'js/demonstration-recorder.js' %}?v=20261109-1"
+          data-endpoint="{% url 'hybrid-demonstration-interactions' %}"
+          data-csrf="{{ csrf_token }}"
+          data-route="{{ request.resolver_match.url_name }}"></script>
+  {% endif %}
 {% endblock %}

@@ -147,7 +147,11 @@ def test_an_authorized_instructor_save_creates_a_scoped_draft_and_its_event(db):
     assert event.event_type == "record_created"
     assert event.record_kind == "ucr"
     assert event.record_id == record.pk
-    assert event.payload == {"regime_code": "TN", "result_status": "saved"}
+    assert event.payload == {
+        "regime_code": "TN",
+        "result_status": "saved",
+        "filled_sections": ["consignment", "exporter", "importer", "provider"],
+    }
     # The save is deliberate activity: the inactivity deadline moved with it.
     assert session_row(world).last_activity_at > world["session"].last_activity_at
 
@@ -422,7 +426,11 @@ def test_an_unchanged_resave_records_an_update_without_changed_fields(db):
 
     assert response.status_code == 200
     event = DemonstrationEvent.objects.get(session_id=world["session"].pk, sequence=2)
-    assert event.payload == {"regime_code": "TN", "result_status": "updated"}
+    assert event.payload == {
+        "regime_code": "TN",
+        "result_status": "updated",
+        "filled_sections": ["consignment", "exporter", "importer", "provider"],
+    }
 
 
 @pytest.mark.django_db
@@ -925,7 +933,7 @@ def test_the_studio_page_wires_the_recording_client_only_while_enabled(db):
     assert start_url in html
     assert reverse("hybrid-demonstration-discard") in html
     # Flag on: the approved conditional wording replaces the placeholders.
-    assert "RECORDING ENABLED · UCR SAVE CAPTURED" in html
+    assert "RECORDING ENABLED · UCR SAVE + SUBMIT CAPTURED" in html
     assert "Recording is enabled in this development environment" in html
     assert "No events recorded yet." in html
     assert "Scope boundary" in html

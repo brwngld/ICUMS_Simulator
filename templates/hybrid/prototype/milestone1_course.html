@@ -1,0 +1,198 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Course workspace · prototype · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Course workspace — prototype{% endblock %}
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1">
+  <link rel="stylesheet" href="{% static 'css/hybrid-programme-workspace.css' %}?v=20261101-1">
+  <link rel="stylesheet" href="{% static 'css/hybrid-course-module-workspace.css' %}?v=20261101-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone1.css' %}?v=20261106-1">
+{% endblock %}
+
+{% comment %}
+MILESTONE 1 PROTOTYPE (mock data only — hybrid/prototype_data.py). Mirrors the
+real Course Workspace (course_detail.html): module grid, Practical Workflow
+(Journey) panel and course details. Module moves and creation run client-side
+through prototype/_assets.html.
+{% endcomment %}
+
+{% block content %}<div class="authoring hyb-workspace">
+  {% include "hybrid/prototype/_assets.html" %}
+
+  <a class="authoring-back-link" href="{% url 'hybrid-prototype-milestone1-programme' %}">
+    <svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+    Programme workspace
+  </a>
+  <nav class="ws-crumbs" aria-label="Breadcrumb">
+    <a href="{% url 'hybrid-prototype-milestone1-programme' %}">Programme workspace</a>
+    <span class="ws-crumb-sep" aria-hidden="true">→</span>
+    <a href="{% url 'hybrid-prototype-milestone1' %}">Customs Clearance Practitioner</a>
+    <span class="ws-crumb-sep" aria-hidden="true">→</span>
+    <span class="ws-crumb-here">{{ course.title }}</span>
+  </nav>
+
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">Theory &amp; Practical · Course · draft edition v3</p>
+      <h1>{{ course.title }} <span class="proto-flag">mock</span></h1>
+      <p>Course code · <strong>{{ course.code }}</strong> — {{ course.description }} Group the course into modules; modules hold the lessons.</p>
+    </div>
+    <div class="authoring-actions"><span class="ws-chip ws-chip--draft">Draft course</span></div>
+  </header>
+
+  <section class="ws-stat-grid" aria-label="Course overview (mock)">
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="box" %}</span><span class="ws-stat-figures"><b>{{ modules|length }}</b><span class="ws-stat-label">Modules</span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="book" %}</span><span class="ws-stat-figures"><b>{{ lesson_count }}</b><span class="ws-stat-label">Lessons</span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="layers" %}</span><span class="ws-stat-figures"><b>{{ journeys|length }}</b><span class="ws-stat-label">Practical workflows</span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="assignment" %}</span><span class="ws-stat-figures"><b>{{ blockers|length }}</b><span class="ws-stat-label">Items to resolve</span></span></div>
+  </section>
+
+  <section class="authoring-card ws-panel" aria-label="Publication readiness (mock)">
+    <div class="ws-readiness {% if blockers %}ws-readiness--blocked{% else %}ws-readiness--ready{% endif %}">
+      <div class="ws-readiness-head"><span class="ws-readiness-marker" aria-hidden="true">{% if blockers %}!{% else %}✓{% endif %}</span>
+        {% if blockers %}Not ready to publish — {{ blockers|length }} item{{ blockers|length|pluralize }} to resolve.{% else %}Ready to publish — this course has nothing outstanding.{% endif %}
+      </div>
+      {% if blockers %}
+        <details class="ws-readiness-details">
+          <summary>Show details</summary>
+          <ul>{% for blocker in blockers %}<li>{{ blocker }}</li>{% endfor %}</ul>
+        </details>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="authoring-card ws-panel" aria-label="Modules (mock)">
+    <div class="authoring-editor-header">
+      <div>
+        <h2>Modules</h2>
+        <p>Learners take modules in the order shown. Open a module to manage its lessons.</p>
+      </div>
+      <div class="authoring-actions">
+        <a class="authoring-primary" href="#" data-open-dialog="module-dialog"><svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>Add module</a>
+      </div>
+    </div>
+    <div class="ws-course-grid" id="proto-module-grid">
+      {% for row in modules %}
+        <article class="authoring-card ws-course-card">
+          <div class="ws-course-top">
+            <div>
+              <h3>{{ row.title }}</h3>
+              <p class="ws-course-code">Module code · <code>{{ row.code }}</code></p>
+            </div>
+            <span class="ws-chip ws-chip--draft">Draft</span>
+          </div>
+          <div class="ws-course-meta">
+            <span><b>{{ row.lesson_count }}</b> lesson{{ row.lesson_count|pluralize }}</span>
+            {% if not row.lesson_count %}<span class="ws-course-notready">No lessons yet</span>{% endif %}
+          </div>
+          <div class="ws-course-foot">
+            <span class="ws-move">
+              <button type="button" class="proto-move" data-prototype-toast="Module reordering is a browser-only preview" aria-label="Move module up">↑</button>
+              <button type="button" class="proto-move" data-prototype-toast="Module reordering is a browser-only preview" aria-label="Move module down">↓</button>
+            </span>
+            {% if row.detail_url %}
+              <a class="authoring-primary" href="{% url row.detail_url %}">Open module<svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg></a>
+            {% else %}
+              <a class="authoring-primary" href="{% url 'hybrid-prototype-milestone1-module' %}" title="Same mock module shape, kept for the tour">Open module</a>
+            {% endif %}
+            <a class="authoring-secondary" href="#" data-prototype-toast="Removing “{{ row.title }}” would require its lessons to move first">Remove</a>
+          </div>
+        </article>
+      {% endfor %}
+      <article class="authoring-card ws-course-card proto-row" id="module-row-template" hidden>
+        <div class="ws-course-top">
+          <div>
+            <h3><span class="proto-mock-name">Untitled</span> <span class="proto-flag">browser-only</span></h3>
+            <p class="ws-course-code">Module code · <code>MOCK-MODULE</code></p>
+          </div>
+          <span class="ws-chip ws-chip--draft">Draft</span>
+        </div>
+        <div class="ws-course-meta">
+          <span><b>0</b> lesson</span>
+          <span class="ws-course-notready">No lessons yet</span>
+        </div>
+        <div class="ws-course-foot">
+          <a class="authoring-primary" href="{% url 'hybrid-prototype-milestone1-module' %}">Open module</a>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <section class="authoring-card ws-panel" aria-label="Practical Workflows (Journeys) — mock">
+    <div class="authoring-editor-header">
+      <div>
+        <h2>Practical Workflows (Journeys)</h2>
+        <p>Connect practical lessons and simulator actions into a complete workflow, with record roles, dependencies and completion checkpoints. The full Journey organizer is Milestone 4 of this prototype.</p>
+      </div>
+      <span class="ws-chip ws-chip--viewing">{{ journeys|length }} workflow{{ journeys|length|pluralize }}</span>
+    </div>
+    <div class="ws-editions">
+      {% for row in journeys %}
+        <div class="ws-edition">
+          <span class="ws-edition-ver">{{ forloop.counter }}</span>
+          <div class="ws-edition-what">
+            <b>{{ row.title }} <span class="proto-flag">mock</span></b>
+            <p>{{ row.start_mode }} · {{ row.issue_count }} outstanding requirement{{ row.issue_count|pluralize }}</p>
+          </div>
+          <div class="ws-edition-tools">
+            <button class="authoring-primary" type="button" data-prototype-toast="The Journey organizer arrives in Milestone 4">Open organizer</button>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <form class="authoring-form hyb-create-form" method="dialog" data-prototype-form="Created workflow">
+      <h3>New Practical Workflow (Journey)</h3>
+      <label>Title
+        <input type="text" name="title" placeholder="e.g. Sea import clearance end-to-end">
+      </label>
+      <label>Start mode
+        <select name="start_mode">
+          <option>New record</option>
+          <option>Existing record</option>
+        </select>
+      </label>
+      <button class="authoring-primary" type="submit">Create workflow</button>
+      <p class="helptext">Prototype only — steps, roles and checkpoints are reviewed in Milestone 4.</p>
+    </form>
+  </section>
+
+  <section class="authoring-card ws-panel" aria-label="Course details (mock)">
+    <div class="authoring-editor-header">
+      <div>
+        <h2>Course details</h2>
+        <p>The mock course record on this page.</p>
+      </div>
+      <span class="ws-chip ws-chip--draft">Draft</span>
+    </div>
+    <form class="authoring-form" method="dialog" data-prototype-form="Saved course details">
+      <label>Title
+        <input type="text" name="title" value="{{ course.title|striptags }}">
+      </label>
+      <label>Description
+        <textarea name="description" rows="3">{{ course.description|striptags }}</textarea>
+      </label>
+      <button class="authoring-primary" type="submit">Save course</button>
+    </form>
+  </section>
+
+  <dialog id="module-dialog" class="authoring-course-modal ws-course-dialog" aria-labelledby="module-dialog-title">
+    <form method="dialog" class="authoring-form" data-prototype-form="Added module" data-mock-target="proto-module-grid" data-mock-template="module-row-template">
+      <div class="authoring-modal-head">
+        <div>
+          <h2 id="module-dialog-title">Add module</h2>
+          <p>Modules group lessons into the order learners take them.</p>
+        </div>
+        <button class="authoring-modal-close" type="button" data-close-dialog aria-label="Close dialog">×</button>
+      </div>
+      <label>Module title
+        <input type="text" name="title" placeholder="e.g. Manifest matching &amp; risk routes">
+      </label>
+      <p class="helptext">Shown to instructors and learners across the course.</p>
+      <div class="form-actions ws-modal-actions">
+        <button class="authoring-secondary" type="button" data-close-dialog>Cancel</button>
+        <button class="authoring-primary" type="submit">Create module</button>
+      </div>
+    </form>
+  </dialog>
+</div>
+{% endblock %}

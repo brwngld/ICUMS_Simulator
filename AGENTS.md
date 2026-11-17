@@ -1,5 +1,30 @@
 # Working agreements
 
+## Message intent: classify before acting (2026-11-11)
+
+Every message from Bernard has an intent. **Classify it before doing
+anything.** The intents are:
+
+- **Question** — answer it. Do not implement, do not edit files, do not
+  start solving. Just answer.
+- **Statement** — acknowledge it. It may be context, a decision, or
+  thinking out loud. Do not treat it as a work order.
+- **Comment** — note it. It may be feedback on something already done.
+  Do not act on it unless Bernard explicitly asks for a change.
+- **Command** — do exactly what is commanded, nothing more. "Stop"
+  means stop. "Fix X" means fix X, not fix X and also Y and Z.
+- **Request** — do what is requested. If the scope is unclear, ask
+  **before** implementing. Never assume scope.
+- **Design discussion** — engage with the ideas. Do not jump to code.
+  Wait for an explicit "build it" or "proceed."
+
+**When in doubt about what a message wants, ask for clarification
+before implementing.** Never guess intent and start editing.
+
+A question mark usually means a question. A declarative sentence
+usually means a statement. Read the message, decide the intent, act
+according to that intent — and only that intent.
+
 ## Theme, styling and copy are LOCKED (2026-10-09)
 
 The visual theme — colours, fonts, font sizes, spacing, dark/light

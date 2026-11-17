@@ -1,72 +1,135 @@
 {% extends "core/base_student.html" %}
-
+{% load static %}
 {% comment %}
-The Theory & Practical learning flow: every published course, module and
-lesson of the learner's pinned edition, with completion and lock states
-resolved from their own attempts. Sequencing is enforced server-side; the
-roadmap only displays it.
+The Theory & Practical student learning portal, rendering the approved
+Course Overview design (the theory roadmap's own template and stylesheet)
+over the hybrid curriculum: Programme → Course → Module → Lesson, with the
+learner's real attempt states for progress, completion and availability.
+No alternative or simplified design is introduced here — the components,
+classes and behaviour are the approved ones; only the data and the lesson
+links are hybrid's.
 {% endcomment %}
-
-{% block title %}Theory &amp; Practical · ICUMS Simulator{% endblock %}{% block workspace_name %}Theory &amp; Practical{% endblock %}
-
+{% block title %}Course Overview · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Course Overview{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/course-overview.css' %}?v=20261016-1">{% endblock %}
 {% block content %}
-  <div class="dash hyb-roadmap">
-    <header class="dash-head">
-      <div>
-        <p class="dash-eyebrow">{{ programme.name }} · Theory &amp; Practical</p>
-        <h1>Theory &amp; Practical</h1>
-      </div>
-      <div><p class="dash-eyebrow">{{ completed }} of {{ total }} lesson{{ total|pluralize }} complete</p></div>
-    </header>
-
-    {% if total and completed == total %}
-      <p class="hyb-done-note" role="status">Programme complete — every required lesson in this edition is done.</p>
-    {% endif %}
-
-    {% for journey_row in journeys %}
-      <section class="hyb-card">
-        <h2>{{ journey_row.journey.title }}</h2>
-        <p class="dash-eyebrow">
-          {% if journey_row.complete %}Journey complete ✓
-          {% else %}Step {{ journey_row.current_position }} of {{ journey_row.position_total }}{% endif %}
-          · {{ journey_row.journey.get_start_mode_display }}
-        </p>
-        <a class="dash-secondary" href="{% url 'hybrid-journey-student' journey_row.journey.pk %}">
-          {% if journey_row.complete %}Review journey{% elif journey_row.attempt_exists %}Resume journey{% else %}Start journey{% endif %}
-        </a>
+<div class="course-overview">
+  <div class="course-overview-layout">
+    <main class="course-main">
+      <section class="course-hero">
+        {% include "components/cover_image.html" with cover=programme.cover_image css_class="course-hero-image" alt=programme.name|add:" course illustration" %}
+        <div class="course-hero-copy">
+          <span class="course-badge">▣ Theory &amp; Practical</span>
+          <h1>{{ programme.name }}</h1>
+          <p>{{ programme.description|default:"Learn the procedure in the reading pane, then perform it in the live ICUMS simulator — your own records are what count." }}</p>
+          <div class="course-meta" aria-label="Programme information"><span>▤ {{ module_total }} module{{ module_total|pluralize }}</span><span>☷ {{ lesson_total }} lesson{{ lesson_total|pluralize }}</span><span>◷ Self-paced</span></div>
+        </div>
       </section>
-    {% endfor %}
 
-    {% for row in courses %}
-      <section class="hyb-card hyb-roadmap-course">
-        <h2>{{ row.course.title }}</h2>
-        {% if row.course.description %}<div class="lrn-copy"><p>{{ row.course.description }}</p></div>{% endif %}
-        {% for module_row in row.modules %}
-          <div class="hyb-roadmap-module">
-            <h3>{{ module_row.module.title }}{% if module_row.complete %} <span class="dash-pill is-ok">Module complete ✓</span>{% endif %}</h3>
-            <ol class="hyb-journey">
-              {% for state in module_row.lessons %}
-                <li class="{% if state.complete %}done{% elif not state.unlocked %}locked{% endif %}">
-                  {% if state.unlocked %}
-                    <a href="{% url 'hybrid-workspace' state.lesson.pk %}">
-                      <span>{% if state.complete %}✓{% else %}{{ forloop.counter }}{% endif %}</span>
-                      <small>{{ state.lesson.title }}</small>
-                    </a>
-                  {% else %}
-                    <span aria-label="{{ state.lesson.title }} locked">
-                      <span>▣</span><small>{{ state.lesson.title }}</small>
-                    </span>
-                  {% endif %}
-                </li>
+      <nav class="course-tabs" aria-label="Programme sections" role="tablist">
+        <button type="button" role="tab" aria-selected="true" aria-controls="course-panel-overview" id="course-tab-overview" data-course-tab="overview">Overview</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="course-panel-structure" id="course-tab-structure" data-course-tab="structure" tabindex="-1">Course structure</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="course-panel-workflows" id="course-tab-workflows" data-course-tab="workflows" tabindex="-1">Practical workflows</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="course-panel-next" id="course-tab-next" data-course-tab="next" tabindex="-1">Next steps</button>
+      </nav>
+
+      <section class="course-tab-panel" id="course-panel-overview" role="tabpanel" aria-labelledby="course-tab-overview" data-course-panel="overview">
+        <div class="course-feature-grid">
+          <article class="course-feature"><span class="course-feature-icon blue">◎</span><div><h2>What you&rsquo;ll learn</h2><p>{{ programme.overview_summary|default:"Register and clear import consignments by performing the real procedure in the ICUMS training simulator." }}</p></div></article>
+          <article class="course-feature"><span class="course-feature-icon violet">♙</span><div><h2>Who is this for?</h2><p>{{ programme.target_audience|default:"Customs practitioners, clearing agents, importers, exporters and learners preparing for simulator practice." }}</p></div></article>
+          <article class="course-feature"><span class="course-feature-icon green">▥</span><div><h2>Skills you&rsquo;ll build</h2><ul><li>Follow a guided procedure in the live simulator</li><li>Create and submit real training records</li><li>Verify your own work against the procedure</li></ul></div></article>
+          <article class="course-feature"><span class="course-feature-icon amber">▤</span><div><h2>How you&rsquo;ll learn</h2><ul><li>Read each lesson&rsquo;s short theory panel</li><li>Follow the steps beside the live simulator</li><li>Check your work against your own records</li><li>Repeat any practical lesson to practise again</li></ul></div></article>
+        </div>
+        {% if courses %}
+        <section class="course-compact-modules">
+          <div class="course-section-heading"><div><h2>Your courses</h2><p>Complete the courses in their required learning order.</p></div><button type="button" class="course-outline-button" data-open-tab="structure">View full roadmap</button></div>
+          {% for row in courses %}<article><span class="course-module-number">{{ forloop.counter }}</span><div><strong>{{ row.course.title }}</strong><small>{{ row.modules|length }} module{{ row.modules|length|pluralize }} · {{ row.lesson_count }} lesson{{ row.lesson_count|pluralize }}</small></div><progress value="{{ row.completed_count }}" max="{{ row.lesson_count|default:1 }}">{{ row.completed_count }}/{{ row.lesson_count }}</progress><small>{{ row.completed_count }} of {{ row.lesson_count }} completed</small></article>{% empty %}<p class="course-empty">No published courses are available yet.</p>{% endfor %}
+        </section>
+        {% endif %}
+      </section>
+
+      <section class="course-tab-panel" id="course-panel-structure" role="tabpanel" aria-labelledby="course-tab-structure" data-course-panel="structure" hidden>
+        <div class="course-section-heading"><div><h2>Your learning roadmap</h2><p>Follow the courses, modules and lessons in their required order.</p></div><button type="button" class="course-outline-button" data-expand-modules>Expand all</button></div>
+        <div class="course-roadmap-summary"><strong>{{ module_total }} module{{ module_total|pluralize }}</strong><span>{{ lesson_total }} lesson{{ lesson_total|pluralize }}</span></div>
+        <section class="course-modules" aria-label="Courses and modules">
+          {% for row in courses %}
+          <details class="course-module" {% if next_state and next_state.course.pk == row.course.pk %}open{% endif %}>
+            <summary>
+              <span class="course-module-number">{{ forloop.counter }}</span>
+              <span class="course-module-title"><strong>{{ row.course.title }}</strong><small>{{ row.course.description|default:"Practical training in the ICUMS simulator." }}</small></span>
+              <span class="course-module-stat">▤ {{ row.modules|length }} module{{ row.modules|length|pluralize }}</span>
+              <span class="course-module-progress"><progress value="{{ row.completed_count }}" max="{{ row.lesson_count|default:1 }}">{{ row.completed_count }}/{{ row.lesson_count }}</progress><small>{{ row.completed_count }} of {{ row.lesson_count }} lessons</small></span>
+              <span class="course-module-chevron">⌄</span>
+            </summary>
+            <div class="course-lessons">
+              {% for module_row in row.modules %}
+              <details class="course-module" {% if next_state and next_state.module.pk == module_row.module.pk %}open{% endif %}>
+                <summary>
+                  <span class="course-module-number">{{ forloop.parentloop.counter }}.{{ forloop.counter }}</span>
+                  <span class="course-module-title"><strong>{{ module_row.module.title }}</strong><small>{{ module_row.module.description|default:"Guided practical training." }}</small></span>
+                  <span class="course-module-stat">▤ {{ module_row.lesson_count }} lesson{{ module_row.lesson_count|pluralize }}</span>
+                  <span class="course-module-progress"><progress value="{{ module_row.completed_count }}" max="{{ module_row.lesson_count|default:1 }}">{{ module_row.completed_count }}/{{ module_row.lesson_count }}</progress><small>{{ module_row.completed_count }} of {{ module_row.lesson_count }} completed</small></span>
+                  <span class="course-module-chevron">⌄</span>
+                </summary>
+                <div class="course-lessons">
+                  {% for state in module_row.lessons %}
+                    {% if state.unlocked %}
+                    <a class="course-lesson {% if state.complete %}completed{% elif next_state and next_state.lesson.pk == state.lesson.pk %}active{% else %}not_started{% endif %}" href="{% url 'hybrid-workspace' state.lesson.pk %}"><span class="course-lesson-state" aria-hidden="true">{% if state.complete %}✓{% elif next_state and next_state.lesson.pk == state.lesson.pk %}▶{% endif %}</span><span>▧</span><strong>{{ forloop.counter }}. {{ state.lesson.title }}</strong><small>{{ state.lesson.summary }}</small><span>›</span></a>
+                    {% else %}
+                    <span class="course-lesson locked"><span class="course-lesson-state" aria-hidden="true">▣</span><span>▧</span><strong>{{ forloop.counter }}. {{ state.lesson.title }}</strong><small>Finish the previous lesson to open this one.</small><span>›</span></span>
+                    {% endif %}
+                  {% empty %}
+                  <p class="course-empty">No published lessons are available in this module.</p>
+                  {% endfor %}
+                </div>
+              </details>
+              {% empty %}
+              <p class="course-empty">No published modules are available in this course.</p>
               {% endfor %}
-            </ol>
-          </div>
-        {% empty %}
-          <p class="dash-empty">No modules published yet.</p>
-        {% endfor %}
+            </div>
+          </details>
+          {% empty %}
+          <p class="course-empty">No published courses are available yet.</p>
+          {% endfor %}
+        </section>
       </section>
-    {% empty %}
-      <section class="hyb-card"><p class="dash-empty">Nothing has been published to this programme yet.</p></section>
-    {% endfor %}
+
+      <section class="course-tab-panel" id="course-panel-workflows" role="tabpanel" aria-labelledby="course-tab-workflows" data-course-panel="workflows" hidden>
+        <header class="course-panel-heading"><span>▢</span><div><h2>Practical workflows</h2><p>Multi-lesson procedures that connect steps, records and checkpoints across the simulator.</p></div></header>
+        <div class="course-assessment-dashboard">
+          {% for item in journeys %}
+          <article>
+            <div>
+              <span class="course-state {% if item.complete %}passed{% else %}available{% endif %}">{% if item.complete %}Complete{% elif item.attempt_exists %}In progress{% else %}Not started{% endif %}</span>
+              <h3>{{ item.journey.title }}</h3>
+              <p>{{ item.journey.description|default:"A connected practical workflow across several lessons." }}</p>
+            </div>
+            <dl><div><dt>Steps</dt><dd>{{ item.position_total }}</dd></div><div><dt>Position</dt><dd>Step {{ item.current_position }} of {{ item.position_total }}</dd></div></dl>
+            <a class="course-outline-button" href="{% url 'hybrid-journey-student' item.journey.pk %}">{% if item.complete %}Review workflow{% elif item.attempt_exists %}Continue workflow{% else %}Open workflow{% endif %} →</a>
+          </article>
+          {% empty %}
+          <div class="course-empty-state"><h3>No practical workflows published</h3><p>Workflow information will appear here when your instructor publishes one.</p></div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="course-tab-panel" id="course-panel-next" role="tabpanel" aria-labelledby="course-tab-next" data-course-panel="next" hidden>
+        <header class="course-panel-heading"><span>→</span><div><h2>Your next learning step</h2><p>Pick up where you left off and continue your training.</p></div></header>
+        <article class="course-next-card">
+          {% if total and completed >= total %}<span class="course-state passed">Programme complete</span><h3>Every required lesson is complete</h3><p>Your completion stays recorded. Reopen any practical lesson and practise again whenever you want to sharpen the procedure.</p>
+          {% elif next_state %}<span class="course-state available">Recommended next</span><small>{{ next_state.course.title }} · {{ next_state.module.title }}</small><h3>{{ next_state.lesson.title }}</h3><p>Continue from your current stage and complete the next lesson in the roadmap.</p><a class="course-primary-button" href="{% url 'hybrid-workspace' next_state.lesson.pk %}">Continue learning →</a>
+          {% else %}<span class="course-state locked">No next activity</span><h3>Your roadmap is not available yet</h3><p>Your instructor will publish the next learning activity here.</p>{% endif %}
+        </article>
+        <div class="course-next-timeline"><article class="complete"><span>✓</span><div><strong>Completed lessons</strong><p>{{ lesson_counts.completed }} of {{ total }} lessons completed</p></div></article><article class="current"><span>●</span><div><strong>Current stage</strong><p>{% if next_state %}{{ next_state.module.title }}{% else %}Course Overview{% endif %}</p></div></article><article><span>○</span><div><strong>Remaining lessons</strong><p>{{ lesson_counts.not_started }} lesson{{ lesson_counts.not_started|pluralize }} not started yet.</p></div></article></div>
+      </section>
+    </main>
+
+    <aside class="course-aside">
+      <section class="course-side-card"><h2>Your progress</h2><div class="course-progress-summary"><div class="course-ring" style="--course-progress:{{ course_percentage }}"><span>{{ course_percentage }}%</span></div><div><strong>Programme progress</strong><p>{{ lesson_counts.completed }} of {{ total }} lessons completed</p></div></div><dl class="course-status-list"><div><dt><i class="done"></i>Completed</dt><dd>{{ lesson_counts.completed }}</dd></div><div><dt><i class="progress"></i>In progress</dt><dd>{{ lesson_counts.in_progress }}</dd></div><div><dt><i></i>Not started</dt><dd>{{ lesson_counts.not_started }}</dd></div></dl>{% if next_state %}<a class="course-primary-button" href="{% url 'hybrid-workspace' next_state.lesson.pk %}">Continue learning →</a>{% endif %}</section>
+      <section class="course-side-card"><div class="course-side-title"><span>▢</span><h2>Practical workflows</h2></div><p>Connected procedures that span several lessons and records.</p><div class="course-assessment-list">{% for item in journeys %}<a href="{% url 'hybrid-journey-student' item.journey.pk %}"><strong>{{ item.journey.title }}</strong><small class="{% if item.complete %}passed{% else %}available{% endif %}">{% if item.complete %}✓ Complete{% else %}Step {{ item.current_position }} of {{ item.position_total }}{% endif %}</small><b>›</b></a>{% empty %}<p>No workflows have been published.</p>{% endfor %}</div></section>
+      <section class="course-side-card course-help"><div class="course-side-title"><span>☼</span><h2>Need help?</h2></div><p>If you have questions about this programme, contact your instructor for guidance.</p></section>
+    </aside>
   </div>
+</div>
+<script src="{% static 'js/course-overview.js' %}?v=20261014-1"></script>
 {% endblock %}

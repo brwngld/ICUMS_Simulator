@@ -163,7 +163,7 @@ def test_the_roadmap_links_the_journey_with_start_resume_and_status(client, db):
     client.force_login(student)
 
     html = client.get(reverse("hybrid-roadmap")).content.decode()
-    assert "Start journey" in html
+    assert "Open workflow" in html
     # Before an attempt exists there are no step rows to count, and the card
     # still has to name the journey's size: the assigned steps are the total.
     assert "Step 1 of 2" in html
@@ -174,7 +174,7 @@ def test_the_roadmap_links_the_journey_with_start_resume_and_status(client, db):
     )
     hybrid_verification.record_open(lesson_attempt, world["steps"][0])
     html = client.get(reverse("hybrid-roadmap")).content.decode()
-    assert "Resume journey" in html
+    assert "Continue workflow" in html
     assert "Step 2 of 2" in html
 
 

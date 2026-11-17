@@ -1,0 +1,139 @@
+{% extends "core/base_student.html" %}{% load static %}
+
+{% block title %}Module workspace · prototype · ICUMS Simulator{% endblock %}
+{% block workspace_name %}Module workspace — prototype{% endblock %}
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/instructor-theory-builder.css' %}?v=20261016-1">
+  <link rel="stylesheet" href="{% static 'css/hybrid-programme-workspace.css' %}?v=20261101-1">
+  <link rel="stylesheet" href="{% static 'css/hybrid-course-module-workspace.css' %}?v=20261101-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone1.css' %}?v=20261106-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone2.css' %}?v=20261106-1">
+{% endblock %}
+
+{% comment %}
+MILESTONE 1 PROTOTYPE (mock data only — hybrid/prototype_data.py). Mirrors the
+real Module Workspace (module_detail.html): the lesson list with its
+Guided Material Study / Interactive Practical split and the Add-lesson dialog.
+Lesson creation runs client-side; the editor itself is Milestone 2 and the
+Demonstration Studio is Milestone 3.
+{% endcomment %}
+
+{% block content %}<div class="authoring hyb-workspace">
+  {% include "hybrid/prototype/_assets.html" %}
+  <script id="proto-urls" type="application/json">{"editor": "{% url 'hybrid-prototype-milestone2-lesson' %}", "preview": "{% url 'hybrid-prototype-milestone2-preview' %}", "studio": "{% url 'hybrid-prototype-milestone3-studio' %}"}</script>
+
+  <a class="authoring-back-link" href="{% url 'hybrid-prototype-milestone1-course' %}">
+    <svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5m6-6-6 6 6 6"/></svg>
+    Course workspace
+  </a>
+  <nav class="ws-crumbs" aria-label="Breadcrumb">
+    <a href="{% url 'hybrid-prototype-milestone1-programme' %}">Programme workspace</a>
+    <span class="ws-crumb-sep" aria-hidden="true">→</span>
+    <a href="{% url 'hybrid-prototype-milestone1-course' %}">Pre-arrival &amp; Cargo Handling</a>
+    <span class="ws-crumb-sep" aria-hidden="true">→</span>
+    <span class="ws-crumb-here">{{ module.title }}</span>
+  </nav>
+
+  <header class="authoring-head">
+    <div>
+      <p class="authoring-eyebrow">Theory &amp; Practical · Module · draft edition v3</p>
+      <h1>{{ module.title }} <span class="proto-flag">mock</span></h1>
+      <p>Module code · <strong>{{ module.code }}</strong> — lessons run in the order shown. Interactive Practical lessons open in the Demonstration Studio.</p>
+    </div>
+    <div class="authoring-actions">
+      <a class="authoring-primary" href="#" data-open-dialog="lesson-dialog"><svg class="ui-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"/></svg>Add lesson</a>
+    </div>
+  </header>
+
+  <section class="ws-stat-grid" aria-label="Module overview (mock)">
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="book" %}</span><span class="ws-stat-figures"><b id="proto-stat-lessons">{{ lesson_rows|length }}</b><span class="ws-stat-label">Lessons</span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="layers" %}</span><span class="ws-stat-figures"><b>{{ interactive_count }}</b><span class="ws-stat-label">Interactive Practical</span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="edit" %}</span><span class="ws-stat-figures"><b>{{ theory_count }}</b><span class="ws-stat-label">Theory written</span></span></div>
+    <div class="authoring-card ws-stat"><span class="ws-stat-icon">{% include "components/icon.html" with name="assignment" %}</span><span class="ws-stat-figures"><b>{{ not_ready_count }}</b><span class="ws-stat-label">Not publish-ready</span></span></div>
+  </section>
+
+  <section class="authoring-card ws-panel" aria-label="Lessons (mock)">
+    <div class="authoring-editor-header">
+      <div>
+        <h2>Lessons</h2>
+        <p>Interactive Practical lessons build in the Demonstration Studio (Milestone 3); both lesson editors are prototyped here — open the Full editor.</p>
+      </div>
+      <span class="ws-chip ws-chip--viewing">{{ lesson_rows|length }} lesson{{ lesson_rows|length|pluralize }}</span>
+    </div>
+    <div class="ws-course-grid" id="proto-lesson-grid">
+      {% for row in lesson_rows %}
+        <article class="authoring-card ws-course-card" data-slug="{{ row.slug }}">
+          <div class="ws-course-top">
+            <div>
+              <h3>{{ row.title }}</h3>
+              <p class="ws-course-code">Lesson code · <code>{{ row.slug }}</code></p>
+            </div>
+            <span class="ws-chip {% if row.is_interactive %}ws-chip--draft{% else %}ws-chip--retired{% endif %}">{% if row.is_interactive %}Interactive Practical{% else %}Guided Material Study{% endif %}</span>
+          </div>
+          <div class="ws-course-meta">
+            <span><b data-row-steps>{{ row.step_count }}</b> step{{ row.step_count|pluralize }}</span>
+            <span data-row-theory>{% if row.has_theory %}theory written{% else %}theory not written yet{% endif %}</span>
+            {% if not row.is_interactive %}<span>Demonstration Studio applies to Interactive Practical lessons</span>{% endif %}
+            {% if row.issues %}<span class="ws-course-notready">Not publish-ready · {{ row.issues|length }} item{{ row.issues|pluralize }}</span>{% endif %}
+          </div>
+          <div class="ws-course-foot">
+            <span class="ws-move">
+              <button type="button" class="proto-move" data-prototype-toast="Lesson reordering is a browser-only preview" aria-label="Move lesson up">↑</button>
+              <button type="button" class="proto-move" data-prototype-toast="Lesson reordering is a browser-only preview" aria-label="Move lesson down">↓</button>
+            </span>
+            {% if row.is_interactive %}
+              <a class="authoring-secondary" href="{% url 'hybrid-prototype-milestone3-studio' %}?lesson={{ row.slug }}&amp;kind=interactive">Open Demonstration Studio</a>
+              <a class="authoring-primary" href="{% url 'hybrid-prototype-milestone2-lesson' %}?lesson={{ row.slug }}&amp;kind=interactive">Full editor</a>
+            {% else %}
+              <a class="authoring-primary" href="{% url 'hybrid-prototype-milestone2-lesson' %}?lesson={{ row.slug }}&amp;kind=guided">Full editor</a>
+            {% endif %}
+            <a class="authoring-secondary" href="#" data-prototype-toast="Removing “{{ row.title|striptags }}” is a browser-only preview">Remove</a>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="authoring-card ws-panel" aria-label="Module details (mock)">
+    <div class="authoring-editor-header">
+      <div>
+        <h2>Module details</h2>
+        <p>The mock module record on this page.</p>
+      </div>
+      <span class="ws-chip ws-chip--draft">Draft</span>
+    </div>
+    <form class="authoring-form" method="dialog" data-prototype-form="Saved module details">
+      <label>Title
+        <input type="text" name="title" value="{{ module.title|striptags }}">
+      </label>
+      <button class="authoring-primary" type="submit">Save module</button>
+    </form>
+  </section>
+
+  <dialog id="lesson-dialog" class="authoring-course-modal ws-course-dialog" aria-labelledby="lesson-dialog-title">
+    <form method="dialog" class="authoring-form" data-prototype-form="Added lesson">
+      <div class="authoring-modal-head">
+        <div>
+          <h2 id="lesson-dialog-title">Add lesson</h2>
+          <p>Interactive Practical lessons are demonstrated in the studio; Guided Material Study lessons carry reading material and a quiz.</p>
+        </div>
+        <button class="authoring-modal-close" type="button" data-close-dialog aria-label="Close dialog">×</button>
+      </div>
+      <label>Lesson title
+        <input type="text" name="title" placeholder="e.g. Examining a cargo hold report">
+      </label>
+      <label>Lesson type
+        <select name="lesson_type">
+          <option>Interactive Practical</option>
+          <option>Guided Practical</option>
+        </select>
+      </label>
+      <div class="form-actions ws-modal-actions">
+        <button class="authoring-secondary" type="button" data-close-dialog>Cancel</button>
+        <button class="authoring-primary" type="submit">Create lesson</button>
+      </div>
+    </form>
+  </dialog>
+  <script src="{% static 'js/prototype-milestone2.js' %}?v=20261106-3" defer></script>
+</div>
+{% endblock %}

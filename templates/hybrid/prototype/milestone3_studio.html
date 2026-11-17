@@ -1,0 +1,61 @@
+{% extends "core/base_student.html" %}{% load static %}
+{% block title %}Demonstration Studio · prototype · ICUMS Simulator{% endblock %}{% block workspace_name %}Demonstration Studio — prototype{% endblock %}
+{% block extrastyle %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/demonstration-studio.css' %}?v=20261102-2">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone1.css' %}?v=20261106-1">
+  <link rel="stylesheet" href="{% static 'css/prototype-milestone3.css' %}?v=20261106-2">
+{% endblock %}
+
+{% comment %}
+MILESTONE 3 PROTOTYPE (mock data only). Mirrors the shipped Demonstration
+Studio (templates/hybrid/demonstration_studio.html) in its flag-off shape:
+same layout, same control vocabulary, real simulator frame — but every
+recording action drives browser-tab state only. The recording engine
+(DEMONSTRATION_RECORDING_ENABLED) stays off and unqueried; no endpoint on
+this page is a write. Events come from the scripted sample in
+hybrid/prototype_data.py and are labelled as mock examples.
+{% endcomment %}
+
+{% block content %}<div class="demo-studio" id="proto-studio" data-slug="{{ lesson.slug }}" data-kind="{{ lesson.kind }}">
+  {% include "hybrid/prototype/_assets.html" %}
+  {{ demo_events|json_script:"proto-demo-events" }}
+  {{ lesson|json_script:"proto-lesson-seed" }}
+  <script id="proto-urls" type="application/json">{"editor": "{% url 'hybrid-prototype-milestone2-lesson' %}", "preview": "{% url 'hybrid-prototype-milestone2-preview' %}", "studio": "{% url 'hybrid-prototype-milestone3-studio' %}", "student": "{% url 'hybrid-prototype-milestone3-student' %}"}</script>
+
+  <nav class="crumb" aria-label="Breadcrumb"><a href="{% url 'hybrid-prototype-milestone1-programme' %}">Programme workspace</a> / <a href="{% url 'hybrid-prototype-milestone1-course' %}">Pre-arrival &amp; Cargo Handling</a> / <a href="{% url 'hybrid-prototype-milestone1-module' %}">{{ module.title }}</a> / <a href="{% url 'hybrid-prototype-milestone2-lesson' %}?lesson={{ lesson.slug }}&amp;kind={{ lesson.kind }}" id="proto3-crumb-lesson">{{ lesson.title }}</a> / Demonstration Studio</nav>
+  <div class="head"><div><h1>Instructor Demonstration Studio <span class="proto-flag">mock</span></h1><p class="muted">Demonstrating <b id="proto3-lesson-title">{{ lesson.title }}</b> <span class="proto-flag" id="proto3-lesson-browser" hidden>browser-only</span> — <span id="proto3-lesson-kind">{{ lesson.kind }}</span> · lesson code <span id="proto3-lesson-code">{{ lesson.slug }}</span>. The layout and controls follow the shipped Studio.</p></div><span class="pill">MOCK CAPTURE · RECORDING ENGINE NOT WIRED</span></div>
+  {% if not studio_available %}
+  <div class="panel"><div class="panelHead"><div><h2>No demonstration for this lesson</h2><div class="helper">Guided Material Study lessons carry reading, materials and knowledge checks — there is no simulator walkthrough to record.</div></div></div>
+    <div class="panelBody"><p class="helper">Open the Demonstration Studio from an Interactive Practical lesson. Its steps are drafted by walking through the simulator here, so the Studio has nothing to do in a reading lesson.</p><div class="toolbar"><a class="primary" href="{% url 'hybrid-prototype-milestone2-lesson' %}?lesson={{ lesson.slug }}&amp;kind={{ lesson.kind }}&amp;tab=activities">Open this lesson&rsquo;s Materials &amp; knowledge checks →</a><a href="{% url 'hybrid-prototype-milestone1-module' %}">Back to module workspace</a></div></div>
+  </div>
+  {% else %}
+  <div class="tabs" role="tablist"><button class="tab active" data-tab="record" role="tab" aria-selected="true">1 · Demonstrate</button><button class="tab" data-tab="review" role="tab" aria-selected="false">2 · Review steps</button><button class="tab" data-tab="preview" role="tab" aria-selected="false">3 · Student preview</button></div>
+
+  <section id="record" class="view"><div class="grid" id="proto3-grid">
+    <div class="panel"><div class="panelHead"><div><h2>ICUMS Simulator</h2><div class="helper">Actual simulator portal · existing Django view, template, navigation and internal scrolling</div></div><button type="button" id="proto3-expand" class="quiet">Expand simulator</button></div>
+      <div class="panelBody panelBody--frame">
+        <iframe class="simulator-frame" id="proto3-frame" src="{% url 'simulator-portal' %}" title="ICUMS Simulator — read-only frame"></iframe>
+      </div>
+    </div>
+    <aside class="panel" id="proto3-aside"><div class="panelHead"><div><h2>Capture timeline</h2><div class="helper">Mock controls only · a scripted sample replay, not a live capture</div></div><span id="proto3-count" class="pill">0 events</span></div>
+      <div class="panelBody">
+        <div class="toolbar recording-controls" aria-label="Mock recording controls">
+          <button id="proto3-start" class="primary">● Start Recording</button><button id="proto3-pause" disabled>Ⅱ Pause Recording</button><button id="proto3-resume" hidden>▶ Resume Recording</button><button id="proto3-stop" disabled>■ Stop Recording</button><button id="proto3-reset" class="quiet danger" disabled>Clear / discard</button>
+        </div>
+        <div id="proto3-status" class="status" role="status" aria-live="polite">Idle — mock recording has not started.</div>
+        <div id="proto3-events" class="empty">No sample events shown yet.</div>
+        <button type="button" id="proto3-reveal" class="primary" disabled style="width:100%;margin-top:10px">+ Show next sample event <span class="proto-flag">mock</span></button>
+        <div class="note small"><strong>Safety boundary</strong><br>This prototype never calls the recording endpoints. The simulator frame is read-only browsing; no action inside it is captured, and nothing is saved anywhere. The timeline lists a scripted sample consistent with the simulator's existing screens.</div>
+        <button id="proto3-goreview" class="primary" disabled style="width:100%">Review proposed steps →</button>
+      </div>
+    </aside>
+  </div></section>
+
+  <section id="review" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Review generated guidance</h2><div class="helper">Proposals are generated client-side from the mock script — the shipped Studio's review, extended with editing, reordering and per-step acceptance.</div></div><div class="summary"><div class="stat"><b id="proto3-proposed-count">0</b><span class="small muted">Proposed steps</span></div><div class="stat"><b id="proto3-captured-count">0</b><span class="small muted">Mock events</span></div></div></div><div class="panelBody"><div id="proto3-proposal-list" class="empty">No proposed steps yet. Stop a mock recording to review its sample events.</div><p id="proto3-review-status" class="status" role="status" aria-live="polite" hidden></p><div class="toolbar" style="margin-top:14px"><button id="proto3-apply" class="primary" hidden>Apply accepted steps to lesson <span class="proto-flag">this tab only</span></button><a class="primary" id="proto3-editor-link" href="{% url 'hybrid-prototype-milestone2-lesson' %}?lesson={{ lesson.slug }}&amp;kind={{ lesson.kind }}&amp;tab=activities">Return to this lesson&rsquo;s Practical Activities</a></div><div class="footer"><button data-show="record">← Back to simulator</button><button data-show="preview">Student preview →</button></div></div></div></section>
+
+  <section id="preview" class="view hidden"><div class="panel"><div class="panelHead"><div><h2>Student workspace preview</h2><div class="helper">A compact frame here; the full mock student experience opens on its own page.</div></div></div><div class="panelBody panelBody--frame"><iframe class="simulator-frame simulator-frame--preview" src="{% url 'simulator-portal' %}" title="Student preview — ICUMS Simulator"></iframe><div class="footer"><button data-show="review">← Review steps</button><a class="primary" id="proto3-open-student" href="{% url 'hybrid-prototype-milestone3-student' %}?lesson={{ lesson.slug }}&amp;kind={{ lesson.kind }}">Open student experience preview →</a></div></div></div></section>
+  {% endif %}
+</div>
+<script src="{% static 'js/prototype-milestone2.js' %}?v=20261106-3" defer></script>
+<script src="{% static 'js/prototype-milestone3.js' %}?v=20261106-3" defer></script>
+{% endblock %}
