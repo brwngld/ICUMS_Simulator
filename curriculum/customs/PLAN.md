@@ -68,11 +68,51 @@ briefs are authored here from the curriculum document plus the source files.
       errata required for the wave.
       M2 wave complete 2026-11-17: 4 lesson drafts (1,903–2,076 block words, same shape)
       plus `assessment-module-02.md` (12 questions with coverage map) — QA 10/10 clean
-      across both waves. The four C6 cross-reference lines to the Logistics modules are
+      across M1–M2. The four C6 cross-reference lines to the Logistics modules are
       written into 2.1–2.4 as the briefs specify; 2.4's FOB/CFR/CIF quotes verified
       against the CPC-TT deck slides (CIF's insurance leg flagged for the fact-checker).
-- [~] Module assessments, 15 → one per module after its four lessons (2 of 15:
-      `assessment-module-01.md`, `assessment-module-02.md` complete)
+      M3 wave complete 2026-11-17: 4 lesson drafts (1,859–1,962 block words, same shape)
+      plus `assessment-module-03.md` (12 questions with coverage map) — QA 15/15 clean
+      across M1–M3. The four C6 cross-reference lines to the Logistics modules are
+      written into 2.1–2.4 as the briefs specify; 2.4's FOB/CFR/CIF quotes verified
+      against the CPC-TT deck slides (CIF's insurance leg flagged for the fact-checker).
+      M4 wave complete 2026-11-17: 4 lesson drafts (1,800–1,925 block words, same shape)
+      plus `assessment-module-04.md` (12 questions with coverage map) — QA 20/20 clean
+      across M1–M4. 4.2 and 4.3 carry the systems-sheet and legal-anchors cautions as
+      their briefs specify (C7 scope guard applied throughout Module 4.2).
+      M5 wave complete 2026-11-17: 4 lesson drafts (1,787–1,907 block words, same shape)
+      plus `assessment-module-05.md` (12 questions with coverage map) — QA 25/25 clean
+      across M1–M5. C7 scope guard held throughout: no screens, menus, field names or
+      status labels; named-system facts reserved to the planned systems fact sheet in
+      every file's caution.
+      M6 wave complete 2026-11-17: 4 lesson drafts (1,776–1,901 block words, same shape)
+      plus `assessment-module-06.md` (12 questions with coverage map) — QA 30/30 clean
+      across M1–M6. The GSA and FDA decks' own wording quoted with slides throughout
+      (the eMDA instruction, the LI 1541 labelling fields, the CoC/HRG rule, the Act 851
+      sections); penalty amounts withheld per C4.4; the agencies' product-category
+      lists not extended beyond the decks.
+      M7 wave complete 2026-11-17: 4 lesson drafts (1,795–1,891 block words, same shape)
+      plus `assessment-module-07.md` (12 questions with coverage map) — QA 35/35 clean
+      across M1–M7. The GRI quoted verbatim (GRI 1, 2(a)-(b), 3(a)-(c), 6) from the
+      WEB-verified WCO text (2026-11-17); the workbook's real rows cited (Table 4
+      bovine 0201.10/20/30, Table 5 frozen sheep 0204.41/42/43, Table 4 Note 1 quoted);
+      section 12(1)-(6) advance-ruling provisions quoted; every figure carries the
+      edition label per C4.2.
+      M8 wave complete 2026-11-17: 4 lesson drafts (1,746–1,859 block words, same shape)
+      plus `assessment-module-08.md` (12 questions with coverage map) — QA 40/40 clean
+      across M1–M8. Sections 67(1)-(4), 68(1)(a)-(d), 69, 71(1)-(2), 72(2)-(5), 73
+      quoted; the stack's bases from the FULL DUTY scan's extracted tax-element table;
+      the worked full-duty example on the verified tiles row (Table 230, TSN
+      6907.21.00.00, CET 20, VAT 15); every figure labelled illustrative per C4.2-C4.3.
+      M9 wave complete 2026-11-17: 4 lesson drafts (1,670–1,737 block words, same shape)
+      plus `assessment-module-09.md` (12 questions with coverage map) — QA 45/45 clean
+      across M1–M9. Section 70(1)-(7) quoted as the wave's spine; the s.151 origin
+      vocabulary (produced, manufacture, raw material) quoted; the verified instrument
+      facts cited with sources (ECOWAS CET, RKC, TFA); the regimes' thresholds and the
+      denial machinery's detail deferred to the instruments and the legal-anchors fact
+      sheet per C4.7.
+- [~] Module assessments, 15 → one per module after its four lessons (9 of 15:
+      assessments for M1–M9 complete)
 - [~] Fact-check and errata pass per module (M1: self-review pass complete, no errata
       recorded; independent fact-check pending with the next wave)
 - [ ] Compile 15 docx + pdf → `curriculum/customs/docx/`
