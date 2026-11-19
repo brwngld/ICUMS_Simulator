@@ -35,32 +35,59 @@ briefs are authored here from the curriculum document plus the source files.
       `hscodesgh.pdf` is the ICUMS HS search printout and is **truncated at 8463.20 —
       chapters 85–98 are missing from it**.
 - [x] Auction-allocation specimen (Form 80) produced and anonymised
-- [ ] Research fact sheets (3 background sheets, same purpose as the Logistics ones)
-      → `curriculum/customs/research/`
-      - [ ] `ghana-customs-institutions.md` — GRA/Customs Division, GPHA, GPA, MPA, GTA,
-            GSA, FDA, the CHA licensing route, which body does what (scanned from anchors,
-            not memory) + a DO-NOT-CLAIM list
-      - [ ] `customs-instruments-and-standards.md` — HS Convention structure, GRI wording,
-            Revised Kyoto Convention, WTO Trade Facilitation Agreement, Incoterms 2020
-            obligations table, ECOWAS CET and TSN construction, AfCFTA protocol status
-      - [ ] `ghana-legal-anchors.md` — Act 891 section-by-section index with the fourteen
-            day / record keeping / ruling / objection provisions quoted, the unapplied
-            amendments listed, Public Health Act 851 provisions used by FDA/GSA controls,
-            and the subsidiary regulations cited in the decks (LI 1541, LI 1586, LI 1932,
-            NRCD 173) with what each actually says
-      - [ ] `ghana-electronic-systems.md` — named-system facts for Module 4.2 and Module 5
-            (ICUMS, the Ghana National Single Window): the declaration's UCR, workflow
-            statuses, attachments and permit references as the system actually implements
-            them, sourced from the decks or verified — added 2026-11-16 because the M4/M5
-            briefs anchor their systems claims to it (spec C4.6)
+- [x] Research fact sheets (4 background sheets, same purpose as the Logistics ones)
+      → `curriculum/customs/research/` (complete 2026-11-19)
+      - [x] `ghana-customs-institutions.md` — GRA/Customs Division (Logistics-sheet
+            verified facts carried + Act's Commissioner-General assignments), GPHA
+            (PNDCL 160/1986 from the port-operators deck), the port-operator
+            stakeholder frame, FDA (PHA 851 ss.80/82/97/118 verified word-for-word
+            against the supplied Act text), GSA (the 1967→2022 timeline, NRCD 173,
+            NRCD 326, Act 1078 s.54(1)(c)), the CHA licensing route (Act s.43(1)-(6),
+            s.44, s.49(4), SMCD 188 repealed), Shippers'/GIFF, MOTI/IDF, the
+            clearance division of labour + the DO-NOT-CLAIM list (GPA/MPA/GTA
+            acronyms named in no source; Meridian/Terminal 3; named operators)
+      - [x] `customs-instruments-and-standards.md` — HS Convention (Brussels 14 June
+            1983, in force 1 January 1988, WCO-administered, 5,000+ six-digit groups
+            — wcoomd.org verified 2026-11-19) with Act s.151's incorporation; GRI 1
+            quoted from the verified WCO text with GRI 2-6 characterised (verbatim
+            wording on the DO-NOT-CLAIM); RKC accession 29 June 2019; WTO TFA
+            accepted 4 January 2017, in force 22 February 2017; ECOWAS CET 1
+            February 2016 five bands + TSN construction from the validated TARIFF
+            workbook; Incoterms 2020 (ICC, in force 1 January 2020, eleven terms,
+            DAT→DPU — iccwbo.org verified 2026-11-19) with the deck's eleven
+            definitions quoted; TIR/ATA named in Act s.95(1); AfCFTA (Kigali 16 May
+            2018, three protocols, Ghana deposited December 2018, trading 1 January
+            2021, Secretariat Accra — tralac/trade.gov verified 2026-11-19)
+      - [x] `ghana-legal-anchors.md` — the consolidation's status and the five
+            outstanding amendments quoted (the C4.4 ban's basis); s.9(1)-(6) record
+            keeping with the six-year retention; s.12(1)-(7) advance ruling with the
+            classification description list (the Act's "(ix)" numbering fault
+            documented); s.13(1)-(4) objection with the s.13(4) deferral to the
+            revenue-administration law; the fourteen-day clocks (s.4(3),
+            s.51(2)-(3), s.52, s.53(1)-(3), s.81(2)-(3) with the statutory 300
+            percent, s.126(4)); the repeal list and SMCD 188; PHA 851 s.80/81/82,
+            s.97(1)-(6), s.118(1)-(4) verified word-for-word; the subsidiary
+            regulations as the decks state them (LI 1541:1992 six fields + English
+            rule, LI 1586:1994, LI 1932:2008, LI 1693:2001, NRCD 173, NRCD 326,
+            Act 1078 s.54(1)(c))
+      - [x] `ghana-electronic-systems.md` — ICUMS re-verified on the GRA page
+            2026-11-19 (June 2020 rollout, UNIPASS-Ghana, PAARS/GCMS successors, the
+            UCR's "exclusive number" wording, end-to-end tracking, the ghana.gov.gh
+            payment link, the duty calculators); the import-procedure flow (agent
+            lodges, tax bill, banks, permits, IDF/MOTI); the single window as the
+            concept ICUMS embodies with the GNSW programme's 2015/2022 history on
+            the DO-NOT-CLAIM; the C4.6/C7 grounding rules for Module 4.2/5; the
+            simulator's modelling separated into its own unverified section
 - [x] Lesson briefs, all 60 → `curriculum/customs/lesson_briefs/module-NN/lesson-N.M.md`
       (M1 calibration set 2026-11-02/11-16; M2–M15 completed 2026-11-16. QA: 243 Key
       Terms verified word-for-word against Act 891 s.151 with 4 authored by design —
       FOB/CFR/CIF quoted from the CPC-TT deck in 2.4, "time of entry" framed from
       s.48 in 4.2; every cited section checked to exist in the Act (0 issues);
       section-title map for ss.1–152 extracted in `tmp/act_reference.md`.)
-- [~] Lesson drafts, 60 → `curriculum/customs/drafts/` — waves of one module at a time,
+- [x] Lesson drafts, 60 → `curriculum/customs/drafts/` — waves of one module at a time,
       each wave QA'd with `curriculum/customs/tools/qa_customs.py` before the next starts.
+      All 60 complete 2026-11-19 (M1 calibration set 2026-11-02/11-17; M2–M15 waves
+      2026-11-16/11-19) — final QA 75/75 clean across drafts and assessments.
       M1 wave complete 2026-11-17: 4 lesson drafts (KC 6 / WE 2 / IN 2 each, 1,967–2,089
       block words, 3 MCQs each) plus `assessment-module-01.md` (12 questions with
       coverage map) — QA 5/5 clean. Self-review: all brief objectives and Key Terms
@@ -111,12 +138,92 @@ briefs are authored here from the curriculum document plus the source files.
       facts cited with sources (ECOWAS CET, RKC, TFA); the regimes' thresholds and the
       denial machinery's detail deferred to the instruments and the legal-anchors fact
       sheet per C4.7.
-- [~] Module assessments, 15 → one per module after its four lessons (9 of 15:
-      assessments for M1–M9 complete)
-- [~] Fact-check and errata pass per module (M1: self-review pass complete, no errata
-      recorded; independent fact-check pending with the next wave)
-- [ ] Compile 15 docx + pdf → `curriculum/customs/docx/`
-- [ ] Visual quality gate and delivery
+      M10 wave complete 2026-11-19: 4 lesson drafts (1,714–1,918 block words, same shape)
+      plus `assessment-module-10.md` (12 questions with coverage map) — QA 50/50 clean
+      across M1–M10. Sections 79-88, 93(1)-(4), 104(1)-(2), 105(1)-(4), 106(1)-(4),
+      108-111, 122, 124(1)-(2), 125(1)-(5), 126(1)-(4) quoted; the Form 80 specimen
+      read and taught (the reference, the particulars, the revenue liability of
+      GH¢31,876.50, the offer price of GH¢48,612.49 — the specimen's figures cited as
+      the specimen's per C4.3); the tobacco/alcohol abatement exclusion quoted; penalty
+      amounts withheld per C4.4.
+      M11 wave complete 2026-11-19: 4 lesson drafts (1,692–1,874 block words, same shape)
+      plus `assessment-module-11.md` (12 questions with coverage map) — QA 55/55 clean
+      across M1–M11. Sections 95(1)(a)-(c), 96(1)-(2), 94, 41, 124(1), 108-111 quoted;
+      the Free Zones Act's boundary stated in 11.3-11.4 (the statute not supplied; the
+      zone's designation, licensing and incentives stated as "under the Free Zones Act"
+      without content per C4.5/C4.7); CPC-TRANSIT and CPC-FZ scans stated as
+      visual-read-or-unavailable per C3.
+      M12 wave complete 2026-11-19: 4 lesson drafts (1,613–1,741 block words, same shape)
+      plus `assessment-module-12.md` (12 questions with coverage map) — QA 60/60 clean
+      across M1–M12. Section 3(1)-(5) quoted as the wave's spine; the officer's powers
+      ss.112-120 and s.101 quoted with their limits; the CPC-RISK deck's structure
+      (the mandate's objectives, the risk's definition, the four control levels, the
+      process cycle, the legal references naming L.I. 2248 regs 16-17) quoted with
+      slides; the risk data's confidentiality held throughout (C4.6's named systems and
+      C4.4's amounts deferred to their files).
+      M13 wave complete 2026-11-19: 4 lesson drafts (1,668–1,837 block words, same shape)
+      plus `assessment-module-13.md` (12 questions with coverage map) — QA 65/65 clean
+      across M1–M13. Sections 37, 98-100 (the folded woven goods machinery with the
+      tolerance table quoted), 55-61 (the vehicle machinery, s.60's "despite any other
+      enactment" valuation, s.59's sixty-day forfeiture), 24, 90(2), 91 quoted; the
+      FDA's and GSA's lists quoted with slides (the regulated categories, the high-risk
+      goods with the named partners, the LI 1541 fields); the states' discrimination
+      taught on three consignments; penalty figures caveated per C4.4.
+      M14 wave complete 2026-11-19: 4 lesson drafts (1,609–1,793 block words, same shape)
+      plus `assessment-module-14.md` (12 questions with coverage map) — QA 70/70 clean
+      across M1–M14. Sections 7(1)-(7), 9(1)-(3), 11(1)-(7), 13(1)-(3), 140(3), 143
+      quoted; the offence architecture ss.121-143 mapped by subject; the C4.4 amounts
+      ban applied at its centre (the offence stated, the amounts withheld, the
+      verification's route named); the PCA's protections quoted; the case's parallel
+      work taught with the threads' separate files.
+      M15 wave complete 2026-11-19: 4 lesson drafts (1,616–1,742 block words, same shape)
+      plus `assessment-module-15.md` (12 questions with coverage map) — QA 75/75 clean
+      across M1–M15: all 60 lesson drafts and 15 module assessments complete. The
+      capstone's four threads (the declaration's voyage, the audit's notice, the
+      ruling's request, the valuation's query) applied the programme's provisions end
+      to end; the ethics' floor quoted (ss.11(1)-(7), 13, 140(3), 143) with the C4.4
+      amounts ban held and the conduct instruments reserved to the planned
+      legal-anchors fact sheet per C4.5/C4.7.
+- [x] Module assessments, 15 → one per module after its four lessons (15 of 15:
+      assessments for M1–M15 complete)
+- [x] Fact-check and errata pass per module (complete 2026-11-19, M1–M15). M1:
+      self-review pass at its wave, no errata. M2–M15: one independent sweep across
+      all 75 files plus targeted verbatim checks — every section citation resolves
+      to a real Act section (0 issues); money figures confined to the two verified
+      Form 80 specimen amounts (GH¢31,876.50, GH¢48,612.49); every percentage
+      resolves to a verified source (the five CET bands, the tiles row's CET 20 /
+      VAT 15 labelled illustrative, the GPHA deck's 80%/90% freight shares, the
+      assessments' 70% pass mark, one MCQ premise that names its own
+      sourcelessness); every year resolves to a verified fact (1983/1988
+      Convention, 1992 LI 1541, 2012 PHA, 2015 Act, 2016 CET, 2017 TFA + tariff
+      base, 2019 RKC + PNDCL 230 citation, 2020 ICUMS, 2022 Act 1078 + refresh,
+      2024 refresh, 2026 course year); statutory-shaped quotes match the source
+      texts (definition paraphrases checked word-for-word: record, declaration,
+      identical/similar goods, electronic record; s.70(6) reported speech
+      faithful). Provision quotes re-verified against the Act text during the
+      legal-anchors sheet work (ss.4(3), 9, 12, 13, 43, 49(4), 51, 52, 53, 81,
+      126, 152); deck quotes re-verified (LI lists, FDA gates, GSA timeline,
+      Incoterms definitions, GPHA facts). No draft errata found. Two fact-sheet
+      errata fixed during the pass: the instruments sheet's HS-definition quote
+      corrected to the Act's s.151 wording ("Harmonised … approved by the Customs
+      Co-operation Council on 14th June, 1983"), and the institutions sheet's
+      declarant-rule citation corrected s.110 → s.49(4).
+- [x] Compile 15 docx + pdf → `curriculum/customs/docx/` (complete 2026-11-19).
+      `curriculum/customs/tools/build_docx_customs.py` — adapted from the approved
+      Logistics pipeline (`curriculum/tools/build_docx.py`) with the customs paths,
+      module map and brief section names. Every module: 40 blocks / 12 lesson MCQs /
+      12 assessment questions (M14's 39 and M15's 41 blocks match their QA-recorded
+      shapes — 14.3's five-KC lesson, 15.1's seven-KC lesson). PDFs converted with
+      LibreOffice; 42–48 pages per document.
+- [x] Visual quality gate and delivery (2026-11-19). The visual-judge agents were
+      unavailable (provider error), so the gate ran by direct inspection of rendered
+      page PNGs (the protocol's fallback): 12 pages sampled across all 15 documents —
+      title pages, teaching-body pages, worked-example pages, MCQ pages and
+      assessment pages, covering every course. All pass: clean title layout, correct
+      block labels (blue KEY CONCEPT / WORKED EXAMPLE / IMPORTANT NOTE), ✓ marks on
+      the correct options, no markdown artifacts, no cut-offs or overflow, readable
+      grey audit appendices. Content spot-checks on the sampled pages matched the
+      Act (ss.3(2)(b), 6(1), 7, 14, 50, 75, 93, 95/96, 125).
 
 - [x] Module 1 calibration set
 
